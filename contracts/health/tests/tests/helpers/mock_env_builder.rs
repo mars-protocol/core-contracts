@@ -137,6 +137,7 @@ impl MockEnvBuilder {
                         zapper: "n/a".to_string(),
                         health_contract: "n/a".to_string(),
                         rewards_collector: None,
+                        perps: "n/a".to_string(),
                     },
                 },
                 &[],

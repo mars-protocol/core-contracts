@@ -2137,6 +2137,7 @@ dependencies = [
  "mars-mock-vault",
  "mars-owner 2.0.0",
  "mars-params",
+ "mars-perps",
  "mars-rover-health",
  "mars-swapper-mock",
  "mars-types",

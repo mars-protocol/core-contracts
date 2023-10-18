@@ -21,6 +21,7 @@ import {
   VaultPositionType,
   UpdateConfig,
   ActionCoin,
+  SignedDecimal,
   VaultBaseForString,
   QueryMsg,
   ConfigResponse,

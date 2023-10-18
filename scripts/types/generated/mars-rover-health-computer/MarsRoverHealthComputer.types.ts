@@ -20,6 +20,14 @@ export type Addr = string
 export type Decimal = string
 export type Uint128 = string
 export type AccountKind = 'default' | 'high_levered_strategy'
+export type PnL =
+  | 'break_even'
+  | {
+      profit: Coin
+    }
+  | {
+      loss: Coin
+    }
 export type VaultPositionAmount =
   | {
       unlocked: VaultAmount
@@ -78,6 +86,7 @@ export interface Positions {
   debts: DebtAmount[]
   deposits: Coin[]
   lends: Coin[]
+  perps: PerpPosition[]
   vaults: VaultPosition[]
 }
 export interface DebtAmount {
@@ -88,6 +97,18 @@ export interface DebtAmount {
 export interface Coin {
   amount: Uint128
   denom: string
+  [k: string]: unknown
+}
+export interface PerpPosition {
+  current_price: Decimal
+  denom: string
+  entry_price: Decimal
+  pnl: PnL
+  size: SignedDecimal
+}
+export interface SignedDecimal {
+  abs: Decimal
+  negative: boolean
   [k: string]: unknown
 }
 export interface VaultPosition {

@@ -5,8 +5,8 @@ use mars_mock_oracle::msg::{CoinPrice, InstantiateMsg as OracleInstantiateMsg};
 use mars_types::{
     adapters::{
         health::HealthContractUnchecked, incentives::IncentivesUnchecked, oracle::OracleUnchecked,
-        red_bank::RedBankUnchecked, rewards_collector::RewardsCollector, swapper::SwapperBase,
-        zapper::ZapperBase,
+        params::ParamsUnchecked, perps::PerpsUnchecked, red_bank::RedBankUnchecked,
+        rewards_collector::RewardsCollector, swapper::SwapperBase, zapper::ZapperBase,
     },
     credit_manager::ConfigUpdates,
     health::AccountKind,
@@ -33,6 +33,8 @@ fn only_owner_can_update_config() {
             zapper: None,
             health_contract: None,
             rewards_collector: None,
+            params: None,
+            perps: None,
         },
     );
 
@@ -90,6 +92,8 @@ fn update_config_works_with_full_config() {
     let new_swapper = SwapperBase::new("new_swapper".to_string());
     let new_health_contract = HealthContractUnchecked::new("new_health_contract".to_string());
     let new_rewards_collector = "rewards_collector_contract_new".to_string();
+    let new_params_contract = ParamsUnchecked::new("new_params_contract".to_string());
+    let new_perps_contract = PerpsUnchecked::new("new_perps_contract".to_string());
 
     mock.update_config(
         &Addr::unchecked(original_config.ownership.owner.clone().unwrap()),
@@ -104,6 +108,8 @@ fn update_config_works_with_full_config() {
             zapper: Some(new_zapper.clone()),
             health_contract: Some(new_health_contract.clone()),
             rewards_collector: Some(new_rewards_collector.clone()),
+            params: Some(new_params_contract.clone()),
+            perps: Some(new_perps_contract.clone()),
         },
     )
     .unwrap();
@@ -138,6 +144,12 @@ fn update_config_works_with_full_config() {
 
     assert_eq!(&new_config.health_contract, new_health_contract.address());
     assert_ne!(new_config.health_contract, original_config.health_contract);
+
+    assert_eq!(&new_config.params, new_params_contract.address());
+    assert_ne!(new_config.params, original_config.params);
+
+    assert_eq!(&new_config.perps, new_perps_contract.address());
+    assert_ne!(new_config.perps, original_config.perps);
 
     let rc_accounts = mock.query_accounts(&new_rewards_collector, None, None);
     let rc_account = rc_accounts.first().unwrap();

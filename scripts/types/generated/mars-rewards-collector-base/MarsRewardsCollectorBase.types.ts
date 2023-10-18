@@ -109,6 +109,17 @@ export type Action =
       }
     }
   | {
+      open_perp: {
+        denom: string
+        size: SignedDecimal
+      }
+    }
+  | {
+      close_perp: {
+        denom: string
+      }
+    }
+  | {
       enter_vault: {
         coin: ActionCoin
         vault: VaultBaseForString
@@ -194,6 +205,11 @@ export interface UpdateConfig {
 export interface ActionCoin {
   amount: ActionAmount
   denom: string
+}
+export interface SignedDecimal {
+  abs: Decimal
+  negative: boolean
+  [k: string]: unknown
 }
 export interface VaultBaseForString {
   address: string

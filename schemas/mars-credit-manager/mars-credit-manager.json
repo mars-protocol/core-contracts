@@ -404,6 +404,54 @@
             "additionalProperties": false
           },
           {
+            "description": "Open a new perpetual futures position",
+            "type": "object",
+            "required": [
+              "open_perp"
+            ],
+            "properties": {
+              "open_perp": {
+                "type": "object",
+                "required": [
+                  "denom",
+                  "size"
+                ],
+                "properties": {
+                  "denom": {
+                    "type": "string"
+                  },
+                  "size": {
+                    "$ref": "#/definitions/SignedDecimal"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Close a perpetual futures position.\n\nIf the position is in profit, the counterparty vault will be deposited appropriate amount of base currency into the credit account.\n\nIf the position is in loss, the credit manager will send appropriate amount of base currency from the credit account to the counterparty vault.",
+            "type": "object",
+            "required": [
+              "close_perp"
+            ],
+            "properties": {
+              "close_perp": {
+                "type": "object",
+                "required": [
+                  "denom"
+                ],
+                "properties": {
+                  "denom": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Deposit coins into vault strategy If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault",
             "type": "object",
             "required": [
@@ -994,6 +1042,62 @@
             "additionalProperties": false
           },
           {
+            "description": "Corresponding to the OpenPerp action",
+            "type": "object",
+            "required": [
+              "open_perp"
+            ],
+            "properties": {
+              "open_perp": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "denom",
+                  "size"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "denom": {
+                    "type": "string"
+                  },
+                  "size": {
+                    "$ref": "#/definitions/SignedDecimal"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Corresponding to the ClosePerp action",
+            "type": "object",
+            "required": [
+              "close_perp"
+            ],
+            "properties": {
+              "close_perp": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "denom"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "denom": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Adds coin to a vault strategy",
             "type": "object",
             "required": [
@@ -1547,6 +1651,26 @@
               }
             ]
           },
+          "params": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/ParamsBase_for_String"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perps": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/PerpsBase_for_String"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "red_bank": {
             "anyOf": [
               {
@@ -1894,8 +2018,30 @@
           }
         ]
       },
+      "ParamsBase_for_String": {
+        "type": "string"
+      },
+      "PerpsBase_for_String": {
+        "type": "string"
+      },
       "RedBankUnchecked": {
         "type": "string"
+      },
+      "SignedDecimal": {
+        "description": "Inspired by Margined protocol's implementation: https://github.com/margined-protocol/perpetuals/blob/main/packages/margined_common/src/integer.rs\n\nThis type is specifically adapted to our need (only methods that are actually used by the contract are implemented) hence not suited for general use.",
+        "type": "object",
+        "required": [
+          "abs",
+          "negative"
+        ],
+        "properties": {
+          "abs": {
+            "$ref": "#/definitions/Decimal"
+          },
+          "negative": {
+            "type": "boolean"
+          }
+        }
       },
       "SwapperBase_for_String": {
         "type": "string"
@@ -2760,6 +2906,7 @@
         "oracle",
         "ownership",
         "params",
+        "perps",
         "red_bank",
         "swapper",
         "zapper"
@@ -2790,6 +2937,9 @@
           "$ref": "#/definitions/OwnerResponse"
         },
         "params": {
+          "type": "string"
+        },
+        "perps": {
           "type": "string"
         },
         "red_bank": {
@@ -2919,6 +3069,7 @@
         "debts",
         "deposits",
         "lends",
+        "perps",
         "vaults"
       ],
       "properties": {
@@ -2941,6 +3092,12 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/Coin"
+          }
+        },
+        "perps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PerpPosition"
           }
         },
         "vaults": {
@@ -3001,6 +3158,10 @@
           },
           "additionalProperties": false
         },
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
         "LockingVaultAmount": {
           "type": "object",
           "required": [
@@ -3016,6 +3177,86 @@
             }
           },
           "additionalProperties": false
+        },
+        "PerpPosition": {
+          "description": "This is the position data to be returned in a query. It includes current price and PnL.",
+          "type": "object",
+          "required": [
+            "current_price",
+            "denom",
+            "entry_price",
+            "pnl",
+            "size"
+          ],
+          "properties": {
+            "current_price": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "denom": {
+              "type": "string"
+            },
+            "entry_price": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "pnl": {
+              "$ref": "#/definitions/PnL"
+            },
+            "size": {
+              "$ref": "#/definitions/SignedDecimal"
+            }
+          },
+          "additionalProperties": false
+        },
+        "PnL": {
+          "description": "The profit-and-loss of a perp position, denominated in the base currency.",
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "break_even"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "profit"
+              ],
+              "properties": {
+                "profit": {
+                  "$ref": "#/definitions/Coin"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "loss"
+              ],
+              "properties": {
+                "loss": {
+                  "$ref": "#/definitions/Coin"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "SignedDecimal": {
+          "description": "Inspired by Margined protocol's implementation: https://github.com/margined-protocol/perpetuals/blob/main/packages/margined_common/src/integer.rs\n\nThis type is specifically adapted to our need (only methods that are actually used by the contract are implemented) hence not suited for general use.",
+          "type": "object",
+          "required": [
+            "abs",
+            "negative"
+          ],
+          "properties": {
+            "abs": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "negative": {
+              "type": "boolean"
+            }
+          }
         },
         "Uint128": {
           "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",

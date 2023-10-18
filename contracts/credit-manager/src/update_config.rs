@@ -13,7 +13,7 @@ use crate::{
     execute::create_credit_account,
     state::{
         ACCOUNT_NFT, HEALTH_CONTRACT, INCENTIVES, MAX_SLIPPAGE, MAX_UNLOCKING_POSITIONS, ORACLE,
-        OWNER, RED_BANK, REWARDS_COLLECTOR, SWAPPER, ZAPPER,
+        OWNER, PARAMS, PERPS, RED_BANK, REWARDS_COLLECTOR, SWAPPER, ZAPPER,
     },
     utils::assert_max_slippage,
 };
@@ -94,6 +94,18 @@ pub fn update_config(
         INCENTIVES.save(deps.storage, &unchecked.check(deps.api, env.contract.address)?)?;
         response =
             response.add_attribute("key", "incentives").add_attribute("value", unchecked.address());
+    }
+
+    if let Some(unchecked) = updates.params {
+        PARAMS.save(deps.storage, &unchecked.check(deps.api)?)?;
+        response =
+            response.add_attribute("key", "params").add_attribute("value", unchecked.address());
+    }
+
+    if let Some(unchecked) = updates.perps {
+        PERPS.save(deps.storage, &unchecked.check(deps.api)?)?;
+        response =
+            response.add_attribute("key", "perps").add_attribute("value", unchecked.address());
     }
 
     if let Some(unchecked) = updates.rewards_collector {

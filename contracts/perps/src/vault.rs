@@ -64,7 +64,7 @@ pub fn compute_nav(
     )?;
 
     // convert the PnL to base currency (USDC)
-    let base_price = oracle.query_price(&deps.querier, &base_denom, ActionKind::Default)?.price;
+    let base_price = oracle.query_price(&deps.querier, base_denom, ActionKind::Default)?.price;
     let total_pnl_in_base_currency = total_pnl.checked_div(base_price.into())?;
 
     // NAV := max(assets - totalUnrealizedPnL, 0)

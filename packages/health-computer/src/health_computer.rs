@@ -382,10 +382,12 @@ impl HealthComputer {
         //
         // TODO: some dupliate code here
         let debt = self.perp_debt()?;
-        let coin_price =
-            self.denoms_data.prices.get(&debt.denom).ok_or(MissingPrice(debt.denom.clone()))?;
-        let debt_value = debt.amount.checked_mul_ceil(*coin_price)?;
-        total = total.checked_add(debt_value)?;
+        if !debt.amount.is_zero() {
+            let coin_price =
+                self.denoms_data.prices.get(&debt.denom).ok_or(MissingPrice(debt.denom.clone()))?;
+            let debt_value = debt.amount.checked_mul_ceil(*coin_price)?;
+            total = total.checked_add(debt_value)?;
+        }
 
         Ok(total)
     }

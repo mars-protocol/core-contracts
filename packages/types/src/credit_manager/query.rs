@@ -168,6 +168,7 @@ pub struct ConfigResponse {
     pub incentives: String,
     pub oracle: String,
     pub params: String,
+    pub perps: String,
     pub max_unlocking_positions: Uint128,
     pub max_slippage: Decimal,
     pub swapper: String,

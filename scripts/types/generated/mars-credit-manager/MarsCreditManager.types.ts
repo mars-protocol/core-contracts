@@ -85,6 +85,17 @@ export type Action =
       }
     }
   | {
+      open_perp: {
+        denom: string
+        size: SignedDecimal
+      }
+    }
+  | {
+      close_perp: {
+        denom: string
+      }
+    }
+  | {
       enter_vault: {
         coin: ActionCoin
         vault: VaultBaseForString
@@ -158,6 +169,7 @@ export type LiquidateRequestForVaultBaseForString =
     }
 export type VaultPositionType = 'u_n_l_o_c_k_e_d' | 'l_o_c_k_e_d' | 'u_n_l_o_c_k_i_n_g'
 export type AccountNftBaseForString = string
+export type PerpsBaseForString = string
 export type OwnerUpdate =
   | {
       propose_new_owner: {
@@ -248,6 +260,19 @@ export type CallbackMsg =
   | {
       assert_deposit_caps: {
         denoms: string[]
+      }
+    }
+  | {
+      open_perp: {
+        account_id: string
+        denom: string
+        size: SignedDecimal
+      }
+    }
+  | {
+      close_perp: {
+        account_id: string
+        denom: string
       }
     }
   | {
@@ -381,6 +406,11 @@ export interface ActionCoin {
   amount: ActionAmount
   denom: string
 }
+export interface SignedDecimal {
+  abs: Decimal
+  negative: boolean
+  [k: string]: unknown
+}
 export interface VaultBaseForString {
   address: string
 }
@@ -391,6 +421,8 @@ export interface ConfigUpdates {
   max_slippage?: Decimal | null
   max_unlocking_positions?: Uint128 | null
   oracle?: OracleBaseForString | null
+  params?: ParamsBaseForString | null
+  perps?: PerpsBaseForString | null
   red_bank?: RedBankUnchecked | null
   rewards_collector?: string | null
   swapper?: SwapperBaseForString | null
@@ -531,6 +563,7 @@ export interface ConfigResponse {
   oracle: string
   ownership: OwnerResponse
   params: string
+  perps: string
   red_bank: string
   rewards_collector?: RewardsCollector | null
   swapper: string
@@ -548,17 +581,33 @@ export interface RewardsCollector {
   address: string
 }
 export type ArrayOfCoin = Coin[]
+export type PnL =
+  | 'break_even'
+  | {
+      profit: Coin
+    }
+  | {
+      loss: Coin
+    }
 export interface Positions {
   account_id: string
   debts: DebtAmount[]
   deposits: Coin[]
   lends: Coin[]
+  perps: PerpPosition[]
   vaults: VaultPosition[]
 }
 export interface DebtAmount {
   amount: Uint128
   denom: string
   shares: Uint128
+}
+export interface PerpPosition {
+  current_price: Decimal
+  denom: string
+  entry_price: Decimal
+  pnl: PnL
+  size: SignedDecimal
 }
 export interface VaultPositionValue {
   base_coin: CoinValue

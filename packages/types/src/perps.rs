@@ -2,7 +2,7 @@ use std::fmt;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Api, Coin, Decimal, StdResult, Uint128};
-use mars_owner::{OwnerResponse, OwnerUpdate};
+use mars_owner::OwnerUpdate;
 
 use crate::{adapters::oracle::OracleBase, math::SignedDecimal};
 
@@ -199,7 +199,7 @@ pub enum ExecuteMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
-    #[returns(OwnerResponse)]
+    #[returns(mars_owner::OwnerResponse)]
     Owner {},
 
     #[returns(Config<String>)]

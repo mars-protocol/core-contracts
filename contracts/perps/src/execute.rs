@@ -36,7 +36,7 @@ pub fn enable_denom(
 ) -> ContractResult<Response> {
     OWNER.assert_owner(store, sender)?;
 
-    DENOM_STATES.update(store, &denom, |maybe_ds| {
+    DENOM_STATES.update(store, denom, |maybe_ds| {
         // if the denom does not already exist, initialize the denom state with
         // zero total size and cost basis
         let Some(mut ds) = maybe_ds else {
@@ -70,7 +70,7 @@ pub fn disable_denom(
 ) -> ContractResult<Response> {
     OWNER.assert_owner(store, sender)?;
 
-    DENOM_STATES.update(store, &denom, |maybe_ds| {
+    DENOM_STATES.update(store, denom, |maybe_ds| {
         let Some(mut ds) = maybe_ds else {
             return Err(ContractError::DenomNotFound {
                 denom: denom.into(),

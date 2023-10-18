@@ -54,6 +54,7 @@ pub fn query_config(deps: Deps) -> ContractResult<ConfigResponse> {
         incentives: INCENTIVES.load(deps.storage)?.addr.into(),
         oracle: ORACLE.load(deps.storage)?.address().into(),
         params: PARAMS.load(deps.storage)?.address().into(),
+        perps: PERPS.load(deps.storage)?.address().into(),
         max_unlocking_positions: MAX_UNLOCKING_POSITIONS.load(deps.storage)?,
         max_slippage: MAX_SLIPPAGE.load(deps.storage)?,
         swapper: SWAPPER.load(deps.storage)?.address().into(),

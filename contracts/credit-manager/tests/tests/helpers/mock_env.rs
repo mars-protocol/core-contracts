@@ -27,6 +27,7 @@ use mars_types::{
         incentives::{Incentives, IncentivesUnchecked},
         oracle::{Oracle, OracleBase, OracleUnchecked},
         params::Params,
+        perps::Perps,
         red_bank::RedBankUnchecked,
         swapper::{Swapper, SwapperBase},
         vault::{Vault, VaultPosition, VaultPositionValue as VPositionValue, VaultUnchecked},
@@ -52,6 +53,7 @@ use mars_types::{
         InstantiateMsg as ParamsInstantiateMsg, QueryMsg as ParamsQueryMsg, VaultConfig,
         VaultConfigUnchecked, VaultConfigUpdate,
     },
+    perps::InstantiateMsg as PerpsInstantiateMsg,
     red_bank::{
         self, InitOrUpdateAssetParams, InterestRateModel,
         QueryMsg::{UserCollateral, UserDebt},
@@ -66,9 +68,9 @@ use mars_zapper_mock::msg::{InstantiateMsg as ZapperInstantiateMsg, LpConfig};
 
 use super::{
     lp_token_info, mock_account_nft_contract, mock_address_provider_contract, mock_health_contract,
-    mock_incentives_contract, mock_oracle_contract, mock_params_contract, mock_red_bank_contract,
-    mock_rover_contract, mock_swapper_contract, mock_v2_zapper_contract, mock_vault_contract,
-    AccountToFund, CoinInfo, VaultTestInfo,
+    mock_incentives_contract, mock_oracle_contract, mock_params_contract, mock_perps_contract,
+    mock_red_bank_contract, mock_rover_contract, mock_swapper_contract, mock_v2_zapper_contract,
+    mock_vault_contract, AccountToFund, CoinInfo, VaultTestInfo,
 };
 
 pub const DEFAULT_RED_BANK_COIN_BALANCE: Uint128 = Uint128::new(1_000_000);
@@ -80,6 +82,7 @@ pub struct MockEnv {
     pub health_contract: HealthContract,
     pub incentives: Incentives,
     pub params: Params,
+    pub perps: Perps,
 }
 
 pub struct MockEnvBuilder {
@@ -752,6 +755,15 @@ impl MockEnvBuilder {
             );
         }
 
+        let perps = self.deploy_perps_contract(&rover);
+        self.update_config(
+            &rover,
+            ConfigUpdates {
+                perps: Some(perps.clone().into()),
+                ..Default::default()
+            },
+        );
+
         self.fund_users();
 
         self.deploy_vaults();
@@ -763,6 +775,7 @@ impl MockEnvBuilder {
             health_contract,
             incentives,
             params,
+            perps,
         })
     }
 
@@ -1040,6 +1053,30 @@ impl MockEnvBuilder {
             .unwrap();
 
         Params::new(addr)
+    }
+
+    fn deploy_perps_contract(&mut self, cm_addr: &Addr) -> Perps {
+        let contract_code_id = self.app.store_code(mock_perps_contract());
+        let owner = self.get_owner();
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                contract_code_id,
+                owner.clone(),
+                &PerpsInstantiateMsg {
+                    credit_manager: cm_addr.to_string(),
+                    oracle: self.oracle.clone().unwrap().into(),
+                    base_denom: "uusdc".to_string(),
+                    min_position_size: Uint128::one(),
+                },
+                &[],
+                "mock-perps-contract",
+                Some(owner.to_string()),
+            )
+            .unwrap();
+
+        Perps::new(addr)
     }
 
     fn get_health_contract(&mut self) -> HealthContract {

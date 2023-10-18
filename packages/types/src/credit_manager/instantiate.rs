@@ -4,7 +4,8 @@ use cosmwasm_std::{Decimal, Uint128};
 use crate::adapters::{
     account_nft::AccountNftUnchecked, health::HealthContractUnchecked,
     incentives::IncentivesUnchecked, oracle::OracleUnchecked, params::ParamsUnchecked,
-    red_bank::RedBankUnchecked, swapper::SwapperUnchecked, zapper::ZapperUnchecked,
+    perps::PerpsUnchecked, red_bank::RedBankUnchecked, swapper::SwapperUnchecked,
+    zapper::ZapperUnchecked,
 };
 
 #[cw_serde]
@@ -46,6 +47,8 @@ pub struct ConfigUpdates {
     pub swapper: Option<SwapperUnchecked>,
     pub zapper: Option<ZapperUnchecked>,
     pub health_contract: Option<HealthContractUnchecked>,
+    pub params: Option<ParamsUnchecked>,
     /// The Mars Protocol rewards-collector contract. We collect protocol fee for its account.
     pub rewards_collector: Option<String>,
+    pub perps: Option<PerpsUnchecked>,
 }
