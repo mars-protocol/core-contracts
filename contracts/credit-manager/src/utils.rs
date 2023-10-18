@@ -14,19 +14,30 @@ use mars_types::{
 use crate::{
     error::{ContractError, ContractResult},
     state::{
-        ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, MAX_SLIPPAGE, PARAMS, RED_BANK,
+        ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, MAX_SLIPPAGE, PARAMS, PERPS, RED_BANK,
         TOTAL_DEBT_SHARES,
     },
     update_coin_balances::query_balance,
 };
 
-pub fn assert_is_token_owner(deps: &DepsMut, user: &Addr, account_id: &str) -> ContractResult<()> {
+/// Assert that the transaction sender is authorized to update the account.
+///
+/// Two actors are authorized: the NFT owner, and the perps contract.
+///
+/// The only case the perps contract may need to update the account is when
+/// closing a perp position that is in profit, it needs to deposit the profit
+/// into the account.
+pub fn assert_is_authorized(deps: &DepsMut, user: &Addr, account_id: &str) -> ContractResult<()> {
     let owner = query_nft_token_owner(deps.as_ref(), account_id)?;
     if user != &owner {
-        return Err(ContractError::NotTokenOwner {
-            user: user.to_string(),
-            account_id: account_id.to_string(),
-        });
+        let perps = PERPS.load(deps.storage)?;
+        if user != perps.address() {
+            // TODO: update error message text?
+            return Err(ContractError::NotTokenOwner {
+                user: user.to_string(),
+                account_id: account_id.to_string(),
+            });
+        }
     }
     Ok(())
 }

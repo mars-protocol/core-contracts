@@ -28,7 +28,7 @@ use crate::{
     state::{ACCOUNT_KINDS, ACCOUNT_NFT, REENTRANCY_GUARD},
     swap::swap_exact_in,
     update_coin_balances::{update_coin_balance, update_coin_balance_after_vault_liquidation},
-    utils::{assert_is_token_owner, get_account_kind},
+    utils::{assert_is_authorized, get_account_kind},
     vault::{
         enter_vault, exit_vault, exit_vault_unlocked, liquidate_vault, request_vault_unlock,
         update_vault_coin_balance,
@@ -68,7 +68,7 @@ pub fn dispatch_actions(
     account_id: &str,
     actions: Vec<Action>,
 ) -> ContractResult<Response> {
-    assert_is_token_owner(&deps, &info.sender, account_id)?;
+    assert_is_authorized(&deps, &info.sender, account_id)?;
     REENTRANCY_GUARD.try_lock(deps.storage)?;
 
     let mut response = Response::new();
