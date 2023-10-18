@@ -276,6 +276,7 @@ pub fn random_health_computer() -> impl Strategy<Value = HealthComputer> {
                     debts,
                     lends,
                     vaults,
+                    perps: vec![], // TODO
                 },
                 denoms_data: denoms_data.clone(),
                 vaults_data: vaults_data.clone(),

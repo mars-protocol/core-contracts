@@ -50,6 +50,7 @@ fn missing_price_data() {
             ],
             lends: vec![],
             vaults: vec![],
+            perps: vec![],
         },
         denoms_data,
         vaults_data,
@@ -97,6 +98,7 @@ fn missing_params() {
             ],
             lends: vec![],
             vaults: vec![],
+            perps: vec![],
         },
         denoms_data,
         vaults_data,
@@ -129,14 +131,15 @@ fn deposit_not_present() {
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            perps: vec![],
         },
         denoms_data,
         vaults_data,
     };
 
-    let max_withdraw_amount =
-        h.max_swap_amount_estimate("xyz", &udai.denom, &SwapKind::Default).unwrap();
-    assert_eq!(max_withdraw_amount, Uint128::zero());
+    let err: HealthError =
+        h.max_swap_amount_estimate("xyz", &udai.denom, &SwapKind::Default).unwrap_err();
+    assert_eq!(err, HealthError::DenomNotPresent("xyz".to_string()));
 }
 
 #[test]
@@ -179,6 +182,7 @@ fn zero_when_unhealthy() {
             ],
             lends: vec![],
             vaults: vec![],
+            perps: vec![],
         },
         denoms_data,
         vaults_data,
@@ -221,6 +225,7 @@ fn no_debts() {
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            perps: vec![],
         },
         denoms_data,
         vaults_data,
@@ -265,6 +270,7 @@ fn should_allow_max_swap() {
             }],
             lends: vec![],
             vaults: vec![],
+            perps: vec![],
         },
         denoms_data,
         vaults_data,
@@ -349,6 +355,7 @@ fn hls_with_max_withdraw() {
                 vault,
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::new(5264))),
             }],
+            perps: vec![],
         },
         denoms_data,
         vaults_data,
