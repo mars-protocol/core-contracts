@@ -2668,6 +2668,7 @@ dependencies = [
  "cw721-base 0.18.0",
  "mars-owner 2.0.0",
  "mars-utils 2.0.0",
+ "schemars",
  "serde",
  "serde-json-wasm 1.0.0",
  "strum 0.25.0",
