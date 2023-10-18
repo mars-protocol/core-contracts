@@ -2416,6 +2416,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "mars-perps"
+version = "2.0.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus 1.1.0",
+ "cw-utils 1.0.2",
+ "cw2 1.1.1",
+ "mars-owner 2.0.0",
+ "mars-types",
+ "schemars",
+ "serde",
+ "serde-json-wasm 1.0.0",
+ "test-case",
+ "thiserror",
+]
+
+[[package]]
 name = "mars-red-bank"
 version = "2.0.0"
 dependencies = [
