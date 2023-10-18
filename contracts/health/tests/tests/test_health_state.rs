@@ -24,6 +24,7 @@ fn zero_debts_results_in_healthy_state() {
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            perps: vec![],
         },
     );
 
@@ -59,6 +60,7 @@ fn computing_health_when_healthy() {
             }],
             lends: vec![],
             vaults: vec![],
+            perps: vec![],
         },
     );
 
@@ -93,6 +95,7 @@ fn computing_health_when_unhealthy() {
             }],
             lends: vec![],
             vaults: vec![],
+            perps: vec![],
         },
     );
 
