@@ -12,6 +12,7 @@ pub mod liquidate;
 pub mod liquidate_deposit;
 pub mod liquidate_lend;
 pub mod migrations;
+pub mod perp;
 pub mod query;
 pub mod reclaim;
 pub mod refund;

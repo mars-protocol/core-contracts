@@ -4,8 +4,8 @@ use mars_owner::Owner;
 use mars_types::{
     adapters::{
         account_nft::AccountNft, health::HealthContract, incentives::Incentives, oracle::Oracle,
-        params::Params, red_bank::RedBank, rewards_collector::RewardsCollector, swapper::Swapper,
-        vault::VaultPositionAmount, zapper::Zapper,
+        params::Params, perps::Perps, red_bank::RedBank, rewards_collector::RewardsCollector,
+        swapper::Swapper, vault::VaultPositionAmount, zapper::Zapper,
     },
     health::AccountKind,
 };
@@ -22,6 +22,7 @@ pub const ZAPPER: Item<Zapper> = Item::new("zapper");
 pub const HEALTH_CONTRACT: Item<HealthContract> = Item::new("health_contract");
 pub const PARAMS: Item<Params> = Item::new("params");
 pub const INCENTIVES: Item<Incentives> = Item::new("incentives");
+pub const PERPS: Item<Perps> = Item::new("perps");
 
 // Config
 pub const OWNER: Owner = Owner::new("owner");

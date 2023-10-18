@@ -21,6 +21,7 @@ use crate::{
     liquidate::assert_not_self_liquidation,
     liquidate_deposit::liquidate_deposit,
     liquidate_lend::liquidate_lend,
+    perp::{close_perp, open_perp},
     reclaim::reclaim,
     refund::refund_coin_balances,
     repay::{repay, repay_for_recipient},
@@ -161,6 +162,20 @@ pub fn dispatch_actions(
             Action::ClaimRewards {} => callbacks.push(CallbackMsg::ClaimRewards {
                 account_id: account_id.to_string(),
                 recipient: info.sender.clone(),
+            }),
+            Action::OpenPerp {
+                denom,
+                size,
+            } => callbacks.push(CallbackMsg::OpenPerp {
+                account_id: account_id.to_string(),
+                denom,
+                size,
+            }),
+            Action::ClosePerp {
+                denom,
+            } => callbacks.push(CallbackMsg::ClosePerp {
+                account_id: account_id.to_string(),
+                denom,
             }),
             Action::EnterVault {
                 vault,
@@ -357,6 +372,15 @@ pub fn execute_callback(
         CallbackMsg::AssertDepositCaps {
             denoms,
         } => assert_deposit_caps(deps.as_ref(), denoms),
+        CallbackMsg::OpenPerp {
+            account_id,
+            denom,
+            size,
+        } => open_perp(deps, &account_id, &denom, size),
+        CallbackMsg::ClosePerp {
+            account_id,
+            denom,
+        } => close_perp(deps, &account_id, &denom),
         CallbackMsg::EnterVault {
             account_id,
             vault,

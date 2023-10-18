@@ -9,6 +9,7 @@ use crate::{
     account_nft::NftConfigUpdates,
     adapters::vault::{Vault, VaultPositionType, VaultUnchecked},
     health::{AccountKind, HealthState},
+    math::SignedDecimal,
 };
 
 #[cw_serde]
@@ -135,6 +136,22 @@ pub enum Action {
         recipient_account_id: Option<String>,
         coin: ActionCoin,
     },
+    /// Open a new perpetual futures position
+    OpenPerp {
+        denom: String,
+        // positive means long, negative means short
+        size: SignedDecimal,
+    },
+    /// Close a perpetual futures position.
+    ///
+    /// If the position is in profit, the counterparty vault will be deposited
+    /// appropriate amount of base currency into the credit account.
+    ///
+    /// If the position is in loss, the credit manager will send appropriate
+    /// amount of base currency from the credit account to the counterparty vault.
+    ClosePerp {
+        denom: String,
+    },
     /// Deposit coins into vault strategy
     /// If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault
     EnterVault {
@@ -252,6 +269,17 @@ pub enum CallbackMsg {
     /// Bank and Rover do not exceed their respective deposit caps.
     AssertDepositCaps {
         denoms: BTreeSet<String>,
+    },
+    /// Corresponding to the OpenPerp action
+    OpenPerp {
+        account_id: String,
+        denom: String,
+        size: SignedDecimal,
+    },
+    /// Corresponding to the ClosePerp action
+    ClosePerp {
+        account_id: String,
+        denom: String,
     },
     /// Adds coin to a vault strategy
     EnterVault {
