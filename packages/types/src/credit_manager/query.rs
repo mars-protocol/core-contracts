@@ -8,6 +8,7 @@ use crate::{
         vault::{Vault, VaultPosition, VaultUnchecked},
     },
     health::AccountKind,
+    perps::PerpPosition,
     traits::Coins,
 };
 
@@ -144,6 +145,7 @@ pub struct Positions {
     pub debts: Vec<DebtAmount>,
     pub lends: Vec<Coin>,
     pub vaults: Vec<VaultPosition>,
+    pub perps: Vec<PerpPosition>,
 }
 
 #[cw_serde]

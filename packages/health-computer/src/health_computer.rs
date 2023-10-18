@@ -12,6 +12,7 @@ use mars_types::{
         HealthResult, SwapKind,
     },
     params::{AssetParams, CmSettings, VaultConfig},
+    perps::PnL,
 };
 #[cfg(feature = "javascript")]
 use tsify::Tsify;
@@ -366,12 +367,26 @@ impl HealthComputer {
 
     fn total_debt_value(&self) -> HealthResult<Uint128> {
         let mut total = Uint128::zero();
+
+        // debts borrowed from Red Bank
         for debt in &self.positions.debts {
             let coin_price =
                 self.denoms_data.prices.get(&debt.denom).ok_or(MissingPrice(debt.denom.clone()))?;
             let debt_value = debt.amount.checked_mul_ceil(*coin_price)?;
             total = total.checked_add(debt_value)?;
         }
+
+        // debts from perp positions
+        // these include the cost basis for all perp positions, and for losing
+        // positions, the unrealized negative PnL
+        //
+        // TODO: some dupliate code here
+        let debt = self.perp_debt()?;
+        let coin_price =
+            self.denoms_data.prices.get(&debt.denom).ok_or(MissingPrice(debt.denom.clone()))?;
+        let debt_value = debt.amount.checked_mul_ceil(*coin_price)?;
+        total = total.checked_add(debt_value)?;
+
         Ok(total)
     }
 
@@ -379,20 +394,24 @@ impl HealthComputer {
         let deposits = self.coins_value(&self.positions.deposits)?;
         let lends = self.coins_value(&self.positions.lends)?;
         let vaults = self.vaults_value()?;
+        let perps = self.perp_collateral_values()?;
 
         Ok(CollateralValue {
             total_collateral_value: deposits
                 .total_collateral_value
                 .checked_add(vaults.total_collateral_value)?
-                .checked_add(lends.total_collateral_value)?,
+                .checked_add(lends.total_collateral_value)?
+                .checked_add(perps.total_collateral_value)?,
             max_ltv_adjusted_collateral: deposits
                 .max_ltv_adjusted_collateral
                 .checked_add(vaults.max_ltv_adjusted_collateral)?
-                .checked_add(lends.max_ltv_adjusted_collateral)?,
+                .checked_add(lends.max_ltv_adjusted_collateral)?
+                .checked_add(perps.max_ltv_adjusted_collateral)?,
             liquidation_threshold_adjusted_collateral: deposits
                 .liquidation_threshold_adjusted_collateral
                 .checked_add(vaults.liquidation_threshold_adjusted_collateral)?
-                .checked_add(lends.liquidation_threshold_adjusted_collateral)?,
+                .checked_add(lends.liquidation_threshold_adjusted_collateral)?
+                .checked_add(perps.liquidation_threshold_adjusted_collateral)?,
         })
     }
 
@@ -523,6 +542,86 @@ impl HealthComputer {
             total_collateral_value,
             max_ltv_adjusted_collateral,
             liquidation_threshold_adjusted_collateral,
+        })
+    }
+
+    /// Compute collateral values from perp positions.
+    /// These include the unrealized PnL of winning positions.
+    fn perp_collateral_values(&self) -> HealthResult<CollateralValue> {
+        let mut total_collateral_value = Uint128::zero();
+        let mut max_ltv_adjusted_collateral = Uint128::zero();
+        let mut liquidation_threshold_adjusted_collateral = Uint128::zero();
+
+        for position in &self.positions.perps {
+            if let PnL::Profit(Coin {
+                amount,
+                ..
+            }) = position.pnl
+            {
+                let res = self.coins_value(&[Coin {
+                    // Whereas the PnL is denominated in USDC, for the purpose
+                    // of evaluating account health, we use `position.denom`
+                    // instead of the USDC denom.
+                    //
+                    // Why so? Let's consider a perp position in BTC-USD and one
+                    // in EUR-USD. Since BTC has much higher volatility than EUR,
+                    // it makes sense for the BTC position to have a lower max
+                    // LTV, instead of using the USDC max LTV for both positions.
+                    //
+                    // The `position.denom` here should be something like `perp/btcusd`.
+                    // - The mars-params contract should have stored asset
+                    //   parameters for this denom
+                    // - The mars-oracle contract should return the same price
+                    //   as USDC (since amount is still in USDC)
+                    denom: position.denom.clone(),
+                    amount,
+                }])?;
+
+                total_collateral_value =
+                    total_collateral_value.checked_add(res.total_collateral_value)?;
+                max_ltv_adjusted_collateral =
+                    max_ltv_adjusted_collateral.checked_add(res.max_ltv_adjusted_collateral)?;
+                liquidation_threshold_adjusted_collateral =
+                    liquidation_threshold_adjusted_collateral
+                        .checked_add(res.liquidation_threshold_adjusted_collateral)?;
+            }
+        }
+
+        Ok(CollateralValue {
+            total_collateral_value,
+            max_ltv_adjusted_collateral,
+            liquidation_threshold_adjusted_collateral,
+        })
+    }
+
+    /// Compute the debt from perp positions.
+    ///
+    /// This includes 1) the cost basis for opening the perp positions, and 2)
+    /// the unrealized PnL from losing positions.
+    ///
+    /// The debt is denominated in the perp protocol's base asset (typically
+    /// USDC) for both of the above categories.
+    fn perp_debt(&self) -> HealthResult<Coin> {
+        let mut total = Uint128::zero();
+
+        for position in &self.positions.perps {
+            // 1. cost basis
+            let cost_basis = position.size.abs.checked_mul(position.entry_price)?;
+            total = total.checked_add(cost_basis.to_uint_floor())?;
+
+            // 2. negative unrealized PnL
+            if let PnL::Loss(Coin {
+                amount,
+                ..
+            }) = position.pnl
+            {
+                total = total.checked_add(amount)?;
+            }
+        }
+
+        Ok(Coin {
+            denom: "TODO".into(),
+            amount: total,
         })
     }
 
