@@ -39,8 +39,8 @@ pub struct Config<T> {
     /// vault. The remaining amount is refunded to the uesr's credit account.
     pub base_denom: String,
 
-    /// The minimum size of a position, in the base asset (i.e. USDC).
-    pub min_position_size: Uint128,
+    /// The minimum value of a position, in the base asset (i.e. USDC).
+    pub min_position_value: Uint128,
 }
 
 impl Config<String> {
@@ -49,7 +49,7 @@ impl Config<String> {
             credit_manager: api.addr_validate(&self.credit_manager)?,
             oracle: self.oracle.check(api)?,
             base_denom: self.base_denom,
-            min_position_size: self.min_position_size,
+            min_position_value: self.min_position_value,
         })
     }
 }
@@ -60,7 +60,7 @@ impl From<Config<Addr>> for Config<String> {
             credit_manager: cfg.credit_manager.into(),
             oracle: cfg.oracle.into(),
             base_denom: cfg.base_denom,
-            min_position_size: cfg.min_position_size,
+            min_position_value: cfg.min_position_value,
         }
     }
 }
@@ -260,6 +260,10 @@ pub enum QueryMsg {
     PositionsByAccount {
         account_id: String,
     },
+
+    /// Compute the total unrealized PnL of all perp positions, denominated in uusd (USD = 1e6 uusd, configured in Oracle)
+    #[returns(SignedDecimal)]
+    TotalUnrealizedPnl {},
 }
 
 #[cw_serde]

@@ -1068,7 +1068,7 @@ impl MockEnvBuilder {
                     credit_manager: cm_addr.to_string(),
                     oracle: self.oracle.clone().unwrap().into(),
                     base_denom: "uusdc".to_string(),
-                    min_position_size: Uint128::one(),
+                    min_position_value: Uint128::one(),
                 },
                 &[],
                 "mock-perps-contract",

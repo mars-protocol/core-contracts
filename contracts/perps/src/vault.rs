@@ -1,11 +1,9 @@
-use cosmwasm_std::{Deps, Order, Uint128};
-use mars_types::{
-    adapters::oracle::Oracle, math::SignedDecimal, oracle::ActionKind, perps::VaultState,
-};
+use cosmwasm_std::{Deps, Uint128};
+use mars_types::{adapters::oracle::Oracle, oracle::ActionKind, perps::VaultState};
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::DENOM_STATES,
+    pnl::compute_total_unrealized_pnl,
 };
 
 const DEFAULT_SHARES_PER_AMOUNT: u128 = 1_000_000;
@@ -51,17 +49,7 @@ pub fn compute_nav(
 ) -> ContractResult<Uint128> {
     // loop through denoms and compute the total unrealized PnL
     // note: this PnL is denominated in USD
-    let total_pnl = DENOM_STATES.range(deps.storage, None, None, Order::Ascending).try_fold(
-        SignedDecimal::zero(),
-        |acc, item| -> ContractResult<_> {
-            let (denom, ds) = item?;
-
-            let price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
-            let pnl = ds.total_size.checked_mul(price.into())?.checked_sub(ds.total_cost_base)?;
-
-            acc.checked_sub(pnl).map_err(Into::into)
-        },
-    )?;
+    let total_pnl = compute_total_unrealized_pnl(deps, oracle)?;
 
     // convert the PnL to base currency (USDC)
     let base_price = oracle.query_price(&deps.querier, base_denom, ActionKind::Default)?.price;

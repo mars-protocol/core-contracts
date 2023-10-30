@@ -12,7 +12,7 @@ use mars_types::{
 
 use crate::{
     error::{ContractError, ContractResult},
-    pnl::compute_pnl,
+    pnl::{compute_pnl, DenomStateExt},
     state::{
         decrease_deposit_shares, increase_deposit_shares, CONFIG, DENOM_STATES, OWNER, POSITIONS,
         VAULT_STATE,
@@ -165,7 +165,7 @@ pub fn open_position(
     }
 
     // the denom must exists and have been enabled
-    let ds = DENOM_STATES.load(deps.storage, &denom)?;
+    let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
     if !ds.enabled {
         return Err(ContractError::DenomNotEnabled {
             denom,
@@ -174,9 +174,9 @@ pub fn open_position(
 
     // the position's initial value cannot be too small
     let value = size.abs.checked_mul(entry_price)?.to_uint_floor();
-    if value < cfg.min_position_size {
+    if value < cfg.min_position_value {
         return Err(ContractError::PositionTooSmall {
-            min: cfg.min_position_size,
+            min: cfg.min_position_value,
             found: value,
         });
     }
@@ -199,6 +199,10 @@ pub fn open_position(
         },
     )?;
 
+    // update the denom's accumulators
+    ds.open_position(size, entry_price)?;
+    DENOM_STATES.save(deps.storage, &denom, &ds)?;
+
     Ok(Response::new()
         .add_attribute("method", "open_position")
         .add_attribute("account_id", account_id)
@@ -217,6 +221,7 @@ pub fn close_position(
 
     let cfg = CONFIG.load(deps.storage)?;
     let mut vs = VAULT_STATE.load(deps.storage)?;
+    let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
     let position = POSITIONS.load(deps.storage, (&account_id, &denom))?;
 
     // when closing a position, the credit manager may send no coin (in case the
@@ -270,6 +275,10 @@ pub fn close_position(
     VAULT_STATE.save(deps.storage, &vs)?;
     POSITIONS.remove(deps.storage, (&account_id, &denom));
 
+    // update the denom's accumulators
+    ds.close_position(position.size, position.entry_price)?;
+    DENOM_STATES.save(deps.storage, &denom, &ds)?;
+
     Ok(res
         .add_attribute("method", "close_position")
         .add_attribute("account_id", account_id)
@@ -303,7 +312,7 @@ mod tests {
             credit_manager: Addr::unchecked("credit_manager"),
             oracle: Oracle::new(Addr::unchecked("oracle")),
             base_denom: "uusdc".into(),
-            min_position_size: Uint128::new(5_000_000),
+            min_position_value: Uint128::new(5_000_000),
         }
     }
 

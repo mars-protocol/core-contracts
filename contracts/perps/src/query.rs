@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use cosmwasm_std::{Decimal, Deps, Order, StdResult, Storage, Uint128};
 use cw_storage_plus::Bound;
 use mars_types::{
+    math::SignedDecimal,
     oracle::ActionKind,
     perps::{
         Config, DenomStateResponse, DepositResponse, PerpPosition, PositionResponse,
@@ -12,7 +13,7 @@ use mars_types::{
 
 use crate::{
     error::ContractResult,
-    pnl::compute_pnl,
+    pnl::{compute_pnl, compute_total_unrealized_pnl},
     state::{CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, VAULT_STATE},
     vault::shares_to_amount,
 };
@@ -194,4 +195,9 @@ pub fn positions_by_account(
         account_id,
         positions,
     })
+}
+
+pub fn total_unrealized_pnl(deps: Deps) -> ContractResult<SignedDecimal> {
+    let cfg = CONFIG.load(deps.storage)?;
+    compute_total_unrealized_pnl(deps, &cfg.oracle)
 }
