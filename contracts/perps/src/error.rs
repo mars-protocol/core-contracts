@@ -43,6 +43,11 @@ pub enum ContractError {
         denom: String,
     },
 
+    #[error("denom `{denom}` already exists")]
+    DenomAlreadyExists {
+        denom: String,
+    },
+
     #[error("account `{account_id}` already has a position in denom `{denom}`")]
     PositionExists {
         account_id: String,
@@ -60,6 +65,11 @@ pub enum ContractError {
 
     #[error("cannot compute deposit amount when there is zero total shares")]
     ZeroTotalShares,
+
+    #[error("Invalid param: {reason}")]
+    InvalidParam {
+        reason: String,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

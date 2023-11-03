@@ -33,18 +33,30 @@ pub fn instantiate(
 #[entry_point]
 pub fn execute(
     deps: DepsMut,
-    _: Env,
+    env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> ContractResult<Response> {
     match msg {
         ExecuteMsg::UpdateOwner(update) => OWNER.update(deps, info, update).map_err(Into::into),
+        ExecuteMsg::InitDenom {
+            denom,
+            max_funding_velocity,
+            skew_scale,
+        } => execute::init_denom(
+            deps.storage,
+            env,
+            &info.sender,
+            &denom,
+            max_funding_velocity,
+            skew_scale,
+        ),
         ExecuteMsg::EnableDenom {
             denom,
-        } => execute::enable_denom(deps.storage, &info.sender, &denom),
+        } => execute::enable_denom(deps.storage, env, &info.sender, &denom),
         ExecuteMsg::DisableDenom {
             denom,
-        } => execute::disable_denom(deps.storage, &info.sender, &denom),
+        } => execute::disable_denom(deps.storage, env, &info.sender, &denom),
         ExecuteMsg::Deposit {} => execute::deposit(deps.storage, info),
         ExecuteMsg::Withdraw {
             shares,
@@ -53,16 +65,16 @@ pub fn execute(
             account_id,
             denom,
             size,
-        } => execute::open_position(deps, info, account_id, denom, size),
+        } => execute::open_position(deps, env, info, account_id, denom, size),
         ExecuteMsg::ClosePosition {
             account_id,
             denom,
-        } => execute::close_position(deps, info, account_id, denom),
+        } => execute::close_position(deps, env, info, account_id, denom),
     }
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> ContractResult<Binary> {
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
     match msg {
         QueryMsg::Owner {} => to_binary(&OWNER.query(deps.storage)?),
         QueryMsg::Config {} => to_binary(&query::config(deps.storage)?),
@@ -74,6 +86,9 @@ pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> ContractResult<Binary> {
             start_after,
             limit,
         } => to_binary(&query::denom_states(deps.storage, start_after, limit)?),
+        QueryMsg::PerpDenomState {
+            denom,
+        } => to_binary(&query::perp_denom_state(deps, env.block.time.seconds(), denom)?),
         QueryMsg::Deposit {
             depositor,
         } => to_binary(&query::deposit(deps, depositor)?),
@@ -84,14 +99,14 @@ pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::Position {
             account_id,
             denom,
-        } => to_binary(&query::position(deps, account_id, denom)?),
+        } => to_binary(&query::position(deps, env.block.time.seconds(), account_id, denom)?),
         QueryMsg::Positions {
             start_after,
             limit,
-        } => to_binary(&query::positions(deps, start_after, limit)?),
+        } => to_binary(&query::positions(deps, env.block.time.seconds(), start_after, limit)?),
         QueryMsg::PositionsByAccount {
             account_id,
-        } => to_binary(&query::positions_by_account(deps, account_id)?),
+        } => to_binary(&query::positions_by_account(deps, env.block.time.seconds(), account_id)?),
         QueryMsg::TotalUnrealizedPnl {} => to_binary(&query::total_unrealized_pnl(deps)?),
     }
     .map_err(Into::into)

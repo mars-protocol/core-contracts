@@ -1,13 +1,13 @@
 use cosmwasm_std::{
-    coin, coins, to_binary, Addr, BankMsg, Coin, DepsMut, MessageInfo, Response, Storage, Uint128,
-    WasmMsg,
+    coin, coins, to_binary, Addr, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response,
+    Storage, Uint128, WasmMsg,
 };
 use cw_utils::{may_pay, must_pay, nonpayable};
 use mars_types::{
     credit_manager::{self, Action},
     math::SignedDecimal,
     oracle::ActionKind,
-    perps::{Config, DenomState, PnL, Position, VaultState},
+    perps::{Config, DenomState, Funding, PnL, Position, VaultState},
 };
 
 use crate::{
@@ -29,20 +29,64 @@ pub fn initialize(store: &mut dyn Storage, cfg: Config<Addr>) -> ContractResult<
     Ok(Response::new().add_attribute("method", "initialize"))
 }
 
+pub fn init_denom(
+    store: &mut dyn Storage,
+    env: Env,
+    sender: &Addr,
+    denom: &str,
+    max_funding_velocity: Decimal,
+    skew_scale: Decimal,
+) -> ContractResult<Response> {
+    OWNER.assert_owner(store, sender)?;
+
+    if DENOM_STATES.has(store, denom) {
+        return Err(ContractError::DenomAlreadyExists {
+            denom: denom.into(),
+        });
+    }
+
+    if skew_scale.is_zero() {
+        return Err(ContractError::InvalidParam {
+            reason: "skew_scale cannot be zero".to_string(),
+        });
+    }
+
+    let denom_state = DenomState {
+        enabled: true,
+        total_size: SignedDecimal::zero(),
+        total_cost_base: SignedDecimal::zero(),
+        funding: Funding {
+            max_funding_velocity,
+            skew_scale,
+            constant_factor: Funding::constant_factor(max_funding_velocity, skew_scale)?,
+            rate: SignedDecimal::zero(),
+            index: SignedDecimal::one(),
+            accumulated_size_weighted_by_index: SignedDecimal::zero(),
+        },
+        last_updated: env.block.time.seconds(),
+    };
+    DENOM_STATES.save(store, denom, &denom_state)?;
+
+    Ok(Response::new()
+        .add_attribute("method", "init_denom")
+        .add_attribute("denom", denom)
+        .add_attribute("max_funding_velocity", max_funding_velocity.to_string())
+        .add_attribute("skew_scale", skew_scale.to_string()))
+}
+
 pub fn enable_denom(
     store: &mut dyn Storage,
+    env: Env,
     sender: &Addr,
     denom: &str,
 ) -> ContractResult<Response> {
     OWNER.assert_owner(store, sender)?;
 
     DENOM_STATES.update(store, denom, |maybe_ds| {
-        // if the denom does not already exist, initialize the denom state with
-        // zero total size and cost basis
+        // if the denom does not already exist then we cannot enable it
         let Some(mut ds) = maybe_ds else {
-            return Ok(DenomState {
-                enabled: true,
-                ..Default::default()
+            return Err(ContractError::DenomNotFound {
+                denom: denom.into(),
             });
         };
 
@@ -57,6 +101,10 @@ pub fn enable_denom(
         // flip the enabled parameter to true and return
         ds.enabled = true;
 
+        // When denom is disabled there is no trading activity so funding shouldn't be changed.
+        // We just shift the last_updated time.
+        ds.last_updated = env.block.time.seconds();
+
         Ok(ds)
     })?;
 
@@ -65,6 +113,7 @@ pub fn enable_denom(
 
 pub fn disable_denom(
     store: &mut dyn Storage,
+    env: Env,
     sender: &Addr,
     denom: &str,
 ) -> ContractResult<Response> {
@@ -77,7 +126,14 @@ pub fn disable_denom(
             });
         };
 
+        let current_time = env.block.time.seconds();
+
+        // refresh funding rate and index before disabling trading
+        let current_funding = ds.compute_current_funding(current_time)?;
+        ds.funding = current_funding;
+
         ds.enabled = false;
+        ds.last_updated = current_time;
 
         Ok(ds)
     })?;
@@ -143,6 +199,7 @@ pub fn withdraw(
 
 pub fn open_position(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     account_id: String,
     denom: String,
@@ -189,19 +246,21 @@ pub fn open_position(
         });
     }
 
-    // save the user's new position
+    // Update the denom's accumulators.
+    // Funding rates and index is updated to the current block time (using old size).
+    ds.open_position(env.block.time.seconds(), size, entry_price)?;
+    DENOM_STATES.save(deps.storage, &denom, &ds)?;
+
+    // save the user's new position with updated funding index
     POSITIONS.save(
         deps.storage,
         (&account_id, &denom),
         &Position {
             size,
             entry_price,
+            entry_funding_index: ds.funding.index,
         },
     )?;
-
-    // update the denom's accumulators
-    ds.open_position(size, entry_price)?;
-    DENOM_STATES.save(deps.storage, &denom, &ds)?;
 
     Ok(Response::new()
         .add_attribute("method", "open_position")
@@ -213,6 +272,7 @@ pub fn open_position(
 
 pub fn close_position(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     account_id: String,
     denom: String,
@@ -237,8 +297,12 @@ pub fn close_position(
     // query the current price of the asset
     let exit_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
 
+    // Update the denom's accumulators.
+    // Funding rates and index is updated to the current block time (using old size).
+    ds.close_position(env.block.time.seconds(), &position)?;
+
     // compute the position's unrealized PnL
-    let pnl = compute_pnl(&position, exit_price, &cfg.base_denom)?;
+    let pnl = compute_pnl(&ds.funding, &position, exit_price, &cfg.base_denom)?;
 
     // compute how many coins should be returned to the credit account, and
     // update global liquidity amount
@@ -274,9 +338,6 @@ pub fn close_position(
     // save the updated global state and delete position
     VAULT_STATE.save(deps.storage, &vs)?;
     POSITIONS.remove(deps.storage, (&account_id, &denom));
-
-    // update the denom's accumulators
-    ds.close_position(position.size, position.entry_price)?;
     DENOM_STATES.save(deps.storage, &denom, &ds)?;
 
     Ok(res
@@ -287,137 +348,4 @@ pub fn close_position(
         .add_attribute("entry_price", position.entry_price.to_string())
         .add_attribute("exit_price", exit_price.to_string())
         .add_attribute("realized_pnl", pnl.to_string()))
-}
-
-// ----------------------------------- Tests -----------------------------------
-
-#[cfg(test)]
-mod tests {
-    use cosmwasm_std::{
-        testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier, MockStorage},
-        OwnedDeps,
-    };
-    use cw2::ContractVersion;
-    use mars_owner::{OwnerError, OwnerResponse};
-    use mars_types::{adapters::oracle::Oracle, perps::DenomStateResponse};
-
-    use super::*;
-    use crate::{
-        contract::{instantiate, CONTRACT_NAME, CONTRACT_VERSION},
-        query,
-    };
-
-    fn mock_cfg() -> Config<Addr> {
-        Config {
-            credit_manager: Addr::unchecked("credit_manager"),
-            oracle: Oracle::new(Addr::unchecked("oracle")),
-            base_denom: "uusdc".into(),
-            min_position_value: Uint128::new(5_000_000),
-        }
-    }
-
-    fn setup_test() -> OwnedDeps<MockStorage, MockApi, MockQuerier> {
-        let mut deps = mock_dependencies();
-
-        instantiate(deps.as_mut(), mock_env(), mock_info("larry", &[]), mock_cfg().into()).unwrap();
-
-        deps
-    }
-
-    #[test]
-    fn proper_initialization() {
-        let deps = setup_test();
-
-        let version = cw2::get_contract_version(deps.as_ref().storage).unwrap();
-        assert_eq!(
-            version,
-            ContractVersion {
-                contract: CONTRACT_NAME.into(),
-                version: CONTRACT_VERSION.into(),
-            },
-        );
-
-        let owner = OWNER.query(deps.as_ref().storage).unwrap();
-        assert_eq!(
-            owner,
-            OwnerResponse {
-                owner: Some("larry".into()),
-                proposed: None,
-                initialized: true,
-                abolished: false,
-                emergency_owner: None,
-            },
-        );
-
-        let cfg = CONFIG.load(deps.as_ref().storage).unwrap();
-        assert_eq!(cfg, mock_cfg());
-    }
-
-    #[test]
-    fn updating_denoms() {
-        let mut deps = setup_test();
-
-        // non-owner cannot enable denoms
-        {
-            let err = enable_denom(deps.as_mut().storage, &Addr::unchecked("pumpkin"), "uosmo")
-                .unwrap_err();
-            assert_eq!(err, OwnerError::NotOwner {}.into());
-        }
-
-        // owner can enable denoms
-        // in this test we try listing two denoms
-        {
-            enable_denom(deps.as_mut().storage, &Addr::unchecked("larry"), "perp/eth/eur").unwrap();
-            enable_denom(deps.as_mut().storage, &Addr::unchecked("larry"), "perp/btc/usd").unwrap();
-
-            let dss = query::denom_states(deps.as_ref().storage, None, None).unwrap();
-            assert_eq!(
-                dss,
-                [
-                    // note: denoms are ordered alphabetically
-                    DenomStateResponse {
-                        denom: "perp/btc/usd".into(),
-                        enabled: true,
-                        ..Default::default()
-                    },
-                    DenomStateResponse {
-                        denom: "perp/eth/eur".into(),
-                        enabled: true,
-                        ..Default::default()
-                    },
-                ],
-            );
-        }
-
-        // non-owner cannot disable denoms
-        {
-            let err =
-                disable_denom(deps.as_mut().storage, &Addr::unchecked("jake"), "perp/btc/usd")
-                    .unwrap_err();
-            assert_eq!(err, OwnerError::NotOwner {}.into());
-        }
-
-        // owner can disable denoms
-        {
-            disable_denom(deps.as_mut().storage, &Addr::unchecked("larry"), "perp/btc/usd")
-                .unwrap();
-
-            let dss = query::denom_states(deps.as_ref().storage, None, None).unwrap();
-            assert_eq!(
-                dss,
-                [
-                    DenomStateResponse {
-                        denom: "perp/btc/usd".into(),
-                        enabled: false,
-                        ..Default::default()
-                    },
-                    DenomStateResponse {
-                        denom: "perp/eth/eur".into(),
-                        enabled: true,
-                        ..Default::default()
-                    }
-                ]
-            );
-        }
-    }
 }

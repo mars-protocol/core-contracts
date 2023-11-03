@@ -11,7 +11,7 @@ use mars_types::{
     math::SignedDecimal,
     oracle,
     perps::{
-        self, Config, DenomStateResponse, DepositResponse, PositionResponse,
+        self, Config, DenomStateResponse, DepositResponse, PerpDenomState, PositionResponse,
         PositionsByAccountResponse, VaultState,
     },
 };
@@ -24,8 +24,8 @@ use super::{
 pub struct MockEnv {
     app: BasicApp,
     pub owner: Addr,
-    pub perps_contract: Addr,
-    pub oracle_contract: Addr,
+    pub perps: Addr,
+    pub oracle: Addr,
     pub credit_manager: Addr,
 }
 
@@ -65,6 +65,26 @@ impl MockEnv {
             .unwrap();
     }
 
+    pub fn increment_by_blocks(&mut self, num_of_blocks: u64) {
+        self.app.update_block(|block| {
+            block.height += num_of_blocks;
+            // assume block time = 6 sec
+            block.time = block.time.plus_seconds(num_of_blocks * 6);
+        })
+    }
+
+    pub fn increment_by_time(&mut self, seconds: u64) {
+        self.app.update_block(|block| {
+            block.height += seconds / 6;
+            // assume block time = 6 sec
+            block.time = block.time.plus_seconds(seconds);
+        })
+    }
+
+    pub fn query_block_time(&self) -> u64 {
+        self.app.block_info().time.seconds()
+    }
+
     //--------------------------------------------------------------------------------------------------
     // Execute Msgs
     //--------------------------------------------------------------------------------------------------
@@ -72,8 +92,27 @@ impl MockEnv {
     pub fn update_owner(&mut self, sender: &Addr, update: OwnerUpdate) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
-            self.perps_contract.clone(),
+            self.perps.clone(),
             &perps::ExecuteMsg::UpdateOwner(update),
+            &[],
+        )
+    }
+
+    pub fn init_denom(
+        &mut self,
+        sender: &Addr,
+        denom: &str,
+        max_funding_velocity: Decimal,
+        skew_scale: Decimal,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.perps.clone(),
+            &perps::ExecuteMsg::InitDenom {
+                denom: denom.to_string(),
+                max_funding_velocity,
+                skew_scale,
+            },
             &[],
         )
     }
@@ -81,7 +120,7 @@ impl MockEnv {
     pub fn enable_denom(&mut self, sender: &Addr, denom: &str) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
-            self.perps_contract.clone(),
+            self.perps.clone(),
             &perps::ExecuteMsg::EnableDenom {
                 denom: denom.to_string(),
             },
@@ -92,7 +131,7 @@ impl MockEnv {
     pub fn disable_denom(&mut self, sender: &Addr, denom: &str) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
-            self.perps_contract.clone(),
+            self.perps.clone(),
             &perps::ExecuteMsg::DisableDenom {
                 denom: denom.to_string(),
             },
@@ -103,7 +142,7 @@ impl MockEnv {
     pub fn deposit_to_vault(&mut self, sender: &Addr, funds: &[Coin]) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
-            self.perps_contract.clone(),
+            self.perps.clone(),
             &perps::ExecuteMsg::Deposit {},
             funds,
         )
@@ -116,7 +155,7 @@ impl MockEnv {
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
-            self.perps_contract.clone(),
+            self.perps.clone(),
             &perps::ExecuteMsg::Withdraw {
                 shares,
             },
@@ -133,7 +172,7 @@ impl MockEnv {
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
-            self.perps_contract.clone(),
+            self.perps.clone(),
             &perps::ExecuteMsg::OpenPosition {
                 account_id: account_id.to_string(),
                 denom: denom.to_string(),
@@ -152,7 +191,7 @@ impl MockEnv {
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
-            self.perps_contract.clone(),
+            self.perps.clone(),
             &perps::ExecuteMsg::ClosePosition {
                 account_id: account_id.to_string(),
                 denom: denom.to_string(),
@@ -169,7 +208,7 @@ impl MockEnv {
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
-            self.oracle_contract.clone(),
+            self.oracle.clone(),
             &oracle::ExecuteMsg::<OsmosisPriceSourceUnchecked>::SetPriceSource {
                 denom: denom.to_string(),
                 price_source: OsmosisPriceSourceUnchecked::Fixed {
@@ -190,23 +229,17 @@ impl MockEnv {
     }
 
     pub fn query_ownership(&self) -> OwnerResponse {
-        self.app
-            .wrap()
-            .query_wasm_smart(self.perps_contract.clone(), &perps::QueryMsg::Owner {})
-            .unwrap()
+        self.app.wrap().query_wasm_smart(self.perps.clone(), &perps::QueryMsg::Owner {}).unwrap()
     }
 
     pub fn query_config(&self) -> Config<Addr> {
-        self.app
-            .wrap()
-            .query_wasm_smart(self.perps_contract.clone(), &perps::QueryMsg::Config {})
-            .unwrap()
+        self.app.wrap().query_wasm_smart(self.perps.clone(), &perps::QueryMsg::Config {}).unwrap()
     }
 
     pub fn query_vault_state(&self) -> VaultState {
         self.app
             .wrap()
-            .query_wasm_smart(self.perps_contract.clone(), &perps::QueryMsg::VaultState {})
+            .query_wasm_smart(self.perps.clone(), &perps::QueryMsg::VaultState {})
             .unwrap()
     }
 
@@ -214,9 +247,38 @@ impl MockEnv {
         self.app
             .wrap()
             .query_wasm_smart(
-                self.perps_contract.clone(),
+                self.perps.clone(),
                 &perps::QueryMsg::DenomState {
                     denom: denom.to_string(),
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_perp_denom_state(&self, denom: &str) -> PerpDenomState {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.clone(),
+                &perps::QueryMsg::PerpDenomState {
+                    denom: denom.to_string(),
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_denom_states(
+        &self,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Vec<DenomStateResponse> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.clone(),
+                &perps::QueryMsg::DenomStates {
+                    start_after,
+                    limit,
                 },
             )
             .unwrap()
@@ -226,7 +288,7 @@ impl MockEnv {
         self.app
             .wrap()
             .query_wasm_smart(
-                self.perps_contract.clone(),
+                self.perps.clone(),
                 &perps::QueryMsg::Deposit {
                     depositor: depositor.to_string(),
                 },
@@ -238,7 +300,7 @@ impl MockEnv {
         self.app
             .wrap()
             .query_wasm_smart(
-                self.perps_contract.clone(),
+                self.perps.clone(),
                 &perps::QueryMsg::Position {
                     account_id: account_id.to_string(),
                     denom: denom.to_string(),
@@ -255,7 +317,7 @@ impl MockEnv {
         self.app
             .wrap()
             .query_wasm_smart(
-                self.perps_contract.clone(),
+                self.perps.clone(),
                 &perps::QueryMsg::Positions {
                     start_after,
                     limit,
@@ -268,7 +330,7 @@ impl MockEnv {
         self.app
             .wrap()
             .query_wasm_smart(
-                self.perps_contract.clone(),
+                self.perps.clone(),
                 &perps::QueryMsg::PositionsByAccount {
                     account_id: account_id.to_string(),
                 },
@@ -279,7 +341,7 @@ impl MockEnv {
     pub fn query_total_unrealized_pnl(&self) -> SignedDecimal {
         self.app
             .wrap()
-            .query_wasm_smart(self.perps_contract.clone(), &perps::QueryMsg::TotalUnrealizedPnl {})
+            .query_wasm_smart(self.perps.clone(), &perps::QueryMsg::TotalUnrealizedPnl {})
             .unwrap()
     }
 }
@@ -307,8 +369,8 @@ impl MockEnvBuilder {
         Ok(MockEnv {
             app: take(&mut self.app),
             owner: self.deployer.clone(),
-            perps_contract,
-            oracle_contract,
+            perps: perps_contract,
+            oracle: oracle_contract,
             credit_manager: credit_manager_contract,
         })
     }

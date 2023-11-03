@@ -1,7 +1,7 @@
 use std::fmt;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Api, Coin, Decimal, StdResult, Uint128};
+use cosmwasm_std::{Addr, Api, CheckedFromRatioError, Coin, Decimal, StdResult, Uint128};
 use mars_owner::OwnerUpdate;
 
 use crate::{adapters::oracle::OracleBase, math::SignedDecimal};
@@ -82,6 +82,79 @@ pub struct DenomState {
     // this isn't really cost basis in the typical meaning, but I can't think of
     // a better term yet
     pub total_cost_base: SignedDecimal,
+    pub funding: Funding,
+    pub last_updated: u64,
+}
+
+/// Funding parameters for a single denom.
+///
+/// The role of funding rates is generally to balance long and short demand.
+/// Traders will either pay or receive funding rates, depending on their positions.
+/// If the funding rate is positive, long position holders will pay the funding rate to those holding short positions, and vice versa.
+#[cw_serde]
+pub struct Funding {
+    /// Determines the maximum rate at which funding can be adjusted
+    pub max_funding_velocity: Decimal,
+
+    /// Determines the funding rate for a given level of skew, as per the function:
+    /// funding_rate_velocity = max_funding_velocity * skew / skew_scale
+    /// The lower the skew_scale the higher the funding rate.
+    pub skew_scale: Decimal,
+
+    /// The constant_factor: max_funding_velocity / skew_scale
+    pub constant_factor: SignedDecimal,
+
+    /// The current funding rate calculated as an 24-hour rate. It is calculated as:
+    /// rate = prev_rate + (funding_rate_velocity * (current_time_sec - prev_time_sec) / (ONE_DAY_SEC))
+    pub rate: SignedDecimal,
+
+    /// The current funding index calculated as:
+    /// index = prev_index * (1 + current_rate)
+    pub index: SignedDecimal,
+
+    /// The accumulated size weighted by the index, calculated for open positions as:
+    /// pos_1_size / pos_1_index + pos_2_size / pos_2_index + ...
+    /// if a position is closed, the accumulated position is removed from the accumulator:
+    /// pos_1_size / pos_1_index + pos_2_size / pos_2_index + ... - pos_1_size / pos_1_index
+    /// pos_2_size / pos_2_index + ...
+    pub accumulated_size_weighted_by_index: SignedDecimal,
+}
+
+impl Default for Funding {
+    fn default() -> Self {
+        Funding {
+            max_funding_velocity: Decimal::zero(),
+            skew_scale: Decimal::one(),
+            constant_factor: SignedDecimal::zero(),
+            rate: SignedDecimal::zero(),
+            index: SignedDecimal::one(),
+            accumulated_size_weighted_by_index: SignedDecimal::zero(),
+        }
+    }
+}
+
+impl Funding {
+    pub fn constant_factor(
+        max_funding_velocity: Decimal,
+        skew_scale: Decimal,
+    ) -> Result<SignedDecimal, CheckedFromRatioError> {
+        let c: SignedDecimal = max_funding_velocity.checked_div(skew_scale)?.into();
+        Ok(c)
+    }
+}
+
+/// This is the denom data to be returned in a query. It includes current
+/// price, PnL and funding.
+#[cw_serde]
+pub struct PerpDenomState {
+    pub denom: String,
+    pub enabled: bool,
+    pub total_size: SignedDecimal,
+    pub total_cost_base: SignedDecimal,
+    pub constant_factor: SignedDecimal,
+    pub rate: SignedDecimal,
+    pub index: SignedDecimal,
+    pub pnl_values: PnlValues,
 }
 
 /// This is the position data to be stored in the contract state. It does not
@@ -91,6 +164,7 @@ pub struct DenomState {
 pub struct Position {
     pub size: SignedDecimal,
     pub entry_price: Decimal,
+    pub entry_funding_index: SignedDecimal,
 }
 
 /// This is the position data to be returned in a query. It includes current
@@ -128,11 +202,30 @@ impl fmt::Display for PnL {
     }
 }
 
+/// PnL values denominated in the base currency
+#[cw_serde]
+pub struct PnlValues {
+    pub unrealized_pnl: SignedDecimal,
+    pub accrued_funding: SignedDecimal,
+
+    /// The total PnL: unrealized PnL - accrued funding
+    pub pnl: SignedDecimal,
+}
+
 pub type InstantiateMsg = Config<String>;
 
 #[cw_serde]
 pub enum ExecuteMsg {
     UpdateOwner(OwnerUpdate),
+
+    /// Init a denom to be traded.
+    ///
+    /// Only callable by the owner.
+    InitDenom {
+        denom: String,
+        max_funding_velocity: Decimal,
+        skew_scale: Decimal,
+    },
 
     /// Enable a denom to be traded.
     ///
@@ -215,6 +308,12 @@ pub enum QueryMsg {
         denom: String,
     },
 
+    /// Query a single perp denom state with current calculated PnL, funding etc.
+    #[returns(PerpDenomState)]
+    PerpDenomState {
+        denom: String,
+    },
+
     /// List all denoms enabled for trading
     #[returns(Vec<DenomStateResponse>)]
     DenomStates {
@@ -273,6 +372,8 @@ pub struct DenomStateResponse {
     pub enabled: bool,
     pub total_size: SignedDecimal,
     pub total_cost_base: SignedDecimal,
+    pub funding: Funding,
+    pub last_updated: u64,
 }
 
 #[cw_serde]

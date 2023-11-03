@@ -26,10 +26,10 @@ fn computing_total_unrealized_pnl() {
     // deposit some big number of uusdc to vault
     mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
 
-    // enable all denoms
-    mock.enable_denom(&owner, "uosmo").unwrap();
-    mock.enable_denom(&owner, "uatom").unwrap();
-    mock.enable_denom(&owner, "utia").unwrap();
+    // init denoms
+    mock.init_denom(&owner, "uosmo", Decimal::zero(), Decimal::one()).unwrap();
+    mock.init_denom(&owner, "uatom", Decimal::zero(), Decimal::one()).unwrap();
+    mock.init_denom(&owner, "utia", Decimal::zero(), Decimal::one()).unwrap();
 
     // set entry prices
     mock.set_price(&owner, "uosmo", Decimal::from_str("0.25").unwrap()).unwrap();

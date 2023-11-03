@@ -6,14 +6,14 @@ use mars_types::{
     math::SignedDecimal,
     oracle::ActionKind,
     perps::{
-        Config, DenomStateResponse, DepositResponse, PerpPosition, PositionResponse,
-        PositionsByAccountResponse, VaultState,
+        Config, DenomStateResponse, DepositResponse, Funding, PerpDenomState, PerpPosition,
+        PositionResponse, PositionsByAccountResponse, VaultState,
     },
 };
 
 use crate::{
     error::ContractResult,
-    pnl::{compute_pnl, compute_total_unrealized_pnl},
+    pnl::{compute_pnl, compute_total_unrealized_pnl, DenomStateExt},
     state::{CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, VAULT_STATE},
     vault::shares_to_amount,
 };
@@ -36,6 +36,8 @@ pub fn denom_state(store: &dyn Storage, denom: String) -> StdResult<DenomStateRe
         enabled: ds.enabled,
         total_size: ds.total_size,
         total_cost_base: ds.total_cost_base,
+        funding: ds.funding,
+        last_updated: ds.last_updated,
     })
 }
 
@@ -57,9 +59,32 @@ pub fn denom_states(
                 enabled: ds.enabled,
                 total_size: ds.total_size,
                 total_cost_base: ds.total_cost_base,
+                funding: ds.funding,
+                last_updated: ds.last_updated,
             })
         })
         .collect()
+}
+
+pub fn perp_denom_state(
+    deps: Deps,
+    current_time: u64,
+    denom: String,
+) -> ContractResult<PerpDenomState> {
+    let ds = DENOM_STATES.load(deps.storage, &denom)?;
+    let cfg = CONFIG.load(deps.storage)?;
+    let current_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+    let (pnl_values, curr_funding) = ds.compute_pnl(current_time, current_price)?;
+    Ok(PerpDenomState {
+        denom,
+        enabled: ds.enabled,
+        total_size: ds.total_size,
+        total_cost_base: ds.total_cost_base,
+        constant_factor: ds.funding.constant_factor,
+        rate: curr_funding.rate,
+        index: curr_funding.index,
+        pnl_values,
+    })
 }
 
 pub fn deposit(deps: Deps, depositor: String) -> ContractResult<DepositResponse> {
@@ -98,12 +123,19 @@ pub fn deposits(
         .collect()
 }
 
-pub fn position(deps: Deps, account_id: String, denom: String) -> ContractResult<PositionResponse> {
+pub fn position(
+    deps: Deps,
+    current_time: u64,
+    account_id: String,
+    denom: String,
+) -> ContractResult<PositionResponse> {
     let cfg = CONFIG.load(deps.storage)?;
     let current_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
 
+    let ds = DENOM_STATES.load(deps.storage, &denom)?;
+    let curr_funding = ds.compute_current_funding(current_time)?;
     let position = POSITIONS.load(deps.storage, (&account_id, &denom))?;
-    let pnl = compute_pnl(&position, current_price, &cfg.base_denom)?;
+    let pnl = compute_pnl(&curr_funding, &position, current_price, &cfg.base_denom)?;
 
     Ok(PositionResponse {
         account_id,
@@ -119,6 +151,7 @@ pub fn position(deps: Deps, account_id: String, denom: String) -> ContractResult
 
 pub fn positions(
     deps: Deps,
+    current_time: u64,
     start_after: Option<(String, String)>,
     limit: Option<u32>,
 ) -> ContractResult<Vec<PositionResponse>> {
@@ -128,6 +161,9 @@ pub fn positions(
         .as_ref()
         .map(|(account_id, denom)| Bound::exclusive((account_id.as_str(), denom.as_str())));
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+
+    // cache the fundings here so that we don't repetitively recalculate them
+    let mut fundings: HashMap<String, Funding> = HashMap::new();
 
     // cache the prices here so that we don't repetitively query them
     let mut prices: HashMap<String, Decimal> = HashMap::new();
@@ -149,7 +185,17 @@ pub fn positions(
                 price
             };
 
-            let pnl = compute_pnl(&position, current_price, &cfg.base_denom)?;
+            // if funding is already in the cache, simply read it
+            // otherwise, recalculate it, and insert into the cache
+            let pnl = if let Some(curr_funding) = fundings.get(&denom) {
+                compute_pnl(curr_funding, &position, current_price, &cfg.base_denom)?
+            } else {
+                let ds = DENOM_STATES.load(deps.storage, &denom)?;
+                let curr_funding = ds.compute_current_funding(current_time)?;
+                let pnl = compute_pnl(&curr_funding, &position, current_price, &cfg.base_denom)?;
+                fundings.insert(denom.clone(), curr_funding);
+                pnl
+            };
 
             Ok(PositionResponse {
                 account_id,
@@ -167,6 +213,7 @@ pub fn positions(
 
 pub fn positions_by_account(
     deps: Deps,
+    current_time: u64,
     account_id: String,
 ) -> ContractResult<PositionsByAccountResponse> {
     let cfg = CONFIG.load(deps.storage)?;
@@ -177,9 +224,13 @@ pub fn positions_by_account(
         .map(|item| {
             let (denom, position) = item?;
 
+            let ds = DENOM_STATES.load(deps.storage, &denom)?;
+            let curr_funding = ds.compute_current_funding(current_time)?;
+
             let current_price =
                 cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
-            let pnl = compute_pnl(&position, current_price, &cfg.base_denom)?;
+
+            let pnl = compute_pnl(&curr_funding, &position, current_price, &cfg.base_denom)?;
 
             Ok(PerpPosition {
                 denom,

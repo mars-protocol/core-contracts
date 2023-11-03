@@ -30,6 +30,13 @@ impl SignedDecimal {
         }
     }
 
+    pub fn one() -> Self {
+        Self {
+            negative: false,
+            abs: Decimal::one(),
+        }
+    }
+
     pub fn is_zero(&self) -> bool {
         self.abs.is_zero()
     }
