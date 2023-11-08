@@ -204,6 +204,7 @@ impl fmt::Display for PnL {
 
 /// PnL values denominated in the base currency
 #[cw_serde]
+#[derive(Default)]
 pub struct PnlValues {
     pub unrealized_pnl: SignedDecimal,
     pub accrued_funding: SignedDecimal,
@@ -360,9 +361,9 @@ pub enum QueryMsg {
         account_id: String,
     },
 
-    /// Compute the total unrealized PnL of all perp positions, denominated in uusd (USD = 1e6 uusd, configured in Oracle)
+    /// Compute the total PnL of all perp positions, denominated in uusd (USD = 1e6 uusd, configured in Oracle)
     #[returns(SignedDecimal)]
-    TotalUnrealizedPnl {},
+    TotalPnl {},
 }
 
 #[cw_serde]

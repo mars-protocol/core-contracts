@@ -11,8 +11,8 @@ use mars_types::{
     math::SignedDecimal,
     oracle,
     perps::{
-        self, Config, DenomStateResponse, DepositResponse, PerpDenomState, PositionResponse,
-        PositionsByAccountResponse, VaultState,
+        self, Config, DenomStateResponse, DepositResponse, PerpDenomState, PnlValues,
+        PositionResponse, PositionsByAccountResponse, VaultState,
     },
 };
 
@@ -338,11 +338,8 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_total_unrealized_pnl(&self) -> SignedDecimal {
-        self.app
-            .wrap()
-            .query_wasm_smart(self.perps.clone(), &perps::QueryMsg::TotalUnrealizedPnl {})
-            .unwrap()
+    pub fn query_total_pnl(&self) -> PnlValues {
+        self.app.wrap().query_wasm_smart(self.perps.clone(), &perps::QueryMsg::TotalPnl {}).unwrap()
     }
 }
 

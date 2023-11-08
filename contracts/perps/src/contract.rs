@@ -107,7 +107,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::PositionsByAccount {
             account_id,
         } => to_binary(&query::positions_by_account(deps, env.block.time.seconds(), account_id)?),
-        QueryMsg::TotalUnrealizedPnl {} => to_binary(&query::total_unrealized_pnl(deps)?),
+        QueryMsg::TotalPnl {} => to_binary(&query::total_pnl(deps, env.block.time.seconds())?),
     }
     .map_err(Into::into)
 }

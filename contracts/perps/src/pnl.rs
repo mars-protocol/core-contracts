@@ -73,7 +73,7 @@ pub fn compute_pnl(
 /// Realized PnL is computed when a position is closed with deducted funding from unrealized PnL.
 ///
 /// Accumulated funding for a position is computed as:
-/// accumulated_funding = size * exit_price * (close_fun_idx / popen_fun_idx - 1)
+/// accumulated_funding = size * exit_price * (close_fun_idx / open_fun_idx - 1)
 /// where:
 /// close_fun_idx - funding index at the time of position closing
 /// open_fun_idx - funding index at the time of position opening
@@ -248,21 +248,30 @@ impl DenomStateExt for DenomState {
     }
 }
 
-/// Loop through denoms and compute the total unrealized PnL.
+/// Loop through denoms and compute the total PnL.
 /// This PnL is denominated in uusd (1 USD = 1e6 uusd -> configured in Oracle).
-pub fn compute_total_unrealized_pnl(deps: Deps, oracle: &Oracle) -> ContractResult<SignedDecimal> {
-    let total_unrealized_pnl = DENOM_STATES
-        .range(deps.storage, None, None, Order::Ascending)
-        .try_fold(SignedDecimal::zero(), |acc, item| -> ContractResult<_> {
+pub fn compute_total_pnl(
+    deps: Deps,
+    oracle: &Oracle,
+    current_time: u64,
+) -> ContractResult<PnlValues> {
+    let total_pnl = DENOM_STATES.range(deps.storage, None, None, Order::Ascending).try_fold(
+        PnlValues::default(),
+        |acc, item| -> ContractResult<_> {
             let (denom, ds) = item?;
 
             let price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
-            let pnl = ds.compute_unrealized_pnl(price)?;
+            let (pnl_values, _) = ds.compute_pnl(current_time, price)?;
 
-            acc.checked_add(pnl).map_err(Into::into)
-        })?;
+            Ok(PnlValues {
+                unrealized_pnl: acc.unrealized_pnl.checked_add(pnl_values.unrealized_pnl)?,
+                accrued_funding: acc.accrued_funding.checked_add(pnl_values.accrued_funding)?,
+                pnl: acc.pnl.checked_add(pnl_values.pnl)?,
+            })
+        },
+    )?;
 
-    Ok(total_unrealized_pnl)
+    Ok(total_pnl)
 }
 
 // ----------------------------------- Tests -----------------------------------

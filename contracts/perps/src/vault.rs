@@ -3,7 +3,7 @@ use mars_types::{adapters::oracle::Oracle, oracle::ActionKind, perps::VaultState
 
 use crate::{
     error::{ContractError, ContractResult},
-    pnl::compute_total_unrealized_pnl,
+    pnl::compute_total_pnl,
 };
 
 const DEFAULT_SHARES_PER_AMOUNT: u128 = 1_000_000;
@@ -32,13 +32,13 @@ const DEFAULT_SHARES_PER_AMOUNT: u128 = 1_000_000;
 /// paid by one group of traders to another, so the net effect on NAV should be
 /// zero.
 //
-// TODO: We might need to consider position opening/closing fees tho, but right
+// TODO: We might need to consider position opening/closing fees too, but right
 // now we haven't decided how these fees will be implemented.
 //
 // TODO: Currently this is very gas-expensive, because we have to loop through
 // all denoms, and for each denom we have to query the oracle contract for the
 // current price.
-// A possible optimization is this- each time the oracle price is updated, we
+// A possible optimization is this - each time the oracle price is updated, we
 // recalculate the total PnL and cache it here. Then we only need to load the
 // cached value.
 pub fn compute_nav(
@@ -46,10 +46,11 @@ pub fn compute_nav(
     base_denom: &str,
     oracle: &Oracle,
     vs: &VaultState,
+    current_time: u64,
 ) -> ContractResult<Uint128> {
-    // loop through denoms and compute the total unrealized PnL
+    // loop through denoms and compute the total PnL
     // note: this PnL is denominated in USD
-    let total_pnl = compute_total_unrealized_pnl(deps, oracle)?;
+    let total_pnl = compute_total_pnl(deps, oracle, current_time)?.pnl;
 
     // convert the PnL to base currency (USDC)
     let base_price = oracle.query_price(&deps.querier, base_denom, ActionKind::Default)?.price;
