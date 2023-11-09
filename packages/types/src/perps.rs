@@ -41,6 +41,10 @@ pub struct Config<T> {
 
     /// The minimum value of a position, in the base asset (i.e. USDC).
     pub min_position_value: Uint128,
+
+    /// Stakers need to wait a cooldown period before being able to withdraw USDC from the vault.
+    /// Value defined in seconds.
+    pub cooldown_period: u64,
 }
 
 impl Config<String> {
@@ -50,6 +54,7 @@ impl Config<String> {
             oracle: self.oracle.check(api)?,
             base_denom: self.base_denom,
             min_position_value: self.min_position_value,
+            cooldown_period: self.cooldown_period,
         })
     }
 }
@@ -61,6 +66,7 @@ impl From<Config<Addr>> for Config<String> {
             oracle: cfg.oracle.into(),
             base_denom: cfg.base_denom,
             min_position_value: cfg.min_position_value,
+            cooldown_period: cfg.cooldown_period,
         }
     }
 }
@@ -71,6 +77,15 @@ impl From<Config<Addr>> for Config<String> {
 pub struct VaultState {
     pub total_liquidity: Uint128,
     pub total_shares: Uint128,
+}
+
+/// Unlock state for a single user
+#[cw_serde]
+#[derive(Default)]
+pub struct UnlockState {
+    pub created_at: u64,
+    pub cooldown_end: u64,
+    pub amount: Uint128,
 }
 
 /// Global state of a single denom
@@ -253,10 +268,14 @@ pub enum ExecuteMsg {
     /// positive PnLs.
     Deposit {},
 
-    /// Withdraw liquidity from the vault.
-    Withdraw {
+    /// Unlock liquidity from the vault. The unlocked tokens will have to wait
+    /// a cooldown period before they can be withdrawn.
+    Unlock {
         shares: Uint128,
     },
+
+    /// Withdraw liquidity from the vault.
+    Withdraw {},
 
     /// Open a new perp position.
     ///
@@ -336,6 +355,11 @@ pub enum QueryMsg {
     Deposits {
         start_after: Option<String>,
         limit: Option<u32>,
+    },
+
+    #[returns(Vec<UnlockState>)]
+    Unlocks {
+        depositor: String,
     },
 
     /// Query a single perp position by ID

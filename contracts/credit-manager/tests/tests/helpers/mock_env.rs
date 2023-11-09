@@ -1069,6 +1069,7 @@ impl MockEnvBuilder {
                     oracle: self.oracle.clone().unwrap().into(),
                     base_denom: "uusdc".to_string(),
                     min_position_value: Uint128::one(),
+                    cooldown_period: 360,
                 },
                 &[],
                 "mock-perps-contract",

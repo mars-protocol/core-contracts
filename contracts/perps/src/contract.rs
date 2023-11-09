@@ -58,9 +58,12 @@ pub fn execute(
             denom,
         } => execute::disable_denom(deps.storage, env, &info.sender, &denom),
         ExecuteMsg::Deposit {} => execute::deposit(deps.storage, info),
-        ExecuteMsg::Withdraw {
+        ExecuteMsg::Unlock {
             shares,
-        } => execute::withdraw(deps.storage, &info.sender, shares),
+        } => execute::unlock(deps.storage, env.block.time.seconds(), &info.sender, shares),
+        ExecuteMsg::Withdraw {} => {
+            execute::withdraw(deps.storage, env.block.time.seconds(), &info.sender)
+        }
         ExecuteMsg::OpenPosition {
             account_id,
             denom,
@@ -96,6 +99,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             start_after,
             limit,
         } => to_binary(&query::deposits(deps.storage, start_after, limit)?),
+        QueryMsg::Unlocks {
+            depositor,
+        } => to_binary(&query::unlocks(deps, depositor)?),
         QueryMsg::Position {
             account_id,
             denom,

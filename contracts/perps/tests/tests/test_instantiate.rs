@@ -9,6 +9,7 @@ fn proper_initialization() {
     let mock = MockEnv::new()
         .perps_base_denom("uusdc")
         .min_position_value(Uint128::new(5_000_000))
+        .cooldown_period(3688)
         .build()
         .unwrap();
 
@@ -36,6 +37,7 @@ fn proper_initialization() {
             oracle: OracleBase::new(oracle),
             base_denom: "uusdc".to_string(),
             min_position_value: Uint128::new(5_000_000),
+            cooldown_period: 3688
         }
     );
 }

@@ -6,14 +6,14 @@ use mars_types::{
     oracle::ActionKind,
     perps::{
         Config, DenomStateResponse, DepositResponse, Funding, PerpDenomState, PerpPosition,
-        PnlValues, PositionResponse, PositionsByAccountResponse, VaultState,
+        PnlValues, PositionResponse, PositionsByAccountResponse, UnlockState, VaultState,
     },
 };
 
 use crate::{
     error::ContractResult,
     pnl::{compute_pnl, compute_total_pnl, DenomStateExt},
-    state::{CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, VAULT_STATE},
+    state::{CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, UNLOCKS, VAULT_STATE},
     vault::shares_to_amount,
 };
 
@@ -95,7 +95,7 @@ pub fn deposit(deps: Deps, depositor: String) -> ContractResult<DepositResponse>
     Ok(DepositResponse {
         depositor,
         shares,
-        amount: shares_to_amount(&vs, shares)?,
+        amount: shares_to_amount(&vs, shares).unwrap_or_default(),
     })
 }
 
@@ -116,10 +116,16 @@ pub fn deposits(
             Ok(DepositResponse {
                 depositor: depositor_addr.into(),
                 shares,
-                amount: shares_to_amount(&vs, shares)?,
+                amount: shares_to_amount(&vs, shares).unwrap_or_default(),
             })
         })
         .collect()
+}
+
+pub fn unlocks(deps: Deps, depositor: String) -> ContractResult<Vec<UnlockState>> {
+    let depositor_addr = deps.api.addr_validate(&depositor)?;
+    let unlocks = UNLOCKS.may_load(deps.storage, &depositor_addr)?.unwrap_or_default();
+    Ok(unlocks)
 }
 
 pub fn position(

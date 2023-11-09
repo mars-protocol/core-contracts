@@ -2,7 +2,7 @@
 use std::mem::take;
 
 use anyhow::Result as AnyResult;
-use cosmwasm_std::{coin, Addr, Coin, Decimal, Empty, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Empty, Timestamp, Uint128};
 use cw_multi_test::{App, AppResponse, BankSudo, BasicApp, Executor, SudoMsg};
 use mars_oracle_osmosis::OsmosisPriceSourceUnchecked;
 use mars_owner::{OwnerResponse, OwnerUpdate};
@@ -12,7 +12,7 @@ use mars_types::{
     oracle,
     perps::{
         self, Config, DenomStateResponse, DepositResponse, PerpDenomState, PnlValues,
-        PositionResponse, PositionsByAccountResponse, VaultState,
+        PositionResponse, PositionsByAccountResponse, UnlockState, VaultState,
     },
 };
 
@@ -35,6 +35,7 @@ pub struct MockEnvBuilder {
     oracle_base_denom: String,
     perps_base_denom: String,
     min_position_value: Uint128,
+    cooldown_period: u64,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -46,6 +47,7 @@ impl MockEnv {
             oracle_base_denom: "uusd".to_string(),
             perps_base_denom: "uusdc".to_string(),
             min_position_value: Uint128::one(),
+            cooldown_period: 3600,
         }
     }
 
@@ -65,6 +67,10 @@ impl MockEnv {
             .unwrap();
     }
 
+    pub fn query_balance(&self, addr: &Addr, denom: &str) -> Coin {
+        self.app.wrap().query_balance(addr.clone(), denom).unwrap()
+    }
+
     pub fn increment_by_blocks(&mut self, num_of_blocks: u64) {
         self.app.update_block(|block| {
             block.height += num_of_blocks;
@@ -78,6 +84,12 @@ impl MockEnv {
             block.height += seconds / 6;
             // assume block time = 6 sec
             block.time = block.time.plus_seconds(seconds);
+        })
+    }
+
+    pub fn set_block_time(&mut self, seconds: u64) {
+        self.app.update_block(|block| {
+            block.time = Timestamp::from_seconds(seconds);
         })
     }
 
@@ -148,17 +160,22 @@ impl MockEnv {
         )
     }
 
-    pub fn withdraw_from_vault(
-        &mut self,
-        sender: &Addr,
-        shares: Uint128,
-    ) -> AnyResult<AppResponse> {
+    pub fn unlock_from_vault(&mut self, sender: &Addr, shares: Uint128) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
             self.perps.clone(),
-            &perps::ExecuteMsg::Withdraw {
+            &perps::ExecuteMsg::Unlock {
                 shares,
             },
+            &[],
+        )
+    }
+
+    pub fn withdraw_from_vault(&mut self, sender: &Addr) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.perps.clone(),
+            &perps::ExecuteMsg::Withdraw {},
             &[],
         )
     }
@@ -296,6 +313,18 @@ impl MockEnv {
             .unwrap()
     }
 
+    pub fn query_unlocks(&self, depositor: &str) -> Vec<UnlockState> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.clone(),
+                &perps::QueryMsg::Unlocks {
+                    depositor: depositor.to_string(),
+                },
+            )
+            .unwrap()
+    }
+
     pub fn query_position(&self, account_id: &str, denom: &str) -> PositionResponse {
         self.app
             .wrap()
@@ -357,6 +386,7 @@ impl MockEnvBuilder {
                 oracle: OracleBase::new(oracle_contract.to_string()),
                 base_denom: self.perps_base_denom.clone(),
                 min_position_value: self.min_position_value,
+                cooldown_period: self.cooldown_period,
             },
             &[],
             "mock-perps",
@@ -424,6 +454,11 @@ impl MockEnvBuilder {
 
     pub fn min_position_value(&mut self, mpv: Uint128) -> &mut Self {
         self.min_position_value = mpv;
+        self
+    }
+
+    pub fn cooldown_period(&mut self, cp: u64) -> &mut Self {
+        self.cooldown_period = cp;
         self
     }
 }

@@ -1,13 +1,13 @@
 use cosmwasm_std::{
     coin, coins, to_binary, Addr, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response,
-    Storage, Uint128, WasmMsg,
+    StdError, Storage, Uint128, WasmMsg,
 };
 use cw_utils::{may_pay, must_pay, nonpayable};
 use mars_types::{
     credit_manager::{self, Action},
     math::SignedDecimal,
     oracle::ActionKind,
-    perps::{Config, DenomState, Funding, PnL, Position, VaultState},
+    perps::{Config, DenomState, Funding, PnL, Position, UnlockState, VaultState},
 };
 
 use crate::{
@@ -15,7 +15,7 @@ use crate::{
     pnl::{compute_pnl, DenomStateExt},
     state::{
         decrease_deposit_shares, increase_deposit_shares, CONFIG, DENOM_STATES, OWNER, POSITIONS,
-        VAULT_STATE,
+        UNLOCKS, VAULT_STATE,
     },
     vault::{amount_to_shares, shares_to_amount},
 };
@@ -165,8 +165,9 @@ pub fn deposit(store: &mut dyn Storage, info: MessageInfo) -> ContractResult<Res
         .add_attribute("shares", shares))
 }
 
-pub fn withdraw(
+pub fn unlock(
     store: &mut dyn Storage,
+    current_time: u64,
     depositor: &Addr,
     shares: Uint128,
 ) -> ContractResult<Response> {
@@ -174,10 +175,12 @@ pub fn withdraw(
     let mut vs = VAULT_STATE.load(store)?;
 
     // convert the shares to amount
-    //
-    // no need to check whether amount is zero; if it is then the MsgSend will
-    // naturally fail
     let amount = shares_to_amount(&vs, shares)?;
+
+    // cannot unlock when there is zero shares
+    if amount.is_zero() {
+        return Err(ContractError::ZeroShares);
+    }
 
     // decrement total liquidity and deposit shares
     vs.total_liquidity = vs.total_liquidity.checked_sub(amount)?;
@@ -187,13 +190,61 @@ pub fn withdraw(
     // decrement the user's deposit shares
     decrease_deposit_shares(store, depositor, shares)?;
 
+    // add new unlock position
+    let cooldown_end = current_time + cfg.cooldown_period;
+    UNLOCKS.update(store, depositor, |maybe_unlocks| {
+        let mut unlocks = maybe_unlocks.unwrap_or_default();
+
+        unlocks.push(UnlockState {
+            created_at: current_time,
+            cooldown_end,
+            amount,
+        });
+
+        Ok::<Vec<UnlockState>, StdError>(unlocks)
+    })?;
+
     Ok(Response::new()
-        .add_attribute("method", "withdraw")
+        .add_attribute("method", "unlock")
         .add_attribute("amount", amount)
         .add_attribute("shares", shares)
+        .add_attribute("created_at", current_time.to_string())
+        .add_attribute("cooldown_end", cooldown_end.to_string()))
+}
+
+pub fn withdraw(
+    store: &mut dyn Storage,
+    current_time: u64,
+    depositor: &Addr,
+) -> ContractResult<Response> {
+    let cfg = CONFIG.load(store)?;
+    let unlocks = UNLOCKS.load(store, depositor)?;
+
+    // find all unlocked positions
+    let (unlocked, unlocking): (Vec<_>, Vec<_>) =
+        unlocks.into_iter().partition(|us| us.cooldown_end <= current_time);
+
+    // cannot withdraw when there is zero unlocked positions
+    if unlocked.is_empty() {
+        return Err(ContractError::UnlockedPositionsNotFound {});
+    }
+
+    // clear state if no more unlocking positions
+    if unlocking.is_empty() {
+        UNLOCKS.remove(store, depositor);
+    } else {
+        UNLOCKS.save(store, depositor, &unlocking)?;
+    }
+
+    // compute the total amount to be withdrawn
+    let unlocked_amt = unlocked.into_iter().map(|us| us.amount).sum::<Uint128>();
+
+    Ok(Response::new()
+        .add_attribute("method", "withdraw")
+        .add_attribute("amount", unlocked_amt)
         .add_message(BankMsg::Send {
             to_address: depositor.into(),
-            amount: coins(amount.u128(), cfg.base_denom),
+            amount: coins(unlocked_amt.u128(), cfg.base_denom),
         }))
 }
 

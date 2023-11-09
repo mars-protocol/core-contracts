@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, StdError, StdResult, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 use mars_owner::Owner;
-use mars_types::perps::{Config, DenomState, Position, VaultState};
+use mars_types::perps::{Config, DenomState, Position, UnlockState, VaultState};
 
 pub const OWNER: Owner = Owner::new("owner");
 
@@ -14,6 +14,9 @@ pub const DENOM_STATES: Map<&str, DenomState> = Map::new("ds");
 
 // depositor_addr => shares
 pub const DEPOSIT_SHARES: Map<&Addr, Uint128> = Map::new("s");
+
+// depositor_addr => unlocks
+pub const UNLOCKS: Map<&Addr, Vec<UnlockState>> = Map::new("ul");
 
 // (account_id, denom) => position
 pub const POSITIONS: Map<(&str, &str), Position> = Map::new("p");

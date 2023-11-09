@@ -66,10 +66,16 @@ pub enum ContractError {
     #[error("cannot compute deposit amount when there is zero total shares")]
     ZeroTotalShares,
 
+    #[error("cannot unlock when there is zero shares")]
+    ZeroShares,
+
     #[error("Invalid param: {reason}")]
     InvalidParam {
         reason: String,
     },
+
+    #[error("Unlocked positions not found")]
+    UnlockedPositionsNotFound {},
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;
