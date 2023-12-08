@@ -7,9 +7,9 @@ use tsify::Tsify;
 
 #[cw_serde]
 pub struct Health {
-    /// The sum of the value of all debts
+    /// The sum of all debt. Does not include negative perp pnl
     pub total_debt_value: Uint128,
-    /// The sum of the value of all collaterals
+    /// The sum of the value of spot collateral. Does not include positive perp pnl
     pub total_collateral_value: Uint128,
     /// The sum of the value of all colletarals adjusted by their Max LTV
     pub max_ltv_adjusted_collateral: Uint128,
@@ -19,19 +19,25 @@ pub struct Health {
     pub max_ltv_health_factor: Option<Decimal>,
     /// The sum of the value of all collaterals multiplied by their liquidation threshold over the total value of debt
     pub liquidation_health_factor: Option<Decimal>,
+    /// The total of winning pnl positions
+    pub perp_pnl_profit: Uint128,
+    /// the total of pnl losing positions
+    pub perp_pnl_losses: Uint128,
 }
 
 impl fmt::Display for Health {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "(total_debt_value: {}, total_collateral_value: {},  max_ltv_adjusted_collateral: {}, lqdt_threshold_adjusted_collateral: {}, max_ltv_health_factor: {}, liquidation_health_factor: {})",
+            "(total_debt_value: {}, total_collateral_value: {},  max_ltv_adjusted_collateral: {}, lqdt_threshold_adjusted_collateral: {}, max_ltv_health_factor: {}, liquidation_health_factor: {}, pnl_profit : {}, pnl_losses : {})",
             self.total_debt_value,
             self.total_collateral_value,
             self.max_ltv_adjusted_collateral,
             self.liquidation_threshold_adjusted_collateral,
             self.max_ltv_health_factor.map_or("n/a".to_string(), |x| x.to_string()),
-            self.liquidation_health_factor.map_or("n/a".to_string(), |x| x.to_string())
+            self.liquidation_health_factor.map_or("n/a".to_string(), |x| x.to_string()),
+            self.perp_pnl_profit,
+            self.perp_pnl_losses
         )
     }
 }

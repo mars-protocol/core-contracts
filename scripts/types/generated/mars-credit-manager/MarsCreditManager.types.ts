@@ -603,11 +603,14 @@ export interface DebtAmount {
   shares: Uint128
 }
 export interface PerpPosition {
+  base_denom: string
+  closing_fee_rate: Decimal
   current_price: Decimal
   denom: string
   entry_price: Decimal
   pnl: PnL
   size: SignedDecimal
+  unrealised_funding_accrued: SignedDecimal
 }
 export interface VaultPositionValue {
   base_coin: CoinValue

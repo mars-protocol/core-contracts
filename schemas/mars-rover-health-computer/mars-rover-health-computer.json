@@ -325,13 +325,22 @@
       "description": "This is the position data to be returned in a query. It includes current price and PnL.",
       "type": "object",
       "required": [
+        "base_denom",
+        "closing_fee_rate",
         "current_price",
         "denom",
         "entry_price",
         "pnl",
-        "size"
+        "size",
+        "unrealised_funding_accrued"
       ],
       "properties": {
+        "base_denom": {
+          "type": "string"
+        },
+        "closing_fee_rate": {
+          "$ref": "#/definitions/Decimal"
+        },
         "current_price": {
           "$ref": "#/definitions/Decimal"
         },
@@ -345,6 +354,9 @@
           "$ref": "#/definitions/PnL"
         },
         "size": {
+          "$ref": "#/definitions/SignedDecimal"
+        },
+        "unrealised_funding_accrued": {
           "$ref": "#/definitions/SignedDecimal"
         }
       },

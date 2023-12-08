@@ -52,7 +52,7 @@ pub fn max_borrow_prop_test_runner(cases: u32, target: &BorrowTarget) {
                     let health_after = h_new.compute_health().unwrap();
 
                     // Ensure still healthy
-                    assert!(!health_after.is_above_max_ltv(),);
+                    assert!(!health_after.is_above_max_ltv());
                 }
                 Ok(())
             },

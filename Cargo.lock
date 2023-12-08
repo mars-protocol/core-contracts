@@ -2579,6 +2579,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-vault-standard 0.3.3",
+ "mars-perps",
  "mars-types",
  "proptest",
  "schemars",

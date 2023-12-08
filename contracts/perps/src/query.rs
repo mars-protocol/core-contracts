@@ -12,7 +12,7 @@ use mars_types::{
 
 use crate::{
     error::ContractResult,
-    pnl::{compute_pnl, compute_total_pnl, DenomStateExt},
+    pnl::{compute_accrued_funding, compute_pnl, compute_total_pnl, DenomStateExt},
     state::{CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, UNLOCKS, VAULT_STATE},
     vault::shares_to_amount,
 };
@@ -141,15 +141,20 @@ pub fn position(
     let curr_funding = ds.compute_current_funding(current_time)?;
     let position = POSITIONS.load(deps.storage, (&account_id, &denom))?;
     let pnl = compute_pnl(&curr_funding, &position, current_price, &cfg.base_denom)?;
+    let unrealised_funding_accrued =
+        compute_accrued_funding(&curr_funding, &position, current_price.into())?;
 
     Ok(PositionResponse {
         account_id,
         position: PerpPosition {
             denom,
+            base_denom: cfg.base_denom,
             size: position.size,
             entry_price: position.entry_price,
             current_price,
             pnl,
+            unrealised_funding_accrued,
+            closing_fee_rate: Decimal::zero(), // todo
         },
     })
 }
@@ -192,24 +197,33 @@ pub fn positions(
 
             // if funding is already in the cache, simply read it
             // otherwise, recalculate it, and insert into the cache
-            let pnl = if let Some(curr_funding) = fundings.get(&denom) {
-                compute_pnl(curr_funding, &position, current_price, &cfg.base_denom)?
+            let (pnl, unrealised_funding_accrued) = if let Some(curr_funding) = fundings.get(&denom)
+            {
+                (
+                    compute_pnl(curr_funding, &position, current_price, &cfg.base_denom)?,
+                    compute_accrued_funding(curr_funding, &position, current_price.into())?,
+                )
             } else {
                 let ds = DENOM_STATES.load(deps.storage, &denom)?;
                 let curr_funding = ds.compute_current_funding(current_time)?;
                 let pnl = compute_pnl(&curr_funding, &position, current_price, &cfg.base_denom)?;
+                let funding_accrued =
+                    compute_accrued_funding(&curr_funding, &position, current_price.into())?;
                 fundings.insert(denom.clone(), curr_funding);
-                pnl
+                (pnl, funding_accrued)
             };
 
             Ok(PositionResponse {
                 account_id,
                 position: PerpPosition {
                     denom,
+                    base_denom: cfg.base_denom.clone(),
                     size: position.size,
                     entry_price: position.entry_price,
                     current_price,
                     pnl,
+                    unrealised_funding_accrued,
+                    closing_fee_rate: Decimal::zero(), // todo
                 },
             })
         })
@@ -236,13 +250,18 @@ pub fn positions_by_account(
                 cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
 
             let pnl = compute_pnl(&curr_funding, &position, current_price, &cfg.base_denom)?;
+            let unrealised_funding_accrued =
+                compute_accrued_funding(&curr_funding, &position, current_price.into())?;
 
             Ok(PerpPosition {
                 denom,
+                base_denom: cfg.base_denom.clone(),
                 size: position.size,
                 entry_price: position.entry_price,
                 current_price,
                 pnl,
+                unrealised_funding_accrued,
+                closing_fee_rate: Decimal::zero(), // todo
             })
         })
         .collect::<ContractResult<Vec<_>>>()?;

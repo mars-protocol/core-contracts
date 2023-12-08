@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Api, CheckedFromRatioError, Coin, Decimal, StdResult, Uint128};
@@ -187,10 +187,13 @@ pub struct Position {
 #[cw_serde]
 pub struct PerpPosition {
     pub denom: String,
+    pub base_denom: String,
     pub size: SignedDecimal,
     pub entry_price: Decimal,
     pub current_price: Decimal,
     pub pnl: PnL,
+    pub unrealised_funding_accrued: SignedDecimal,
+    pub closing_fee_rate: Decimal,
 }
 
 /// The profit-and-loss of a perp position, denominated in the base currency.
@@ -199,6 +202,18 @@ pub enum PnL {
     Profit(Coin),
     Loss(Coin),
     BreakEven,
+}
+
+impl PnL {
+    pub fn to_signed_decimal(&self) -> StdResult<SignedDecimal> {
+        let value = match self {
+            PnL::Profit(c) => SignedDecimal::from_str(c.amount.to_string().as_str())?,
+            PnL::Loss(c) => SignedDecimal::zero()
+                .checked_sub(SignedDecimal::from_str(c.amount.to_string().as_str())?)?,
+            PnL::BreakEven => SignedDecimal::zero(),
+        };
+        Ok(value)
+    }
 }
 
 impl fmt::Display for PnL {

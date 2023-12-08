@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use cosmwasm_std::{CheckedFromRatioError, Decimal, OverflowError, StdError};
+use cosmwasm_std::{CheckedFromRatioError, Decimal, OverflowError, StdError, Uint128};
 use schemars::JsonSchema;
 use serde::{de, ser, Deserialize, Serialize};
 
@@ -27,6 +27,13 @@ impl SignedDecimal {
         Self {
             negative: false,
             abs: Decimal::zero(),
+        }
+    }
+
+    pub fn floor(&self) -> Self {
+        Self {
+            negative: self.negative,
+            abs: self.abs.floor(),
         }
     }
 
@@ -164,6 +171,15 @@ impl From<Decimal> for SignedDecimal {
         SignedDecimal {
             negative: false,
             abs,
+        }
+    }
+}
+
+impl From<Uint128> for SignedDecimal {
+    fn from(abs: Uint128) -> Self {
+        SignedDecimal {
+            negative: false,
+            abs: Decimal::from_atomics(abs, 0).unwrap(),
         }
     }
 }

@@ -7,7 +7,7 @@ use super::helpers::random_health_computer;
 #[test]
 fn withdraw_amount_renders_healthy_max_ltv() {
     let config = ProptestConfig {
-        cases: 200,
+        cases: 2000,
         max_global_rejects: 1000000,
         ..ProptestConfig::default()
     };
@@ -18,12 +18,11 @@ fn withdraw_amount_renders_healthy_max_ltv() {
             // Test requires at least one deposit/debt. None case tested in test_max_withdraw.rs
             prop_assume!(!h.positions.deposits.is_empty());
             prop_assume!(!h.positions.debts.is_empty());
+            let health_before = h.compute_health()?;
 
             let random_deposit = h.positions.deposits.first().unwrap().clone();
             let params = h.denoms_data.params.get(&random_deposit.denom).unwrap();
-
-            let max_withdraw = h.max_withdraw_amount_estimate(&random_deposit.denom).unwrap();
-            let health_before = h.compute_health().unwrap();
+            let max_withdraw = h.max_withdraw_amount_estimate(&random_deposit.denom)?;
             if health_before.is_above_max_ltv() && params.credit_manager.whitelisted {
                 assert_eq!(Uint128::zero(), max_withdraw);
             } else {
@@ -38,7 +37,7 @@ fn withdraw_amount_renders_healthy_max_ltv() {
                     )
                 } else {
                     // if was healthy, ensure still healthy
-                    assert!(!health_after.is_above_max_ltv());
+                    assert!(!health_after.is_above_max_ltv() && !health_after.is_liquidatable());
                 }
             }
             Ok(())

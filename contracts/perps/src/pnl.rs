@@ -25,13 +25,7 @@ pub fn compute_pnl(
     let price_diff = exit_price.checked_sub(entry_price)?;
     let pnl = position.size.checked_mul(price_diff)?;
 
-    // size * exit_price * (current_funding_index / pos_open_funding_index - 1)
-    let idx = funding
-        .index
-        .checked_div(position.entry_funding_index)?
-        .checked_sub(SignedDecimal::one())?;
-    let accrued_funding = position.size.checked_mul(exit_price)?.checked_mul(idx)?;
-
+    let accrued_funding = compute_accrued_funding(funding, position, exit_price)?;
     let realized_pnl = pnl.checked_sub(accrued_funding)?;
 
     if realized_pnl.is_positive() {
@@ -49,6 +43,21 @@ pub fn compute_pnl(
     }
 
     Ok(PnL::BreakEven)
+}
+
+pub fn compute_accrued_funding(
+    funding: &Funding,
+    position: &Position,
+    exit_price: SignedDecimal,
+) -> ContractResult<SignedDecimal> {
+    // size * exit_price * (current_funding_index / pos_open_funding_index - 1)
+    let idx = funding
+        .index
+        .checked_div(position.entry_funding_index)?
+        .checked_sub(SignedDecimal::one())?;
+    let accrued_funding = position.size.checked_mul(exit_price)?.checked_mul(idx)?;
+
+    Ok(accrued_funding)
 }
 
 /// Total unrealized PnL of a denom is the sum of unrealized PnL of all open positions.

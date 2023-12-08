@@ -1,4 +1,6 @@
-use cosmwasm_std::{CheckedFromRatioError, CheckedMultiplyFractionError, OverflowError, StdError};
+use cosmwasm_std::{
+    CheckedFromRatioError, CheckedMultiplyFractionError, DivideByZeroError, OverflowError, StdError,
+};
 use mars_owner::OwnerError;
 use thiserror::Error;
 
@@ -6,6 +8,9 @@ pub type HealthResult<T> = Result<T, HealthError>;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum HealthError {
+    #[error("{0}")]
+    DivideByZeroError(#[from] DivideByZeroError),
+
     #[error("{0}")]
     CheckedFromRatio(#[from] CheckedFromRatioError),
 
