@@ -1,10 +1,12 @@
 use cosmwasm_std::{Decimal, DepsMut, MessageInfo, Response};
-use mars_types::params::{AssetParamsUpdate, VaultConfigUpdate};
+use mars_types::params::{AssetParamsUpdate, PerpParamsUpdate, VaultConfigUpdate};
 use mars_utils::{error::ValidationError, helpers::option_string_to_addr};
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, TARGET_HEALTH_FACTOR, VAULT_CONFIGS},
+    state::{
+        ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, PERP_PARAMS, TARGET_HEALTH_FACTOR, VAULT_CONFIGS,
+    },
 };
 
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -102,4 +104,27 @@ pub fn assert_thf(thf: Decimal) -> Result<(), ContractError> {
         .into());
     }
     Ok(())
+}
+
+pub fn update_perp_params(
+    deps: DepsMut,
+    info: MessageInfo,
+    update: PerpParamsUpdate,
+) -> ContractResult<Response> {
+    OWNER.assert_owner(deps.storage, &info.sender)?;
+
+    let mut response = Response::new().add_attribute("action", "update_perp_param");
+
+    match update {
+        PerpParamsUpdate::AddOrUpdate {
+            params,
+        } => {
+            PERP_PARAMS.save(deps.storage, &params.denom, &params)?;
+            response = response
+                .add_attribute("action_type", "add_or_update")
+                .add_attribute("denom", params.denom);
+        }
+    }
+
+    Ok(response)
 }

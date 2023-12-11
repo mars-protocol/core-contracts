@@ -6,7 +6,7 @@ use cw_multi_test::{App, AppResponse, BasicApp, Executor};
 use mars_owner::{OwnerResponse, OwnerUpdate};
 use mars_types::params::{
     AssetParams, AssetParamsUpdate, ConfigResponse, EmergencyUpdate, ExecuteMsg, InstantiateMsg,
-    QueryMsg, VaultConfig, VaultConfigUpdate,
+    PerpParams, PerpParamsUpdate, QueryMsg, VaultConfig, VaultConfigUpdate,
 };
 
 use super::contracts::mock_params_contract;
@@ -58,6 +58,19 @@ impl MockEnv {
             sender.clone(),
             self.params_contract.clone(),
             &ExecuteMsg::UpdateVaultConfig(update),
+            &[],
+        )
+    }
+
+    pub fn update_perp_params(
+        &mut self,
+        sender: &Addr,
+        update: PerpParamsUpdate,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.params_contract.clone(),
+            &ExecuteMsg::UpdatePerpParams(update),
             &[],
         )
     }
@@ -176,6 +189,35 @@ impl MockEnv {
             .query_wasm_smart(
                 self.params_contract.clone(),
                 &QueryMsg::AllVaultConfigs {
+                    start_after,
+                    limit,
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_perp_params(&self, denom: &str) -> PerpParams {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.params_contract.clone(),
+                &QueryMsg::PerpParams {
+                    denom: denom.to_string(),
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_all_perp_params(
+        &self,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Vec<PerpParams> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.params_contract.clone(),
+                &QueryMsg::AllPerpParams {
                     start_after,
                     limit,
                 },

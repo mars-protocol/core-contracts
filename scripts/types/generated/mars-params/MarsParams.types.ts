@@ -30,6 +30,9 @@ export type ExecuteMsg =
       update_vault_config: VaultConfigUpdate
     }
   | {
+      update_perp_params: PerpParamsUpdate
+    }
+  | {
       emergency_update: EmergencyUpdate
     }
 export type OwnerUpdate =
@@ -67,6 +70,11 @@ export type Uint128 = string
 export type VaultConfigUpdate = {
   add_or_update: {
     config: VaultConfigBaseForString
+  }
+}
+export type PerpParamsUpdate = {
+  add_or_update: {
+    params: PerpParams
   }
 }
 export type EmergencyUpdate =
@@ -131,6 +139,11 @@ export interface Coin {
   denom: string
   [k: string]: unknown
 }
+export interface PerpParams {
+  denom: string
+  max_long_oi: Uint128
+  max_short_oi: Uint128
+}
 export type QueryMsg =
   | {
       owner: {}
@@ -156,6 +169,17 @@ export type QueryMsg =
     }
   | {
       all_vault_configs: {
+        limit?: number | null
+        start_after?: string | null
+      }
+    }
+  | {
+      perp_params: {
+        denom: string
+      }
+    }
+  | {
+      all_perp_params: {
         limit?: number | null
         start_after?: string | null
       }
@@ -200,6 +224,7 @@ export interface HlsParamsBaseForAddr {
   liquidation_threshold: Decimal
   max_loan_to_value: Decimal
 }
+export type ArrayOfPerpParams = PerpParams[]
 export type ArrayOfVaultConfigBaseForAddr = VaultConfigBaseForAddr[]
 export interface VaultConfigBaseForAddr {
   addr: Addr

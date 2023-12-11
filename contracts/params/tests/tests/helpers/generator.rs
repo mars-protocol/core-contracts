@@ -2,7 +2,8 @@ use std::str::FromStr;
 
 use cosmwasm_std::{coin, Decimal, Uint128};
 use mars_types::params::{
-    AssetParamsUnchecked, CmSettings, LiquidationBonus, RedBankSettings, VaultConfigUnchecked,
+    AssetParamsUnchecked, CmSettings, LiquidationBonus, PerpParams, RedBankSettings,
+    VaultConfigUnchecked,
 };
 
 pub fn default_asset_params(denom: &str) -> AssetParamsUnchecked {
@@ -37,5 +38,13 @@ pub fn default_vault_config(addr: &str) -> VaultConfigUnchecked {
         liquidation_threshold: Decimal::from_str("0.5").unwrap(),
         whitelisted: true,
         hls: None,
+    }
+}
+
+pub fn default_perp_params(denom: &str) -> PerpParams {
+    PerpParams {
+        denom: denom.to_string(),
+        max_long_oi: Uint128::new(1_000_000_000),
+        max_short_oi: Uint128::new(1_000_000_000),
     }
 }

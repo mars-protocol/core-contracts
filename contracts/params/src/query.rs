@@ -3,11 +3,11 @@ use cw_storage_plus::Bound;
 use mars_interest_rate::get_underlying_liquidity_amount;
 use mars_types::{
     address_provider::{self, MarsAddressType},
-    params::{AssetParams, ConfigResponse, TotalDepositResponse, VaultConfig},
+    params::{AssetParams, ConfigResponse, PerpParams, TotalDepositResponse, VaultConfig},
     red_bank::{self, Market, UserDebtResponse},
 };
 
-use crate::state::{ADDRESS_PROVIDER, ASSET_PARAMS, VAULT_CONFIGS};
+use crate::state::{ADDRESS_PROVIDER, ASSET_PARAMS, PERP_PARAMS, VAULT_CONFIGS};
 
 pub const DEFAULT_LIMIT: u32 = 10;
 pub const MAX_LIMIT: u32 = 30;
@@ -54,6 +54,20 @@ pub fn query_all_vault_configs(
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
 
     VAULT_CONFIGS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| Ok(res?.1))
+        .collect()
+}
+
+pub fn query_all_perp_params(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<Vec<PerpParams>> {
+    let start = start_after.as_ref().map(|denom| Bound::exclusive(denom.as_str()));
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+    PERP_PARAMS
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|res| Ok(res?.1))

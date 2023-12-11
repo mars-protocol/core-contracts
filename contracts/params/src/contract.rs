@@ -12,14 +12,14 @@ use crate::{
     emergency_powers::{disable_borrowing, disallow_coin, set_zero_deposit_cap, set_zero_max_ltv},
     error::ContractResult,
     execute::{
-        assert_thf, update_asset_params, update_config, update_target_health_factor,
-        update_vault_config,
+        assert_thf, update_asset_params, update_config, update_perp_params,
+        update_target_health_factor, update_vault_config,
     },
     query::{
-        query_all_asset_params, query_all_vault_configs, query_config, query_total_deposit,
-        query_vault_config,
+        query_all_asset_params, query_all_perp_params, query_all_vault_configs, query_config,
+        query_total_deposit, query_vault_config,
     },
-    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, TARGET_HEALTH_FACTOR},
+    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, PERP_PARAMS, TARGET_HEALTH_FACTOR},
 };
 
 const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -66,6 +66,7 @@ pub fn execute(
         ExecuteMsg::UpdateAssetParams(update) => update_asset_params(deps, info, update),
         ExecuteMsg::UpdateTargetHealthFactor(mcf) => update_target_health_factor(deps, info, mcf),
         ExecuteMsg::UpdateVaultConfig(update) => update_vault_config(deps, info, update),
+        ExecuteMsg::UpdatePerpParams(update) => update_perp_params(deps, info, update),
         ExecuteMsg::EmergencyUpdate(update) => match update {
             EmergencyUpdate::RedBank(rb_u) => match rb_u {
                 RedBankEmergencyUpdate::DisableBorrowing(denom) => {
@@ -102,6 +103,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             start_after,
             limit,
         } => to_binary(&query_all_vault_configs(deps, start_after, limit)?),
+        QueryMsg::PerpParams {
+            denom,
+        } => to_binary(&PERP_PARAMS.load(deps.storage, &denom)?),
+        QueryMsg::AllPerpParams {
+            start_after,
+            limit,
+        } => to_binary(&query_all_perp_params(deps, start_after, limit)?),
         QueryMsg::TargetHealthFactor {} => to_binary(&TARGET_HEALTH_FACTOR.load(deps.storage)?),
         QueryMsg::TotalDeposit {
             denom,

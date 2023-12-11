@@ -2,7 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Decimal, Uint128};
 use mars_owner::OwnerUpdate;
 
-use super::{asset::AssetParamsUnchecked, vault::VaultConfigUnchecked};
+use super::{asset::AssetParamsUnchecked, vault::VaultConfigUnchecked, PerpParams};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -23,6 +23,7 @@ pub enum ExecuteMsg {
     UpdateTargetHealthFactor(Decimal),
     UpdateAssetParams(AssetParamsUpdate),
     UpdateVaultConfig(VaultConfigUpdate),
+    UpdatePerpParams(PerpParamsUpdate),
     EmergencyUpdate(EmergencyUpdate),
 }
 
@@ -54,6 +55,17 @@ pub enum QueryMsg {
 
     #[returns(Vec<super::vault::VaultConfig>)]
     AllVaultConfigs {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
+    #[returns(super::perp::PerpParams)]
+    PerpParams {
+        denom: String,
+    },
+
+    #[returns(Vec<super::perp::PerpParams>)]
+    AllPerpParams {
         start_after: Option<String>,
         limit: Option<u32>,
     },
@@ -93,6 +105,13 @@ pub enum AssetParamsUpdate {
 pub enum VaultConfigUpdate {
     AddOrUpdate {
         config: VaultConfigUnchecked,
+    },
+}
+
+#[cw_serde]
+pub enum PerpParamsUpdate {
+    AddOrUpdate {
+        params: PerpParams,
     },
 }
 
