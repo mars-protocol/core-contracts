@@ -2,8 +2,8 @@ use cosmwasm_std::{Deps, Uint128};
 use mars_types::{adapters::oracle::Oracle, oracle::ActionKind, perps::VaultState};
 
 use crate::{
+    denom::compute_total_pnl,
     error::{ContractError, ContractResult},
-    pnl::compute_total_pnl,
 };
 
 const DEFAULT_SHARES_PER_AMOUNT: u128 = 1_000_000;

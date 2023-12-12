@@ -11,8 +11,9 @@ use mars_types::{
 };
 
 use crate::{
+    denom::DenomStateExt,
     error::{ContractError, ContractResult},
-    pnl::{compute_pnl, DenomStateExt},
+    position::PositionExt,
     state::{
         decrease_deposit_shares, increase_deposit_shares, CONFIG, DENOM_STATES, OWNER, POSITIONS,
         UNLOCKS, VAULT_STATE,
@@ -53,15 +54,15 @@ pub fn init_denom(
 
     let denom_state = DenomState {
         enabled: true,
-        total_size: SignedDecimal::zero(),
-        total_cost_base: SignedDecimal::zero(),
+        long_oi: Decimal::zero(),
+        short_oi: Decimal::zero(),
+        total_entry_cost: SignedDecimal::zero(),
+        total_entry_funding: SignedDecimal::zero(),
         funding: Funding {
             max_funding_velocity,
             skew_scale,
-            constant_factor: Funding::constant_factor(max_funding_velocity, skew_scale)?,
-            rate: SignedDecimal::zero(),
-            index: SignedDecimal::one(),
-            accumulated_size_weighted_by_index: SignedDecimal::zero(),
+            last_funding_rate: SignedDecimal::zero(),
+            last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero(),
         },
         last_updated: env.block.time.seconds(),
     };
@@ -112,14 +113,16 @@ pub fn enable_denom(
 }
 
 pub fn disable_denom(
-    store: &mut dyn Storage,
+    deps: DepsMut,
     env: Env,
     sender: &Addr,
     denom: &str,
 ) -> ContractResult<Response> {
-    OWNER.assert_owner(store, sender)?;
+    OWNER.assert_owner(deps.storage, sender)?;
 
-    DENOM_STATES.update(store, denom, |maybe_ds| {
+    let cfg = CONFIG.load(deps.storage)?;
+
+    DENOM_STATES.update(deps.storage, denom, |maybe_ds| {
         let Some(mut ds) = maybe_ds else {
             return Err(ContractError::DenomNotFound {
                 denom: denom.into(),
@@ -128,8 +131,12 @@ pub fn disable_denom(
 
         let current_time = env.block.time.seconds();
 
+        let denom_price = cfg.oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
+        let base_denom_price =
+            cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+
         // refresh funding rate and index before disabling trading
-        let current_funding = ds.compute_current_funding(current_time)?;
+        let current_funding = ds.current_funding(current_time, denom_price, base_denom_price)?;
         ds.funding = current_funding;
 
         ds.enabled = false;
@@ -265,7 +272,9 @@ pub fn open_position(
     //
     // this will be the position's entry price, used to compute PnL when closing
     // the position
-    let entry_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+    let base_denom_price =
+        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     // only the credit manager contract can open positions
     if info.sender != cfg.credit_manager {
@@ -281,7 +290,7 @@ pub fn open_position(
     }
 
     // the position's initial value cannot be too small
-    let value = size.abs.checked_mul(entry_price)?.to_uint_floor();
+    let value = size.abs.checked_mul(denom_price)?.to_uint_floor();
     if value < cfg.min_position_value {
         return Err(ContractError::PositionTooSmall {
             min: cfg.min_position_value,
@@ -297,9 +306,12 @@ pub fn open_position(
         });
     }
 
+    // skew _before_ modification
+    let inital_skew = ds.skew()?;
+
     // Update the denom's accumulators.
     // Funding rates and index is updated to the current block time (using old size).
-    ds.open_position(env.block.time.seconds(), size, entry_price)?;
+    ds.open_position(env.block.time.seconds(), size, denom_price, base_denom_price)?;
     DENOM_STATES.save(deps.storage, &denom, &ds)?;
 
     // save the user's new position with updated funding index
@@ -308,8 +320,11 @@ pub fn open_position(
         (&account_id, &denom),
         &Position {
             size,
-            entry_price,
-            entry_funding_index: ds.funding.index,
+            entry_price: denom_price,
+            entry_accrued_funding_per_unit_in_base_denom: ds
+                .funding
+                .last_funding_accrued_per_unit_in_base_denom,
+            initial_skew: inital_skew,
         },
     )?;
 
@@ -318,7 +333,7 @@ pub fn open_position(
         .add_attribute("account_id", account_id)
         .add_attribute("denom", denom)
         .add_attribute("size", size.to_string())
-        .add_attribute("entry_price", entry_price.to_string()))
+        .add_attribute("entry_price", denom_price.to_string()))
 }
 
 pub fn close_position(
@@ -346,14 +361,25 @@ pub fn close_position(
     }
 
     // query the current price of the asset
-    let exit_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+    let base_denom_price =
+        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+
+    // skew _before_ modification
+    let inital_skew = ds.skew()?;
 
     // Update the denom's accumulators.
     // Funding rates and index is updated to the current block time (using old size).
-    ds.close_position(env.block.time.seconds(), &position)?;
+    ds.close_position(env.block.time.seconds(), denom_price, base_denom_price, &position)?;
 
     // compute the position's unrealized PnL
-    let pnl = compute_pnl(&ds.funding, &position, exit_price, &cfg.base_denom)?;
+    let pnl = position.compute_pnl(
+        &ds.funding,
+        inital_skew,
+        denom_price,
+        base_denom_price,
+        &cfg.base_denom,
+    )?;
 
     // compute how many coins should be returned to the credit account, and
     // update global liquidity amount
@@ -397,6 +423,6 @@ pub fn close_position(
         .add_attribute("denom", denom)
         .add_attribute("size", position.size.to_string())
         .add_attribute("entry_price", position.entry_price.to_string())
-        .add_attribute("exit_price", exit_price.to_string())
+        .add_attribute("exit_price", denom_price.to_string())
         .add_attribute("realized_pnl", pnl.to_string()))
 }

@@ -2,7 +2,7 @@ use std::{collections::HashMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Decimal};
 use mars_owner::OwnerError;
-use mars_perps::{error::ContractError, pnl::SECONDS_IN_DAY};
+use mars_perps::{denom::SECONDS_IN_DAY, error::ContractError};
 use mars_types::{
     math::SignedDecimal,
     perps::{DenomStateResponse, Funding},
@@ -71,15 +71,12 @@ fn initialize_denom() {
         DenomStateResponse {
             denom: "perp/osmo/usd".to_string(),
             enabled: true,
-            total_size: SignedDecimal::zero(),
             total_cost_base: SignedDecimal::zero(),
             funding: Funding {
                 max_funding_velocity: Decimal::from_str("3").unwrap(),
                 skew_scale: Decimal::from_str("1000000").unwrap(),
-                constant_factor: Decimal::from_ratio(3u32, 1000000u32).into(),
-                rate: SignedDecimal::zero(),
-                index: SignedDecimal::one(),
-                accumulated_size_weighted_by_index: SignedDecimal::zero()
+                last_funding_rate: SignedDecimal::zero(),
+                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
             },
             last_updated: block_time
         }
@@ -157,6 +154,10 @@ fn owner_can_disable_denom() {
     mock.init_denom(&owner, "perp/eth/eur", Decimal::zero(), Decimal::one()).unwrap();
     mock.init_denom(&owner, "perp/btc/usd", Decimal::zero(), Decimal::one()).unwrap();
 
+    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
+    mock.set_price(&owner, "perp/eth/eur", Decimal::from_str("1").unwrap()).unwrap();
+    mock.set_price(&owner, "perp/btc/usd", Decimal::from_str("1").unwrap()).unwrap();
+
     mock.disable_denom(&owner, "perp/btc/usd").unwrap();
 
     let dss = mock.query_denom_states(None, None);
@@ -188,6 +189,7 @@ fn funding_change_accordingly_to_denom_state_modification() {
         Decimal::from_str("1000000").unwrap(),
     )
     .unwrap();
+    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
     mock.set_price(&owner, "ueth", Decimal::from_str("2000").unwrap()).unwrap();
     mock.open_position(&credit_manager, "1", "ueth", SignedDecimal::from_str("300").unwrap())
         .unwrap();
@@ -225,16 +227,20 @@ fn funding_change_accordingly_to_denom_state_modification() {
     // Query state for h48.
     // When denom is disabled, funding should be updated accordingly.
     let ds_h48 = mock.query_denom_state("ueth");
-    assert_ne!(ds_h48.funding.rate, ds_h24.funding.rate);
-    assert_ne!(ds_h48.funding.index, ds_h24.funding.index);
+    assert_ne!(ds_h48.funding.last_funding_rate, ds_h24.funding.last_funding_rate);
+    assert_ne!(
+        ds_h48.funding.last_funding_accrued_per_unit_in_base_denom,
+        ds_h24.funding.last_funding_accrued_per_unit_in_base_denom
+    );
     assert_eq!(
         ds_h48,
         DenomStateResponse {
             enabled: false,
             last_updated: ds_h24.last_updated + SECONDS_IN_DAY,
             funding: Funding {
-                rate: SignedDecimal::from_str("0.0009").unwrap(),
-                index: SignedDecimal::from_str("1.0009").unwrap(),
+                last_funding_rate: SignedDecimal::from_str("0.0009").unwrap(),
+                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("-0.9")
+                    .unwrap(),
                 ..ds_h24.funding
             },
             ..ds_h24

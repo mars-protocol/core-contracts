@@ -56,7 +56,7 @@ pub fn execute(
         } => execute::enable_denom(deps.storage, env, &info.sender, &denom),
         ExecuteMsg::DisableDenom {
             denom,
-        } => execute::disable_denom(deps.storage, env, &info.sender, &denom),
+        } => execute::disable_denom(deps, env, &info.sender, &denom),
         ExecuteMsg::Deposit {} => execute::deposit(deps.storage, info),
         ExecuteMsg::Unlock {
             shares,

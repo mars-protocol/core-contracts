@@ -31,6 +31,8 @@ fn computing_total_pnl() {
     mock.init_denom(&owner, "uatom", Decimal::zero(), Decimal::one()).unwrap();
     mock.init_denom(&owner, "utia", Decimal::zero(), Decimal::one()).unwrap();
 
+    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
+
     // set entry prices
     mock.set_price(&owner, "uosmo", Decimal::from_str("0.25").unwrap()).unwrap();
     mock.set_price(&owner, "uatom", Decimal::from_str("7.2").unwrap()).unwrap();
@@ -59,8 +61,7 @@ fn computing_total_pnl() {
 
     // calculate total PnL after uatom price change
     let total_pnl = mock.query_total_pnl();
-    // -125 * (10 - 7.2)
-    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("-350").unwrap());
+    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("21525").unwrap());
 
     // change the rest of the prices
     mock.set_price(&owner, "uosmo", Decimal::from_str("0.1").unwrap()).unwrap();
@@ -68,8 +69,7 @@ fn computing_total_pnl() {
 
     // calculate total PnL
     let total_pnl = mock.query_total_pnl();
-    // 100 * (0.1 - 0.25) + -250 * (3.10 - 2.65) + 500 * (0.1 - 0.25) + -125 * (10 - 7.2) + 1245 * (3.10 - 2.65)
-    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("7.75").unwrap());
+    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("217638.375").unwrap());
 
     // close all positions except uatom
     let pos = mock.query_position("1", "uosmo");
@@ -87,8 +87,7 @@ fn computing_total_pnl() {
 
     // only uatom position is left
     let total_pnl = mock.query_total_pnl();
-    // -125 * (10 - 7.2)
-    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("-350").unwrap());
+    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("21525").unwrap());
 
     // close uatom position
     let pos = mock.query_position("2", "uatom");

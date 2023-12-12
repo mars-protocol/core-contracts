@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     fmt::{self, Write},
     str::FromStr,
 };
@@ -180,6 +181,34 @@ impl From<Uint128> for SignedDecimal {
         SignedDecimal {
             negative: false,
             abs: Decimal::from_atomics(abs, 0).unwrap(),
+        }
+    }
+}
+
+impl PartialOrd for SignedDecimal {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        if self.is_negative() && other.is_positive() {
+            Some(Ordering::Less)
+        } else if self.is_positive() && other.is_negative() {
+            Some(Ordering::Greater)
+        } else if self.is_positive() {
+            self.abs.partial_cmp(&other.abs)
+        } else {
+            other.abs.partial_cmp(&self.abs)
+        }
+    }
+}
+
+impl Ord for SignedDecimal {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.is_negative() && other.is_positive() {
+            Ordering::Less
+        } else if self.is_positive() && other.is_negative() {
+            Ordering::Greater
+        } else if self.is_positive() {
+            self.abs.cmp(&other.abs)
+        } else {
+            other.abs.cmp(&self.abs)
         }
     }
 }

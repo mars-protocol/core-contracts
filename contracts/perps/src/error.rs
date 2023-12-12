@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError, OverflowError,
-    StdError, Uint128,
+    CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError,
+    DecimalRangeExceeded, OverflowError, StdError, Uint128,
 };
 use cw_utils::PaymentError;
 use mars_owner::OwnerError;
@@ -21,6 +21,9 @@ pub enum ContractError {
 
     #[error(transparent)]
     CheckedMultiplyFraction(#[from] CheckedMultiplyFractionError),
+
+    #[error(transparent)]
+    DecimalRangeExceeded(#[from] DecimalRangeExceeded),
 
     #[error(transparent)]
     Owner(#[from] OwnerError),

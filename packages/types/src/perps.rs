@@ -1,7 +1,7 @@
 use std::{fmt, str::FromStr};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Api, CheckedFromRatioError, Coin, Decimal, StdResult, Uint128};
+use cosmwasm_std::{Addr, Api, Coin, Decimal, StdResult, Uint128};
 use mars_owner::OwnerUpdate;
 
 use crate::{adapters::oracle::OracleBase, math::SignedDecimal};
@@ -92,12 +92,33 @@ pub struct UnlockState {
 #[cw_serde]
 #[derive(Default)]
 pub struct DenomState {
+    /// Whether the denom is enabled for trading
     pub enabled: bool,
-    pub total_size: SignedDecimal,
-    // this isn't really cost basis in the typical meaning, but I can't think of
-    // a better term yet
-    pub total_cost_base: SignedDecimal,
+
+    /// Total LONG open interest
+    pub long_oi: Decimal,
+
+    /// Total SHORT open interest
+    pub short_oi: Decimal,
+
+    /// The accumulated entry cost, calculated for open positions as:
+    /// pos_1_size * pos_1_entry_exec_price + pos_2_size * pos_2_entry_exec_price + ...
+    /// if a position is closed, the accumulated entry cost is removed from the accumulator:
+    /// pos_1_size * pos_1_entry_exec_price + pos_2_size * pos_2_entry_exec_price + ... - pos_1_size * pos_1_entry_exec_price
+    /// pos_2_size * pos_2_entry_exec_price + ...
+    pub total_entry_cost: SignedDecimal,
+
+    /// The accumulated entry funding, calculated for open positions as:
+    /// pos_1_size * pos_1_entry_funding + pos_2_size * pos_2_entry_funding + ...
+    /// if a position is closed, the accumulated entry funding is removed from the accumulator:
+    /// pos_1_size * pos_1_entry_funding + pos_2_size * pos_2_entry_funding + ... - pos_1_size * pos_1_entry_funding
+    /// pos_2_size * pos_2_entry_funding + ...
+    pub total_entry_funding: SignedDecimal,
+
+    /// Funding parameters for this denom
     pub funding: Funding,
+
+    /// The last time this denom was updated
     pub last_updated: u64,
 }
 
@@ -111,28 +132,15 @@ pub struct Funding {
     /// Determines the maximum rate at which funding can be adjusted
     pub max_funding_velocity: Decimal,
 
-    /// Determines the funding rate for a given level of skew, as per the function:
-    /// funding_rate_velocity = max_funding_velocity * skew / skew_scale
+    /// Determines the funding rate for a given level of skew.
     /// The lower the skew_scale the higher the funding rate.
     pub skew_scale: Decimal,
 
-    /// The constant_factor: max_funding_velocity / skew_scale
-    pub constant_factor: SignedDecimal,
+    /// The current funding rate calculated as an 24-hour rate
+    pub last_funding_rate: SignedDecimal,
 
-    /// The current funding rate calculated as an 24-hour rate. It is calculated as:
-    /// rate = prev_rate + (funding_rate_velocity * (current_time_sec - prev_time_sec) / (ONE_DAY_SEC))
-    pub rate: SignedDecimal,
-
-    /// The current funding index calculated as:
-    /// index = prev_index * (1 + current_rate)
-    pub index: SignedDecimal,
-
-    /// The accumulated size weighted by the index, calculated for open positions as:
-    /// pos_1_size / pos_1_index + pos_2_size / pos_2_index + ...
-    /// if a position is closed, the accumulated position is removed from the accumulator:
-    /// pos_1_size / pos_1_index + pos_2_size / pos_2_index + ... - pos_1_size / pos_1_index
-    /// pos_2_size / pos_2_index + ...
-    pub accumulated_size_weighted_by_index: SignedDecimal,
+    /// Last funding accrued per unit
+    pub last_funding_accrued_per_unit_in_base_denom: SignedDecimal,
 }
 
 impl Default for Funding {
@@ -140,21 +148,9 @@ impl Default for Funding {
         Funding {
             max_funding_velocity: Decimal::zero(),
             skew_scale: Decimal::one(),
-            constant_factor: SignedDecimal::zero(),
-            rate: SignedDecimal::zero(),
-            index: SignedDecimal::one(),
-            accumulated_size_weighted_by_index: SignedDecimal::zero(),
+            last_funding_rate: SignedDecimal::zero(),
+            last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero(),
         }
-    }
-}
-
-impl Funding {
-    pub fn constant_factor(
-        max_funding_velocity: Decimal,
-        skew_scale: Decimal,
-    ) -> Result<SignedDecimal, CheckedFromRatioError> {
-        let c: SignedDecimal = max_funding_velocity.checked_div(skew_scale)?.into();
-        Ok(c)
     }
 }
 
@@ -164,11 +160,9 @@ impl Funding {
 pub struct PerpDenomState {
     pub denom: String,
     pub enabled: bool,
-    pub total_size: SignedDecimal,
-    pub total_cost_base: SignedDecimal,
-    pub constant_factor: SignedDecimal,
+    pub total_entry_cost: SignedDecimal,
+    pub total_entry_funding: SignedDecimal,
     pub rate: SignedDecimal,
-    pub index: SignedDecimal,
     pub pnl_values: PnlValues,
 }
 
@@ -179,7 +173,8 @@ pub struct PerpDenomState {
 pub struct Position {
     pub size: SignedDecimal,
     pub entry_price: Decimal,
-    pub entry_funding_index: SignedDecimal,
+    pub entry_accrued_funding_per_unit_in_base_denom: SignedDecimal,
+    pub initial_skew: SignedDecimal,
 }
 
 /// This is the position data to be returned in a query. It includes current
@@ -236,10 +231,10 @@ impl fmt::Display for PnL {
 #[cw_serde]
 #[derive(Default)]
 pub struct PnlValues {
-    pub unrealized_pnl: SignedDecimal,
+    pub price_pnl: SignedDecimal,
     pub accrued_funding: SignedDecimal,
 
-    /// The total PnL: unrealized PnL - accrued funding
+    /// The total PnL: price PnL - accrued funding
     pub pnl: SignedDecimal,
 }
 
@@ -410,7 +405,6 @@ pub enum QueryMsg {
 pub struct DenomStateResponse {
     pub denom: String,
     pub enabled: bool,
-    pub total_size: SignedDecimal,
     pub total_cost_base: SignedDecimal,
     pub funding: Funding,
     pub last_updated: u64,

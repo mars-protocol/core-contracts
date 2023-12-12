@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
-use mars_perps::pnl::{compute_accrued_funding, compute_pnl};
+use mars_perps::position::PositionExt;
 use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
 use mars_types::{
     adapters::vault::{
@@ -220,7 +220,18 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
     let perp_denoms_len = perp_denoms.len();
     let usdc = uusdc_info();
     vec(
-        (0..perp_denoms_len, 1..=10000, 1..=10000, 1..=10000, 1..=10000, 1..=10000, 1..=10000)
+        (
+            0..perp_denoms_len,
+            1..=10000,
+            1..=10000,
+            1..=10000,
+            1..=10000,
+            1..=10000,
+            1..=10000,
+            80..=120,
+            -1000000..=1000000,
+            -1000000..=1000000,
+        )
             .prop_map(
                 move |(
                     index,
@@ -230,6 +241,9 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                     skew_scale,
                     rate,
                     funding_index,
+                    usdc_price,
+                    inital_skew,
+                    current_skew,
                 )| {
                     let perp_denom = perp_denoms.get(index).unwrap().clone();
                     let base_denom = usdc.denom.clone();
@@ -238,16 +252,27 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                         Decimal::from_atomics(Uint128::new(current_price as u128), 2).unwrap();
                     let entry_price =
                         Decimal::from_atomics(Uint128::new(entry_price as u128), 2).unwrap();
+                    let usdc_price =
+                        Decimal::from_atomics(Uint128::new(usdc_price as u128), 2).unwrap();
                     let size = SignedDecimal::from(amount)
                         .checked_sub(
                             // Size can be negative. Subtracing 5000 means we range from -5000 : 5000
                             SignedDecimal::from(Uint128::new(5000)),
                         )
                         .unwrap();
+                    let initial_skew = SignedDecimal {
+                        negative: inital_skew < 0,
+                        abs: Decimal::from_atomics(i32::abs(inital_skew) as u128, 0).unwrap(),
+                    };
+                    let current_skew = SignedDecimal {
+                        negative: current_skew < 0,
+                        abs: Decimal::from_atomics(i32::abs(current_skew) as u128, 0).unwrap(),
+                    };
                     let position = Position {
                         size,
                         entry_price,
-                        entry_funding_index: SignedDecimal::one(), // todo
+                        entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::zero(),
+                        initial_skew,
                     };
                     // We randomize the skew scale, the rate and the index
                     let skew_scale = Decimal::from_atomics(Uint128::new(skew_scale as u128), 0)
@@ -267,22 +292,22 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                     let funding = Funding {
                         max_funding_velocity: Decimal::from_str("3").unwrap(),
                         skew_scale,
-                        constant_factor: Funding::constant_factor(
-                            Decimal::from_str("3").unwrap(),
-                            skew_scale,
-                        )
-                        .unwrap(),
-                        rate: rate.into(),
-                        index: funding_index_dec.into(),
-                        accumulated_size_weighted_by_index: SignedDecimal::from_str("1.0040001")
-                            .unwrap(),
+                        last_funding_rate: rate.into(),
+                        last_funding_accrued_per_unit_in_base_denom: funding_index_dec.into(),
                     };
 
-                    let pnl = compute_pnl(&funding, &position, current_price, base_denom.as_str())
+                    let pnl = position
+                        .compute_pnl(
+                            &funding,
+                            current_skew,
+                            current_price,
+                            usdc_price,
+                            base_denom.as_str(),
+                        )
                         .unwrap();
 
                     let unrealised_funding_accrued =
-                        compute_accrued_funding(&funding, &position, current_price.into()).unwrap();
+                        position.compute_accrued_funding(&funding, usdc_price).unwrap();
 
                     PerpPosition {
                         denom: perp_denom,

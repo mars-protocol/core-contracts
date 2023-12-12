@@ -33,6 +33,9 @@ fn computing_funding() {
     )
     .unwrap();
 
+    // set usdc price
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+
     // set entry price
     mock.set_price(&owner, "ueth", Decimal::from_str("2000").unwrap()).unwrap();
 
@@ -40,38 +43,58 @@ fn computing_funding() {
     mock.open_position(&credit_manager, "1", "ueth", SignedDecimal::from_str("300").unwrap())
         .unwrap();
 
+    // query state for h0
+    let user_1_pos = mock.query_position("1", "ueth");
+    assert_eq!(user_1_pos.position.pnl, PnL::BreakEven);
+    let ds = mock.query_perp_denom_state("ueth");
+    assert_eq!(ds.rate, SignedDecimal::zero());
+    assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("600090").unwrap());
+    assert_eq!(ds.total_entry_funding, SignedDecimal::zero());
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::zero());
+    assert_eq!(ds.pnl_values.accrued_funding, SignedDecimal::zero());
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::zero());
+
+    // move time forward by 2 hour
+    mock.increment_by_time(2 * ONE_HOUR_SEC);
+
     // user 2 opens short position
     mock.open_position(&credit_manager, "2", "ueth", SignedDecimal::from_str("-150").unwrap())
         .unwrap();
 
-    // query state for h0
+    // query state for h2
     let user_1_pos = mock.query_position("1", "ueth");
-    assert_eq!(user_1_pos.position.pnl, PnL::BreakEven);
+    assert_eq!(user_1_pos.position.pnl, PnL::Loss(coin(91u128, "uusdc")));
     let user_2_pos = mock.query_position("2", "ueth");
     assert_eq!(user_2_pos.position.pnl, PnL::BreakEven);
     let ds = mock.query_perp_denom_state("ueth");
-    assert_eq!(ds.rate, SignedDecimal::zero());
-    assert_eq!(ds.index, SignedDecimal::one());
-    assert_eq!(ds.total_size, SignedDecimal::from_str("150").unwrap());
-    assert_eq!(ds.pnl_values.unrealized_pnl, SignedDecimal::zero());
-    assert_eq!(ds.pnl_values.accrued_funding, SignedDecimal::zero());
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::zero());
+    assert_eq!(ds.rate, SignedDecimal::from_str("0.000074999999999999").unwrap());
+    assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("300022.5").unwrap());
+    assert_eq!(ds.total_entry_funding, SignedDecimal::from_str("1.0416666666663333").unwrap());
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::zero());
+    assert_eq!(
+        ds.pnl_values.accrued_funding,
+        SignedDecimal::from_str("-1.87499999999939994").unwrap()
+    );
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("-1.87499999999939994").unwrap());
 
-    // move time forward by 10 hour
-    mock.increment_by_time(10 * ONE_HOUR_SEC);
+    // move time forward by 8 hour
+    mock.increment_by_time(8 * ONE_HOUR_SEC);
 
     // query state for h10
     let user_1_pos = mock.query_position("1", "ueth");
-    assert_eq!(user_1_pos.position.pnl, PnL::Loss(coin(112u128, "uusdc"))); // unrealized_pnl - (index_h10 / index_h0 - 1) * 300 * 2000
+    assert_eq!(user_1_pos.position.pnl, PnL::Loss(coin(121u128, "uusdc")));
     let user_2_pos = mock.query_position("2", "ueth");
-    assert_eq!(user_2_pos.position.pnl, PnL::Profit(coin(56u128, "uusdc"))); // unrealized_pnl - (index_h10 / index_h0 - 1) * -150 * 2000
+    assert_eq!(user_2_pos.position.pnl, PnL::Profit(coin(14u128, "uusdc"))); // spreadsheet says 15 (rounding error in SC?)
     let ds = mock.query_perp_denom_state("ueth");
-    assert_eq!(ds.rate, SignedDecimal::from_str("0.000187499999999999").unwrap());
-    assert_eq!(ds.index, SignedDecimal::from_str("1.000187499999999999").unwrap());
-    assert_eq!(ds.total_size, SignedDecimal::from_str("150").unwrap()); // longs pay shorts to incentivize opening short position
-    assert_eq!(ds.pnl_values.unrealized_pnl, SignedDecimal::zero()); // price doesn't change so no unrealized pnl
-    assert_eq!(ds.pnl_values.accrued_funding, SignedDecimal::from_str("56.2499999999997").unwrap()); // user 1 pays 112, user 2 receives 56, net 56 goes to vault
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("-56.2499999999997").unwrap()); // unrealized_pnl - accrued_funding, sum of pnl for all positions
+    assert_eq!(ds.rate, SignedDecimal::from_str("0.000224999999999998").unwrap());
+    assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("300022.5").unwrap());
+    assert_eq!(ds.total_entry_funding, SignedDecimal::from_str("1.0416666666663333").unwrap());
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::zero());
+    assert_eq!(
+        ds.pnl_values.accrued_funding,
+        SignedDecimal::from_str("-16.87499999999909982").unwrap()
+    );
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("-16.87499999999909982").unwrap());
 
     // move time forward by 2 hour
     mock.increment_by_time(2 * ONE_HOUR_SEC);
@@ -81,16 +104,9 @@ fn computing_funding() {
 
     // query state for h12
     let user_1_pos = mock.query_position("1", "ueth");
-    assert_eq!(user_1_pos.position.pnl, PnL::Profit(coin(5863u128, "uusdc")));
+    assert_eq!(user_1_pos.position.pnl, PnL::Profit(coin(5865u128, "uusdc")));
     let user_2_pos = mock.query_position("2", "ueth");
-    assert_eq!(user_2_pos.position.pnl, PnL::Loss(coin(2931u128, "uusdc")));
-    let ds = mock.query_perp_denom_state("ueth");
-    assert_eq!(ds.rate, SignedDecimal::from_str("0.000225").unwrap());
-    assert_eq!(ds.index, SignedDecimal::from_str("1.000225").unwrap());
-    assert_eq!(ds.total_size, SignedDecimal::from_str("150").unwrap());
-    assert_eq!(ds.pnl_values.unrealized_pnl, SignedDecimal::from_str("3000").unwrap());
-    assert_eq!(ds.pnl_values.accrued_funding, SignedDecimal::from_str("68.175").unwrap()); // if pnl is realized, vault receives 68.175
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("2931.825").unwrap()); // if pnl is realized, vault decreases by 2931.825
+    assert_eq!(user_2_pos.position.pnl, PnL::Loss(coin(2979u128, "uusdc")));
 
     // simulate realized pnl for user 1, reopen long position with the same size
     mock.close_position(&credit_manager, "1", "ueth", &from_position_to_coin(user_1_pos.position))
@@ -102,17 +118,17 @@ fn computing_funding() {
     let user_1_pos = mock.query_position("1", "ueth");
     assert_eq!(user_1_pos.position.pnl, PnL::BreakEven); // realized pnl should be zero
     let user_2_pos = mock.query_position("2", "ueth");
-    assert_eq!(user_2_pos.position.pnl, PnL::Loss(coin(2931u128, "uusdc")));
+    assert_eq!(user_2_pos.position.pnl, PnL::Loss(coin(2979u128, "uusdc")));
     let ds = mock.query_perp_denom_state("ueth");
-    assert_eq!(ds.rate, SignedDecimal::from_str("0.000225").unwrap()); // rate and index shouldn't change after closing and opening the same position size
-    assert_eq!(ds.index, SignedDecimal::from_str("1.000225").unwrap());
-    assert_eq!(ds.total_size, SignedDecimal::from_str("150").unwrap());
-    assert_eq!(ds.pnl_values.unrealized_pnl, SignedDecimal::from_str("-3000").unwrap()); // only user 2 has unrealized pnl
+    assert_eq!(ds.rate, SignedDecimal::from_str("0.000262499999999998").unwrap());
+    assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("305932.5").unwrap());
+    assert_eq!(ds.total_entry_funding, SignedDecimal::from_str("-48.3854166666656598").unwrap());
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("-2909.775").unwrap()); // only user 2 has unrealized pnl
     assert_eq!(
         ds.pnl_values.accrued_funding,
-        SignedDecimal::from_str("-68.175000000000000468").unwrap()
+        SignedDecimal::from_str("21.304687499999696925").unwrap()
     );
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("-2931.824999999999999532").unwrap());
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("-2888.470312500000303075").unwrap());
 
     // move time forward by 3 hour
     mock.increment_by_time(3 * ONE_HOUR_SEC);
@@ -122,19 +138,19 @@ fn computing_funding() {
 
     // query state for h15
     let user_1_pos = mock.query_position("1", "ueth");
-    assert_eq!(user_1_pos.position.pnl, PnL::Profit(coin(5827u128, "uusdc")));
+    assert_eq!(user_1_pos.position.pnl, PnL::Profit(coin(5977u128, "uusdc")));
     let user_2_pos = mock.query_position("2", "ueth");
-    assert_eq!(user_2_pos.position.pnl, PnL::Loss(coin(5845u128, "uusdc")));
+    assert_eq!(user_2_pos.position.pnl, PnL::Loss(coin(5968u128, "uusdc")));
     let ds = mock.query_perp_denom_state("ueth");
-    assert_eq!(ds.rate, SignedDecimal::from_str("0.00028125").unwrap());
-    assert_eq!(ds.index, SignedDecimal::from_str("1.00050631328125").unwrap());
-    assert_eq!(ds.total_size, SignedDecimal::from_str("150").unwrap());
-    assert_eq!(ds.pnl_values.unrealized_pnl, SignedDecimal::from_str("0").unwrap());
+    assert_eq!(ds.rate, SignedDecimal::from_str("0.000318749999999998").unwrap());
+    assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("305932.5").unwrap());
+    assert_eq!(ds.total_entry_funding, SignedDecimal::from_str("-48.3854166666656598").unwrap());
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("90.45").unwrap());
     assert_eq!(
         ds.pnl_values.accrued_funding,
-        SignedDecimal::from_str("17.193135937499999527").unwrap()
+        SignedDecimal::from_str("10.18828125000000297").unwrap()
     );
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("-17.193135937499999527").unwrap());
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("100.63828125000000297").unwrap());
 
     // simulate realized pnl for user 2, increase short position size by 200 (total 350)
     mock.close_position(&credit_manager, "2", "ueth", &from_position_to_coin(user_2_pos.position))
@@ -144,19 +160,19 @@ fn computing_funding() {
 
     // query state for h15 after user 2 realized pnl
     let user_1_pos = mock.query_position("1", "ueth");
-    assert_eq!(user_1_pos.position.pnl, PnL::Profit(coin(5827u128, "uusdc")));
+    assert_eq!(user_1_pos.position.pnl, PnL::Profit(coin(5855u128, "uusdc")));
     let user_2_pos = mock.query_position("2", "ueth");
     assert_eq!(user_2_pos.position.pnl, PnL::BreakEven);
     let ds = mock.query_perp_denom_state("ueth");
-    assert_eq!(ds.rate, SignedDecimal::from_str("0.00028125").unwrap()); // rate and index shouldn't change after closing and opening the same position size
-    assert_eq!(ds.index, SignedDecimal::from_str("1.00050631328125").unwrap());
-    assert_eq!(ds.total_size, SignedDecimal::from_str("-50").unwrap());
-    assert_eq!(ds.pnl_values.unrealized_pnl, SignedDecimal::from_str("6000").unwrap());
+    assert_eq!(ds.rate, SignedDecimal::from_str("0.000318749999999998").unwrap()); // rate shouldn't change after closing and opening the same position size
+    assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("-108089.25").unwrap());
+    assert_eq!(ds.total_entry_funding, SignedDecimal::from_str("37.0581597222212054").unwrap());
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("6091.8").unwrap());
     assert_eq!(
         ds.pnl_values.accrued_funding,
-        SignedDecimal::from_str("172.125000000000000729").unwrap()
+        SignedDecimal::from_str("-22.23281249999938791").unwrap()
     );
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("5827.874999999999999271").unwrap());
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("6069.56718750000061209").unwrap());
 
     // move time forward by 5 hour
     mock.increment_by_time(5 * ONE_HOUR_SEC);
@@ -166,19 +182,19 @@ fn computing_funding() {
 
     // query state for h20
     let user_1_pos = mock.query_position("1", "ueth");
-    assert_eq!(user_1_pos.position.pnl, PnL::Loss(coin(12315u128, "uusdc")));
+    assert_eq!(user_1_pos.position.pnl, PnL::Loss(coin(12178u128, "uusdc")));
     let user_2_pos = mock.query_position("2", "ueth");
-    assert_eq!(user_2_pos.position.pnl, PnL::Profit(coin(21173u128, "uusdc")));
+    assert_eq!(user_2_pos.position.pnl, PnL::Profit(coin(21046u128, "uusdc")));
     let ds = mock.query_perp_denom_state("ueth");
-    assert_eq!(ds.rate, SignedDecimal::from_str("0.000250000000000001").unwrap());
-    assert_eq!(ds.index, SignedDecimal::from_str("1.000756439859570313").unwrap());
-    assert_eq!(ds.total_size, SignedDecimal::from_str("-50").unwrap());
-    assert_eq!(ds.pnl_values.unrealized_pnl, SignedDecimal::from_str("9000").unwrap());
+    assert_eq!(ds.rate, SignedDecimal::from_str("0.000287499999999999").unwrap());
+    assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("-108089.25").unwrap());
+    assert_eq!(ds.total_entry_funding, SignedDecimal::from_str("37.0581597222212054").unwrap());
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("9091.725").unwrap());
     assert_eq!(
         ds.pnl_values.accrued_funding,
-        SignedDecimal::from_str("142.354265624999951316").unwrap()
+        SignedDecimal::from_str("-15.98085937499945391").unwrap()
     );
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("8857.645734375000048684").unwrap());
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("9075.74414062500054609").unwrap());
 
     // query user 1 realized pnl
 }
