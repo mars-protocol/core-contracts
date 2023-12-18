@@ -84,6 +84,12 @@ export interface DeploymentConfig {
   assets: AssetConfig[]
   vaults: VaultConfig[]
   oracleConfigs: OracleConfig[]
+  perps?: {
+    baseDenom: string
+    cooldownPeriod: number
+    minPositionValue: string
+    denoms: PerpDenom[]
+  }
 }
 
 export interface AssetConfig {
@@ -155,4 +161,10 @@ export interface TestActions {
     denomOut: string
   }
   unzapAmount: string
+}
+
+export interface PerpDenom {
+  denom: string
+  maxFundingVelocity: string
+  skewScale: string
 }

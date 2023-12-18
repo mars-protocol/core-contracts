@@ -1,4 +1,4 @@
-import { taskRunner } from '../base'
+import { taskRunner } from '../base/index.js'
 import { neutronTestnetConfig } from './testnet-config.js'
 
 void (async function () {

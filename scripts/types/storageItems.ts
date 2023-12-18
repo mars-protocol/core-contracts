@@ -12,6 +12,7 @@ export interface StorageItems {
     redBank?: number
     rewardsCollector?: number
     zapper?: number
+    perps?: number
   }
 
   addresses: {
@@ -27,6 +28,7 @@ export interface StorageItems {
     redBank?: string
     rewardsCollector?: string
     zapper?: string
+    perps?: string
   }
 
   actions: {
@@ -38,6 +40,7 @@ export interface StorageItems {
     redBankMarketsSet: string[]
     assetsSet: string[]
     vaultsSet: string[]
+    perpsSet: string[]
     oraclePricesSet: string[]
     routesSet: string[]
     healthContractConfigUpdate?: boolean

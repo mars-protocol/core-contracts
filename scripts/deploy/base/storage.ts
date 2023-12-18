@@ -35,6 +35,7 @@ export class Storage implements StorageItems {
           vaultsSet: [],
           oraclePricesSet: [],
           routesSet: [],
+          perpsSet: [],
         },
       })
     }

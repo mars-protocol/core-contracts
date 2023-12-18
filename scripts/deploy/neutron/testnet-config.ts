@@ -1,4 +1,4 @@
-import { DeploymentConfig, AssetConfig, OracleConfig } from '../../types/config'
+import { DeploymentConfig, AssetConfig, OracleConfig, PerpDenom } from '../../types/config'
 import { NeutronIbcConfig } from '../../types/generated/mars-rewards-collector-base/MarsRewardsCollectorBase.types'
 
 const axlUsdcDenom = 'ibc/F91EA2C0A23697A1048E08C2F787E3A58AC6F706A1CD2257A504925158CFC0F3'
@@ -9,21 +9,22 @@ const protocolAdminAddr = 'neutron1ke0vqqzyymlp5esr8gjwuzh94ysnpvj8er5hm7'
 
 const marsNeutronChannelId = 'channel-97'
 const chainId = 'pion-1'
-const rpcEndpoint = 'https://testnet-neutron-rpc.marsprotocol.io:443'
+const rpcEndpoint = 'https://rpc-palvus.pion-1.ntrn.tech'
 
 // Astroport configuration
 const astroportFactory = 'neutron1jj0scx400pswhpjes589aujlqagxgcztw04srynmhf0f6zplzn2qqmhwj7'
 const astroportRouter = 'neutron12jm24l9lr9cupufqjuxpdjnnweana4h66tsx5cl800mke26td26sq7m05p'
-const astroportNtrnAtomPair = 'neutron1sm23jnz4lqd88etklvwlm66a0x6mhflaqlv65wwr7nwwxa6258ks6nshpq'
+// const astroportNtrnAtomPair = 'neutron1sm23jnz4lqd88etklvwlm66a0x6mhflaqlv65wwr7nwwxa6258ks6nshpq'
 
 // note the following three addresses are all 'mars' bech32 prefix
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
 const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
 
 // Pyth configuration
-const pythAddr = 'neutron1f86ct5az9qpz2hqfd5uxru02px2a3tz5zkw7hugd7acqq496dcms22ehpy'
+const pythAddr = 'neutron15ldst8t80982akgr8w8ekcytejzkmfpgdkeq4xgtge48qs7435jqp87u3t'
 const pythAtomID = 'b00b60f88b03a6a625a8d1c048c3f66653edf217439983d037e7222c4e612819'
 const pythUsdcID = 'eaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a'
+const pythNtrnID = 'a8e6517966a52cb1df864b2764f3629fde3f21d2b640b5c572fcd654cbccd65e'
 
 // IBC config for rewards-collector. See https://rest-palvus.pion-1.ntrn.tech/neutron-org/neutron/feerefunder/params
 export const neutronIbcConfig: NeutronIbcConfig = {
@@ -46,13 +47,26 @@ export const neutronIbcConfig: NeutronIbcConfig = {
 export const ntrnOracle: OracleConfig = {
   denom: 'untrn',
   price_source: {
-    astroport_twap: {
-      window_size: 1800, // 30 minutes
-      tolerance: 120, // 2 minutes
-      pair_address: astroportNtrnAtomPair,
+    pyth: {
+      contract_addr: pythAddr,
+      price_feed_id: pythNtrnID,
+      denom_decimals: 6,
+      max_staleness: 300, // 5 minutes
+      max_confidence: '0.1',
+      max_deviation: '0.1',
     },
   },
 }
+// export const ntrnOracle: OracleConfig = {
+//   denom: 'untrn',
+//   price_source: {
+//     astroport_twap: {
+//       window_size: 1800, // 30 minutes
+//       tolerance: 120, // 2 minutes
+//       pair_address: astroportNtrnAtomPair,
+//     },
+//   },
+// }
 
 export const atomOracle: OracleConfig = {
   denom: atomDenom,
@@ -237,7 +251,7 @@ export const ntrnAsset: AssetConfig = {
   // liquidation_bonus: '0.15',
   symbol: 'NTRN',
   credit_manager: {
-    whitelisted: false,
+    whitelisted: true,
   },
   red_bank: {
     borrow_enabled: true,
@@ -267,7 +281,7 @@ export const atomAsset: AssetConfig = {
   // liquidation_bonus: '0.1',
   symbol: 'ATOM',
   credit_manager: {
-    whitelisted: false,
+    whitelisted: true,
   },
   red_bank: {
     borrow_enabled: true,
@@ -297,7 +311,7 @@ export const axlUSDCAsset: AssetConfig = {
   // liquidation_bonus: '0.1',
   symbol: 'axlUSDC',
   credit_manager: {
-    whitelisted: false,
+    whitelisted: true,
   },
   red_bank: {
     borrow_enabled: true,
@@ -313,9 +327,22 @@ export const axlUSDCAsset: AssetConfig = {
   },
 }
 
+// Perps configurations
+export const atomPerpDenom: PerpDenom = {
+  denom: atomDenom,
+  maxFundingVelocity: '3',
+  skewScale: '1000000',
+}
+
+export const ntrnPerpDenom: PerpDenom = {
+  denom: 'untrn',
+  maxFundingVelocity: '3',
+  skewScale: '1000000',
+}
+
 export const neutronTestnetConfig: DeploymentConfig = {
   mainnet: false,
-  deployerMnemonic: 'TO BE INSERTED AT TIME OF DEPLOYMENT',
+  deployerMnemonic: 'TODO',
   marsDenom: marsDenom,
   atomDenom: atomDenom,
   safetyFundAddr: safetyFundAddr,
@@ -323,7 +350,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
   feeCollectorAddr: feeCollectorAddr,
   chain: {
     baseDenom: 'untrn',
-    defaultGasPrice: 0.01,
+    defaultGasPrice: 0.02,
     id: chainId,
     prefix: 'neutron',
     rpcEndpoint: rpcEndpoint,
@@ -363,4 +390,10 @@ export const neutronTestnetConfig: DeploymentConfig = {
   assets: [ntrnAsset, atomAsset, axlUSDCAsset],
   vaults: [],
   oracleConfigs: [usdOracle, axlUSDCOracle, atomOracle, ntrnOracle],
+  perps: {
+    baseDenom: axlUsdcDenom,
+    cooldownPeriod: 300, // 5 min
+    minPositionValue: '0',
+    denoms: [atomPerpDenom, ntrnPerpDenom],
+  },
 }

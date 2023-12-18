@@ -3,6 +3,7 @@ import {
   AssetConfig,
   DeploymentConfig,
   OracleConfig,
+  PerpDenom,
   SwapperExecuteMsg,
   TestActions,
   VaultConfig,
@@ -17,6 +18,7 @@ import { InstantiateMsg as VaultInstantiateMsg } from '../../types/generated/mar
 import { InstantiateMsg as HealthInstantiateMsg } from '../../types/generated/mars-rover-health/MarsRoverHealth.types'
 import { InstantiateMsg as ZapperInstantiateMsg } from '../../types/generated/mars-zapper-base/MarsZapperBase.types'
 import {
+  ConfigUpdates,
   ExecuteMsg as CreditManagerExecute,
   InstantiateMsg as RoverInstantiateMsg,
 } from '../../types/generated/mars-credit-manager/MarsCreditManager.types'
@@ -29,6 +31,10 @@ import {
   ExecuteMsg as RedBankExecuteMsg,
   QueryMsg as RedBankQueryMsg,
 } from '../../types/generated/mars-red-bank/MarsRedBank.types'
+import {
+  InstantiateMsg as PerpsInstantiateMsg,
+  ExecuteMsg as PerpsExecuteMsg,
+} from '../../types/generated/mars-perps/MarsPerps.types'
 import {
   AddressResponseItem,
   InstantiateMsg as AddressProviderInstantiateMsg,
@@ -222,11 +228,15 @@ export class Deployer {
         },
       })
 
-      printBlue('Setting rewards-collector address in credit manager contract')
+      printBlue('Setting rewards-collector and perps address in credit manager contract')
+      const configUpdates: ConfigUpdates = {
+        rewards_collector: this.storage.addresses.rewardsCollector!,
+      }
+      if (this.config.perps) {
+        configUpdates.perps = this.storage.addresses.perps!
+      }
       await hExec.updateConfig({
-        updates: {
-          rewards_collector: this.storage.addresses.rewardsCollector!,
-        },
+        updates: configUpdates,
       })
     }
     this.storage.actions.creditManagerContractConfigUpdate = true
@@ -481,6 +491,43 @@ export class Deployer {
     this.storage.actions.assetsSet.push(assetConfig.denom)
   }
 
+  async instantiatePerps() {
+    if (this.config.perps) {
+      const msg: PerpsInstantiateMsg = {
+        base_denom: this.config.perps.baseDenom,
+        cooldown_period: this.config.perps.cooldownPeriod,
+        credit_manager: this.storage.addresses.creditManager!,
+        min_position_value: this.config.perps.minPositionValue,
+        oracle: this.storage.addresses.oracle!,
+      }
+      await this.instantiate('perps', this.storage.codeIds.perps!, msg)
+    } else {
+      printYellow('No perps config found')
+    }
+  }
+
+  async initializePerpDenom(perpDenom: PerpDenom) {
+    if (this.storage.actions.perpsSet.includes(perpDenom.denom)) {
+      printBlue(`${perpDenom.denom} already initialized in perps contract`)
+      return
+    }
+    printBlue(`Initializing perp ${perpDenom.denom}...`)
+
+    const msg: PerpsExecuteMsg = {
+      init_denom: {
+        denom: perpDenom.denom,
+        max_funding_velocity: perpDenom.maxFundingVelocity,
+        skew_scale: perpDenom.skewScale,
+      },
+    }
+
+    await this.cwClient.execute(this.deployerAddr, this.storage.addresses['perps']!, msg, 'auto')
+
+    printYellow(`${perpDenom.denom} initialized`)
+
+    this.storage.actions.perpsSet.push(perpDenom.denom)
+  }
+
   async initializeMarket(assetConfig: AssetConfig) {
     if (this.storage.actions.redBankMarketsSet.includes(assetConfig.denom)) {
       printBlue(`${assetConfig.symbol} already initialized in red-bank contract`)
@@ -656,22 +703,22 @@ export class Deployer {
 
     this.storage.actions.oraclePricesSet.push(oracleConfig.denom)
 
-    try {
-      const oracleResult = (await this.cwClient.queryContractSmart(this.storage.addresses.oracle!, {
-        price: { denom: oracleConfig.denom },
-      })) as { price: number; denom: string }
+    // try {
+    //   const oracleResult = (await this.cwClient.queryContractSmart(this.storage.addresses.oracle!, {
+    //     price: { denom: oracleConfig.denom },
+    //   })) as { price: number; denom: string }
 
-      printGreen(
-        `${this.config.chain.id} :: ${oracleConfig.denom} oracle price:  ${JSON.stringify(
-          oracleResult,
-        )}`,
-      )
-    } catch (e) {
-      // Querying astroport TWAP can fail if enough TWAP snapshots have not been recorded yet
-      if (!Object.keys(oracleConfig.price_source).includes('astroport_twap')) {
-        throw e
-      }
-    }
+    //   printGreen(
+    //     `${this.config.chain.id} :: ${oracleConfig.denom} oracle price:  ${JSON.stringify(
+    //       oracleResult,
+    //     )}`,
+    //   )
+    // } catch (e) {
+    //   // Querying astroport TWAP can fail if enough TWAP snapshots have not been recorded yet
+    //   if (!Object.keys(oracleConfig.price_source).includes('astroport_twap')) {
+    //     throw e
+    //   }
+    // }
   }
 
   async executeDeposit() {

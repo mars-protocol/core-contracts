@@ -30,6 +30,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     await deployer.upload('zapper', wasmFile(config.zapperContractName))
     await deployer.upload('creditManager', wasmFile('mars_credit_manager'))
     await deployer.upload('health', wasmFile('mars_rover_health'))
+    await deployer.upload('perps', wasmFile('mars_perps'))
 
     // Instantiate contracts
     await deployer.instantiateAddressProvider()
@@ -44,6 +45,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     await deployer.instantiateHealthContract()
     await deployer.instantiateCreditManager()
     await deployer.instantiateNftContract()
+    await deployer.instantiatePerps()
     await deployer.setConfigOnHealthContract()
     await deployer.transferNftContractOwnership()
     await deployer.setConfigOnCreditManagerContract()
@@ -58,6 +60,11 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     }
     for (const vault of config.vaults) {
       await deployer.updateVaultConfig(vault)
+    }
+    if (config.perps) {
+      for (const perp of config.perps?.denoms) {
+        await deployer.initializePerpDenom(perp)
+      }
     }
     for (const oracleConfig of config.oracleConfigs) {
       await deployer.setOracle(oracleConfig)
