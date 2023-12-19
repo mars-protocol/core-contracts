@@ -3,7 +3,10 @@ use cosmwasm_std::{to_binary, Addr, Api, Coin, CosmosMsg, QuerierWrapper, StdRes
 
 use crate::{
     math::SignedDecimal,
-    perps::{ExecuteMsg, PerpPosition, PositionResponse, PositionsByAccountResponse, QueryMsg},
+    perps::{
+        ExecuteMsg, PerpPosition, PositionResponse, PositionsByAccountResponse, QueryMsg,
+        TradingFee,
+    },
 };
 
 #[cw_serde]
@@ -41,6 +44,7 @@ impl Perps {
         account_id: impl Into<String>,
         denom: impl Into<String>,
         size: SignedDecimal,
+        funds: Vec<Coin>,
     ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
@@ -49,7 +53,7 @@ impl Perps {
                 denom: denom.into(),
                 size,
             })?,
-            funds: vec![],
+            funds,
         }))
     }
 
@@ -98,5 +102,21 @@ impl Perps {
             },
         )?;
         Ok(res.positions)
+    }
+
+    pub fn query_opening_fee(
+        &self,
+        querier: &QuerierWrapper,
+        denom: impl Into<String>,
+        size: SignedDecimal,
+    ) -> StdResult<TradingFee> {
+        let res: TradingFee = querier.query_wasm_smart(
+            self.address(),
+            &QueryMsg::OpeningFee {
+                denom: denom.into(),
+                size,
+            },
+        )?;
+        Ok(res)
     }
 }

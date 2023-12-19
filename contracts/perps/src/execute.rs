@@ -2,7 +2,7 @@ use cosmwasm_std::{
     coin, coins, to_binary, Addr, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response,
     StdError, Storage, Uint128, WasmMsg,
 };
-use cw_utils::{may_pay, must_pay, nonpayable};
+use cw_utils::{may_pay, must_pay};
 use mars_types::{
     credit_manager::{self, Action},
     math::SignedDecimal,
@@ -265,9 +265,6 @@ pub fn open_position(
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
-    // no payment is expected when opening a position
-    nonpayable(&info)?;
-
     // query the asset's price
     //
     // this will be the position's entry price, used to compute PnL when closing
@@ -373,13 +370,17 @@ pub fn close_position(
     ds.close_position(env.block.time.seconds(), denom_price, base_denom_price, &position)?;
 
     // compute the position's unrealized PnL
-    let pnl = position.compute_pnl(
-        &ds.funding,
-        inital_skew,
-        denom_price,
-        base_denom_price,
-        &cfg.base_denom,
-    )?;
+    let pnl = position
+        .compute_pnl(
+            &ds.funding,
+            inital_skew,
+            denom_price,
+            base_denom_price,
+            &cfg.base_denom,
+            cfg.closing_fee_rate,
+        )?
+        .coins
+        .pnl;
 
     // compute how many coins should be returned to the credit account, and
     // update global liquidity amount

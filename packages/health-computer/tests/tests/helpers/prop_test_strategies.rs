@@ -283,6 +283,10 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                     // This gives us a max of 10
                     let rate = Decimal::from_atomics(Uint128::new(rate as u128), 3).unwrap();
 
+                    // Rate is between 0 and 10, so our closing fee will be between 0 and 1%
+                    let closing_fee_rate =
+                        rate.checked_div(Decimal::from_str("1000").unwrap()).unwrap();
+
                     let funding_index_dec =
                         Decimal::from_atomics(Uint128::new(funding_index as u128), 6)
                             .unwrap()
@@ -302,12 +306,10 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                             current_skew,
                             current_price,
                             usdc_price,
-                            base_denom.as_str(),
+                            &base_denom,
+                            closing_fee_rate,
                         )
                         .unwrap();
-
-                    let unrealised_funding_accrued =
-                        position.compute_accrued_funding(&funding, usdc_price).unwrap();
 
                     PerpPosition {
                         denom: perp_denom,
@@ -316,11 +318,7 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                         current_price,
                         entry_price,
                         pnl,
-                        unrealised_funding_accrued,
-                        // Rate is between 0 and 10, so our closing fee will be between 0 and 1%
-                        closing_fee_rate: rate
-                            .checked_div(Decimal::from_str("1000").unwrap())
-                            .unwrap(),
+                        closing_fee_rate,
                     }
                 },
             ),

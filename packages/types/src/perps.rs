@@ -45,6 +45,12 @@ pub struct Config<T> {
     /// Stakers need to wait a cooldown period before being able to withdraw USDC from the vault.
     /// Value defined in seconds.
     pub cooldown_period: u64,
+
+    /// The fee rate charged when opening a new position
+    pub opening_fee_rate: Decimal,
+
+    /// The fee rate charged when closing a position
+    pub closing_fee_rate: Decimal,
 }
 
 impl Config<String> {
@@ -55,6 +61,8 @@ impl Config<String> {
             base_denom: self.base_denom,
             min_position_value: self.min_position_value,
             cooldown_period: self.cooldown_period,
+            opening_fee_rate: self.opening_fee_rate,
+            closing_fee_rate: self.closing_fee_rate,
         })
     }
 }
@@ -67,6 +75,8 @@ impl From<Config<Addr>> for Config<String> {
             base_denom: cfg.base_denom,
             min_position_value: cfg.min_position_value,
             cooldown_period: cfg.cooldown_period,
+            opening_fee_rate: cfg.opening_fee_rate,
+            closing_fee_rate: cfg.closing_fee_rate,
         }
     }
 }
@@ -163,7 +173,7 @@ pub struct PerpDenomState {
     pub total_entry_cost: SignedDecimal,
     pub total_entry_funding: SignedDecimal,
     pub rate: SignedDecimal,
-    pub pnl_values: PnlValues,
+    pub pnl_values: DenomPnlValues,
 }
 
 /// This is the position data to be stored in the contract state. It does not
@@ -186,8 +196,7 @@ pub struct PerpPosition {
     pub size: SignedDecimal,
     pub entry_price: Decimal,
     pub current_price: Decimal,
-    pub pnl: PnL,
-    pub unrealised_funding_accrued: SignedDecimal,
+    pub pnl: PositionPnl,
     pub closing_fee_rate: Decimal,
 }
 
@@ -197,6 +206,48 @@ pub enum PnL {
     Profit(Coin),
     Loss(Coin),
     BreakEven,
+}
+
+impl PnL {
+    pub fn from_signed_decimal(denom: impl Into<String>, amount: SignedDecimal) -> Self {
+        if amount.is_positive() {
+            PnL::Profit(Coin {
+                denom: denom.into(),
+                amount: amount.abs.to_uint_floor(),
+            })
+        } else if amount.is_negative() {
+            PnL::Loss(Coin {
+                denom: denom.into(),
+                amount: amount.abs.to_uint_floor(),
+            })
+        } else {
+            PnL::BreakEven
+        }
+    }
+}
+
+#[cw_serde]
+pub struct PositionPnl {
+    pub values: PnlValues,
+    pub coins: PnlCoins,
+}
+
+/// Values denominated in the Oracle base currency (uusd)
+#[cw_serde]
+pub struct PnlValues {
+    pub price_pnl: SignedDecimal,
+    pub accrued_funding: SignedDecimal,
+    pub closing_fee: SignedDecimal,
+
+    /// PnL: price PnL + accrued funding - closing fee
+    pub pnl: SignedDecimal,
+}
+
+/// Coins with Perp Vault base denom (uusdc) as a denom
+#[cw_serde]
+pub struct PnlCoins {
+    pub closing_fee: Coin,
+    pub pnl: PnL,
 }
 
 impl PnL {
@@ -230,7 +281,7 @@ impl fmt::Display for PnL {
 /// PnL values denominated in the base currency
 #[cw_serde]
 #[derive(Default)]
-pub struct PnlValues {
+pub struct DenomPnlValues {
     pub price_pnl: SignedDecimal,
     pub accrued_funding: SignedDecimal,
 
@@ -398,6 +449,12 @@ pub enum QueryMsg {
     /// Compute the total PnL of all perp positions, denominated in uusd (USD = 1e6 uusd, configured in Oracle)
     #[returns(SignedDecimal)]
     TotalPnl {},
+
+    #[returns(TradingFee)]
+    OpeningFee {
+        denom: String,
+        size: SignedDecimal,
+    },
 }
 
 #[cw_serde]
@@ -433,4 +490,10 @@ pub struct PositionResponse {
 pub struct PositionsByAccountResponse {
     pub account_id: String,
     pub positions: Vec<PerpPosition>,
+}
+
+#[cw_serde]
+pub struct TradingFee {
+    pub rate: Decimal,
+    pub fee: Coin,
 }

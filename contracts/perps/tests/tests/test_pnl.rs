@@ -100,7 +100,7 @@ fn computing_total_pnl() {
 }
 
 fn from_position_to_coin(pos: PerpPosition) -> Vec<Coin> {
-    if let PnL::Loss(coin) = pos.pnl {
+    if let PnL::Loss(coin) = pos.pnl.coins.pnl {
         vec![coin]
     } else {
         vec![]

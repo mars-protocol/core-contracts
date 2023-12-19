@@ -45,6 +45,7 @@ use mars_types::{
         InstantiateMsg as HealthInstantiateMsg, QueryMsg::HealthValues,
     },
     incentives::{ExecuteMsg::BalanceChange, QueryMsg::UserUnclaimedRewards},
+    math::SignedDecimal,
     oracle::ActionKind,
     params::{
         AssetParams, AssetParamsUpdate,
@@ -53,7 +54,7 @@ use mars_types::{
         InstantiateMsg as ParamsInstantiateMsg, QueryMsg as ParamsQueryMsg, VaultConfig,
         VaultConfigUnchecked, VaultConfigUpdate,
     },
-    perps::InstantiateMsg as PerpsInstantiateMsg,
+    perps::{self, InstantiateMsg as PerpsInstantiateMsg, PositionResponse, TradingFee},
     red_bank::{
         self, InitOrUpdateAssetParams, InterestRateModel,
         QueryMsg::{UserCollateral, UserDebt},
@@ -348,6 +349,34 @@ impl MockEnv {
                 amount: vec![coin],
             }))
             .unwrap();
+    }
+
+    pub fn init_perp_denom(
+        &mut self,
+        sender: &Addr,
+        denom: &str,
+        max_funding_velocity: Decimal,
+        skew_scale: Decimal,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.perps.address().clone(),
+            &perps::ExecuteMsg::InitDenom {
+                denom: denom.to_string(),
+                max_funding_velocity,
+                skew_scale,
+            },
+            &[],
+        )
+    }
+
+    pub fn deposit_to_perp_vault(&mut self, sender: &Addr, coin: &Coin) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.perps.address().clone(),
+            &perps::ExecuteMsg::Deposit {},
+            &[coin.clone()],
+        )
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -726,6 +755,32 @@ impl MockEnv {
             },
         )
     }
+
+    pub fn query_perp_position(&self, account_id: &str, denom: &str) -> PositionResponse {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.address(),
+                &perps::QueryMsg::Position {
+                    account_id: account_id.to_string(),
+                    denom: denom.to_string(),
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_perp_opening_fee(&self, denom: &str, size: SignedDecimal) -> TradingFee {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.address(),
+                &perps::QueryMsg::OpeningFee {
+                    denom: denom.to_string(),
+                    size,
+                },
+            )
+            .unwrap()
+    }
 }
 
 impl MockEnvBuilder {
@@ -1070,6 +1125,8 @@ impl MockEnvBuilder {
                     base_denom: "uusdc".to_string(),
                     min_position_value: Uint128::one(),
                     cooldown_period: 360,
+                    opening_fee_rate: Decimal::from_ratio(1u128, 100u128),
+                    closing_fee_rate: Decimal::from_ratio(1u128, 100u128),
                 },
                 &[],
                 "mock-perps-contract",

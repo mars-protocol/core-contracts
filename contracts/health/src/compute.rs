@@ -33,6 +33,8 @@ pub fn compute_health(
         })
         .collect::<StdResult<HashMap<_, _>>>()?;
     let vault_base_token_denoms = vault_infos.values().map(|v| &v.base_token).collect::<Vec<_>>();
+    // TODO: use perp infos from params contract, it should be fixed in health computer logic too
+    let perp_denoms = positions.perps.iter().map(|p| &p.denom).collect::<Vec<_>>();
 
     // Collect prices + asset
     let mut denoms_data: DenomsData = Default::default();
@@ -41,6 +43,7 @@ pub fn compute_health(
         .chain(debt_denoms)
         .chain(lend_denoms)
         .chain(vault_base_token_denoms)
+        .chain(perp_denoms)
         .try_for_each(|denom| -> StdResult<()> {
             let price = q.oracle.query_price(&deps.querier, denom, action.clone())?.price;
             denoms_data.prices.insert(denom.clone(), price);

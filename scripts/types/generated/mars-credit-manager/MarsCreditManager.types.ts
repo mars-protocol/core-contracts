@@ -608,9 +608,22 @@ export interface PerpPosition {
   current_price: Decimal
   denom: string
   entry_price: Decimal
-  pnl: PnL
+  pnl: PositionPnl
   size: SignedDecimal
-  unrealised_funding_accrued: SignedDecimal
+}
+export interface PositionPnl {
+  coins: PnlCoins
+  values: PnlValues
+}
+export interface PnlCoins {
+  closing_fee: Coin
+  pnl: PnL
+}
+export interface PnlValues {
+  accrued_funding: SignedDecimal
+  closing_fee: SignedDecimal
+  pnl: SignedDecimal
+  price_pnl: SignedDecimal
 }
 export interface VaultPositionValue {
   base_coin: CoinValue

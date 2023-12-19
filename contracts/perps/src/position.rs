@@ -1,7 +1,7 @@
-use cosmwasm_std::{Coin, Decimal};
+use cosmwasm_std::{coin, Decimal};
 use mars_types::{
     math::SignedDecimal,
-    perps::{Funding, PnL, Position},
+    perps::{Funding, PnL, PnlCoins, PnlValues, Position, PositionPnl},
 };
 
 use crate::{
@@ -17,14 +17,9 @@ pub trait PositionExt {
         skew: SignedDecimal,
         denom_price: Decimal,
         base_denom_price: Decimal,
-        base_denom: impl Into<String>,
-    ) -> ContractResult<PnL>;
-
-    fn compute_accrued_funding(
-        &self,
-        funding: &Funding,
-        base_denom_price: Decimal,
-    ) -> ContractResult<SignedDecimal>;
+        base_denom: &str,
+        closing_fee_rate: Decimal,
+    ) -> ContractResult<PositionPnl>;
 }
 
 impl PositionExt for Position {
@@ -34,8 +29,10 @@ impl PositionExt for Position {
         skew: SignedDecimal,
         denom_price: Decimal,
         base_denom_price: Decimal,
-        base_denom: impl Into<String>,
-    ) -> ContractResult<PnL> {
+        base_denom: &str,
+        closing_fee_rate: Decimal,
+    ) -> ContractResult<PositionPnl> {
+        // TODO: exec price should be positive
         let entry_exec_price = opening_execution_price(
             self.initial_skew,
             funding.skew_scale,
@@ -47,45 +44,40 @@ impl PositionExt for Position {
 
         // size * (exit_exec_price - entry_exec_price)
         let price_diff = exit_exec_price.checked_sub(entry_exec_price)?;
-        let price_pnl = self.size.checked_mul(price_diff)?;
+        let price_pnl_value = self.size.checked_mul(price_diff)?;
 
         // size * (current_accrued_funding_per_unit - entry_accrued_funding_per_unit) * usdc_price
         let accrued_funding_diff = funding
             .last_funding_accrued_per_unit_in_base_denom
             .checked_sub(self.entry_accrued_funding_per_unit_in_base_denom)?;
-        let accrued_funding =
+        let accrued_funding_value =
             self.size.checked_mul(accrued_funding_diff)?.checked_mul(base_denom_price.into())?;
 
-        let realized_pnl = price_pnl.checked_add(accrued_funding)?;
+        // fee_in_base_denom = closing_fee_rate * denom_exec_price * size
+        let denom_exec_price = exit_exec_price.abs;
+        let closing_fee_value =
+            self.size.abs.checked_mul(denom_exec_price.checked_mul(closing_fee_rate)?)?;
+        let closing_fee_value: SignedDecimal = closing_fee_value.into();
+        let closing_fee_in_base_denom = closing_fee_value.checked_div(base_denom_price.into())?;
 
-        if realized_pnl.is_positive() {
-            return Ok(PnL::Profit(Coin {
-                denom: base_denom.into(),
-                amount: realized_pnl.abs.to_uint_floor(),
-            }));
-        }
+        let realized_pnl_value =
+            price_pnl_value.checked_add(accrued_funding_value)?.checked_sub(closing_fee_value)?;
 
-        if realized_pnl.is_negative() {
-            return Ok(PnL::Loss(Coin {
-                denom: base_denom.into(),
-                amount: realized_pnl.abs.to_uint_floor(),
-            }));
-        }
+        // convert to amount in base_denom
+        let realized_pnl_in_base_denom = realized_pnl_value.checked_div(base_denom_price.into())?;
 
-        Ok(PnL::BreakEven)
-    }
-
-    fn compute_accrued_funding(
-        &self,
-        funding: &Funding,
-        base_denom_price: Decimal,
-    ) -> ContractResult<SignedDecimal> {
-        let accrued_funding_diff = funding
-            .last_funding_accrued_per_unit_in_base_denom
-            .checked_sub(self.entry_accrued_funding_per_unit_in_base_denom)?;
-        let accrued_funding =
-            self.size.checked_mul(accrued_funding_diff)?.checked_mul(base_denom_price.into())?;
-        Ok(accrued_funding)
+        Ok(PositionPnl {
+            values: PnlValues {
+                price_pnl: price_pnl_value,
+                accrued_funding: accrued_funding_value,
+                closing_fee: closing_fee_value,
+                pnl: realized_pnl_value,
+            },
+            coins: PnlCoins {
+                closing_fee: coin(closing_fee_in_base_denom.abs.to_uint_floor().u128(), base_denom),
+                pnl: PnL::from_signed_decimal(base_denom, realized_pnl_in_base_denom),
+            },
+        })
     }
 }
 
@@ -95,7 +87,7 @@ impl PositionExt for Position {
 mod tests {
     use std::str::FromStr;
 
-    use cosmwasm_std::Uint128;
+    use cosmwasm_std::{Coin, Uint128};
     use test_case::test_case;
 
     use super::*;
@@ -110,7 +102,19 @@ mod tests {
             initial_skew: SignedDecimal::from_str("180").unwrap()
         },
         Decimal::from_str("4200").unwrap(),
-        PnL::BreakEven;
+        Decimal::zero(),
+        PositionPnl {
+            values: PnlValues {
+                price_pnl: SignedDecimal::zero(),
+                accrued_funding: SignedDecimal::zero(),
+                closing_fee: SignedDecimal::zero(),
+                pnl: SignedDecimal::zero(),
+            },
+            coins: PnlCoins {
+                closing_fee: coin(0, MOCK_BASE_DENOM),
+                pnl: PnL::BreakEven,
+            }
+        };
         "long position - break even"
     )]
     #[test_case(
@@ -121,10 +125,22 @@ mod tests {
             initial_skew: SignedDecimal::from_str("220").unwrap()
         },
         Decimal::from_str("4400").unwrap(),
-        PnL::Profit(Coin {
-            denom: MOCK_BASE_DENOM.into(),
-            amount: Uint128::new(19827),
-        });
+        Decimal::from_str("0.02").unwrap(),
+        PositionPnl {
+            values: PnlValues {
+                price_pnl: SignedDecimal::from_str("19987.8").unwrap(),
+                accrued_funding: SignedDecimal::from_str("-160").unwrap(),
+                closing_fee: SignedDecimal::from_str("8802.024").unwrap(),
+                pnl: SignedDecimal::from_str("11025.776").unwrap(),
+            },
+            coins: PnlCoins {
+                closing_fee: coin(11002, MOCK_BASE_DENOM),
+                pnl: PnL::Profit(Coin {
+                    denom: MOCK_BASE_DENOM.into(),
+                    amount: Uint128::new(13782),
+                })
+            }
+        };
         "long position - price up"
     )]
     #[test_case(
@@ -135,10 +151,22 @@ mod tests {
             initial_skew: SignedDecimal::from_str("220").unwrap()
         },
         Decimal::from_str("4000").unwrap(),
-        PnL::Loss(Coin {
-            denom: MOCK_BASE_DENOM.into(),
-            amount: Uint128::new(20181),
-        });
+        Decimal::from_str("0.02").unwrap(),
+        PositionPnl {
+            values: PnlValues {
+                price_pnl: SignedDecimal::from_str("-20021.4").unwrap(),
+                accrued_funding: SignedDecimal::from_str("-160").unwrap(),
+                closing_fee: SignedDecimal::from_str("8001.84").unwrap(),
+                pnl: SignedDecimal::from_str("-28183.24").unwrap(),
+            },
+            coins: PnlCoins {
+                closing_fee: coin(10002, MOCK_BASE_DENOM),
+                pnl: PnL::Loss(Coin {
+                    denom: MOCK_BASE_DENOM.into(),
+                    amount: Uint128::new(35229),
+                })
+            }
+        };
         "long position - price down"
     )]
     #[test_case(
@@ -149,7 +177,19 @@ mod tests {
             initial_skew: SignedDecimal::from_str("380").unwrap()
         },
         Decimal::from_str("4200").unwrap(),
-        PnL::BreakEven;
+        Decimal::zero(),
+        PositionPnl {
+            values: PnlValues {
+                price_pnl: SignedDecimal::zero(),
+                accrued_funding: SignedDecimal::zero(),
+                closing_fee: SignedDecimal::zero(),
+                pnl: SignedDecimal::zero(),
+            },
+            coins: PnlCoins {
+                closing_fee: coin(0, MOCK_BASE_DENOM),
+                pnl:  PnL::BreakEven
+            }
+        };
         "short position - break even"
     )]
     #[test_case(
@@ -160,10 +200,22 @@ mod tests {
             initial_skew: SignedDecimal::from_str("220").unwrap()
         },
         Decimal::from_str("4400").unwrap(),
-        PnL::Loss(Coin {
-            denom: MOCK_BASE_DENOM.into(),
-            amount: Uint128::new(19913),
-        });
+        Decimal::from_str("0.02").unwrap(),
+        PositionPnl {
+            values: PnlValues {
+                price_pnl: SignedDecimal::from_str("-20073.8").unwrap(),
+                accrued_funding: SignedDecimal::from_str("160").unwrap(),
+                closing_fee: SignedDecimal::from_str("8802.904").unwrap(),
+                pnl: SignedDecimal::from_str("-28716.704").unwrap(),
+            },
+            coins: PnlCoins {
+                closing_fee: coin(11003, MOCK_BASE_DENOM),
+                pnl:  PnL::Loss(Coin {
+                    denom: MOCK_BASE_DENOM.into(),
+                    amount: Uint128::new(35895),
+                })
+            }
+        };
         "short position - price up"
     )]
     #[test_case(
@@ -174,13 +226,30 @@ mod tests {
             initial_skew: SignedDecimal::from_str("220").unwrap()
         },
         Decimal::from_str("4000").unwrap(),
-        PnL::Profit(Coin {
-            denom: MOCK_BASE_DENOM.into(),
-            amount: Uint128::new(20099),
-        });
+        Decimal::from_str("0.02").unwrap(),
+        PositionPnl {
+            values: PnlValues {
+                price_pnl: SignedDecimal::from_str("19939.4").unwrap(),
+                accrued_funding: SignedDecimal::from_str("160").unwrap(),
+                closing_fee: SignedDecimal::from_str("8002.64").unwrap(),
+                pnl: SignedDecimal::from_str("12096.76").unwrap(),
+            },
+            coins: PnlCoins {
+                closing_fee: coin(10003, MOCK_BASE_DENOM),
+                pnl: PnL::Profit(Coin {
+                    denom: MOCK_BASE_DENOM.into(),
+                    amount: Uint128::new(15120),
+                })
+            }
+        };
         "short position - price down"
     )]
-    fn computing_pnl(position: Position, current_price: Decimal, expect_pnl: PnL) {
+    fn computing_pnl(
+        position: Position,
+        current_price: Decimal,
+        closing_fee: Decimal,
+        expect_pnl: PositionPnl,
+    ) {
         let funding = Funding {
             skew_scale: Decimal::from_str("1000000").unwrap(),
             last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("-14").unwrap(),
@@ -193,6 +262,7 @@ mod tests {
                 current_price,
                 Decimal::from_str("0.8").unwrap(),
                 MOCK_BASE_DENOM,
+                closing_fee,
             )
             .unwrap();
         assert_eq!(pnl, expect_pnl);

@@ -1,4 +1,4 @@
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Decimal, Uint128};
 use mars_owner::OwnerResponse;
 use mars_types::{adapters::oracle::OracleBase, perps::Config};
 
@@ -10,6 +10,8 @@ fn proper_initialization() {
         .perps_base_denom("uusdc")
         .min_position_value(Uint128::new(5_000_000))
         .cooldown_period(3688)
+        .opening_fee_rate(Decimal::from_ratio(12u128, 100u128))
+        .closing_fee_rate(Decimal::from_ratio(16u128, 100u128))
         .build()
         .unwrap();
 
@@ -37,7 +39,9 @@ fn proper_initialization() {
             oracle: OracleBase::new(oracle),
             base_denom: "uusdc".to_string(),
             min_position_value: Uint128::new(5_000_000),
-            cooldown_period: 3688
+            cooldown_period: 3688,
+            opening_fee_rate: Decimal::from_ratio(12u128, 100u128),
+            closing_fee_rate: Decimal::from_ratio(16u128, 100u128)
         }
     );
 }

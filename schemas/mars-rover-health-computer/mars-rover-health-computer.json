@@ -331,8 +331,7 @@
         "denom",
         "entry_price",
         "pnl",
-        "size",
-        "unrealised_funding_accrued"
+        "size"
       ],
       "properties": {
         "base_denom": {
@@ -351,12 +350,9 @@
           "$ref": "#/definitions/Decimal"
         },
         "pnl": {
-          "$ref": "#/definitions/PnL"
+          "$ref": "#/definitions/PositionPnl"
         },
         "size": {
-          "$ref": "#/definitions/SignedDecimal"
-        },
-        "unrealised_funding_accrued": {
           "$ref": "#/definitions/SignedDecimal"
         }
       },
@@ -396,6 +392,69 @@
           "additionalProperties": false
         }
       ]
+    },
+    "PnlCoins": {
+      "description": "Coins with Perp Vault base denom (uusdc) as a denom",
+      "type": "object",
+      "required": [
+        "closing_fee",
+        "pnl"
+      ],
+      "properties": {
+        "closing_fee": {
+          "$ref": "#/definitions/Coin"
+        },
+        "pnl": {
+          "$ref": "#/definitions/PnL"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PnlValues": {
+      "description": "Values denominated in the Oracle base currency (uusd)",
+      "type": "object",
+      "required": [
+        "accrued_funding",
+        "closing_fee",
+        "pnl",
+        "price_pnl"
+      ],
+      "properties": {
+        "accrued_funding": {
+          "$ref": "#/definitions/SignedDecimal"
+        },
+        "closing_fee": {
+          "$ref": "#/definitions/SignedDecimal"
+        },
+        "pnl": {
+          "description": "PnL: price PnL + accrued funding - closing fee",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SignedDecimal"
+            }
+          ]
+        },
+        "price_pnl": {
+          "$ref": "#/definitions/SignedDecimal"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PositionPnl": {
+      "type": "object",
+      "required": [
+        "coins",
+        "values"
+      ],
+      "properties": {
+        "coins": {
+          "$ref": "#/definitions/PnlCoins"
+        },
+        "values": {
+          "$ref": "#/definitions/PnlValues"
+        }
+      },
+      "additionalProperties": false
     },
     "Positions": {
       "type": "object",

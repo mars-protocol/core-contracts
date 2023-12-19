@@ -114,6 +114,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             account_id,
         } => to_binary(&query::positions_by_account(deps, env.block.time.seconds(), account_id)?),
         QueryMsg::TotalPnl {} => to_binary(&query::total_pnl(deps, env.block.time.seconds())?),
+        QueryMsg::OpeningFee {
+            denom,
+            size,
+        } => to_binary(&query::opening_fee(deps, &denom, size)?),
     }
     .map_err(Into::into)
 }

@@ -1,5 +1,5 @@
 #![allow(dead_code)] // TODO: remove once functions are used
-use std::mem::take;
+use std::{mem::take, str::FromStr};
 
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Empty, Timestamp, Uint128};
@@ -11,7 +11,7 @@ use mars_types::{
     math::SignedDecimal,
     oracle,
     perps::{
-        self, Config, DenomStateResponse, DepositResponse, PerpDenomState, PnlValues,
+        self, Config, DenomPnlValues, DenomStateResponse, DepositResponse, PerpDenomState,
         PositionResponse, PositionsByAccountResponse, UnlockState, VaultState,
     },
 };
@@ -36,6 +36,8 @@ pub struct MockEnvBuilder {
     perps_base_denom: String,
     min_position_value: Uint128,
     cooldown_period: u64,
+    opening_fee_rate: Decimal,
+    closing_fee_rate: Decimal,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -48,6 +50,8 @@ impl MockEnv {
             perps_base_denom: "uusdc".to_string(),
             min_position_value: Uint128::one(),
             cooldown_period: 3600,
+            opening_fee_rate: Decimal::from_str("0.01").unwrap(),
+            closing_fee_rate: Decimal::from_str("0.01").unwrap(),
         }
     }
 
@@ -367,7 +371,7 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_total_pnl(&self) -> PnlValues {
+    pub fn query_total_pnl(&self) -> DenomPnlValues {
         self.app.wrap().query_wasm_smart(self.perps.clone(), &perps::QueryMsg::TotalPnl {}).unwrap()
     }
 }
@@ -387,6 +391,8 @@ impl MockEnvBuilder {
                 base_denom: self.perps_base_denom.clone(),
                 min_position_value: self.min_position_value,
                 cooldown_period: self.cooldown_period,
+                opening_fee_rate: self.opening_fee_rate,
+                closing_fee_rate: self.closing_fee_rate,
             },
             &[],
             "mock-perps",
@@ -459,6 +465,16 @@ impl MockEnvBuilder {
 
     pub fn cooldown_period(&mut self, cp: u64) -> &mut Self {
         self.cooldown_period = cp;
+        self
+    }
+
+    pub fn opening_fee_rate(&mut self, fee_rate: Decimal) -> &mut Self {
+        self.opening_fee_rate = fee_rate;
+        self
+    }
+
+    pub fn closing_fee_rate(&mut self, fee_rate: Decimal) -> &mut Self {
+        self.closing_fee_rate = fee_rate;
         self
     }
 }

@@ -14,9 +14,6 @@ use serde::{de, ser, Deserialize, Serialize};
 /// This type is specifically adapted to our need (only methods that are
 /// actually used by the contract are implemented) hence not suited for general
 /// use.
-//
-// TODO: we should manually implement PartialEq such that +0 and -0 are
-// considered equal
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, JsonSchema)]
 pub struct SignedDecimal {
     pub negative: bool,
@@ -75,19 +72,20 @@ impl SignedDecimal {
                 }
             }
             // negative + positive
-            (true, false) => {
-                if self.abs >= other.abs {
-                    Ok(SignedDecimal {
-                        negative: true,
-                        abs: self.abs - other.abs,
-                    })
-                } else {
-                    Ok(SignedDecimal {
-                        negative: false,
-                        abs: other.abs - self.abs,
-                    })
-                }
-            }
+            (true, false) => match self.abs.cmp(&other.abs) {
+                Ordering::Greater => Ok(SignedDecimal {
+                    negative: true,
+                    abs: self.abs - other.abs,
+                }),
+                Ordering::Less => Ok(SignedDecimal {
+                    negative: false,
+                    abs: other.abs - self.abs,
+                }),
+                Ordering::Equal => Ok(SignedDecimal {
+                    negative: false,
+                    abs: Decimal::zero(),
+                }),
+            },
             // positive + positive
             (false, false) => Ok(SignedDecimal {
                 negative: false,
@@ -119,19 +117,20 @@ impl SignedDecimal {
                 }
             }
             // a negative number - a negative number
-            (true, true) => {
-                if self.abs >= subtractor.abs {
-                    Ok(SignedDecimal {
-                        negative: true,
-                        abs: self.abs - subtractor.abs,
-                    })
-                } else {
-                    Ok(SignedDecimal {
-                        negative: false,
-                        abs: subtractor.abs - self.abs,
-                    })
-                }
-            }
+            (true, true) => match self.abs.cmp(&subtractor.abs) {
+                Ordering::Greater => Ok(SignedDecimal {
+                    negative: true,
+                    abs: self.abs - subtractor.abs,
+                }),
+                Ordering::Less => Ok(SignedDecimal {
+                    negative: false,
+                    abs: subtractor.abs - self.abs,
+                }),
+                Ordering::Equal => Ok(SignedDecimal {
+                    negative: false,
+                    abs: Decimal::zero(),
+                }),
+            },
             // a negative number - a positive number
             (true, false) => Ok(SignedDecimal {
                 negative: true,
@@ -147,10 +146,16 @@ impl SignedDecimal {
 
     /// Multiple the SignedDecimal by another SignedDecimal.
     pub fn checked_mul(&self, multiplier: SignedDecimal) -> Result<SignedDecimal, OverflowError> {
-        Ok(SignedDecimal {
+        let abs = self.abs.checked_mul(multiplier.abs)?;
+        let negative = if abs.is_zero() {
+            false
+        } else {
             // use the XOR bitwise operator
-            negative: self.negative ^ multiplier.negative,
-            abs: self.abs.checked_mul(multiplier.abs)?,
+            self.negative ^ multiplier.negative
+        };
+        Ok(SignedDecimal {
+            negative,
+            abs,
         })
     }
 
@@ -159,10 +164,16 @@ impl SignedDecimal {
         &self,
         divisor: SignedDecimal,
     ) -> Result<SignedDecimal, CheckedFromRatioError> {
-        Ok(SignedDecimal {
+        let abs = self.abs.checked_div(divisor.abs)?;
+        let negative = if abs.is_zero() {
+            false
+        } else {
             // the divisor is always non-negative, so sign doesn't change
-            negative: self.negative ^ divisor.negative,
-            abs: self.abs.checked_div(divisor.abs)?,
+            self.negative ^ divisor.negative
+        };
+        Ok(SignedDecimal {
+            negative,
+            abs,
         })
     }
 }

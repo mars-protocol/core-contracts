@@ -8,7 +8,7 @@ use mars_types::{
     adapters::oracle::Oracle,
     math::SignedDecimal,
     oracle::ActionKind,
-    perps::{DenomState, Funding, PnlValues, Position},
+    perps::{DenomPnlValues, DenomState, Funding, Position},
 };
 
 use crate::{
@@ -115,7 +115,7 @@ pub trait DenomStateExt {
         current_time: u64,
         denom_price: Decimal,
         base_denom_price: Decimal,
-    ) -> ContractResult<(PnlValues, Funding)>;
+    ) -> ContractResult<(DenomPnlValues, Funding)>;
 }
 
 impl DenomStateExt for DenomState {
@@ -321,11 +321,11 @@ impl DenomStateExt for DenomState {
         current_time: u64,
         denom_price: Decimal,
         base_denom_price: Decimal,
-    ) -> ContractResult<(PnlValues, Funding)> {
+    ) -> ContractResult<(DenomPnlValues, Funding)> {
         let price_pnl = self.compute_price_pnl(denom_price)?;
         let (accrued_funding, curr_funding) =
             self.compute_accrued_funding(current_time, denom_price, base_denom_price)?;
-        let pnl_values = PnlValues {
+        let pnl_values = DenomPnlValues {
             price_pnl,
             accrued_funding,
             pnl: price_pnl.checked_add(accrued_funding)?,
@@ -340,20 +340,20 @@ pub fn compute_total_pnl(
     deps: Deps,
     oracle: &Oracle,
     current_time: u64,
-) -> ContractResult<PnlValues> {
+) -> ContractResult<DenomPnlValues> {
     let config = CONFIG.load(deps.storage)?;
 
     let base_denom_price =
         oracle.query_price(&deps.querier, &config.base_denom, ActionKind::Default)?.price;
     let total_pnl = DENOM_STATES.range(deps.storage, None, None, Order::Ascending).try_fold(
-        PnlValues::default(),
+        DenomPnlValues::default(),
         |acc, item| -> ContractResult<_> {
             let (denom, ds) = item?;
 
             let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
             let (pnl_values, _) = ds.compute_pnl(current_time, denom_price, base_denom_price)?;
 
-            Ok(PnlValues {
+            Ok(DenomPnlValues {
                 price_pnl: acc.price_pnl.checked_add(pnl_values.price_pnl)?,
                 accrued_funding: acc.accrued_funding.checked_add(pnl_values.accrued_funding)?,
                 pnl: acc.pnl.checked_add(pnl_values.pnl)?,
@@ -665,7 +665,7 @@ mod tests {
 
         assert_eq!(
             pnl_values,
-            PnlValues {
+            DenomPnlValues {
                 price_pnl: SignedDecimal::from_str("-50097475").unwrap(),
                 accrued_funding: SignedDecimal::from_str("-741814.4").unwrap(),
                 pnl: SignedDecimal::from_str("-50839289.4").unwrap()
