@@ -3,10 +3,12 @@ use std::str::FromStr;
 use cosmwasm_std::{coin, Addr, Coin, Decimal};
 use mars_types::{
     math::SignedDecimal,
+    params::PerpParamsUpdate,
     perps::{PerpPosition, PnL},
 };
 
 use super::helpers::MockEnv;
+use crate::tests::helpers::default_perp_params;
 
 const ONE_HOUR_SEC: u64 = 3600u64;
 
@@ -32,6 +34,12 @@ fn computing_funding() {
         Decimal::from_str("1000000").unwrap(),
     )
     .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("ueth"),
+        },
+    );
 
     // set usdc price
     mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();

@@ -32,8 +32,10 @@ serde           = { workspace = true }
 thiserror       = { workspace = true }
 
 [dev-dependencies]
-anyhow              = { workspace = true }
-cw-multi-test       = { workspace = true }
-mars-oracle-osmosis = { workspace = true }
-serde-json-wasm     = { workspace = true }
-test-case           = { workspace = true }
+anyhow                = { workspace = true }
+cw-multi-test         = { workspace = true }
+mars-address-provider = { workspace = true }
+mars-oracle-osmosis   = { workspace = true }
+mars-params           = { workspace = true }
+serde-json-wasm       = { workspace = true }
+test-case             = { workspace = true }

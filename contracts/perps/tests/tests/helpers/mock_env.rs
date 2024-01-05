@@ -7,9 +7,11 @@ use cw_multi_test::{App, AppResponse, BankSudo, BasicApp, Executor, SudoMsg};
 use mars_oracle_osmosis::OsmosisPriceSourceUnchecked;
 use mars_owner::{OwnerResponse, OwnerUpdate};
 use mars_types::{
-    adapters::oracle::OracleBase,
+    adapters::{oracle::OracleBase, params::ParamsBase},
+    address_provider,
     math::SignedDecimal,
     oracle,
+    params::{self, ExecuteMsg::UpdatePerpParams, PerpParamsUpdate},
     perps::{
         self, Config, DenomPnlValues, DenomStateResponse, DepositResponse, PerpDenomState,
         PositionResponse, PositionsByAccountResponse, UnlockState, VaultState,
@@ -18,7 +20,7 @@ use mars_types::{
 
 use super::{
     contracts::{mock_oracle_contract, mock_perps_contract},
-    mock_credit_manager_contract,
+    mock_address_provider_contract, mock_credit_manager_contract, mock_params_contract,
 };
 
 pub struct MockEnv {
@@ -26,6 +28,7 @@ pub struct MockEnv {
     pub owner: Addr,
     pub perps: Addr,
     pub oracle: Addr,
+    pub params: Addr,
     pub credit_manager: Addr,
 }
 
@@ -34,7 +37,8 @@ pub struct MockEnvBuilder {
     deployer: Addr,
     oracle_base_denom: String,
     perps_base_denom: String,
-    min_position_value: Uint128,
+    min_position_in_base_denom: Uint128,
+    max_position_in_base_denom: Option<Uint128>,
     cooldown_period: u64,
     opening_fee_rate: Decimal,
     closing_fee_rate: Decimal,
@@ -48,7 +52,8 @@ impl MockEnv {
             deployer: Addr::unchecked("deployer"),
             oracle_base_denom: "uusd".to_string(),
             perps_base_denom: "uusdc".to_string(),
-            min_position_value: Uint128::one(),
+            min_position_in_base_denom: Uint128::one(),
+            max_position_in_base_denom: None,
             cooldown_period: 3600,
             opening_fee_rate: Decimal::from_str("0.01").unwrap(),
             closing_fee_rate: Decimal::from_str("0.01").unwrap(),
@@ -240,6 +245,12 @@ impl MockEnv {
         )
     }
 
+    pub fn update_perp_params(&mut self, sender: &Addr, update: PerpParamsUpdate) {
+        self.app
+            .execute_contract(sender.clone(), self.params.clone(), &UpdatePerpParams(update), &[])
+            .unwrap();
+    }
+
     //--------------------------------------------------------------------------------------------------
     // Queries
     //--------------------------------------------------------------------------------------------------
@@ -378,7 +389,9 @@ impl MockEnv {
 
 impl MockEnvBuilder {
     pub fn build(&mut self) -> AnyResult<MockEnv> {
+        let address_provider_contract = self.deploy_address_provider();
         let oracle_contract = self.deploy_oracle();
+        let params_contract = self.deploy_params(address_provider_contract.as_str());
         let credit_manager_contract = self.deploy_credit_manager();
 
         let code_id = self.app.store_code(mock_perps_contract());
@@ -388,8 +401,10 @@ impl MockEnvBuilder {
             &perps::InstantiateMsg {
                 credit_manager: credit_manager_contract.to_string(),
                 oracle: OracleBase::new(oracle_contract.to_string()),
+                params: ParamsBase::new(params_contract.to_string()),
                 base_denom: self.perps_base_denom.clone(),
-                min_position_value: self.min_position_value,
+                min_position_in_base_denom: self.min_position_in_base_denom,
+                max_position_in_base_denom: self.max_position_in_base_denom,
                 cooldown_period: self.cooldown_period,
                 opening_fee_rate: self.opening_fee_rate,
                 closing_fee_rate: self.closing_fee_rate,
@@ -404,8 +419,28 @@ impl MockEnvBuilder {
             owner: self.deployer.clone(),
             perps: perps_contract,
             oracle: oracle_contract,
+            params: params_contract,
             credit_manager: credit_manager_contract,
         })
+    }
+
+    fn deploy_address_provider(&mut self) -> Addr {
+        let contract = mock_address_provider_contract();
+        let code_id = self.app.store_code(contract);
+
+        self.app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &address_provider::InstantiateMsg {
+                    owner: self.deployer.clone().to_string(),
+                    prefix: "".to_string(),
+                },
+                &[],
+                "mock-address-provider",
+                None,
+            )
+            .unwrap()
     }
 
     fn deploy_oracle(&mut self) -> Addr {
@@ -423,6 +458,26 @@ impl MockEnvBuilder {
                 },
                 &[],
                 "mock-oracle",
+                None,
+            )
+            .unwrap()
+    }
+
+    fn deploy_params(&mut self, address_provider: &str) -> Addr {
+        let contract = mock_params_contract();
+        let code_id = self.app.store_code(contract);
+
+        self.app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &params::InstantiateMsg {
+                    owner: self.deployer.clone().to_string(),
+                    address_provider: address_provider.to_string(),
+                    target_health_factor: Decimal::from_str("1.05").unwrap(),
+                },
+                &[],
+                "mock-params",
                 None,
             )
             .unwrap()
@@ -458,8 +513,13 @@ impl MockEnvBuilder {
         self
     }
 
-    pub fn min_position_value(&mut self, mpv: Uint128) -> &mut Self {
-        self.min_position_value = mpv;
+    pub fn min_position_in_base_denom(&mut self, mp: Uint128) -> &mut Self {
+        self.min_position_in_base_denom = mp;
+        self
+    }
+
+    pub fn max_position_in_base_denom(&mut self, mp: Option<Uint128>) -> &mut Self {
+        self.max_position_in_base_denom = mp;
         self
     }
 

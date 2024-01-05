@@ -1,7 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Api, Decimal, QuerierWrapper, StdResult};
 
-use crate::params::{AssetParams, QueryMsg, TotalDepositResponse, VaultConfig};
+use crate::params::{AssetParams, PerpParams, QueryMsg, TotalDepositResponse, VaultConfig};
 
 #[cw_serde]
 pub struct ParamsBase<T>(T);
@@ -40,6 +40,19 @@ impl Params {
         querier.query_wasm_smart(
             self.address().to_string(),
             &QueryMsg::AssetParams {
+                denom: denom.to_string(),
+            },
+        )
+    }
+
+    pub fn query_perp_params(
+        &self,
+        querier: &QuerierWrapper,
+        denom: &str,
+    ) -> StdResult<PerpParams> {
+        querier.query_wasm_smart(
+            self.address().to_string(),
+            &QueryMsg::PerpParams {
                 denom: denom.to_string(),
             },
         )

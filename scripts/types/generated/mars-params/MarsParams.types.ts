@@ -142,6 +142,7 @@ export interface Coin {
 export interface PerpParams {
   denom: string
   max_long_oi: Uint128
+  max_net_oi: Uint128
   max_short_oi: Uint128
 }
 export type QueryMsg =

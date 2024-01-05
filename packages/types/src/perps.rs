@@ -4,7 +4,10 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Api, Coin, Decimal, StdResult, Uint128};
 use mars_owner::OwnerUpdate;
 
-use crate::{adapters::oracle::OracleBase, math::SignedDecimal};
+use crate::{
+    adapters::{oracle::OracleBase, params::ParamsBase},
+    math::SignedDecimal,
+};
 
 // ------------------------------- message types -------------------------------
 
@@ -20,6 +23,9 @@ pub struct Config<T> {
 
     /// Adapter for interacting with the Mars oracle contract
     pub oracle: OracleBase<T>,
+
+    /// Adapter for interacting with the Mars params contract
+    pub params: ParamsBase<T>,
 
     /// The token used to settle perp trades.
     ///
@@ -40,7 +46,10 @@ pub struct Config<T> {
     pub base_denom: String,
 
     /// The minimum value of a position, in the base asset (i.e. USDC).
-    pub min_position_value: Uint128,
+    pub min_position_in_base_denom: Uint128,
+
+    /// The maximum value of a position, in the base asset (i.e. USDC).
+    pub max_position_in_base_denom: Option<Uint128>,
 
     /// Stakers need to wait a cooldown period before being able to withdraw USDC from the vault.
     /// Value defined in seconds.
@@ -58,8 +67,10 @@ impl Config<String> {
         Ok(Config {
             credit_manager: api.addr_validate(&self.credit_manager)?,
             oracle: self.oracle.check(api)?,
+            params: self.params.check(api)?,
             base_denom: self.base_denom,
-            min_position_value: self.min_position_value,
+            min_position_in_base_denom: self.min_position_in_base_denom,
+            max_position_in_base_denom: self.max_position_in_base_denom,
             cooldown_period: self.cooldown_period,
             opening_fee_rate: self.opening_fee_rate,
             closing_fee_rate: self.closing_fee_rate,
@@ -72,8 +83,10 @@ impl From<Config<Addr>> for Config<String> {
         Config {
             credit_manager: cfg.credit_manager.into(),
             oracle: cfg.oracle.into(),
+            params: cfg.params.into(),
             base_denom: cfg.base_denom,
-            min_position_value: cfg.min_position_value,
+            min_position_in_base_denom: cfg.min_position_in_base_denom,
+            max_position_in_base_denom: cfg.max_position_in_base_denom,
             cooldown_period: cfg.cooldown_period,
             opening_fee_rate: cfg.opening_fee_rate,
             closing_fee_rate: cfg.closing_fee_rate,

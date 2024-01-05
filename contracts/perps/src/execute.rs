@@ -265,14 +265,6 @@ pub fn open_position(
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
-    // query the asset's price
-    //
-    // this will be the position's entry price, used to compute PnL when closing
-    // the position
-    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
-    let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-
     // only the credit manager contract can open positions
     if info.sender != cfg.credit_manager {
         return Err(ContractError::SenderIsNotCreditManager);
@@ -286,15 +278,6 @@ pub fn open_position(
         });
     }
 
-    // the position's initial value cannot be too small
-    let value = size.abs.checked_mul(denom_price)?.to_uint_floor();
-    if value < cfg.min_position_value {
-        return Err(ContractError::PositionTooSmall {
-            min: cfg.min_position_value,
-            found: value,
-        });
-    }
-
     // each account can only have one position for a denom at the same time
     if POSITIONS.has(deps.storage, (&account_id, &denom)) {
         return Err(ContractError::PositionExists {
@@ -302,6 +285,41 @@ pub fn open_position(
             denom,
         });
     }
+
+    // query the asset's price
+    //
+    // this will be the position's entry price, used to compute PnL when closing
+    // the position
+    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+    let base_denom_price =
+        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+
+    // the position's initial value cannot be too small
+    let price = denom_price.checked_div(base_denom_price)?;
+    let position_in_base_denom = size.abs.checked_mul(price)?.to_uint_floor();
+    if position_in_base_denom < cfg.min_position_in_base_denom {
+        return Err(ContractError::PositionTooSmall {
+            min: cfg.min_position_in_base_denom,
+            found: position_in_base_denom,
+            base_denom: cfg.base_denom,
+        });
+    }
+
+    // The position's initial value cannot be too big.
+    // Could be set to None if not needed.
+    if let Some(max_pos_in_base_denom) = cfg.max_position_in_base_denom {
+        if position_in_base_denom > max_pos_in_base_denom {
+            return Err(ContractError::PositionTooBig {
+                max: max_pos_in_base_denom,
+                found: position_in_base_denom,
+                base_denom: cfg.base_denom,
+            });
+        }
+    }
+
+    // validate the position's size
+    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
+    ds.validate_position(size, &perp_params)?;
 
     // skew _before_ modification
     let inital_skew = ds.skew()?;

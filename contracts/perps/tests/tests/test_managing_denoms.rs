@@ -5,11 +5,12 @@ use mars_owner::OwnerError;
 use mars_perps::{denom::SECONDS_IN_DAY, error::ContractError};
 use mars_types::{
     math::SignedDecimal,
+    params::PerpParamsUpdate,
     perps::{DenomStateResponse, Funding},
 };
 
 use super::helpers::MockEnv;
-use crate::tests::helpers::assert_err;
+use crate::tests::helpers::{assert_err, default_perp_params};
 
 #[test]
 fn non_owner_cannot_init_denom() {
@@ -189,6 +190,12 @@ fn funding_change_accordingly_to_denom_state_modification() {
         Decimal::from_str("1000000").unwrap(),
     )
     .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("ueth"),
+        },
+    );
     mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
     mock.set_price(&owner, "ueth", Decimal::from_str("2000").unwrap()).unwrap();
     mock.open_position(&credit_manager, "1", "ueth", SignedDecimal::from_str("300").unwrap())

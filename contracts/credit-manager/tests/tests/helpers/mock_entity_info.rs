@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, Decimal};
+use cosmwasm_std::{coin, Decimal, Uint128};
 use cw_utils::Duration;
-use mars_types::params::{HlsAssetType, HlsParamsUnchecked, LiquidationBonus};
+use mars_types::params::{HlsAssetType, HlsParamsUnchecked, LiquidationBonus, PerpParams};
 
 use super::{CoinInfo, VaultTestInfo};
 
@@ -165,5 +165,14 @@ pub fn generate_mock_vault(lockup: Option<Duration>) -> VaultTestInfo {
             liquidation_threshold: lp_token.hls.unwrap().liquidation_threshold,
             correlations: vec![],
         }),
+    }
+}
+
+pub fn default_perp_params(denom: &str) -> PerpParams {
+    PerpParams {
+        denom: denom.to_string(),
+        max_net_oi: Uint128::new(1_000_000_000),
+        max_long_oi: Uint128::new(1_000_000_000),
+        max_short_oi: Uint128::new(1_000_000_000),
     }
 }

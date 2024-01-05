@@ -57,10 +57,22 @@ pub enum ContractError {
         denom: String,
     },
 
-    #[error("positive opening value is too small: min {min}, found {found}")]
+    #[error(
+        "position opening size is too small: min {min} {base_denom}, found {found} {base_denom}"
+    )]
     PositionTooSmall {
         min: Uint128,
         found: Uint128,
+        base_denom: String,
+    },
+
+    #[error(
+        "position opening size is too big: max {max} {base_denom}, found {found} {base_denom}"
+    )]
+    PositionTooBig {
+        max: Uint128,
+        found: Uint128,
+        base_denom: String,
     },
 
     #[error("only the credit manager can modify perp positions")]
@@ -79,6 +91,24 @@ pub enum ContractError {
 
     #[error("Unlocked positions not found")]
     UnlockedPositionsNotFound {},
+
+    #[error("Net OI reached: max {max}, found {found}")]
+    NetOpenInterestReached {
+        max: Uint128,
+        found: Uint128,
+    },
+
+    #[error("Long OI reached: max {max}, found {found}")]
+    LongOpenInterestReached {
+        max: Uint128,
+        found: Uint128,
+    },
+
+    #[error("Short OI reached: max {max}, found {found}")]
+    ShortOpenInterestReached {
+        max: Uint128,
+        found: Uint128,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

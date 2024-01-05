@@ -3,10 +3,12 @@ use std::str::FromStr;
 use cosmwasm_std::{coin, Addr, Coin, Decimal};
 use mars_types::{
     math::SignedDecimal,
+    params::PerpParamsUpdate,
     perps::{PerpPosition, PnL},
 };
 
 use super::helpers::MockEnv;
+use crate::tests::helpers::default_perp_params;
 
 #[test]
 fn computing_total_pnl() {
@@ -28,8 +30,26 @@ fn computing_total_pnl() {
 
     // init denoms
     mock.init_denom(&owner, "uosmo", Decimal::zero(), Decimal::one()).unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("uosmo"),
+        },
+    );
     mock.init_denom(&owner, "uatom", Decimal::zero(), Decimal::one()).unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("uatom"),
+        },
+    );
     mock.init_denom(&owner, "utia", Decimal::zero(), Decimal::one()).unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("utia"),
+        },
+    );
 
     mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
 

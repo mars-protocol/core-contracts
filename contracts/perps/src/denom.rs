@@ -8,11 +8,12 @@ use mars_types::{
     adapters::oracle::Oracle,
     math::SignedDecimal,
     oracle::ActionKind,
+    params::PerpParams,
     perps::{DenomPnlValues, DenomState, Funding, Position},
 };
 
 use crate::{
-    error::ContractResult,
+    error::{ContractError, ContractResult},
     pricing::{global_closing_execution_price, opening_execution_price},
     state::{CONFIG, DENOM_STATES},
 };
@@ -71,6 +72,9 @@ pub trait DenomStateExt {
         denom_price: Decimal,
         base_denom_price: Decimal,
     ) -> ContractResult<Funding>;
+
+    /// Validate the position size
+    fn validate_position(&self, size: SignedDecimal, param: &PerpParams) -> ContractResult<()>;
 
     /// Increase open interest accumulators (new position is opened)
     fn increase_open_interest(&mut self, size: SignedDecimal) -> ContractResult<()>;
@@ -210,6 +214,39 @@ impl DenomStateExt for DenomState {
                 )?,
             ..self.funding
         })
+    }
+
+    fn validate_position(&self, size: SignedDecimal, param: &PerpParams) -> ContractResult<()> {
+        let net_oi = if size.is_positive() {
+            let long_oi = self.long_oi.checked_add(size.abs)?;
+            if long_oi.to_uint_floor() > param.max_long_oi {
+                return Err(ContractError::LongOpenInterestReached {
+                    max: param.max_long_oi,
+                    found: long_oi.to_uint_floor(),
+                });
+            }
+
+            long_oi.abs_diff(self.short_oi)
+        } else {
+            let short_oi = self.short_oi.checked_add(size.abs)?;
+            if short_oi.to_uint_floor() > param.max_short_oi {
+                return Err(ContractError::ShortOpenInterestReached {
+                    max: param.max_short_oi,
+                    found: short_oi.to_uint_floor(),
+                });
+            }
+
+            self.long_oi.abs_diff(short_oi)
+        };
+
+        if net_oi.to_uint_floor() > param.max_net_oi {
+            return Err(ContractError::NetOpenInterestReached {
+                max: param.max_net_oi,
+                found: net_oi.to_uint_floor(),
+            });
+        }
+
+        Ok(())
     }
 
     fn increase_open_interest(&mut self, size: SignedDecimal) -> ContractResult<()> {

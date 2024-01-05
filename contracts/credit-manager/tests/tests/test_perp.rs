@@ -9,10 +9,12 @@ use mars_types::{
     },
     math::SignedDecimal,
     oracle::ActionKind,
+    params::PerpParamsUpdate,
     perps::PnL,
 };
 
 use super::helpers::{coin_info, uatom_info, uosmo_info, AccountToFund, MockEnv};
+use crate::tests::helpers::default_perp_params;
 
 #[test]
 fn perp_position_when_usdc_in_account() {
@@ -41,6 +43,11 @@ fn perp_position_when_usdc_in_account() {
         .build()
         .unwrap();
     let account_id = mock.create_credit_account(&cm_user).unwrap();
+
+    // setup params contract
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params(&atom_info.denom),
+    });
 
     // setup perp contract
     mock.init_perp_denom(
@@ -180,6 +187,11 @@ fn perp_position_when_not_enough_usdc_in_account() {
         .unwrap();
     let account_id = mock.create_credit_account(&cm_user).unwrap();
 
+    // setup params contract
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params(&atom_info.denom),
+    });
+
     // setup perp contract
     mock.init_perp_denom(
         &contract_owner,
@@ -311,6 +323,11 @@ fn perp_position_when_no_usdc_in_account() {
         .build()
         .unwrap();
     let account_id = mock.create_credit_account(&cm_user).unwrap();
+
+    // setup params contract
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params(&atom_info.denom),
+    });
 
     // setup perp contract
     mock.init_perp_denom(

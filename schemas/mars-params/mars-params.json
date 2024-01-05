@@ -506,6 +506,7 @@
         "required": [
           "denom",
           "max_long_oi",
+          "max_net_oi",
           "max_short_oi"
         ],
         "properties": {
@@ -513,6 +514,9 @@
             "type": "string"
           },
           "max_long_oi": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "max_net_oi": {
             "$ref": "#/definitions/Uint128"
           },
           "max_short_oi": {
@@ -1096,6 +1100,7 @@
           "required": [
             "denom",
             "max_long_oi",
+            "max_net_oi",
             "max_short_oi"
           ],
           "properties": {
@@ -1103,6 +1108,9 @@
               "type": "string"
             },
             "max_long_oi": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "max_net_oi": {
               "$ref": "#/definitions/Uint128"
             },
             "max_short_oi": {
@@ -1530,6 +1538,7 @@
       "required": [
         "denom",
         "max_long_oi",
+        "max_net_oi",
         "max_short_oi"
       ],
       "properties": {
@@ -1537,6 +1546,9 @@
           "type": "string"
         },
         "max_long_oi": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "max_net_oi": {
           "$ref": "#/definitions/Uint128"
         },
         "max_short_oi": {

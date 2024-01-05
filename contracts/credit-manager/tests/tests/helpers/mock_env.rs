@@ -50,9 +50,9 @@ use mars_types::{
     params::{
         AssetParams, AssetParamsUpdate,
         AssetParamsUpdate::AddOrUpdate,
-        ExecuteMsg::{UpdateAssetParams, UpdateVaultConfig},
-        InstantiateMsg as ParamsInstantiateMsg, QueryMsg as ParamsQueryMsg, VaultConfig,
-        VaultConfigUnchecked, VaultConfigUpdate,
+        ExecuteMsg::{UpdateAssetParams, UpdatePerpParams, UpdateVaultConfig},
+        InstantiateMsg as ParamsInstantiateMsg, PerpParamsUpdate, QueryMsg as ParamsQueryMsg,
+        VaultConfig, VaultConfigUnchecked, VaultConfigUpdate,
     },
     perps::{self, InstantiateMsg as PerpsInstantiateMsg, PositionResponse, TradingFee},
     red_bank::{
@@ -217,6 +217,18 @@ impl MockEnv {
                 Addr::unchecked(config.ownership.owner.unwrap()),
                 Addr::unchecked(config.params),
                 &UpdateVaultConfig(update),
+                &[],
+            )
+            .unwrap();
+    }
+
+    pub fn update_perp_params(&mut self, update: PerpParamsUpdate) {
+        let config = self.query_config();
+        self.app
+            .execute_contract(
+                Addr::unchecked(config.ownership.owner.unwrap()),
+                Addr::unchecked(config.params),
+                &UpdatePerpParams(update),
                 &[],
             )
             .unwrap();
@@ -1122,8 +1134,10 @@ impl MockEnvBuilder {
                 &PerpsInstantiateMsg {
                     credit_manager: cm_addr.to_string(),
                     oracle: self.oracle.clone().unwrap().into(),
+                    params: self.params.clone().unwrap().into(),
                     base_denom: "uusdc".to_string(),
-                    min_position_value: Uint128::one(),
+                    min_position_in_base_denom: Uint128::one(),
+                    max_position_in_base_denom: None,
                     cooldown_period: 360,
                     opening_fee_rate: Decimal::from_ratio(1u128, 100u128),
                     closing_fee_rate: Decimal::from_ratio(1u128, 100u128),
