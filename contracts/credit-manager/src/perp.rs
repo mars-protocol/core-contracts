@@ -5,7 +5,7 @@ use crate::{
     borrow,
     error::ContractResult,
     state::{COIN_BALANCES, PERPS},
-    utils::decrement_coin_balance,
+    utils::{decrement_coin_balance, increment_coin_balance},
 };
 
 pub fn open_perp(
@@ -101,6 +101,11 @@ pub fn close_perp(deps: DepsMut, account_id: &str, denom: &str) -> ContractResul
             }
 
             vec![coin]
+        }
+        PnL::Profit(coin) => {
+            increment_coin_balance(deps.storage, account_id, &coin)?;
+
+            vec![]
         }
         _ => vec![],
     };

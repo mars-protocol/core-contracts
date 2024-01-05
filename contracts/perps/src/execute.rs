@@ -1,10 +1,9 @@
 use cosmwasm_std::{
-    coin, coins, to_binary, Addr, BankMsg, Coin, Decimal, DepsMut, Env, MessageInfo, Response,
-    StdError, Storage, Uint128, WasmMsg,
+    coins, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Response, StdError,
+    Storage, Uint128,
 };
 use cw_utils::{may_pay, must_pay};
 use mars_types::{
-    credit_manager::{self, Action},
     math::SignedDecimal,
     oracle::ActionKind,
     perps::{Config, DenomState, Funding, PnL, Position, UnlockState, VaultState},
@@ -400,35 +399,18 @@ pub fn close_position(
         .coins
         .pnl;
 
-    // compute how many coins should be returned to the credit account, and
-    // update global liquidity amount
-    let refund_amount = match &pnl {
-        PnL::Profit(Coin {
-            amount,
-            ..
-        }) => {
-            vs.total_liquidity = vs.total_liquidity.checked_sub(*amount)?;
-            paid_amount.checked_add(*amount)?
-        }
-        PnL::Loss(Coin {
-            amount,
-            ..
-        }) => {
-            vs.total_liquidity = vs.total_liquidity.checked_add(*amount)?;
-            paid_amount.checked_sub(*amount)?
-        }
-        PnL::BreakEven => paid_amount,
-    };
+    let (send_amount, updated_liquidity) =
+        execute_payment(&cfg.base_denom, vs.total_liquidity, paid_amount, &pnl)?;
 
-    if !refund_amount.is_zero() {
-        res = res.add_message(WasmMsg::Execute {
-            contract_addr: cfg.credit_manager.into(),
-            msg: to_binary(&credit_manager::ExecuteMsg::UpdateCreditAccount {
-                account_id: account_id.clone(),
-                actions: vec![Action::Deposit(coin(refund_amount.u128(), &cfg.base_denom))],
-            })?,
-            funds: coins(refund_amount.u128(), cfg.base_denom),
+    vs.total_liquidity = updated_liquidity;
+
+    if !send_amount.is_zero() {
+        // send coins to credit manager
+        let send_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: cfg.credit_manager.into(),
+            amount: coins(send_amount.u128(), cfg.base_denom),
         });
+        res = res.add_message(send_msg);
     }
 
     // save the updated global state and delete position
@@ -444,4 +426,61 @@ pub fn close_position(
         .add_attribute("entry_price", position.entry_price.to_string())
         .add_attribute("exit_price", denom_price.to_string())
         .add_attribute("realized_pnl", pnl.to_string()))
+}
+
+/// Compute how many coins should be sent to the credit account, and
+/// update global liquidity amount.
+/// Credit manager doesn't send more coins than required.
+fn execute_payment(
+    base_denom: &str,
+    total_liquidity: Uint128,
+    paid_amount: Uint128,
+    pnl: &PnL,
+) -> Result<(Uint128, Uint128), ContractError> {
+    let (send_amount, updated_liquidity) = match pnl {
+        PnL::Profit(Coin {
+            amount,
+            ..
+        }) => {
+            if !paid_amount.is_zero() {
+                // if the position is profitable, the credit manager should not send any coins
+                return Err(ContractError::InvalidPayment {
+                    denom: base_denom.to_string(),
+                    required: Uint128::zero(),
+                    received: paid_amount,
+                });
+            }
+
+            (*amount, total_liquidity.checked_sub(*amount)?)
+        }
+        PnL::Loss(Coin {
+            amount,
+            ..
+        }) => {
+            if paid_amount != *amount {
+                // if the position is losing, the credit manager should send exactly one coin
+                // of the base denom
+                return Err(ContractError::InvalidPayment {
+                    denom: base_denom.to_string(),
+                    required: *amount,
+                    received: paid_amount,
+                });
+            }
+
+            (Uint128::zero(), total_liquidity.checked_add(*amount)?)
+        }
+        PnL::BreakEven => {
+            if !paid_amount.is_zero() {
+                // if the position is breaking even, the credit manager should not send any coins
+                return Err(ContractError::InvalidPayment {
+                    denom: base_denom.to_string(),
+                    required: Uint128::zero(),
+                    received: paid_amount,
+                });
+            }
+
+            (Uint128::zero(), total_liquidity)
+        }
+    };
+    Ok((send_amount, updated_liquidity))
 }

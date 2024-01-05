@@ -109,6 +109,13 @@ pub enum ContractError {
         max: Uint128,
         found: Uint128,
     },
+
+    #[error("Invalid payment: required {required} {denom}, received {received} {denom}")]
+    InvalidPayment {
+        denom: String,
+        required: Uint128,
+        received: Uint128,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;
