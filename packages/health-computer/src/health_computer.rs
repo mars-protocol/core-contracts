@@ -1,15 +1,16 @@
 use std::cmp::min;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Coin, Decimal, Uint128};
+use cosmwasm_std::{Coin, Decimal, Fraction, Uint128};
 use mars_types::{
     credit_manager::Positions,
     health::{
         AccountKind, BorrowTarget, Health,
         HealthError::{
-            MissingHLSParams, MissingParams, MissingPrice, MissingVaultConfig, MissingVaultValues,
+            MissingAmount, MissingHLSParams, MissingParams, MissingPrice, MissingVaultConfig,
+            MissingVaultValues,
         },
-        HealthResult, SwapKind,
+        HealthResult, LiquidationPriceKind, SwapKind,
     },
     params::{AssetParams, CmSettings, VaultConfig},
 };
@@ -138,6 +139,7 @@ impl HealthComputer {
         from_denom: &str,
         to_denom: &str,
         kind: &SwapKind,
+        slippage: Decimal,
     ) -> HealthResult<Uint128> {
         // Both deposits and lends should be considered, as the funds can automatically be un-lent and
         // and also used to swap.
@@ -172,22 +174,29 @@ impl HealthComputer {
         // Swapping that asset for an asset with the same price, but 0.8 max ltv results in a collateral_value of 0.8.
         // Therefore, when the asset that is swapped to has a higher or equal max ltv than the asset swapped from,
         // the collateral value will increase and we can allow the full balance to be swapped.
-        let swappable_amount = if to_ltv >= from_ltv {
+        // The ltv_out is adjusted for slippage, as the swap_out_value can drop by the slippage.
+        let to_ltv_slippage_corrected = to_ltv.checked_mul(Decimal::one() - slippage)?;
+        let swappable_amount = if to_ltv_slippage_corrected >= from_ltv {
             from_coin.amount
         } else {
             // In order to calculate the output of the swap, the formula looks like this:
             //     1 = (collateral_value + to_amount * to_price * to_ltv - from_amount * from_price * from_ltv) / debt_value
             // The unknown variables here are to_amount and from_amount. In order to only have 1 unknown variable, from_amount,
             // to_amount can be replaced by:
-            //     to_amount = from_amount * from_price / to_price
+            //     to_amount = slippage * from_amount * from_price / to_price
             // This results in the following formula:
-            //     1 = (collateral_value + from_amount * from_price / to_price * to_price * to_ltv - from_amount * from_price * from_ltv) / debt_value
+            //     1 = (collateral_value + slippage * from_amount * from_price / to_price * to_price * to_ltv - from_amount * from_price * from_ltv) / debt_value
+            //     debt_value = collateral_value + slippage * from_amount * from_price * to_ltv - from_amount * from_price * from_ltv
+            //     slippage * from_amount * from_price * to_ltv - from_amount * from_price * from_ltv = debt_value - collateral_value
+            //     from_amount * (slippage * from_price * to_ltv - from_price * from_ltv) = debt_value - collateral_value
             // Rearranging this formula to isolate from_amount results in the following formula:
-            //    from_amount = (collateral_value - debt_value) / (from_price * ( from_ltv - to_ltv))
+            //     from_amount = (debt_value - collateral_value) / (from_price * (slippage * to_ltv - from_ltv))
+            // Rearranging to avoid negative numbers for the denominator (to_ltv_slippage_corrected < from_ltv):
+            //     from_amount = (collateral_value - debt_value) / (from_price * (from_ltv - slippage * to_ltv)
             let amount = total_max_ltv_adjusted_value
                 .checked_sub(debt_value)?
                 .checked_sub(Uint128::one())?
-                .checked_div_floor(from_price.checked_mul(from_ltv - to_ltv)?)?;
+                .checked_div_floor(from_price.checked_mul(from_ltv - to_ltv_slippage_corrected)?)?;
 
             // Cap the swappable amount at the current balance of the coin
             min(amount, from_coin.amount)
@@ -219,14 +228,19 @@ impl HealthComputer {
                 // The total swappable amount for margin is represented by the available coin balance + the
                 // the maximum amount that can be borrowed (and then swapped).
                 // This is represented by the formula:
-                //     1 = (collateral_after_swap + borrow_amount * borrow_price * to_ltv) / (debt + borrow_amount * borrow_price)
+                //     1 = (collateral_after_swap + slippage * borrow_amount * borrow_price * to_ltv) / (debt + borrow_amount * borrow_price)
+                //     debt + borrow_amount * borrow_price = collateral_after_swap + slippage * borrow_amount * borrow_price * to_ltv
+                //     borrow_amount * borrow_price - slippage * borrow_amount * borrow_price * to_ltv = collateral_after_swap - debt
+                //     borrow_amount * borrow_price * (1 - slippage * to_ltv) = collateral_after_swap - debt
                 // Rearranging this results in:
-                //     borrow_amount = (collateral_after_swap - debt) / ((1 - to_ltv) * borrow_price)
+                //     borrow_amount = (collateral_after_swap - debt) / (borrow_price * (1 - slippage * to_ltv))
                 let borrow_amount = total_max_ltv_adjust_value_after_swap
                     .checked_sub(debt_value)?
                     .checked_sub(Uint128::one())?
                     .checked_div_floor(
-                        Decimal::one().checked_sub(to_ltv)?.checked_mul(*from_price)?,
+                        Decimal::one()
+                            .checked_sub(to_ltv_slippage_corrected)?
+                            .checked_mul(*from_price)?,
                     )?;
 
                 // The total amount that can be swapped is then the balance of the coin + the additional amount
@@ -359,9 +373,101 @@ impl HealthComputer {
                         .checked_mul(Decimal::one().checked_sub(checked_vault_max_ltv)?)?,
                 )?
             }
+
+            BorrowTarget::Swap {
+                slippage,
+                denom_out,
+            } => {
+                let denom_out_ltv = self.get_coin_max_ltv(denom_out).unwrap();
+
+                // The max borrow for swap can be calculated as:
+                //      1 = (total_max_ltv_adjusted_value + (denom_amount_out * denom_price_out * denom_out_ltv)) / (debt_value + (max_borrow_denom_amount * borrow_denom_price))
+                // denom_amount_out can be replaced by:
+                //      denom_amount_out = slippage * max_borrow_denom_amount * borrow_denom_price / denom_price_out
+                // This results in the following formula:
+                //      1 = (total_max_ltv_adjusted_value + (slippage * max_borrow_denom_amount * borrow_denom_price * denom_out_ltv)) / (debt_value + (max_borrow_denom_amount * borrow_denom_price))
+                // Re-arranging this to isolate borrow denom amount renders:
+                //      max_borrow_denom_amount = (total_max_ltv_adjusted_value - debt_value) / (borrow_denom_price * (1 - slippage * denom_out_ltv))
+                let out_ltv_slippage_corrected =
+                    denom_out_ltv.checked_mul(Decimal::one() - slippage)?;
+                total_max_ltv_adjusted_value
+                    .checked_sub(debt_value)?
+                    .checked_sub(Uint128::one())?
+                    .checked_div_floor(
+                    Decimal::one()
+                        .checked_sub(out_ltv_slippage_corrected)?
+                        .checked_mul(borrow_denom_price)?,
+                )?
+            }
         };
 
         Ok(max_borrow_amount)
+    }
+
+    pub fn liquidation_price(
+        &self,
+        denom: &str,
+        kind: &LiquidationPriceKind,
+    ) -> HealthResult<Uint128> {
+        let collateral_ltv_value = self.total_collateral_value()?.max_ltv_adjusted_collateral;
+        let total_debt_value = self.total_debt_value()?;
+        if total_debt_value.is_zero() {
+            return Ok(Uint128::zero());
+        }
+
+        let current_price =
+            self.denoms_data.prices.get(denom).ok_or(MissingPrice(denom.to_string()))?;
+
+        if total_debt_value >= collateral_ltv_value {
+            return Ok(Uint128::one() * *current_price);
+        }
+
+        match kind {
+            LiquidationPriceKind::Asset => {
+                let asset_amount = self.get_coin_from_deposits_and_lends(denom)?.amount;
+                if asset_amount.is_zero() {
+                    return Err(MissingAmount(denom.to_string()));
+                }
+
+                let asset_ltv = self.get_coin_max_ltv(denom)?;
+
+                let asset_ltv_value =
+                    asset_amount.checked_mul_floor(current_price.checked_mul(asset_ltv)?)?;
+                let debt_with_asset_ltv_value = total_debt_value.checked_add(asset_ltv_value)?;
+
+                if debt_with_asset_ltv_value <= collateral_ltv_value {
+                    return Ok(Uint128::zero());
+                }
+
+                let debt_without = debt_with_asset_ltv_value - collateral_ltv_value;
+
+                // liquidation_price = (debt_value - collateral_ltv_value + asset_ltv_value) / (asset_amount * asset_ltv)
+                Ok(Uint128::one()
+                    * Decimal::checked_from_ratio(debt_without, asset_amount)?.checked_mul(
+                        Decimal::from_ratio(asset_ltv.denominator(), asset_ltv.numerator()),
+                    )?)
+            }
+
+            LiquidationPriceKind::Debt => {
+                let debt_amount = self
+                    .positions
+                    .debts
+                    .iter()
+                    .find(|c| c.denom == denom)
+                    .ok_or(MissingAmount(denom.to_string()))?
+                    .amount;
+                if debt_amount.is_zero() {
+                    return Err(MissingAmount(denom.to_string()));
+                }
+
+                // Liquidation_price = (collateral_ltv_value - total_debt_value + debt_value_asset / asset_amount
+                let debt_value = debt_amount.checked_mul_ceil(*current_price)?;
+                let net_collateral_value_without_debt =
+                    collateral_ltv_value.checked_add(debt_value)?.checked_sub(total_debt_value)?;
+
+                Ok(net_collateral_value_without_debt / debt_amount)
+            }
+        }
     }
 
     fn total_debt_value(&self) -> HealthResult<Uint128> {

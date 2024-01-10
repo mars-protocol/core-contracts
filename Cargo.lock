@@ -2114,7 +2114,7 @@ dependencies = [
 
 [[package]]
 name = "mars-credit-manager"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -2322,7 +2322,7 @@ dependencies = [
 
 [[package]]
 name = "mars-oracle-osmosis"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -2339,6 +2339,7 @@ dependencies = [
  "pyth-sdk-cw",
  "schemars",
  "serde",
+ "test-case",
 ]
 
 [[package]]
@@ -2564,6 +2565,7 @@ dependencies = [
  "serde_json",
  "tsify",
  "wasm-bindgen",
+ "web-sys",
 ]
 
 [[package]]
