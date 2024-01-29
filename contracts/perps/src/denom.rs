@@ -14,7 +14,7 @@ use mars_types::{
 
 use crate::{
     error::{ContractError, ContractResult},
-    pricing::{global_closing_execution_price, opening_execution_price},
+    pricing::opening_execution_price,
     state::{CONFIG, DENOM_STATES},
 };
 
@@ -36,6 +36,9 @@ pub trait DenomStateExt {
 
     /// Returns the skew
     fn skew(&self) -> ContractResult<SignedDecimal>;
+
+    /// Total size of all outstanding positions
+    fn total_size(&self) -> ContractResult<SignedDecimal>;
 
     /// Returns current funding rate velocity.
     /// Should be used _before_ modifying the market skew.
@@ -103,6 +106,13 @@ pub trait DenomStateExt {
     /// Compute the price PnL of all open positions
     fn compute_price_pnl(&self, exit_price: Decimal) -> ContractResult<SignedDecimal>;
 
+    /// Compute the closing fees of all open positions
+    fn compute_closing_fees(
+        &self,
+        closing_fee_rate: Decimal,
+        exit_price: Decimal,
+    ) -> ContractResult<SignedDecimal>;
+
     /// Compute the accrued funding of all open positions based on current funding.
     /// Returns the accrued funding and the updated funding.
     fn compute_accrued_funding(
@@ -119,6 +129,7 @@ pub trait DenomStateExt {
         current_time: u64,
         denom_price: Decimal,
         base_denom_price: Decimal,
+        closing_fee_rate: Decimal,
     ) -> ContractResult<(DenomPnlValues, Funding)>;
 }
 
@@ -131,6 +142,11 @@ impl DenomStateExt for DenomState {
     fn skew(&self) -> ContractResult<SignedDecimal> {
         let skew = SignedDecimal::from(self.long_oi).checked_sub(self.short_oi.into())?;
         Ok(skew)
+    }
+
+    fn total_size(&self) -> ContractResult<SignedDecimal> {
+        let total_size = self.long_oi.checked_add(self.short_oi)?;
+        Ok(total_size.into())
     }
 
     fn current_funding_rate_velocity(&self) -> ContractResult<SignedDecimal> {
@@ -288,6 +304,14 @@ impl DenomStateExt for DenomState {
             size.checked_mul(self.funding.last_funding_accrued_per_unit_in_base_denom)?,
         )?;
 
+        // increase the total_squared_positions accumulator
+        self.total_squared_positions =
+            self.total_squared_positions.checked_add(size.abs.checked_pow(2)?.into())?;
+
+        // increase the total_abs_multiplied_positions accumulator
+        self.total_abs_multiplied_positions =
+            self.total_abs_multiplied_positions.checked_add(size.checked_mul(size.abs.into())?)?;
+
         // update the open interest
         self.increase_open_interest(size)?;
 
@@ -321,6 +345,15 @@ impl DenomStateExt for DenomState {
             position.size.checked_mul(position.entry_accrued_funding_per_unit_in_base_denom)?,
         )?;
 
+        // decrease the total_squared_positions accumulator
+        self.total_squared_positions =
+            self.total_squared_positions.checked_sub(position.size.abs.checked_pow(2)?.into())?;
+
+        // decrease the total_abs_multiplied_positions accumulator
+        self.total_abs_multiplied_positions = self
+            .total_abs_multiplied_positions
+            .checked_sub(position.size.checked_mul(position.size.abs.into())?)?;
+
         // update the open interest
         self.decrease_open_interest(position.size)?;
 
@@ -331,9 +364,51 @@ impl DenomStateExt for DenomState {
 
     fn compute_price_pnl(&self, exit_price: Decimal) -> ContractResult<SignedDecimal> {
         let skew = self.skew()?;
-        let exit_exec_price =
-            global_closing_execution_price(skew, self.funding.skew_scale, exit_price)?;
-        Ok(skew.checked_mul(exit_exec_price)?.checked_sub(self.total_entry_cost)?)
+
+        // original formula from the doc:
+        // skew * exit_price - total_entry_cost + exit_price / skew_scale * (skew^2 - total_squared_positions / 2)
+        // let's rewrite it with the following variables:
+        // val_1 = skew * exit_price - total_entry_cost
+        // val_2 = exit_price / skew_scale
+        // val_3 = skew^2
+        // val_4 = total_squared_positions / 2
+        // finally:
+        // val_1 + val_2 * (val_3 - val_4)
+        let val_1 = skew.checked_mul(exit_price.into())?.checked_sub(self.total_entry_cost)?;
+        let val_2: SignedDecimal = exit_price.checked_div(self.funding.skew_scale)?.into();
+        let val_3 = skew.checked_mul(skew)?;
+        let val_4 =
+            self.total_squared_positions.checked_div(Decimal::from_atomics(2u128, 0)?.into())?;
+        let price_pnl = val_1.checked_add(val_2.checked_mul(val_3.checked_sub(val_4)?)?)?;
+
+        Ok(price_pnl)
+    }
+
+    fn compute_closing_fees(
+        &self,
+        closing_fee_rate: Decimal,
+        exit_price: Decimal,
+    ) -> ContractResult<SignedDecimal> {
+        let skew = self.skew()?;
+        let total_size = self.total_size()?;
+
+        // original formula from the doc:
+        // closing_fee_rate * exit_price * (1 / skew_scale * (- skew * total_size + total_abs_multiplied_positions / 2) - total_size)
+        // let's rewrite it with the following variables:
+        // val_1 = closing_fee_rate * exit_price
+        // val_2 = 1 / skew_scale
+        // val_3 = total_abs_multiplied_positions / 2 - skew * total_size
+        // finally:
+        // val_1 * (val_2 * val_3 - total_size)
+        let val_1: SignedDecimal = closing_fee_rate.checked_mul(exit_price)?.into();
+        let val_2: SignedDecimal = Decimal::one().checked_div(self.funding.skew_scale)?.into();
+        let val_3 = self
+            .total_abs_multiplied_positions
+            .checked_div(Decimal::from_atomics(2u128, 0)?.into())?
+            .checked_sub(skew.checked_mul(total_size)?)?;
+        let closing_fees = val_1.checked_mul(val_2.checked_mul(val_3)?.checked_sub(total_size)?)?;
+
+        Ok(closing_fees)
     }
 
     fn compute_accrued_funding(
@@ -358,14 +433,17 @@ impl DenomStateExt for DenomState {
         current_time: u64,
         denom_price: Decimal,
         base_denom_price: Decimal,
+        closing_fee_rate: Decimal,
     ) -> ContractResult<(DenomPnlValues, Funding)> {
         let price_pnl = self.compute_price_pnl(denom_price)?;
+        let closing_fees = self.compute_closing_fees(closing_fee_rate, denom_price)?;
         let (accrued_funding, curr_funding) =
             self.compute_accrued_funding(current_time, denom_price, base_denom_price)?;
         let pnl_values = DenomPnlValues {
             price_pnl,
+            closing_fees,
             accrued_funding,
-            pnl: price_pnl.checked_add(accrued_funding)?,
+            pnl: price_pnl.checked_add(accrued_funding)?.checked_add(closing_fees)?,
         };
         Ok((pnl_values, curr_funding))
     }
@@ -388,10 +466,16 @@ pub fn compute_total_pnl(
             let (denom, ds) = item?;
 
             let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
-            let (pnl_values, _) = ds.compute_pnl(current_time, denom_price, base_denom_price)?;
+            let (pnl_values, _) = ds.compute_pnl(
+                current_time,
+                denom_price,
+                base_denom_price,
+                config.closing_fee_rate,
+            )?;
 
             Ok(DenomPnlValues {
                 price_pnl: acc.price_pnl.checked_add(pnl_values.price_pnl)?,
+                closing_fees: acc.closing_fees.checked_add(pnl_values.closing_fees)?,
                 accrued_funding: acc.accrued_funding.checked_add(pnl_values.accrued_funding)?,
                 pnl: acc.pnl.checked_add(pnl_values.pnl)?,
             })
@@ -435,6 +519,16 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(ds.skew().unwrap(), SignedDecimal::from_str("-156").unwrap());
+    }
+
+    #[test]
+    fn total_size() {
+        let ds = DenomState {
+            long_oi: Decimal::from_str("100").unwrap(),
+            short_oi: Decimal::from_str("20").unwrap(),
+            ..Default::default()
+        };
+        assert_eq!(ds.total_size().unwrap(), SignedDecimal::from_str("120").unwrap());
     }
 
     #[test]
@@ -611,6 +705,8 @@ mod tests {
                 },
                 total_entry_cost: SignedDecimal::from_str("-415064").unwrap(),
                 total_entry_funding: SignedDecimal::from_str("-7457").unwrap(),
+                total_squared_positions: SignedDecimal::from_str("24400").unwrap(),
+                total_abs_multiplied_positions: SignedDecimal::from_str("-10225").unwrap(),
                 short_oi: ds_before_modification.short_oi + Decimal::from_str("100").unwrap(),
                 last_updated: 43400,
                 ..ds_before_modification
@@ -648,6 +744,8 @@ mod tests {
                 },
                 total_entry_cost: SignedDecimal::from_str("414814").unwrap(),
                 total_entry_funding: SignedDecimal::from_str("7993").unwrap(),
+                total_squared_positions: SignedDecimal::from_str("4400").unwrap(),
+                total_abs_multiplied_positions: SignedDecimal::from_str("9775").unwrap(),
                 short_oi: ds_before_modification.short_oi - Decimal::from_str("100").unwrap(),
                 last_updated: 43400,
                 ..ds_before_modification
@@ -660,7 +758,17 @@ mod tests {
         let ds = denom_state();
         assert_eq!(
             ds.compute_price_pnl(Decimal::from_str("4200").unwrap()).unwrap(),
-            SignedDecimal::from_str("-50097475").unwrap()
+            SignedDecimal::from_str("-49795105.24").unwrap()
+        );
+    }
+
+    #[test]
+    fn compute_closing_fees() {
+        let ds = denom_state();
+        assert_eq!(
+            ds.compute_closing_fees(Decimal::percent(2), Decimal::from_str("4200").unwrap())
+                .unwrap(),
+            SignedDecimal::from_str("-1493856.00945").unwrap()
         );
     }
 
@@ -697,15 +805,17 @@ mod tests {
                 43400,
                 Decimal::from_str("4200").unwrap(),
                 Decimal::from_str("0.8").unwrap(),
+                Decimal::percent(2),
             )
             .unwrap();
 
         assert_eq!(
             pnl_values,
             DenomPnlValues {
-                price_pnl: SignedDecimal::from_str("-50097475").unwrap(),
+                price_pnl: SignedDecimal::from_str("-49795105.24").unwrap(),
+                closing_fees: SignedDecimal::from_str("-1493856.00945").unwrap(),
                 accrued_funding: SignedDecimal::from_str("-741814.4").unwrap(),
-                pnl: SignedDecimal::from_str("-50839289.4").unwrap()
+                pnl: SignedDecimal::from_str("-52030775.64945").unwrap()
             }
         );
         assert_eq!(
@@ -734,6 +844,8 @@ mod tests {
             last_updated: 200,
             total_entry_cost: SignedDecimal::from_str("-125").unwrap(),
             total_entry_funding: SignedDecimal::from_str("268").unwrap(),
+            total_squared_positions: SignedDecimal::from_str("14400").unwrap(),
+            total_abs_multiplied_positions: SignedDecimal::from_str("-225").unwrap(),
         }
     }
 }

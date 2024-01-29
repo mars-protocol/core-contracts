@@ -1242,6 +1242,7 @@
           "type": "object",
           "required": [
             "accrued_funding",
+            "closing_fees",
             "pnl",
             "price_pnl"
           ],
@@ -1249,8 +1250,11 @@
             "accrued_funding": {
               "$ref": "#/definitions/SignedDecimal"
             },
+            "closing_fees": {
+              "$ref": "#/definitions/SignedDecimal"
+            },
             "pnl": {
-              "description": "The total PnL: price PnL - accrued funding",
+              "description": "The total PnL: price_pnl + closing_fees + accrued_funding",
               "allOf": [
                 {
                   "$ref": "#/definitions/SignedDecimal"

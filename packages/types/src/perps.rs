@@ -138,6 +138,18 @@ pub struct DenomState {
     /// pos_2_size * pos_2_entry_funding + ...
     pub total_entry_funding: SignedDecimal,
 
+    /// The accumulated squared positions, calculated for open positions as:
+    /// pos_1_size^2 + pos_2_size^2 + ...
+    /// if a position is closed, the accumulated squared position is removed from the accumulator:
+    /// pos_1_size^2 + pos_2_size^2 + ... - pos_1_size^2
+    pub total_squared_positions: SignedDecimal,
+
+    /// The accumulated absolute multiplied positions, calculated for open positions as:
+    /// pos_1_size * |pos_1_size| + pos_2_size * |pos_2_size| + ...
+    /// if a position is closed, the accumulated absolute multiplied position is removed from the accumulator:
+    /// pos_1_size * |pos_1_size| + pos_2_size * |pos_2_size| + ... - pos_1_size * |pos_1_size|
+    pub total_abs_multiplied_positions: SignedDecimal,
+
     /// Funding parameters for this denom
     pub funding: Funding,
 
@@ -296,9 +308,10 @@ impl fmt::Display for PnL {
 #[derive(Default)]
 pub struct DenomPnlValues {
     pub price_pnl: SignedDecimal,
+    pub closing_fees: SignedDecimal,
     pub accrued_funding: SignedDecimal,
 
-    /// The total PnL: price PnL - accrued funding
+    /// The total PnL: price_pnl + closing_fees + accrued_funding
     pub pnl: SignedDecimal,
 }
 

@@ -12,6 +12,7 @@ use crate::tests::helpers::default_perp_params;
 
 const ONE_HOUR_SEC: u64 = 3600u64;
 
+// TODO fix numbers once moved to SignedUint
 #[test]
 fn computing_funding() {
     let mut mock = MockEnv::new().closing_fee_rate(Decimal::zero()).build().unwrap();
@@ -84,12 +85,12 @@ fn computing_funding() {
     assert_eq!(ds.rate, SignedDecimal::from_str("0.000074999999999999").unwrap());
     assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("300022.5").unwrap());
     assert_eq!(ds.total_entry_funding, SignedDecimal::from_str("1.0416666666663333").unwrap());
-    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::zero());
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("-90").unwrap());
     assert_eq!(
         ds.pnl_values.accrued_funding,
         SignedDecimal::from_str("-1.87499999999939994").unwrap()
     );
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("-1.87499999999939994").unwrap());
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("-91.87499999999939994").unwrap());
 
     // move time forward by 8 hour
     mock.increment_by_time(8 * ONE_HOUR_SEC);
@@ -111,12 +112,12 @@ fn computing_funding() {
     assert_eq!(ds.rate, SignedDecimal::from_str("0.000224999999999998").unwrap());
     assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("300022.5").unwrap());
     assert_eq!(ds.total_entry_funding, SignedDecimal::from_str("1.0416666666663333").unwrap());
-    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::zero());
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("-90").unwrap());
     assert_eq!(
         ds.pnl_values.accrued_funding,
         SignedDecimal::from_str("-16.87499999999909982").unwrap()
     );
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("-16.87499999999909982").unwrap());
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("-106.87499999999909982").unwrap());
 
     // move time forward by 2 hour
     mock.increment_by_time(2 * ONE_HOUR_SEC);
@@ -158,12 +159,12 @@ fn computing_funding() {
     assert_eq!(ds.rate, SignedDecimal::from_str("0.000262499999999998").unwrap());
     assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("305932.5").unwrap());
     assert_eq!(ds.total_entry_funding, SignedDecimal::from_str("-48.3854166666656598").unwrap());
-    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("-2909.775").unwrap()); // only user 2 has unrealized pnl
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("-3000.675").unwrap()); // only user 2 has unrealized pnl
     assert_eq!(
         ds.pnl_values.accrued_funding,
         SignedDecimal::from_str("21.304687499999696925").unwrap()
     );
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("-2888.470312500000303075").unwrap());
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("-2979.370312500000303075").unwrap());
 
     // move time forward by 3 hour
     mock.increment_by_time(3 * ONE_HOUR_SEC);
@@ -188,12 +189,12 @@ fn computing_funding() {
     assert_eq!(ds.rate, SignedDecimal::from_str("0.000318749999999998").unwrap());
     assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("305932.5").unwrap());
     assert_eq!(ds.total_entry_funding, SignedDecimal::from_str("-48.3854166666656598").unwrap());
-    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("90.45").unwrap());
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("-1.35").unwrap());
     assert_eq!(
         ds.pnl_values.accrued_funding,
         SignedDecimal::from_str("10.18828125000000297").unwrap()
     );
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("100.63828125000000297").unwrap());
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("8.83828125000000297").unwrap());
 
     // simulate realized pnl for user 2, increase short position size by 200 (total 350)
     mock.close_position(&credit_manager, "2", "ueth", &from_position_to_coin(user_2_pos.position))
@@ -215,12 +216,12 @@ fn computing_funding() {
     assert_eq!(ds.rate, SignedDecimal::from_str("0.000318749999999998").unwrap()); // rate shouldn't change after closing and opening the same position size
     assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("-108089.25").unwrap());
     assert_eq!(ds.total_entry_funding, SignedDecimal::from_str("37.0581597222212054").unwrap());
-    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("6091.8").unwrap());
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("5877.6").unwrap());
     assert_eq!(
         ds.pnl_values.accrued_funding,
         SignedDecimal::from_str("-22.23281249999938791").unwrap()
     );
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("6069.56718750000061209").unwrap());
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("5855.36718750000061209").unwrap());
 
     // move time forward by 5 hour
     mock.increment_by_time(5 * ONE_HOUR_SEC);
@@ -245,12 +246,12 @@ fn computing_funding() {
     assert_eq!(ds.rate, SignedDecimal::from_str("0.000287499999999999").unwrap());
     assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("-108089.25").unwrap());
     assert_eq!(ds.total_entry_funding, SignedDecimal::from_str("37.0581597222212054").unwrap());
-    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("9091.725").unwrap());
+    assert_eq!(ds.pnl_values.price_pnl, SignedDecimal::from_str("8883.825").unwrap());
     assert_eq!(
         ds.pnl_values.accrued_funding,
         SignedDecimal::from_str("-15.98085937499945391").unwrap()
     );
-    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("9075.74414062500054609").unwrap());
+    assert_eq!(ds.pnl_values.pnl, SignedDecimal::from_str("8867.84414062500054609").unwrap());
 
     // query user 1 realized pnl
 }

@@ -57,6 +57,8 @@ pub fn init_denom(
         short_oi: Decimal::zero(),
         total_entry_cost: SignedDecimal::zero(),
         total_entry_funding: SignedDecimal::zero(),
+        total_squared_positions: SignedDecimal::zero(),
+        total_abs_multiplied_positions: SignedDecimal::zero(),
         funding: Funding {
             max_funding_velocity,
             skew_scale,

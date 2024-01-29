@@ -10,6 +10,7 @@ use mars_types::{
 use super::helpers::MockEnv;
 use crate::tests::helpers::default_perp_params;
 
+// TODO fix numbers once moved to SignedUint
 #[test]
 fn computing_total_pnl() {
     let mut mock = MockEnv::new().build().unwrap();
@@ -74,14 +75,14 @@ fn computing_total_pnl() {
 
     // calculate total PnL if no price change
     let total_pnl = mock.query_total_pnl();
-    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("0").unwrap());
+    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("-832084.82375").unwrap());
 
     // change only uatom price
     mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
 
     // calculate total PnL after uatom price change
     let total_pnl = mock.query_total_pnl();
-    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("21525").unwrap());
+    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("-810344.57375").unwrap());
 
     // change the rest of the prices
     mock.set_price(&owner, "uosmo", Decimal::from_str("0.1").unwrap()).unwrap();
@@ -89,7 +90,7 @@ fn computing_total_pnl() {
 
     // calculate total PnL
     let total_pnl = mock.query_total_pnl();
-    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("217638.375").unwrap());
+    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("-764801.4575").unwrap());
 
     // close all positions except uatom
     let pos = mock.query_position("1", "uosmo");
@@ -107,7 +108,7 @@ fn computing_total_pnl() {
 
     // only uatom position is left
     let total_pnl = mock.query_total_pnl();
-    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("21525").unwrap());
+    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("22293.75").unwrap());
 
     // close uatom position
     let pos = mock.query_position("2", "uatom");

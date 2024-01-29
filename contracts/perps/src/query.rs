@@ -77,7 +77,8 @@ pub fn perp_denom_state(
     let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-    let (pnl_values, curr_funding) = ds.compute_pnl(current_time, denom_price, base_denom_price)?;
+    let (pnl_values, curr_funding) =
+        ds.compute_pnl(current_time, denom_price, base_denom_price, cfg.closing_fee_rate)?;
     Ok(PerpDenomState {
         denom,
         enabled: ds.enabled,

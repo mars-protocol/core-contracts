@@ -210,6 +210,7 @@ export interface PerpDenomState {
 }
 export interface DenomPnlValues {
   accrued_funding: SignedDecimal
+  closing_fees: SignedDecimal
   pnl: SignedDecimal
   price_pnl: SignedDecimal
 }

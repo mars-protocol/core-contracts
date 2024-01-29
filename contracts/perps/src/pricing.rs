@@ -78,16 +78,3 @@ fn execution_price(
     let res = SignedDecimal::one().checked_add(avg_premium)?.checked_mul(oracle_price.into())?;
     Ok(res)
 }
-
-/// In case of the vault liquidation all positions are closed simultaneously at the same execution price.
-/// The closing execution price is determined given the current skew before closing the positions.
-pub fn global_closing_execution_price(
-    skew: SignedDecimal,
-    skew_scale: Decimal,
-    oracle_price: Decimal,
-) -> ContractResult<SignedDecimal> {
-    let skew_scaled =
-        skew.checked_div(skew_scale.checked_mul(Decimal::from_atomics(2u128, 0)?)?.into())?;
-    let res = SignedDecimal::one().checked_add(skew_scaled)?.checked_mul(oracle_price.into())?;
-    Ok(res)
-}
