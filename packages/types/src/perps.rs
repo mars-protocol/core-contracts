@@ -150,6 +150,9 @@ pub struct DenomState {
     /// pos_1_size * |pos_1_size| + pos_2_size * |pos_2_size| + ... - pos_1_size * |pos_1_size|
     pub total_abs_multiplied_positions: SignedDecimal,
 
+    /// The actual amount of money, includes only realized payments
+    pub cash_flow: CashFlow,
+
     /// Funding parameters for this denom
     pub funding: Funding,
 
@@ -189,6 +192,41 @@ impl Default for Funding {
     }
 }
 
+/// The actual amount of money denominated in the base denom (e.g. UUSDC), includes only realized payments
+#[cw_serde]
+#[derive(Default)]
+pub struct CashFlow {
+    pub price_pnl: SignedDecimal,
+    pub opening_fees: SignedDecimal,
+    pub closing_fees: SignedDecimal,
+    pub accrued_funding: SignedDecimal,
+}
+
+/// Amount of money denominated in the base denom (e.g. UUSDC) used for accounting
+#[cw_serde]
+#[derive(Default)]
+pub struct Balance {
+    pub price_pnl: SignedDecimal,
+    pub opening_fees: SignedDecimal,
+    pub closing_fees: SignedDecimal,
+    pub accrued_funding: SignedDecimal,
+    pub total: SignedDecimal,
+}
+
+/// Accounting in the base denom (e.g. UUSDC)
+#[cw_serde]
+#[derive(Default)]
+pub struct Accounting {
+    /// The actual amount of money, includes only realized payments
+    pub cash_flow: CashFlow,
+
+    /// The actual amount of money + unrealized payments
+    pub balance: Balance,
+
+    /// The amount of money available for withdrawal by LPs (in this type of balance we cap some unrealized payments)
+    pub withdrawal_balance: Balance,
+}
+
 /// This is the denom data to be returned in a query. It includes current
 /// price, PnL and funding.
 #[cw_serde]
@@ -210,6 +248,7 @@ pub struct Position {
     pub entry_price: Decimal,
     pub entry_accrued_funding_per_unit_in_base_denom: SignedDecimal,
     pub initial_skew: SignedDecimal,
+    pub opening_fee_in_base_denom: Uint128,
 }
 
 /// This is the position data to be returned in a query. It includes current
@@ -264,7 +303,7 @@ pub struct PnlValues {
     pub accrued_funding: SignedDecimal,
     pub closing_fee: SignedDecimal,
 
-    /// PnL: price PnL + accrued funding - closing fee
+    /// PnL: price PnL + accrued funding + closing fee
     pub pnl: SignedDecimal,
 }
 
@@ -273,6 +312,55 @@ pub struct PnlValues {
 pub struct PnlCoins {
     pub closing_fee: Coin,
     pub pnl: PnL,
+}
+
+/// Amounts denominated in the Perp Vault base denom (uusdc)
+#[cw_serde]
+pub struct PnlAmounts {
+    pub price_pnl: SignedDecimal,
+    pub accrued_funding: SignedDecimal,
+    pub closing_fee: SignedDecimal,
+
+    /// PnL: price PnL + accrued funding + closing fee
+    pub pnl: SignedDecimal,
+}
+
+/// Amounts denominated in the Perp Vault base denom (uusdc)
+#[cw_serde]
+#[derive(Default)]
+pub struct RealizedPnlAmounts {
+    pub price_pnl: SignedDecimal,
+    pub accrued_funding: SignedDecimal,
+    pub opening_fee: SignedDecimal,
+    pub closing_fee: SignedDecimal,
+
+    /// PnL: price PnL + accrued funding + opening fee + closing fee
+    pub pnl: SignedDecimal,
+}
+
+impl RealizedPnlAmounts {
+    pub fn from_pnl_amounts(amounts: &PnlAmounts, opening_fee: Uint128) -> StdResult<Self> {
+        // make opening fee negative to show that it's a cost for the user
+        let opening_fee = SignedDecimal::zero().checked_sub(opening_fee.into())?;
+        Ok(RealizedPnlAmounts {
+            price_pnl: amounts.price_pnl,
+            accrued_funding: amounts.accrued_funding,
+            opening_fee,
+            closing_fee: amounts.closing_fee,
+            pnl: amounts.pnl.checked_add(opening_fee)?,
+        })
+    }
+
+    pub fn update(&mut self, amounts: &PnlAmounts, opening_fee: Uint128) -> StdResult<()> {
+        let realized_amounts = Self::from_pnl_amounts(amounts, opening_fee)?;
+        self.price_pnl = self.price_pnl.checked_add(realized_amounts.price_pnl)?;
+        self.accrued_funding =
+            self.accrued_funding.checked_add(realized_amounts.accrued_funding)?;
+        self.opening_fee = self.opening_fee.checked_add(realized_amounts.opening_fee)?;
+        self.closing_fee = self.closing_fee.checked_add(realized_amounts.closing_fee)?;
+        self.pnl = self.pnl.checked_add(realized_amounts.pnl)?;
+        Ok(())
+    }
 }
 
 impl PnL {
@@ -480,6 +568,20 @@ pub enum QueryMsg {
     OpeningFee {
         denom: String,
         size: SignedDecimal,
+    },
+
+    #[returns(Accounting)]
+    DenomAccounting {
+        denom: String,
+    },
+
+    #[returns(Accounting)]
+    TotalAccounting {},
+
+    #[returns(RealizedPnlAmounts)]
+    DenomRealizedPnlForAccount {
+        account_id: String,
+        denom: String,
     },
 }
 

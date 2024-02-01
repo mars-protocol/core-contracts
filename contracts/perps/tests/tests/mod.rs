@@ -1,5 +1,6 @@
 mod helpers;
 
+mod test_accounting;
 mod test_funding;
 mod test_instantiate;
 mod test_managing_denoms;

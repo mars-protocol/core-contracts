@@ -6,18 +6,18 @@ use mars_types::{
     math::SignedDecimal,
     oracle::ActionKind,
     perps::{
-        Config, DenomPnlValues, DenomState, DenomStateResponse, DepositResponse, PerpDenomState,
-        PerpPosition, PositionResponse, PositionsByAccountResponse, TradingFee, UnlockState,
-        VaultState,
+        Accounting, Config, DenomPnlValues, DenomState, DenomStateResponse, DepositResponse,
+        PerpDenomState, PerpPosition, PositionResponse, PositionsByAccountResponse,
+        RealizedPnlAmounts, TradingFee, UnlockState, VaultState,
     },
 };
 
 use crate::{
-    denom::{compute_total_pnl, DenomStateExt},
+    denom::{compute_total_accounting_data, compute_total_pnl, DenomStateExt},
     error::ContractResult,
     position::PositionExt,
     pricing::opening_execution_price,
-    state::{CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, UNLOCKS, VAULT_STATE},
+    state::{CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, REALIZED_PNL, UNLOCKS, VAULT_STATE},
     vault::shares_to_amount,
 };
 
@@ -89,7 +89,13 @@ pub fn perp_denom_state(
     })
 }
 
-pub fn deposit(deps: Deps, depositor: String) -> ContractResult<DepositResponse> {
+pub fn deposit(
+    deps: Deps,
+    depositor: String,
+    current_time: u64,
+) -> ContractResult<DepositResponse> {
+    let cfg = CONFIG.load(deps.storage)?;
+
     let depositor_addr = deps.api.addr_validate(&depositor)?;
     let vs = VAULT_STATE.load(deps.storage)?;
     let shares =
@@ -98,28 +104,40 @@ pub fn deposit(deps: Deps, depositor: String) -> ContractResult<DepositResponse>
     Ok(DepositResponse {
         depositor,
         shares,
-        amount: shares_to_amount(&vs, shares).unwrap_or_default(),
+        amount: shares_to_amount(&deps, &vs, &cfg.oracle, current_time, &cfg.base_denom, shares)
+            .unwrap_or_default(),
     })
 }
 
 pub fn deposits(
-    store: &dyn Storage,
+    deps: Deps,
     start_after: Option<String>,
     limit: Option<u32>,
+    current_time: u64,
 ) -> ContractResult<Vec<DepositResponse>> {
-    let vs = VAULT_STATE.load(store)?;
+    let cfg = CONFIG.load(deps.storage)?;
+
+    let vs = VAULT_STATE.load(deps.storage)?;
     let start = start_after.map(|addr| Bound::ExclusiveRaw(addr.into_bytes()));
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
 
     DEPOSIT_SHARES
-        .range(store, start, None, Order::Ascending)
+        .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
             let (depositor_addr, shares) = item?;
             Ok(DepositResponse {
                 depositor: depositor_addr.into(),
                 shares,
-                amount: shares_to_amount(&vs, shares).unwrap_or_default(),
+                amount: shares_to_amount(
+                    &deps,
+                    &vs,
+                    &cfg.oracle,
+                    current_time,
+                    &cfg.base_denom,
+                    shares,
+                )
+                .unwrap_or_default(),
             })
         })
         .collect()
@@ -145,7 +163,7 @@ pub fn position(
     let ds = DENOM_STATES.load(deps.storage, &denom)?;
     let curr_funding = ds.current_funding(current_time, denom_price, base_denom_price)?;
     let position = POSITIONS.load(deps.storage, (&account_id, &denom))?;
-    let pnl = position.compute_pnl(
+    let (pnl, _pnl_amounts) = position.compute_pnl(
         &curr_funding,
         ds.skew()?,
         denom_price,
@@ -209,7 +227,7 @@ pub fn positions(
 
             // if denom state is already in the cache, simply read it
             // otherwise, recalculate it, and insert into the cache
-            let pnl = if let Some(curr_ds) = denoms.get(&denom) {
+            let (pnl, _pnl_amounts) = if let Some(curr_ds) = denoms.get(&denom) {
                 position.compute_pnl(
                     &curr_ds.funding,
                     curr_ds.skew()?,
@@ -273,7 +291,7 @@ pub fn positions_by_account(
             let ds = DENOM_STATES.load(deps.storage, &denom)?;
             let curr_funding = ds.current_funding(current_time, denom_price, base_denom_price)?;
 
-            let pnl = position.compute_pnl(
+            let (pnl, _pnl_amounts) = position.compute_pnl(
                 &curr_funding,
                 ds.skew()?,
                 denom_price,
@@ -302,7 +320,7 @@ pub fn positions_by_account(
 
 pub fn total_pnl(deps: Deps, current_time: u64) -> ContractResult<DenomPnlValues> {
     let cfg = CONFIG.load(deps.storage)?;
-    compute_total_pnl(deps, &cfg.oracle, current_time)
+    compute_total_pnl(&deps, &cfg.oracle, current_time)
 }
 
 pub fn opening_fee(deps: Deps, denom: &str, size: SignedDecimal) -> ContractResult<TradingFee> {
@@ -331,4 +349,31 @@ pub fn opening_fee(deps: Deps, denom: &str, size: SignedDecimal) -> ContractResu
         rate: cfg.opening_fee_rate,
         fee: coin(fee.u128(), cfg.base_denom),
     })
+}
+
+pub fn denom_accounting(deps: Deps, denom: &str, current_time: u64) -> ContractResult<Accounting> {
+    let cfg = CONFIG.load(deps.storage)?;
+    let denom_price = cfg.oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
+    let base_denom_price =
+        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+
+    let ds = DENOM_STATES.load(deps.storage, denom)?;
+    ds.compute_accounting_data(current_time, denom_price, base_denom_price, cfg.closing_fee_rate)
+}
+
+pub fn total_accounting(deps: Deps, current_time: u64) -> ContractResult<Accounting> {
+    let cfg = CONFIG.load(deps.storage)?;
+    let base_denom_price =
+        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+
+    compute_total_accounting_data(&deps, &cfg.oracle, current_time, base_denom_price)
+}
+
+pub fn denom_realized_pnl_for_account(
+    deps: Deps,
+    account_id: String,
+    denom: String,
+) -> ContractResult<RealizedPnlAmounts> {
+    let realized_pnl = REALIZED_PNL.load(deps.storage, (&account_id, &denom))?;
+    Ok(realized_pnl)
 }

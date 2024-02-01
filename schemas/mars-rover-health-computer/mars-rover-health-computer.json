@@ -427,7 +427,7 @@
           "$ref": "#/definitions/SignedDecimal"
         },
         "pnl": {
-          "description": "PnL: price PnL + accrued funding - closing fee",
+          "description": "PnL: price PnL + accrued funding + closing fee",
           "allOf": [
             {
               "$ref": "#/definitions/SignedDecimal"

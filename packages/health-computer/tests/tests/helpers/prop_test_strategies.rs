@@ -273,6 +273,7 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                         entry_price,
                         entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::zero(),
                         initial_skew,
+                        opening_fee_in_base_denom: Uint128::zero(),
                     };
                     // We randomize the skew scale, the rate and the index
                     let skew_scale = Decimal::from_atomics(Uint128::new(skew_scale as u128), 0)
@@ -300,7 +301,7 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                         last_funding_accrued_per_unit_in_base_denom: funding_index_dec.into(),
                     };
 
-                    let pnl = position
+                    let (pnl, _) = position
                         .compute_pnl(
                             &funding,
                             current_skew,

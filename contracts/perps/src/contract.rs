@@ -57,10 +57,10 @@ pub fn execute(
         ExecuteMsg::DisableDenom {
             denom,
         } => execute::disable_denom(deps, env, &info.sender, &denom),
-        ExecuteMsg::Deposit {} => execute::deposit(deps.storage, info),
+        ExecuteMsg::Deposit {} => execute::deposit(deps, info, env.block.time.seconds()),
         ExecuteMsg::Unlock {
             shares,
-        } => execute::unlock(deps.storage, env.block.time.seconds(), &info.sender, shares),
+        } => execute::unlock(deps, env.block.time.seconds(), &info.sender, shares),
         ExecuteMsg::Withdraw {} => {
             execute::withdraw(deps.storage, env.block.time.seconds(), &info.sender)
         }
@@ -94,11 +94,11 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         } => to_binary(&query::perp_denom_state(deps, env.block.time.seconds(), denom)?),
         QueryMsg::Deposit {
             depositor,
-        } => to_binary(&query::deposit(deps, depositor)?),
+        } => to_binary(&query::deposit(deps, depositor, env.block.time.seconds())?),
         QueryMsg::Deposits {
             start_after,
             limit,
-        } => to_binary(&query::deposits(deps.storage, start_after, limit)?),
+        } => to_binary(&query::deposits(deps, start_after, limit, env.block.time.seconds())?),
         QueryMsg::Unlocks {
             depositor,
         } => to_binary(&query::unlocks(deps, depositor)?),
@@ -118,6 +118,16 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             denom,
             size,
         } => to_binary(&query::opening_fee(deps, &denom, size)?),
+        QueryMsg::DenomAccounting {
+            denom,
+        } => to_binary(&query::denom_accounting(deps, &denom, env.block.time.seconds())?),
+        QueryMsg::TotalAccounting {} => {
+            to_binary(&query::total_accounting(deps, env.block.time.seconds())?)
+        }
+        QueryMsg::DenomRealizedPnlForAccount {
+            account_id,
+            denom,
+        } => to_binary(&query::denom_realized_pnl_for_account(deps, account_id, denom)?),
     }
     .map_err(Into::into)
 }

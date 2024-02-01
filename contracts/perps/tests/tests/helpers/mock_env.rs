@@ -13,8 +13,9 @@ use mars_types::{
     oracle,
     params::{self, ExecuteMsg::UpdatePerpParams, PerpParamsUpdate},
     perps::{
-        self, Config, DenomPnlValues, DenomStateResponse, DepositResponse, PerpDenomState,
-        PositionResponse, PositionsByAccountResponse, UnlockState, VaultState,
+        self, Accounting, Config, DenomPnlValues, DenomStateResponse, DepositResponse,
+        PerpDenomState, PositionResponse, PositionsByAccountResponse, RealizedPnlAmounts,
+        TradingFee, UnlockState, VaultState,
     },
 };
 
@@ -22,6 +23,8 @@ use super::{
     contracts::{mock_oracle_contract, mock_perps_contract},
     mock_address_provider_contract, mock_credit_manager_contract, mock_params_contract,
 };
+
+pub const ONE_HOUR_SEC: u64 = 3600u64;
 
 pub struct MockEnv {
     app: BasicApp,
@@ -195,6 +198,7 @@ impl MockEnv {
         account_id: &str,
         denom: &str,
         size: SignedDecimal,
+        send_funds: &[Coin],
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
@@ -204,7 +208,7 @@ impl MockEnv {
                 denom: denom.to_string(),
                 size,
             },
-            &[],
+            send_funds,
         )
     }
 
@@ -384,6 +388,55 @@ impl MockEnv {
 
     pub fn query_total_pnl(&self) -> DenomPnlValues {
         self.app.wrap().query_wasm_smart(self.perps.clone(), &perps::QueryMsg::TotalPnl {}).unwrap()
+    }
+
+    pub fn query_denom_accounting(&self, denom: &str) -> Accounting {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.clone(),
+                &perps::QueryMsg::DenomAccounting {
+                    denom: denom.to_string(),
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_total_accounting(&self) -> Accounting {
+        self.app
+            .wrap()
+            .query_wasm_smart(self.perps.clone(), &perps::QueryMsg::TotalAccounting {})
+            .unwrap()
+    }
+
+    pub fn query_denom_realized_pnl_for_account(
+        &self,
+        account_id: &str,
+        denom: &str,
+    ) -> RealizedPnlAmounts {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.clone(),
+                &perps::QueryMsg::DenomRealizedPnlForAccount {
+                    account_id: account_id.to_string(),
+                    denom: denom.to_string(),
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_opening_fee(&self, denom: &str, size: SignedDecimal) -> TradingFee {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.clone(),
+                &perps::QueryMsg::OpeningFee {
+                    denom: denom.to_string(),
+                    size,
+                },
+            )
+            .unwrap()
     }
 }
 

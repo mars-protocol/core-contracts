@@ -13,7 +13,7 @@ use crate::tests::helpers::default_perp_params;
 // TODO fix numbers once moved to SignedUint
 #[test]
 fn computing_total_pnl() {
-    let mut mock = MockEnv::new().build().unwrap();
+    let mut mock = MockEnv::new().opening_fee_rate(Decimal::zero()).build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -60,17 +60,23 @@ fn computing_total_pnl() {
     mock.set_price(&owner, "utia", Decimal::from_str("2.65").unwrap()).unwrap();
 
     // open few positions for account 1
-    mock.open_position(&credit_manager, "1", "uosmo", SignedDecimal::from_str("100").unwrap())
+    mock.open_position(&credit_manager, "1", "uosmo", SignedDecimal::from_str("100").unwrap(), &[])
         .unwrap();
-    mock.open_position(&credit_manager, "1", "utia", SignedDecimal::from_str("-250").unwrap())
+    mock.open_position(&credit_manager, "1", "utia", SignedDecimal::from_str("-250").unwrap(), &[])
         .unwrap();
 
     // open few positions for account 2
-    mock.open_position(&credit_manager, "2", "uosmo", SignedDecimal::from_str("500").unwrap())
+    mock.open_position(&credit_manager, "2", "uosmo", SignedDecimal::from_str("500").unwrap(), &[])
         .unwrap();
-    mock.open_position(&credit_manager, "2", "uatom", SignedDecimal::from_str("-125").unwrap())
-        .unwrap();
-    mock.open_position(&credit_manager, "2", "utia", SignedDecimal::from_str("1245").unwrap())
+    mock.open_position(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedDecimal::from_str("-125").unwrap(),
+        &[],
+    )
+    .unwrap();
+    mock.open_position(&credit_manager, "2", "utia", SignedDecimal::from_str("1245").unwrap(), &[])
         .unwrap();
 
     // calculate total PnL if no price change

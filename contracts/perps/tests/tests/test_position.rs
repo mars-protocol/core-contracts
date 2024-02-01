@@ -19,6 +19,7 @@ fn random_user_cannot_open_position() {
         "2",
         "uatom",
         SignedDecimal::from_str("-125").unwrap(),
+        &[],
     );
     assert_err(res, ContractError::SenderIsNotCreditManager);
 }
@@ -44,8 +45,13 @@ fn cannot_open_position_for_disabled_denom() {
     .unwrap();
     mock.disable_denom(&owner, "uatom").unwrap();
 
-    let res =
-        mock.open_position(&credit_manager, "2", "uatom", SignedDecimal::from_str("-125").unwrap());
+    let res = mock.open_position(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedDecimal::from_str("-125").unwrap(),
+        &[],
+    );
     assert_err(
         res,
         ContractError::DenomNotEnabled {
@@ -56,7 +62,7 @@ fn cannot_open_position_for_disabled_denom() {
 
 #[test]
 fn only_one_position_possible_for_denom() {
-    let mut mock = MockEnv::new().build().unwrap();
+    let mut mock = MockEnv::new().opening_fee_rate(Decimal::zero()).build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -81,12 +87,23 @@ fn only_one_position_possible_for_denom() {
     );
 
     // open a position for account 2
-    mock.open_position(&credit_manager, "2", "uatom", SignedDecimal::from_str("-125").unwrap())
-        .unwrap();
+    mock.open_position(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedDecimal::from_str("-125").unwrap(),
+        &[],
+    )
+    .unwrap();
 
     // try to open one more time
-    let res =
-        mock.open_position(&credit_manager, "2", "uatom", SignedDecimal::from_str("-125").unwrap());
+    let res = mock.open_position(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedDecimal::from_str("-125").unwrap(),
+        &[],
+    );
     assert_err(
         res,
         ContractError::PositionExists {
@@ -99,8 +116,11 @@ fn only_one_position_possible_for_denom() {
 #[test]
 fn open_position_cannot_be_too_small() {
     let min_position_in_base_denom = Uint128::new(1251u128);
-    let mut mock =
-        MockEnv::new().min_position_in_base_denom(min_position_in_base_denom).build().unwrap();
+    let mut mock = MockEnv::new()
+        .opening_fee_rate(Decimal::zero())
+        .min_position_in_base_denom(min_position_in_base_denom)
+        .build()
+        .unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -126,8 +146,13 @@ fn open_position_cannot_be_too_small() {
 
     // position size is too small
     // 100 * 10 / 0.8 = 1250
-    let res =
-        mock.open_position(&credit_manager, "2", "uatom", SignedDecimal::from_str("100").unwrap());
+    let res = mock.open_position(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedDecimal::from_str("100").unwrap(),
+        &[],
+    );
     assert_err(
         res,
         ContractError::PositionTooSmall {
@@ -142,6 +167,7 @@ fn open_position_cannot_be_too_small() {
 fn open_position_cannot_be_too_big() {
     let max_position_in_base_denom = Uint128::new(1249u128);
     let mut mock = MockEnv::new()
+        .opening_fee_rate(Decimal::zero())
         .min_position_in_base_denom(Uint128::zero())
         .max_position_in_base_denom(Some(max_position_in_base_denom))
         .build()
@@ -171,8 +197,13 @@ fn open_position_cannot_be_too_big() {
 
     // position size is too big
     // 100 * 10 / 0.8 = 1250
-    let res =
-        mock.open_position(&credit_manager, "2", "uatom", SignedDecimal::from_str("100").unwrap());
+    let res = mock.open_position(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedDecimal::from_str("100").unwrap(),
+        &[],
+    );
     assert_err(
         res,
         ContractError::PositionTooBig {
@@ -186,6 +217,7 @@ fn open_position_cannot_be_too_big() {
 #[test]
 fn validate_opening_position() {
     let mut mock = MockEnv::new()
+        .opening_fee_rate(Decimal::zero())
         .min_position_in_base_denom(Uint128::zero())
         .max_position_in_base_denom(None)
         .build()
@@ -222,14 +254,25 @@ fn validate_opening_position() {
     );
 
     // prepare some OI
-    mock.open_position(&credit_manager, "1", "uatom", SignedDecimal::from_str("300").unwrap())
+    mock.open_position(&credit_manager, "1", "uatom", SignedDecimal::from_str("300").unwrap(), &[])
         .unwrap();
-    mock.open_position(&credit_manager, "2", "uatom", SignedDecimal::from_str("-400").unwrap())
-        .unwrap();
+    mock.open_position(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedDecimal::from_str("-400").unwrap(),
+        &[],
+    )
+    .unwrap();
 
     // long OI is too big
-    let res =
-        mock.open_position(&credit_manager, "3", "uatom", SignedDecimal::from_str("3701").unwrap()); // 300 + 3701 = 4001
+    let res = mock.open_position(
+        &credit_manager,
+        "3",
+        "uatom",
+        SignedDecimal::from_str("3701").unwrap(),
+        &[],
+    ); // 300 + 3701 = 4001
     assert_err(
         res,
         ContractError::LongOpenInterestReached {
@@ -239,8 +282,13 @@ fn validate_opening_position() {
     );
 
     // net OI is too big
-    let res =
-        mock.open_position(&credit_manager, "3", "uatom", SignedDecimal::from_str("601").unwrap()); // 300 + 601 = 901, abs(901 - 400) = 501
+    let res = mock.open_position(
+        &credit_manager,
+        "3",
+        "uatom",
+        SignedDecimal::from_str("601").unwrap(),
+        &[],
+    ); // 300 + 601 = 901, abs(901 - 400) = 501
     assert_err(
         res,
         ContractError::NetOpenInterestReached {
@@ -255,6 +303,7 @@ fn validate_opening_position() {
         "4",
         "uatom",
         SignedDecimal::from_str("-3801").unwrap(),
+        &[],
     ); // 400 + 3801 = 4201
     assert_err(
         res,
@@ -265,8 +314,13 @@ fn validate_opening_position() {
     );
 
     // net OI is too big
-    let res =
-        mock.open_position(&credit_manager, "4", "uatom", SignedDecimal::from_str("-401").unwrap()); // 400 + 401 = 801, abs(300 - 801) = 501
+    let res = mock.open_position(
+        &credit_manager,
+        "4",
+        "uatom",
+        SignedDecimal::from_str("-401").unwrap(),
+        &[],
+    ); // 400 + 401 = 801, abs(300 - 801) = 501
     assert_err(
         res,
         ContractError::NetOpenInterestReached {

@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, Addr, Uint128};
+use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use mars_perps::error::ContractError;
 use mars_types::perps::UnlockState;
 
@@ -10,6 +10,10 @@ fn unlock_few_times() {
     let depositor = Addr::unchecked("depositor");
     let cooldown_period = 1225u64;
     let mut mock = MockEnv::new().cooldown_period(cooldown_period).build().unwrap();
+    let owner = mock.owner.clone();
+
+    // set usdc price
+    mock.set_price(&owner, "uusdc", Decimal::one()).unwrap();
 
     mock.fund_accounts(&[&depositor], 1_000_000_000_000u128, &["uusdc"]);
 
@@ -78,6 +82,10 @@ fn withdraw_not_possible_if_cooldown_not_ended() {
     let depositor = Addr::unchecked("depositor");
     let cooldown_period = 86400u64;
     let mut mock = MockEnv::new().cooldown_period(cooldown_period).build().unwrap();
+    let owner = mock.owner.clone();
+
+    // set usdc price
+    mock.set_price(&owner, "uusdc", Decimal::one()).unwrap();
 
     mock.fund_accounts(&[&depositor], 1_000_000_000_000u128, &["uusdc"]);
 
@@ -98,6 +106,10 @@ fn withdraw_unlocked_shares() {
     let depositor = Addr::unchecked("depositor");
     let cooldown_period = 86400u64;
     let mut mock = MockEnv::new().cooldown_period(cooldown_period).build().unwrap();
+    let owner = mock.owner.clone();
+
+    // set usdc price
+    mock.set_price(&owner, "uusdc", Decimal::one()).unwrap();
 
     mock.fund_accounts(&[&depositor], 1_000_000_000_000u128, &["uusdc"]);
 

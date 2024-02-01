@@ -153,6 +153,20 @@ export type QueryMsg =
         size: SignedDecimal
       }
     }
+  | {
+      denom_accounting: {
+        denom: string
+      }
+    }
+  | {
+      total_accounting: {}
+    }
+  | {
+      denom_realized_pnl_for_account: {
+        account_id: string
+        denom: string
+      }
+    }
 export interface ConfigForString {
   base_denom: string
   closing_fee_rate: Decimal
@@ -163,6 +177,31 @@ export interface ConfigForString {
   opening_fee_rate: Decimal
   oracle: OracleBaseForString
   params: ParamsBaseForString
+}
+export interface Accounting {
+  balance: Balance
+  cash_flow: CashFlow
+  withdrawal_balance: Balance
+}
+export interface Balance {
+  accrued_funding: SignedDecimal
+  closing_fees: SignedDecimal
+  opening_fees: SignedDecimal
+  price_pnl: SignedDecimal
+  total: SignedDecimal
+}
+export interface CashFlow {
+  accrued_funding: SignedDecimal
+  closing_fees: SignedDecimal
+  opening_fees: SignedDecimal
+  price_pnl: SignedDecimal
+}
+export interface RealizedPnlAmounts {
+  accrued_funding: SignedDecimal
+  closing_fee: SignedDecimal
+  opening_fee: SignedDecimal
+  pnl: SignedDecimal
+  price_pnl: SignedDecimal
 }
 export interface DenomStateResponse {
   denom: string

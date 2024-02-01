@@ -1,0 +1,245 @@
+use std::str::FromStr;
+
+use cosmwasm_std::{coin, Addr, Coin, Decimal};
+use mars_types::{
+    math::SignedDecimal,
+    params::PerpParamsUpdate,
+    perps::{Accounting, Balance, CashFlow, PerpPosition, PnL},
+};
+
+use super::helpers::MockEnv;
+use crate::tests::helpers::{default_perp_params, ONE_HOUR_SEC};
+
+#[test]
+fn accounting() {
+    let mut mock = MockEnv::new()
+        .opening_fee_rate(Decimal::percent(2))
+        .closing_fee_rate(Decimal::percent(1))
+        .build()
+        .unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = Addr::unchecked("jake");
+
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(
+        &[&credit_manager, &user],
+        1_000_000_000_000u128,
+        &["uosmo", "uatom", "uusdc"],
+    );
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
+
+    // init denoms
+    mock.init_denom(
+        &owner,
+        "uosmo",
+        Decimal::from_str("3").unwrap(),
+        Decimal::from_str("1000000").unwrap(),
+    )
+    .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("uosmo"),
+        },
+    );
+    mock.init_denom(
+        &owner,
+        "uatom",
+        Decimal::from_str("3").unwrap(),
+        Decimal::from_str("1000000").unwrap(),
+    )
+    .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("uatom"),
+        },
+    );
+
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+
+    // set entry prices
+    mock.set_price(&owner, "uosmo", Decimal::from_str("1.25").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("10.5").unwrap()).unwrap();
+
+    // check accounting in the beginning
+    let osmo_accounting = mock.query_denom_accounting("uosmo");
+    assert_eq!(osmo_accounting, Accounting::default());
+    let atom_accounting = mock.query_denom_accounting("uatom");
+    assert_eq!(atom_accounting, Accounting::default());
+    let total_accounting = mock.query_total_accounting();
+    assert_eq!(total_accounting, Accounting::default());
+
+    // open few positions for account 1
+    let size = SignedDecimal::from_str("1000").unwrap();
+    let osmo_opening_fee = mock.query_opening_fee("uosmo", size).fee;
+    mock.open_position(&credit_manager, "1", "uosmo", size, &[osmo_opening_fee.clone()]).unwrap();
+    let size = SignedDecimal::from_str("-2500").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee.clone()]).unwrap();
+
+    // check accounting after opening positions
+    let osmo_accounting = mock.query_denom_accounting("uosmo");
+    assert_eq!(
+        osmo_accounting.cash_flow,
+        CashFlow {
+            opening_fees: SignedDecimal::from(osmo_opening_fee.amount),
+            ..Default::default()
+        }
+    );
+    let atom_accounting = mock.query_denom_accounting("uatom");
+    assert_eq!(
+        atom_accounting.cash_flow,
+        CashFlow {
+            opening_fees: SignedDecimal::from(atom_opening_fee.amount),
+            ..Default::default()
+        }
+    );
+    let total_accounting = mock.query_total_accounting();
+    assert_eq!(
+        total_accounting.cash_flow,
+        CashFlow {
+            opening_fees: SignedDecimal::from(osmo_opening_fee.amount + atom_opening_fee.amount),
+            ..Default::default()
+        }
+    );
+    assert_accounting(&total_accounting, &osmo_accounting, &atom_accounting);
+
+    // move time forward by 12 hour
+    mock.increment_by_time(12 * ONE_HOUR_SEC);
+
+    // change only uosmo price
+    mock.set_price(&owner, "uosmo", Decimal::from_str("2").unwrap()).unwrap();
+
+    // close uosmo position
+    let pos = mock.query_position("1", "uosmo");
+    mock.close_position(&credit_manager, "1", "uosmo", &from_position_to_coin(pos.position))
+        .unwrap();
+
+    // check accounting after closing uosmo position
+    let osmo_accounting = mock.query_denom_accounting("uosmo");
+    let atom_accounting = mock.query_denom_accounting("uatom");
+    let total_accounting = mock.query_total_accounting();
+    assert_accounting(&total_accounting, &osmo_accounting, &atom_accounting);
+
+    // compare realized PnL
+    let osmo_realized_pnl = mock.query_denom_realized_pnl_for_account("1", "uosmo");
+    assert_eq!(osmo_realized_pnl.price_pnl.abs, osmo_accounting.cash_flow.price_pnl.abs);
+    assert!(!osmo_realized_pnl.price_pnl.negative);
+    assert_ne!(osmo_realized_pnl.price_pnl.negative, osmo_accounting.cash_flow.price_pnl.negative);
+    assert_eq!(
+        osmo_realized_pnl.accrued_funding.abs,
+        osmo_accounting.cash_flow.accrued_funding.abs
+    );
+    assert!(osmo_realized_pnl.accrued_funding.negative);
+    assert_ne!(
+        osmo_realized_pnl.accrued_funding.negative,
+        osmo_accounting.cash_flow.accrued_funding.negative
+    );
+    assert_eq!(osmo_realized_pnl.opening_fee.abs, osmo_accounting.cash_flow.opening_fees.abs);
+    assert!(osmo_realized_pnl.opening_fee.negative);
+    assert_ne!(
+        osmo_realized_pnl.opening_fee.negative,
+        osmo_accounting.cash_flow.opening_fees.negative
+    );
+    assert_eq!(osmo_realized_pnl.closing_fee.abs, osmo_accounting.cash_flow.closing_fees.abs);
+    assert!(osmo_realized_pnl.closing_fee.negative);
+    assert_ne!(
+        osmo_realized_pnl.closing_fee.negative,
+        osmo_accounting.cash_flow.opening_fees.negative
+    );
+
+    // move time forward by 12 hour
+    mock.increment_by_time(12 * ONE_HOUR_SEC);
+
+    // change only uatom price
+    mock.set_price(&owner, "uatom", Decimal::from_str("15").unwrap()).unwrap();
+
+    // close uatom position
+    let pos = mock.query_position("1", "uatom");
+    mock.close_position(&credit_manager, "1", "uatom", &from_position_to_coin(pos.position))
+        .unwrap();
+
+    // check accounting after closing uatom position
+    let osmo_accounting = mock.query_denom_accounting("uosmo");
+    let atom_accounting = mock.query_denom_accounting("uatom");
+    let total_accounting = mock.query_total_accounting();
+    assert_accounting(&total_accounting, &osmo_accounting, &atom_accounting);
+
+    // compare realized PnL
+    let atom_realized_pnl = mock.query_denom_realized_pnl_for_account("1", "uatom");
+    assert_eq!(atom_realized_pnl.price_pnl.abs, atom_accounting.cash_flow.price_pnl.abs);
+    assert!(atom_realized_pnl.price_pnl.negative);
+    assert_ne!(atom_realized_pnl.price_pnl.negative, atom_accounting.cash_flow.price_pnl.negative);
+    assert_eq!(
+        atom_realized_pnl.accrued_funding.abs,
+        atom_accounting.cash_flow.accrued_funding.abs
+    );
+    assert!(atom_realized_pnl.accrued_funding.negative);
+    assert_ne!(
+        atom_realized_pnl.accrued_funding.negative,
+        atom_accounting.cash_flow.accrued_funding.negative
+    );
+    assert_eq!(atom_realized_pnl.opening_fee.abs, atom_accounting.cash_flow.opening_fees.abs);
+    assert!(atom_realized_pnl.opening_fee.negative);
+    assert_ne!(
+        atom_realized_pnl.opening_fee.negative,
+        atom_accounting.cash_flow.opening_fees.negative
+    );
+    assert_eq!(atom_realized_pnl.closing_fee.abs, atom_accounting.cash_flow.closing_fees.abs);
+    assert!(atom_realized_pnl.closing_fee.negative);
+    assert_ne!(
+        atom_realized_pnl.closing_fee.negative,
+        atom_accounting.cash_flow.opening_fees.negative
+    );
+}
+
+fn from_position_to_coin(pos: PerpPosition) -> Vec<Coin> {
+    if let PnL::Loss(coin) = pos.pnl.coins.pnl {
+        vec![coin]
+    } else {
+        vec![]
+    }
+}
+
+fn assert_accounting(
+    total_accounting: &Accounting,
+    osmo_accounting: &Accounting,
+    atom_accounting: &Accounting,
+) {
+    assert_eq!(
+        total_accounting.cash_flow,
+        add_cash_flows(&osmo_accounting.cash_flow, &atom_accounting.cash_flow)
+    );
+    assert_eq!(
+        total_accounting.balance,
+        add_balances(&osmo_accounting.balance, &atom_accounting.balance)
+    );
+    assert_eq!(
+        total_accounting.withdrawal_balance,
+        add_balances(&osmo_accounting.withdrawal_balance, &atom_accounting.withdrawal_balance)
+    );
+}
+
+fn add_cash_flows(a: &CashFlow, b: &CashFlow) -> CashFlow {
+    CashFlow {
+        price_pnl: a.price_pnl.checked_add(b.price_pnl).unwrap(),
+        opening_fees: a.opening_fees.checked_add(b.opening_fees).unwrap(),
+        closing_fees: a.closing_fees.checked_add(b.closing_fees).unwrap(),
+        accrued_funding: a.accrued_funding.checked_add(b.accrued_funding).unwrap(),
+    }
+}
+
+fn add_balances(a: &Balance, b: &Balance) -> Balance {
+    Balance {
+        price_pnl: a.price_pnl.checked_add(b.price_pnl).unwrap(),
+        opening_fees: a.opening_fees.checked_add(b.opening_fees).unwrap(),
+        closing_fees: a.closing_fees.checked_add(b.closing_fees).unwrap(),
+        accrued_funding: a.accrued_funding.checked_add(b.accrued_funding).unwrap(),
+        total: a.total.checked_add(b.total).unwrap(),
+    }
+}

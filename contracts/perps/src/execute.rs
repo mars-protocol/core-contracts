@@ -6,16 +6,20 @@ use cw_utils::{may_pay, must_pay};
 use mars_types::{
     math::SignedDecimal,
     oracle::ActionKind,
-    perps::{Config, DenomState, Funding, PnL, Position, UnlockState, VaultState},
+    perps::{
+        CashFlow, Config, DenomState, Funding, PnL, Position, RealizedPnlAmounts, UnlockState,
+        VaultState,
+    },
 };
 
 use crate::{
+    accounting::CashFlowExt,
     denom::DenomStateExt,
     error::{ContractError, ContractResult},
     position::PositionExt,
     state::{
         decrease_deposit_shares, increase_deposit_shares, CONFIG, DENOM_STATES, OWNER, POSITIONS,
-        UNLOCKS, VAULT_STATE,
+        REALIZED_PNL, TOTAL_CASH_FLOW, UNLOCKS, VAULT_STATE,
     },
     vault::{amount_to_shares, shares_to_amount},
 };
@@ -25,6 +29,9 @@ pub fn initialize(store: &mut dyn Storage, cfg: Config<Addr>) -> ContractResult<
 
     // initialize vault state to zero total liquidity and zero total shares
     VAULT_STATE.save(store, &VaultState::default())?;
+
+    // initialize global cash flow to zero
+    TOTAL_CASH_FLOW.save(store, &CashFlow::default())?;
 
     Ok(Response::new().add_attribute("method", "initialize"))
 }
@@ -59,6 +66,7 @@ pub fn init_denom(
         total_entry_funding: SignedDecimal::zero(),
         total_squared_positions: SignedDecimal::zero(),
         total_abs_multiplied_positions: SignedDecimal::zero(),
+        cash_flow: CashFlow::default(),
         funding: Funding {
             max_funding_velocity,
             skew_scale,
@@ -149,23 +157,24 @@ pub fn disable_denom(
     Ok(Response::new().add_attribute("method", "disable_denom").add_attribute("denom", denom))
 }
 
-pub fn deposit(store: &mut dyn Storage, info: MessageInfo) -> ContractResult<Response> {
-    let cfg = CONFIG.load(store)?;
-    let mut vs = VAULT_STATE.load(store)?;
+pub fn deposit(deps: DepsMut, info: MessageInfo, current_time: u64) -> ContractResult<Response> {
+    let cfg = CONFIG.load(deps.storage)?;
+    let mut vs = VAULT_STATE.load(deps.storage)?;
 
     // find the deposit amount
     let amount = must_pay(&info, &cfg.base_denom)?;
 
     // compute the new shares to be minted to the depositor
-    let shares = amount_to_shares(&vs, amount)?;
+    let shares =
+        amount_to_shares(&deps.as_ref(), &vs, &cfg.oracle, current_time, &cfg.base_denom, amount)?;
 
     // increment total liquidity and deposit shares
     vs.total_liquidity = vs.total_liquidity.checked_add(amount)?;
     vs.total_shares = vs.total_shares.checked_add(shares)?;
-    VAULT_STATE.save(store, &vs)?;
+    VAULT_STATE.save(deps.storage, &vs)?;
 
     // increment the user's deposit shares
-    increase_deposit_shares(store, &info.sender, shares)?;
+    increase_deposit_shares(deps.storage, &info.sender, shares)?;
 
     Ok(Response::new()
         .add_attribute("method", "deposit")
@@ -174,16 +183,17 @@ pub fn deposit(store: &mut dyn Storage, info: MessageInfo) -> ContractResult<Res
 }
 
 pub fn unlock(
-    store: &mut dyn Storage,
+    deps: DepsMut,
     current_time: u64,
     depositor: &Addr,
     shares: Uint128,
 ) -> ContractResult<Response> {
-    let cfg = CONFIG.load(store)?;
-    let mut vs = VAULT_STATE.load(store)?;
+    let cfg = CONFIG.load(deps.storage)?;
+    let mut vs = VAULT_STATE.load(deps.storage)?;
 
     // convert the shares to amount
-    let amount = shares_to_amount(&vs, shares)?;
+    let amount =
+        shares_to_amount(&deps.as_ref(), &vs, &cfg.oracle, current_time, &cfg.base_denom, shares)?;
 
     // cannot unlock when there is zero shares
     if amount.is_zero() {
@@ -193,14 +203,14 @@ pub fn unlock(
     // decrement total liquidity and deposit shares
     vs.total_liquidity = vs.total_liquidity.checked_sub(amount)?;
     vs.total_shares = vs.total_shares.checked_sub(shares)?;
-    VAULT_STATE.save(store, &vs)?;
+    VAULT_STATE.save(deps.storage, &vs)?;
 
     // decrement the user's deposit shares
-    decrease_deposit_shares(store, depositor, shares)?;
+    decrease_deposit_shares(deps.storage, depositor, shares)?;
 
     // add new unlock position
     let cooldown_end = current_time + cfg.cooldown_period;
-    UNLOCKS.update(store, depositor, |maybe_unlocks| {
+    UNLOCKS.update(deps.storage, depositor, |maybe_unlocks| {
         let mut unlocks = maybe_unlocks.unwrap_or_default();
 
         unlocks.push(UnlockState {
@@ -287,6 +297,19 @@ pub fn open_position(
         });
     }
 
+    // find the opening fee amount
+    let mut opening_fee_amt = Uint128::zero();
+    if !cfg.opening_fee_rate.is_zero() {
+        opening_fee_amt = must_pay(&info, &cfg.base_denom)?;
+
+        ds.cash_flow.update_opening_fees(opening_fee_amt)?;
+
+        TOTAL_CASH_FLOW.update(deps.storage, |mut gcf| {
+            gcf.update_opening_fees(opening_fee_amt)?;
+            Ok::<CashFlow, ContractError>(gcf)
+        })?;
+    }
+
     // query the asset's price
     //
     // this will be the position's entry price, used to compute PnL when closing
@@ -341,6 +364,7 @@ pub fn open_position(
                 .funding
                 .last_funding_accrued_per_unit_in_base_denom,
             initial_skew: inital_skew,
+            opening_fee_in_base_denom: opening_fee_amt,
         },
     )?;
 
@@ -389,17 +413,29 @@ pub fn close_position(
     ds.close_position(env.block.time.seconds(), denom_price, base_denom_price, &position)?;
 
     // compute the position's unrealized PnL
-    let pnl = position
-        .compute_pnl(
-            &ds.funding,
-            inital_skew,
-            denom_price,
-            base_denom_price,
-            &cfg.base_denom,
-            cfg.closing_fee_rate,
-        )?
-        .coins
-        .pnl;
+    let (pnl, pnl_amounts) = position.compute_pnl(
+        &ds.funding,
+        inital_skew,
+        denom_price,
+        base_denom_price,
+        &cfg.base_denom,
+        cfg.closing_fee_rate,
+    )?;
+    let pnl = pnl.coins.pnl;
+
+    // update realized PnL
+    REALIZED_PNL.update(deps.storage, (&account_id, &denom), |maybe_realized_pnl| {
+        let mut realized_pnl = maybe_realized_pnl.unwrap_or_default();
+        realized_pnl.update(&pnl_amounts, position.opening_fee_in_base_denom)?;
+        Ok::<RealizedPnlAmounts, ContractError>(realized_pnl)
+    })?;
+
+    // update the cash flow
+    ds.cash_flow.update(&pnl_amounts)?;
+    TOTAL_CASH_FLOW.update(deps.storage, |mut gcf| {
+        gcf.update(&pnl_amounts)?;
+        Ok::<CashFlow, ContractError>(gcf)
+    })?;
 
     let (send_amount, updated_liquidity) =
         execute_payment(&cfg.base_denom, vs.total_liquidity, paid_amount, &pnl)?;

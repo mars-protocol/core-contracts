@@ -170,7 +170,7 @@ fn owner_can_disable_denom() {
 
 #[test]
 fn funding_change_accordingly_to_denom_state_modification() {
-    let mut mock = MockEnv::new().build().unwrap();
+    let mut mock = MockEnv::new().opening_fee_rate(Decimal::zero()).build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -198,7 +198,7 @@ fn funding_change_accordingly_to_denom_state_modification() {
     );
     mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
     mock.set_price(&owner, "ueth", Decimal::from_str("2000").unwrap()).unwrap();
-    mock.open_position(&credit_manager, "1", "ueth", SignedDecimal::from_str("300").unwrap())
+    mock.open_position(&credit_manager, "1", "ueth", SignedDecimal::from_str("300").unwrap(), &[])
         .unwrap();
     mock.disable_denom(&owner, "ueth").unwrap();
 

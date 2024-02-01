@@ -1,7 +1,9 @@
 use cosmwasm_std::{Addr, StdError, StdResult, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 use mars_owner::Owner;
-use mars_types::perps::{Config, DenomState, Position, UnlockState, VaultState};
+use mars_types::perps::{
+    CashFlow, Config, DenomState, Position, RealizedPnlAmounts, UnlockState, VaultState,
+};
 
 pub const OWNER: Owner = Owner::new("owner");
 
@@ -20,6 +22,15 @@ pub const UNLOCKS: Map<&Addr, Vec<UnlockState>> = Map::new("ul");
 
 // (account_id, denom) => position
 pub const POSITIONS: Map<(&str, &str), Position> = Map::new("p");
+
+// (account_id, denom) => realized PnL amounts
+pub const REALIZED_PNL: Map<(&str, &str), RealizedPnlAmounts> = Map::new("rpnl");
+
+// denom => denom cash flow
+pub const DENOM_CASH_FLOW: Map<&str, CashFlow> = Map::new("dcf");
+
+// total cash flow, accumulated across all denoms
+pub const TOTAL_CASH_FLOW: Item<CashFlow> = Item::new("tcf");
 
 /// Increase the deposit shares of a depositor by the given amount.
 /// Return the updated deposit shares.

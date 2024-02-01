@@ -9,13 +9,14 @@ use mars_types::{
     math::SignedDecimal,
     oracle::ActionKind,
     params::PerpParams,
-    perps::{DenomPnlValues, DenomState, Funding, Position},
+    perps::{Accounting, DenomPnlValues, DenomState, Funding, Position},
 };
 
 use crate::{
+    accounting::AccountingExt,
     error::{ContractError, ContractResult},
     pricing::opening_execution_price,
-    state::{CONFIG, DENOM_STATES},
+    state::{CONFIG, DENOM_STATES, TOTAL_CASH_FLOW},
 };
 
 pub const SECONDS_IN_DAY: u64 = 86400;
@@ -131,6 +132,15 @@ pub trait DenomStateExt {
         base_denom_price: Decimal,
         closing_fee_rate: Decimal,
     ) -> ContractResult<(DenomPnlValues, Funding)>;
+
+    /// Compute the accounting data for a denom
+    fn compute_accounting_data(
+        &self,
+        current_time: u64,
+        denom_price: Decimal,
+        base_denom_price: Decimal,
+        closing_fee_rate: Decimal,
+    ) -> ContractResult<Accounting>;
 }
 
 impl DenomStateExt for DenomState {
@@ -447,12 +457,25 @@ impl DenomStateExt for DenomState {
         };
         Ok((pnl_values, curr_funding))
     }
+
+    fn compute_accounting_data(
+        &self,
+        current_time: u64,
+        denom_price: Decimal,
+        base_denom_price: Decimal,
+        closing_fee_rate: Decimal,
+    ) -> ContractResult<Accounting> {
+        let (unrealized_pnl, _) =
+            self.compute_pnl(current_time, denom_price, base_denom_price, closing_fee_rate)?;
+        let acc = Accounting::compute(&self.cash_flow, &unrealized_pnl, base_denom_price)?;
+        Ok(acc)
+    }
 }
 
 /// Loop through denoms and compute the total PnL.
 /// This PnL is denominated in uusd (1 USD = 1e6 uusd -> configured in Oracle).
 pub fn compute_total_pnl(
-    deps: Deps,
+    deps: &Deps,
     oracle: &Oracle,
     current_time: u64,
 ) -> ContractResult<DenomPnlValues> {
@@ -485,11 +508,27 @@ pub fn compute_total_pnl(
     Ok(total_pnl)
 }
 
+/// Compute the total accounting data based on the total unrealized PnL and cash flow accumulator.
+pub fn compute_total_accounting_data(
+    deps: &Deps,
+    oracle: &Oracle,
+    current_time: u64,
+    base_denom_price: Decimal,
+) -> ContractResult<Accounting> {
+    let gcf = TOTAL_CASH_FLOW.load(deps.storage)?;
+    let unrealized_pnl = compute_total_pnl(deps, oracle, current_time)?;
+    let acc = Accounting::compute(&gcf, &unrealized_pnl, base_denom_price)?;
+    Ok(acc)
+}
+
 // ----------------------------------- Tests -----------------------------------
 
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
+
+    use cosmwasm_std::Uint128;
+    use mars_types::perps::CashFlow;
 
     use super::*;
 
@@ -729,6 +768,7 @@ mod tests {
                 entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("77.25")
                     .unwrap(),
                 initial_skew: SignedDecimal::from_str("-12000").unwrap(),
+                opening_fee_in_base_denom: Uint128::zero(),
             },
         )
         .unwrap();
@@ -846,6 +886,7 @@ mod tests {
             total_entry_funding: SignedDecimal::from_str("268").unwrap(),
             total_squared_positions: SignedDecimal::from_str("14400").unwrap(),
             total_abs_multiplied_positions: SignedDecimal::from_str("-225").unwrap(),
+            cash_flow: CashFlow::default(),
         }
     }
 }

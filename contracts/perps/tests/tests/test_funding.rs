@@ -15,7 +15,11 @@ const ONE_HOUR_SEC: u64 = 3600u64;
 // TODO fix numbers once moved to SignedUint
 #[test]
 fn computing_funding() {
-    let mut mock = MockEnv::new().closing_fee_rate(Decimal::zero()).build().unwrap();
+    let mut mock = MockEnv::new()
+        .opening_fee_rate(Decimal::zero())
+        .closing_fee_rate(Decimal::zero())
+        .build()
+        .unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -49,7 +53,7 @@ fn computing_funding() {
     mock.set_price(&owner, "ueth", Decimal::from_str("2000").unwrap()).unwrap();
 
     // user 1 opens long position
-    mock.open_position(&credit_manager, "1", "ueth", SignedDecimal::from_str("300").unwrap())
+    mock.open_position(&credit_manager, "1", "ueth", SignedDecimal::from_str("300").unwrap(), &[])
         .unwrap();
 
     // query state for h0
@@ -68,7 +72,7 @@ fn computing_funding() {
     mock.increment_by_time(2 * ONE_HOUR_SEC);
 
     // user 2 opens short position
-    mock.open_position(&credit_manager, "2", "ueth", SignedDecimal::from_str("-150").unwrap())
+    mock.open_position(&credit_manager, "2", "ueth", SignedDecimal::from_str("-150").unwrap(), &[])
         .unwrap();
 
     // query state for h2
@@ -142,7 +146,7 @@ fn computing_funding() {
     // simulate realized pnl for user 1, reopen long position with the same size
     mock.close_position(&credit_manager, "1", "ueth", &from_position_to_coin(user_1_pos.position))
         .unwrap();
-    mock.open_position(&credit_manager, "1", "ueth", SignedDecimal::from_str("300").unwrap())
+    mock.open_position(&credit_manager, "1", "ueth", SignedDecimal::from_str("300").unwrap(), &[])
         .unwrap();
 
     // query state for h12 after user 1 realized pnl
@@ -199,7 +203,7 @@ fn computing_funding() {
     // simulate realized pnl for user 2, increase short position size by 200 (total 350)
     mock.close_position(&credit_manager, "2", "ueth", &from_position_to_coin(user_2_pos.position))
         .unwrap();
-    mock.open_position(&credit_manager, "2", "ueth", SignedDecimal::from_str("-350").unwrap())
+    mock.open_position(&credit_manager, "2", "ueth", SignedDecimal::from_str("-350").unwrap(), &[])
         .unwrap();
 
     // query state for h15 after user 2 realized pnl

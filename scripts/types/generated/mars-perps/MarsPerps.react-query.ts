@@ -19,6 +19,10 @@ import {
   SignedDecimal,
   QueryMsg,
   ConfigForString,
+  Accounting,
+  Balance,
+  CashFlow,
+  RealizedPnlAmounts,
   DenomStateResponse,
   Funding,
   ArrayOfDenomStateResponse,
@@ -82,6 +86,25 @@ export const marsPerpsQueryKeys = {
     [{ ...marsPerpsQueryKeys.address(contractAddress)[0], method: 'total_pnl', args }] as const,
   openingFee: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
     [{ ...marsPerpsQueryKeys.address(contractAddress)[0], method: 'opening_fee', args }] as const,
+  denomAccounting: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+    [
+      { ...marsPerpsQueryKeys.address(contractAddress)[0], method: 'denom_accounting', args },
+    ] as const,
+  totalAccounting: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+    [
+      { ...marsPerpsQueryKeys.address(contractAddress)[0], method: 'total_accounting', args },
+    ] as const,
+  denomRealizedPnlForAccount: (
+    contractAddress: string | undefined,
+    args?: Record<string, unknown>,
+  ) =>
+    [
+      {
+        ...marsPerpsQueryKeys.address(contractAddress)[0],
+        method: 'denom_realized_pnl_for_account',
+        args,
+      },
+    ] as const,
 }
 export interface MarsPerpsReactQuery<TResponse, TData = TResponse> {
   client: MarsPerpsQueryClient | undefined
@@ -91,6 +114,64 @@ export interface MarsPerpsReactQuery<TResponse, TData = TResponse> {
   > & {
     initialData?: undefined
   }
+}
+export interface MarsPerpsDenomRealizedPnlForAccountQuery<TData>
+  extends MarsPerpsReactQuery<RealizedPnlAmounts, TData> {
+  args: {
+    accountId: string
+    denom: string
+  }
+}
+export function useMarsPerpsDenomRealizedPnlForAccountQuery<TData = RealizedPnlAmounts>({
+  client,
+  args,
+  options,
+}: MarsPerpsDenomRealizedPnlForAccountQuery<TData>) {
+  return useQuery<RealizedPnlAmounts, Error, TData>(
+    marsPerpsQueryKeys.denomRealizedPnlForAccount(client?.contractAddress, args),
+    () =>
+      client
+        ? client.denomRealizedPnlForAccount({
+            accountId: args.accountId,
+            denom: args.denom,
+          })
+        : Promise.reject(new Error('Invalid client')),
+    { ...options, enabled: !!client && (options?.enabled != undefined ? options.enabled : true) },
+  )
+}
+export interface MarsPerpsTotalAccountingQuery<TData>
+  extends MarsPerpsReactQuery<Accounting, TData> {}
+export function useMarsPerpsTotalAccountingQuery<TData = Accounting>({
+  client,
+  options,
+}: MarsPerpsTotalAccountingQuery<TData>) {
+  return useQuery<Accounting, Error, TData>(
+    marsPerpsQueryKeys.totalAccounting(client?.contractAddress),
+    () => (client ? client.totalAccounting() : Promise.reject(new Error('Invalid client'))),
+    { ...options, enabled: !!client && (options?.enabled != undefined ? options.enabled : true) },
+  )
+}
+export interface MarsPerpsDenomAccountingQuery<TData>
+  extends MarsPerpsReactQuery<Accounting, TData> {
+  args: {
+    denom: string
+  }
+}
+export function useMarsPerpsDenomAccountingQuery<TData = Accounting>({
+  client,
+  args,
+  options,
+}: MarsPerpsDenomAccountingQuery<TData>) {
+  return useQuery<Accounting, Error, TData>(
+    marsPerpsQueryKeys.denomAccounting(client?.contractAddress, args),
+    () =>
+      client
+        ? client.denomAccounting({
+            denom: args.denom,
+          })
+        : Promise.reject(new Error('Invalid client')),
+    { ...options, enabled: !!client && (options?.enabled != undefined ? options.enabled : true) },
+  )
 }
 export interface MarsPerpsOpeningFeeQuery<TData> extends MarsPerpsReactQuery<TradingFee, TData> {
   args: {

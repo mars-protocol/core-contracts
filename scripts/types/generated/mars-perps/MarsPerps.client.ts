@@ -18,6 +18,10 @@ import {
   SignedDecimal,
   QueryMsg,
   ConfigForString,
+  Accounting,
+  Balance,
+  CashFlow,
+  RealizedPnlAmounts,
   DenomStateResponse,
   Funding,
   ArrayOfDenomStateResponse,
@@ -80,6 +84,15 @@ export interface MarsPerpsReadOnlyInterface {
   positionsByAccount: ({ accountId }: { accountId: string }) => Promise<PositionsByAccountResponse>
   totalPnl: () => Promise<SignedDecimal>
   openingFee: ({ denom, size }: { denom: string; size: SignedDecimal }) => Promise<TradingFee>
+  denomAccounting: ({ denom }: { denom: string }) => Promise<Accounting>
+  totalAccounting: () => Promise<Accounting>
+  denomRealizedPnlForAccount: ({
+    accountId,
+    denom,
+  }: {
+    accountId: string
+    denom: string
+  }) => Promise<RealizedPnlAmounts>
 }
 export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
   client: CosmWasmClient
@@ -102,6 +115,9 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
     this.positionsByAccount = this.positionsByAccount.bind(this)
     this.totalPnl = this.totalPnl.bind(this)
     this.openingFee = this.openingFee.bind(this)
+    this.denomAccounting = this.denomAccounting.bind(this)
+    this.totalAccounting = this.totalAccounting.bind(this)
+    this.denomRealizedPnlForAccount = this.denomRealizedPnlForAccount.bind(this)
   }
 
   owner = async (): Promise<OwnerResponse> => {
@@ -230,6 +246,32 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
       opening_fee: {
         denom,
         size,
+      },
+    })
+  }
+  denomAccounting = async ({ denom }: { denom: string }): Promise<Accounting> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      denom_accounting: {
+        denom,
+      },
+    })
+  }
+  totalAccounting = async (): Promise<Accounting> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      total_accounting: {},
+    })
+  }
+  denomRealizedPnlForAccount = async ({
+    accountId,
+    denom,
+  }: {
+    accountId: string
+    denom: string
+  }): Promise<RealizedPnlAmounts> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      denom_realized_pnl_for_account: {
+        account_id: accountId,
+        denom,
       },
     })
   }

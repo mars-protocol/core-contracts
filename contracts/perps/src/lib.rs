@@ -1,4 +1,5 @@
 #[cfg(not(feature = "library"))]
+pub mod accounting;
 pub mod contract;
 pub mod denom;
 pub mod error;
@@ -7,4 +8,5 @@ pub mod position;
 pub mod pricing;
 pub mod query;
 pub mod state;
+pub mod utils;
 pub mod vault;
