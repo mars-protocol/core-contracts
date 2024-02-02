@@ -332,12 +332,18 @@ export const atomPerpDenom: PerpDenom = {
   denom: atomDenom,
   maxFundingVelocity: '3',
   skewScale: '1000000',
+  max_net_oi: '100000000000000',
+  max_long_oi: '100000000000000',
+  max_short_oi: '100000000000000',
 }
 
 export const ntrnPerpDenom: PerpDenom = {
   denom: 'untrn',
   maxFundingVelocity: '3',
   skewScale: '1000000',
+  max_net_oi: '100000000000000',
+  max_long_oi: '100000000000000',
+  max_short_oi: '100000000000000',
 }
 
 export const neutronTestnetConfig: DeploymentConfig = {
@@ -394,6 +400,8 @@ export const neutronTestnetConfig: DeploymentConfig = {
     baseDenom: axlUsdcDenom,
     cooldownPeriod: 300, // 5 min
     minPositionValue: '0',
+    openingFeeRate: '0.0005',
+    closingFeeRate: '0.0006',
     denoms: [atomPerpDenom, ntrnPerpDenom],
   },
 }

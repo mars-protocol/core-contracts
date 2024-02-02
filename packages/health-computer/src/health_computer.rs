@@ -525,7 +525,7 @@ impl HealthComputer {
 
         for position in self.positions.perps.iter() {
             // Update our pnl values
-            match &position.pnl.coins.pnl {
+            match &position.unrealised_pnl.coins.pnl {
                 PnL::Profit(pnl) => profit = profit.checked_add(pnl.amount)?,
                 PnL::Loss(pnl) => loss = loss.checked_add(pnl.amount)?,
                 _ => {}
@@ -870,7 +870,7 @@ impl HealthComputer {
         &self,
         position: &PerpPosition,
     ) -> HealthResult<(SignedDecimal, SignedDecimal)> {
-        let accrued_funding_value = position.pnl.values.accrued_funding;
+        let accrued_funding_value = position.unrealised_pnl.values.accrued_funding;
         // funding_max = max(0, unrealised_funding_accrued)
         let funding_max = if accrued_funding_value.is_positive() {
             accrued_funding_value

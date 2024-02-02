@@ -88,6 +88,8 @@ export interface DeploymentConfig {
     baseDenom: string
     cooldownPeriod: number
     minPositionValue: string
+    openingFeeRate: string
+    closingFeeRate: string
     denoms: PerpDenom[]
   }
 }
@@ -167,4 +169,7 @@ export interface PerpDenom {
   denom: string
   maxFundingVelocity: string
   skewScale: string
+  max_net_oi: string
+  max_long_oi: string
+  max_short_oi: string
 }

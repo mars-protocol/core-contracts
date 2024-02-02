@@ -260,7 +260,8 @@ pub struct PerpPosition {
     pub size: SignedDecimal,
     pub entry_price: Decimal,
     pub current_price: Decimal,
-    pub pnl: PositionPnl,
+    pub unrealised_pnl: PositionPnl,
+    pub realised_pnl: PnlValues,
     pub closing_fee_rate: Decimal,
 }
 
@@ -305,6 +306,17 @@ pub struct PnlValues {
 
     /// PnL: price PnL + accrued funding + closing fee
     pub pnl: SignedDecimal,
+}
+
+impl Default for PnlValues {
+    fn default() -> Self {
+        Self {
+            price_pnl: SignedDecimal::zero(),
+            accrued_funding: SignedDecimal::zero(),
+            closing_fee: SignedDecimal::zero(),
+            pnl: SignedDecimal::zero(),
+        }
+    }
 }
 
 /// Coins with Perp Vault base denom (uusdc) as a denom
@@ -481,6 +493,16 @@ pub enum ExecuteMsg {
     ClosePosition {
         account_id: String,
         denom: String,
+    },
+
+    /// Modify a perp position.
+    ModifyPosition {
+        account_id: String,
+        denom: String,
+
+        /// To increase a long or reduce a short, this will be positive
+        /// To decrease a long or increase a short, this will be negative
+        new_size: SignedDecimal,
     },
 }
 

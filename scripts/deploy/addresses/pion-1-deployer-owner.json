@@ -1,14 +1,14 @@
 {
-  "addressProvider": "neutron1nuevvk05e23a5jwfx3snfs4g5ygg3f4ef3nse50jz7e9224vrr6ss60ytn",
-  "redBank": "neutron1s5scv6rgy4fnxvdgwk30jwnzrm5wwleg9q7aw36fp4quwmrwcupss6y8r9",
-  "incentives": "neutron1fkkatnyqf4hfgxf75qdqargn77p2vn4xu4pautrd4665aut4wmfs0xqce9",
-  "oracle": "neutron1g407aq6jl8h5uzgghtt2myt32xdql2mmfxqjf45vlwr03u393lkqvzh0h8",
-  "rewardsCollector": "neutron1xgge50ha0apyx85czqfyqukaszd9j53c2thjgzmluwlq38fa3zgst8kd5k",
-  "swapper": "neutron1y868cxeqe8rcyvqa8rm878lupwymrha2eccv8ur4fr5ud08fsqrq8ezn2y",
-  "params": "neutron1989ehz8htxtjw7f80avprkudvnwh83zczrk4y0uev2mmmkfy7ujsn8u4as",
-  "zapper": "neutron1m8stpaxpvepzlchl3dd26lrjvkxr6n52kfuwphmfqy5jl8u0s4xswe7ypv",
-  "health": "neutron1egxtm2ffcwj5ddvp2049ua20v27ganw4z3cszaz8jh0cas0j5zwqgc667q",
-  "creditManager": "neutron1l0lyr4a9fq2je2c437dlv5k3960um2xztssky3n8usllk9wa0fpssjsaz3",
-  "accountNft": "neutron12wrdnp0edn7xqleak4khn265xrtkk732ext4d3yeyfz2gcup3e4scmmrj3",
-  "perps": "neutron1d7mwvg3sjlqafqm0k44schngexxs9rxf38fvzqglzan6282hp0jsdswgx6"
+  "addressProvider": "neutron16yfgu58zvh2f7yvu3ej7lfdq4d9ghqc8ykwvmychv8pkwthlt38sanpe37",
+  "redBank": "neutron17yzaz2z5x4u9exchhcnmxlfd78xsz79ujk8m98g6pd7kvzjvuqmsr5fzr5",
+  "incentives": "neutron13tr2nh8uy4ajsxxp7u9z807hpj2t8zcfj5a90kfl7yneahsh3stssqywpr",
+  "oracle": "neutron1mjyg353pfe5475xfajpk6nxq0ddv64als68mxkxxqzjepmv48htsqkrshp",
+  "rewardsCollector": "neutron174yfdvf6n7lhqw22gtq434dp25urlnauezsfzgpqrvvjywmn7vmsxek3y6",
+  "swapper": "neutron1cr0vdhdxdcgm5xx6pu3pn220544e79ysxmn05x6x25hhxq689q2swz2mjy",
+  "params": "neutron1qtps7n6z35x5tv2fuul6ejmvea8ntgvjpgyv2fqnwrgkg06kgzfssv6qxz",
+  "zapper": "neutron1jvhfvhl7z0jpqtnaldzunjk4k0z67s57a0axk9eupj2t9k5a4wysqcaj58",
+  "health": "neutron1xgymj007vhwgrjkq0v0wk7234n4gazkgzs83u9jt3sygzp49mg6q9e0wnt",
+  "creditManager": "neutron1sh3xzw30zke656rdyxl6y9el2uq846jwxquch94wfwrxsc7z2luq2emapf",
+  "accountNft": "neutron1qa0d8z9ensfzl30n2hvhrfxf3y0j7v5njqzut8m6wqken33htc6q6smt8q",
+  "perps": "neutron1swedm3yn5jpt8n3x77vve0rrrsespg5jzu33vcj2lnlxdajx2v3qpc76qt"
 }

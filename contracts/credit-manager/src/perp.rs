@@ -1,5 +1,5 @@
-use cosmwasm_std::{coin, Coin, CosmosMsg, DepsMut, Response, Uint128};
-use mars_types::{math::SignedDecimal, perps::PnL};
+use cosmwasm_std::{coin, Addr, Coin, CosmosMsg, DepsMut, Response, Uint128};
+use mars_types::{adapters::perps::PerpsBase, math::SignedDecimal, perps::PnL};
 
 use crate::{
     borrow,
@@ -76,7 +76,23 @@ fn deduct_payment(
 
 pub fn close_perp(deps: DepsMut, account_id: &str, denom: &str) -> ContractResult<Response> {
     let perps = PERPS.load(deps.storage)?;
+    let (funds, mut msgs) = calculate_payment(deps, perps.clone(), account_id, denom)?;
+    let close_msg = perps.close_msg(account_id, denom, funds)?;
+    msgs.push(close_msg);
 
+    Ok(Response::new()
+        .add_messages(msgs)
+        .add_attribute("action", "close_perp_position")
+        .add_attribute("account_id", account_id)
+        .add_attribute("denom", denom))
+}
+
+fn calculate_payment(
+    deps: DepsMut,
+    perps: PerpsBase<Addr>,
+    account_id: &str,
+    denom: &str,
+) -> ContractResult<(Vec<Coin>, Vec<CosmosMsg>)> {
     // query the perp position PnL so that we know whether funds needs to be
     // sent to the perps contract
     //
@@ -88,34 +104,43 @@ pub fn close_perp(deps: DepsMut, account_id: &str, denom: &str) -> ContractResul
     // this with the FE team.
     let position = perps.query_position(&deps.querier, account_id, denom)?;
 
-    let mut response = Response::new();
-
     // if PnL is negative, we need to send funds to the perps contract, and
     // decrement the internally tracked user coin balance.
     // otherwise, no action
-    let funds = match position.pnl.coins.pnl {
+    Ok(match position.unrealised_pnl.coins.pnl {
         PnL::Loss(coin) => {
             let borrow_msg_opt = deduct_payment(deps, account_id, &coin)?;
+            let mut cosmos_msgs = vec![];
             if let Some(borrow_msg) = borrow_msg_opt {
-                response = response.add_message(borrow_msg);
+                cosmos_msgs.push(borrow_msg);
             }
 
-            vec![coin]
+            (vec![coin], cosmos_msgs)
         }
         PnL::Profit(coin) => {
             increment_coin_balance(deps.storage, account_id, &coin)?;
 
-            vec![]
+            (vec![], vec![])
         }
-        _ => vec![],
-    };
+        _ => (vec![], vec![]),
+    })
+}
 
-    let msg = perps.close_msg(account_id, denom, funds)?;
+pub fn modify_perp(
+    deps: DepsMut,
+    account_id: &str,
+    denom: &str,
+    new_size: SignedDecimal,
+) -> ContractResult<Response> {
+    let perps = PERPS.load(deps.storage)?;
+    let (funds, mut msgs) = calculate_payment(deps, perps.clone(), account_id, denom)?;
 
-    Ok(response
-        .add_message(msg)
-        .add_attribute("action", "close_perp_position")
+    msgs.push(perps.modify_msg(account_id, denom, new_size, funds)?);
+
+    Ok(Response::new()
+        .add_messages(msgs)
+        .add_attribute("action", "modify_perp_position")
         .add_attribute("account_id", account_id)
         .add_attribute("denom", denom)
-        .add_attribute("size", position.size.to_string()))
+        .add_attribute("new_size", new_size.to_string()))
 }

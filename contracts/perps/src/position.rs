@@ -19,6 +19,8 @@ pub trait PositionExt {
         base_denom_price: Decimal,
         base_denom: &str,
         closing_fee_rate: Decimal,
+        reducing: bool,
+        q_change: Option<SignedDecimal>,
     ) -> ContractResult<(PositionPnl, PnlAmounts)>;
 }
 
@@ -31,6 +33,8 @@ impl PositionExt for Position {
         base_denom_price: Decimal,
         base_denom: &str,
         closing_fee_rate: Decimal,
+        reducing: bool,
+        q_change: Option<SignedDecimal>,
     ) -> ContractResult<(PositionPnl, PnlAmounts)> {
         // TODO: exec price should be positive
         let entry_exec_price = opening_execution_price(
@@ -55,14 +59,28 @@ impl PositionExt for Position {
         let accrued_funding_value =
             accrued_funding_in_base_denom.checked_mul(base_denom_price.into())?;
 
-        // fee_in_base_denom = closing_fee_rate * denom_exec_price * size
         let denom_exec_price = exit_exec_price.abs;
-        let closing_fee_value =
-            self.size.abs.checked_mul(denom_exec_price.checked_mul(closing_fee_rate)?)?;
-        // make closing fee negative to show that it's a cost for the user
-        let closing_fee_value: SignedDecimal =
-            SignedDecimal::zero().checked_sub(closing_fee_value.into())?;
-        let closing_fee_in_base_denom = closing_fee_value.checked_div(base_denom_price.into())?;
+
+        // Only charge closing fees if we are reducing size
+        let (closing_fee_value, closing_fee_in_base_denom) = match reducing {
+            true => {
+                // fee_in_base_denom = closing_fee_rate * denom_exec_price * size
+                let closing_fee_value = q_change
+                    .unwrap_or(self.size)
+                    .abs
+                    .checked_mul(denom_exec_price.checked_mul(closing_fee_rate)?)?;
+                // make closing fee negative to show that it's a cost for the user
+                let closing_fee_value: SignedDecimal =
+                    SignedDecimal::zero().checked_sub(closing_fee_value.into())?;
+                let closing_fee_in_base_denom =
+                    closing_fee_value.checked_div(base_denom_price.into())?;
+                (closing_fee_value, closing_fee_in_base_denom)
+            }
+            false => {
+                // we only apply closing fees to negative
+                (SignedDecimal::zero(), SignedDecimal::zero())
+            }
+        };
 
         let realized_pnl_value =
             price_pnl_value.checked_add(accrued_funding_value)?.checked_add(closing_fee_value)?;
@@ -285,6 +303,8 @@ mod tests {
                 Decimal::from_str("0.8").unwrap(),
                 MOCK_BASE_DENOM,
                 closing_fee,
+                true,
+                None,
             )
             .unwrap();
         assert_eq!(pnl, expect_pnl);

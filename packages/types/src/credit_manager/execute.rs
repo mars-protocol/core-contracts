@@ -152,6 +152,12 @@ pub enum Action {
     ClosePerp {
         denom: String,
     },
+
+    // Reduce, increase or flip a positions size.
+    ModifyPerp {
+        denom: String,
+        new_size: SignedDecimal,
+    },
     /// Deposit coins into vault strategy
     /// If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault
     EnterVault {
@@ -280,6 +286,11 @@ pub enum CallbackMsg {
     ClosePerp {
         account_id: String,
         denom: String,
+    },
+    ModifyPerp {
+        account_id: String,
+        denom: String,
+        new_size: SignedDecimal,
     },
     /// Adds coin to a vault strategy
     EnterVault {

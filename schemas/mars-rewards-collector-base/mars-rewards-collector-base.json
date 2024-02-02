@@ -488,6 +488,31 @@
             "additionalProperties": false
           },
           {
+            "type": "object",
+            "required": [
+              "modify_perp"
+            ],
+            "properties": {
+              "modify_perp": {
+                "type": "object",
+                "required": [
+                  "denom",
+                  "new_size"
+                ],
+                "properties": {
+                  "denom": {
+                    "type": "string"
+                  },
+                  "new_size": {
+                    "$ref": "#/definitions/SignedDecimal"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Deposit coins into vault strategy If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault",
             "type": "object",
             "required": [

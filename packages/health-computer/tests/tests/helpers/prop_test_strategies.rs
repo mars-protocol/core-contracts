@@ -12,7 +12,7 @@ use mars_types::{
     health::AccountKind,
     math::SignedDecimal,
     params::{AssetParams, CmSettings, HlsParams, LiquidationBonus, RedBankSettings, VaultConfig},
-    perps::{Funding, PerpPosition, Position},
+    perps::{Funding, PerpPosition, PnlValues, Position},
 };
 use proptest::{
     collection::vec,
@@ -309,6 +309,8 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                             usdc_price,
                             &base_denom,
                             closing_fee_rate,
+                            true,
+                            None,
                         )
                         .unwrap();
 
@@ -318,7 +320,8 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                         size,
                         current_price,
                         entry_price,
-                        pnl,
+                        unrealised_pnl: pnl,
+                        realised_pnl: PnlValues::default(),
                         closing_fee_rate,
                     }
                 },

@@ -330,8 +330,9 @@
         "current_price",
         "denom",
         "entry_price",
-        "pnl",
-        "size"
+        "realised_pnl",
+        "size",
+        "unrealised_pnl"
       ],
       "properties": {
         "base_denom": {
@@ -349,11 +350,14 @@
         "entry_price": {
           "$ref": "#/definitions/Decimal"
         },
-        "pnl": {
-          "$ref": "#/definitions/PositionPnl"
+        "realised_pnl": {
+          "$ref": "#/definitions/PnlValues"
         },
         "size": {
           "$ref": "#/definitions/SignedDecimal"
+        },
+        "unrealised_pnl": {
+          "$ref": "#/definitions/PositionPnl"
         }
       },
       "additionalProperties": false

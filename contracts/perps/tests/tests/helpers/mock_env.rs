@@ -212,6 +212,26 @@ impl MockEnv {
         )
     }
 
+    pub fn modify_position(
+        &mut self,
+        sender: &Addr,
+        account_id: &str,
+        denom: &str,
+        new_size: SignedDecimal,
+        funds: &[Coin],
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.perps.clone(),
+            &perps::ExecuteMsg::ModifyPosition {
+                account_id: account_id.to_string(),
+                denom: denom.to_string(),
+                new_size,
+            },
+            funds,
+        )
+    }
+
     pub fn close_position(
         &mut self,
         sender: &Addr,

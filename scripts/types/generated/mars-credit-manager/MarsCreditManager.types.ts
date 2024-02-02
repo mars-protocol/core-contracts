@@ -96,6 +96,12 @@ export type Action =
       }
     }
   | {
+      modify_perp: {
+        denom: string
+        new_size: SignedDecimal
+      }
+    }
+  | {
       enter_vault: {
         coin: ActionCoin
         vault: VaultBaseForString
@@ -273,6 +279,13 @@ export type CallbackMsg =
       close_perp: {
         account_id: string
         denom: string
+      }
+    }
+  | {
+      modify_perp: {
+        account_id: string
+        denom: string
+        new_size: SignedDecimal
       }
     }
   | {
@@ -608,8 +621,15 @@ export interface PerpPosition {
   current_price: Decimal
   denom: string
   entry_price: Decimal
-  pnl: PositionPnl
+  realised_pnl: PnlValues
   size: SignedDecimal
+  unrealised_pnl: PositionPnl
+}
+export interface PnlValues {
+  accrued_funding: SignedDecimal
+  closing_fee: SignedDecimal
+  pnl: SignedDecimal
+  price_pnl: SignedDecimal
 }
 export interface PositionPnl {
   coins: PnlCoins
@@ -618,12 +638,6 @@ export interface PositionPnl {
 export interface PnlCoins {
   closing_fee: Coin
   pnl: PnL
-}
-export interface PnlValues {
-  accrued_funding: SignedDecimal
-  closing_fee: SignedDecimal
-  pnl: SignedDecimal
-  price_pnl: SignedDecimal
 }
 export interface VaultPositionValue {
   base_coin: CoinValue

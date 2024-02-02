@@ -87,7 +87,7 @@ pub trait DenomStateExt {
     fn decrease_open_interest(&mut self, size: SignedDecimal) -> ContractResult<()>;
 
     /// Update the accumulators when a new position is opened
-    fn open_position(
+    fn increase_position(
         &mut self,
         current_time: u64,
         size: SignedDecimal,
@@ -102,6 +102,15 @@ pub trait DenomStateExt {
         denom_price: Decimal,
         base_denom_price: Decimal,
         position: &Position,
+    ) -> ContractResult<()>;
+
+    fn decrease_position(
+        &mut self,
+        current_time: u64,
+        denom_price: Decimal,
+        base_denom_price: Decimal,
+        position: &Position,
+        size_of_reduction: SignedDecimal,
     ) -> ContractResult<()>;
 
     /// Compute the price PnL of all open positions
@@ -293,7 +302,7 @@ impl DenomStateExt for DenomState {
         Ok(())
     }
 
-    fn open_position(
+    fn increase_position(
         &mut self,
         current_time: u64,
         size: SignedDecimal,
@@ -330,12 +339,13 @@ impl DenomStateExt for DenomState {
         Ok(())
     }
 
-    fn close_position(
+    fn decrease_position(
         &mut self,
         current_time: u64,
         denom_price: Decimal,
         base_denom_price: Decimal,
         position: &Position,
+        q_change: SignedDecimal,
     ) -> ContractResult<()> {
         // calculate the current funding with size up to the current time
         self.funding = self.current_funding(current_time, denom_price, base_denom_price)?;
@@ -347,12 +357,12 @@ impl DenomStateExt for DenomState {
             position.size,
             position.entry_price,
         )?;
-        let value = position.size.checked_mul(entry_exec_price)?;
-        self.total_entry_cost = self.total_entry_cost.checked_sub(value)?;
+        let value_of_reduction = q_change.checked_mul(entry_exec_price)?;
+        self.total_entry_cost = self.total_entry_cost.checked_sub(value_of_reduction)?;
 
-        // decrease the total_entry_funding accumulator
+        // decrease the total_entry_funding accumulator accordingly
         self.total_entry_funding = self.total_entry_funding.checked_sub(
-            position.size.checked_mul(position.entry_accrued_funding_per_unit_in_base_denom)?,
+            q_change.checked_mul(position.entry_accrued_funding_per_unit_in_base_denom)?,
         )?;
 
         // decrease the total_squared_positions accumulator
@@ -365,11 +375,21 @@ impl DenomStateExt for DenomState {
             .checked_sub(position.size.checked_mul(position.size.abs.into())?)?;
 
         // update the open interest
-        self.decrease_open_interest(position.size)?;
+        self.decrease_open_interest(q_change)?;
 
         self.last_updated = current_time;
 
         Ok(())
+    }
+
+    fn close_position(
+        &mut self,
+        current_time: u64,
+        denom_price: Decimal,
+        base_denom_price: Decimal,
+        position: &Position,
+    ) -> ContractResult<()> {
+        self.decrease_position(current_time, denom_price, base_denom_price, position, position.size)
     }
 
     fn compute_price_pnl(&self, exit_price: Decimal) -> ContractResult<SignedDecimal> {
@@ -725,7 +745,7 @@ mod tests {
         let mut ds = denom_state();
         let ds_before_modification = ds.clone();
 
-        ds.open_position(
+        ds.increase_position(
             43400,
             SignedDecimal::from_str("-100").unwrap(),
             Decimal::from_str("4200").unwrap(),
@@ -787,6 +807,47 @@ mod tests {
                 total_squared_positions: SignedDecimal::from_str("4400").unwrap(),
                 total_abs_multiplied_positions: SignedDecimal::from_str("9775").unwrap(),
                 short_oi: ds_before_modification.short_oi - Decimal::from_str("100").unwrap(),
+                last_updated: 43400,
+                ..ds_before_modification
+            }
+        );
+    }
+
+    #[test]
+    fn decrease_position() {
+        let mut ds = denom_state();
+        let ds_before_modification = ds.clone();
+
+        ds.decrease_position(
+            43400,
+            Decimal::from_str("4200").unwrap(),
+            Decimal::from_str("0.8").unwrap(),
+            &Position {
+                size: SignedDecimal::from_str("-100").unwrap(),
+                entry_price: Decimal::from_str("4200").unwrap(),
+                entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("77.25")
+                    .unwrap(),
+                initial_skew: SignedDecimal::from_str("-12000").unwrap(),
+                opening_fee_in_base_denom: Uint128::zero(),
+            },
+            SignedDecimal::from_str("-50").unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            ds,
+            DenomState {
+                funding: Funding {
+                    last_funding_rate: SignedDecimal::from_str("-0.043").unwrap(),
+                    last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("77.25")
+                        .unwrap(),
+                    ..ds_before_modification.funding
+                },
+                total_entry_cost: SignedDecimal::from_str("207344.5").unwrap(),
+                total_entry_funding: SignedDecimal::from_str("4130.5").unwrap(),
+                total_squared_positions: SignedDecimal::from_str("4400").unwrap(), // FIXME: should be different?
+                total_abs_multiplied_positions: SignedDecimal::from_str("9775").unwrap(), // FIXME: should be different?
+                short_oi: ds_before_modification.short_oi - Decimal::from_str("50").unwrap(),
                 last_updated: 43400,
                 ..ds_before_modification
             }

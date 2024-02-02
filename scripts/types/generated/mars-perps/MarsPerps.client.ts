@@ -35,9 +35,9 @@ import {
   PnL,
   PositionResponse,
   PerpPosition,
+  PnlValues,
   PositionPnl,
   PnlCoins,
-  PnlValues,
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
   ArrayOfUnlockState,
@@ -365,6 +365,20 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     memo?: string,
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
+  modifyPosition: (
+    {
+      accountId,
+      denom,
+      newSize,
+    }: {
+      accountId: string
+      denom: string
+      newSize: SignedDecimal
+    },
+    fee?: number | StdFee | 'auto',
+    memo?: string,
+    _funds?: Coin[],
+  ) => Promise<ExecuteResult>
 }
 export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsInterface {
   client: SigningCosmWasmClient
@@ -385,6 +399,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     this.withdraw = this.withdraw.bind(this)
     this.openPosition = this.openPosition.bind(this)
     this.closePosition = this.closePosition.bind(this)
+    this.modifyPosition = this.modifyPosition.bind(this)
   }
 
   updateOwner = async (
@@ -582,6 +597,35 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
         close_position: {
           account_id: accountId,
           denom,
+        },
+      },
+      fee,
+      memo,
+      _funds,
+    )
+  }
+  modifyPosition = async (
+    {
+      accountId,
+      denom,
+      newSize,
+    }: {
+      accountId: string
+      denom: string
+      newSize: SignedDecimal
+    },
+    fee: number | StdFee | 'auto' = 'auto',
+    memo?: string,
+    _funds?: Coin[],
+  ): Promise<ExecuteResult> => {
+    return await this.client.execute(
+      this.sender,
+      this.contractAddress,
+      {
+        modify_position: {
+          account_id: accountId,
+          denom,
+          new_size: newSize,
         },
       },
       fee,

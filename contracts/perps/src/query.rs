@@ -17,7 +17,10 @@ use crate::{
     error::ContractResult,
     position::PositionExt,
     pricing::opening_execution_price,
-    state::{CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, REALIZED_PNL, UNLOCKS, VAULT_STATE},
+    state::{
+        CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, REALISED_PNL_STATES, REALIZED_PNL,
+        UNLOCKS, VAULT_STATE,
+    },
     vault::shares_to_amount,
 };
 
@@ -170,7 +173,12 @@ pub fn position(
         base_denom_price,
         &cfg.base_denom,
         cfg.closing_fee_rate,
+        true,
+        None,
     )?;
+
+    let realised_pnl =
+        REALISED_PNL_STATES.may_load(deps.storage, (&account_id, &denom))?.unwrap_or_default();
 
     Ok(PositionResponse {
         account_id,
@@ -180,7 +188,8 @@ pub fn position(
             size: position.size,
             entry_price: position.entry_price,
             current_price: denom_price,
-            pnl,
+            unrealised_pnl: pnl,
+            realised_pnl,
             closing_fee_rate: cfg.closing_fee_rate,
         },
     })
@@ -235,6 +244,8 @@ pub fn positions(
                     base_denom_price,
                     &cfg.base_denom,
                     cfg.closing_fee_rate,
+                    true,
+                    None,
                 )?
             } else {
                 let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
@@ -247,11 +258,17 @@ pub fn positions(
                     base_denom_price,
                     &cfg.base_denom,
                     cfg.closing_fee_rate,
+                    true,
+                    None,
                 )?;
                 ds.funding = curr_funding;
                 denoms.insert(denom.clone(), ds);
                 pnl
             };
+
+            let realised_pnl = REALISED_PNL_STATES
+                .may_load(deps.storage, (&account_id, &denom))?
+                .unwrap_or_default();
 
             Ok(PositionResponse {
                 account_id,
@@ -261,7 +278,8 @@ pub fn positions(
                     size: position.size,
                     entry_price: position.entry_price,
                     current_price,
-                    pnl,
+                    unrealised_pnl: pnl,
+                    realised_pnl,
                     closing_fee_rate: cfg.closing_fee_rate,
                 },
             })
@@ -298,7 +316,13 @@ pub fn positions_by_account(
                 base_denom_price,
                 &cfg.base_denom,
                 cfg.closing_fee_rate,
+                true,
+                None,
             )?;
+
+            let realised_pnl = REALISED_PNL_STATES
+                .may_load(deps.storage, (&account_id, &denom))?
+                .unwrap_or_default();
 
             Ok(PerpPosition {
                 denom,
@@ -306,7 +330,8 @@ pub fn positions_by_account(
                 size: position.size,
                 entry_price: position.entry_price,
                 current_price: denom_price,
-                pnl,
+                unrealised_pnl: pnl,
+                realised_pnl,
                 closing_fee_rate: cfg.closing_fee_rate,
             })
         })

@@ -65,6 +65,13 @@ export type ExecuteMsg =
         denom: string
       }
     }
+  | {
+      modify_position: {
+        account_id: string
+        denom: string
+        new_size: SignedDecimal
+      }
+    }
 export type OwnerUpdate =
   | {
       propose_new_owner: {
@@ -271,8 +278,15 @@ export interface PerpPosition {
   current_price: Decimal
   denom: string
   entry_price: Decimal
-  pnl: PositionPnl
+  realised_pnl: PnlValues
   size: SignedDecimal
+  unrealised_pnl: PositionPnl
+}
+export interface PnlValues {
+  accrued_funding: SignedDecimal
+  closing_fee: SignedDecimal
+  pnl: SignedDecimal
+  price_pnl: SignedDecimal
 }
 export interface PositionPnl {
   coins: PnlCoins
@@ -281,12 +295,6 @@ export interface PositionPnl {
 export interface PnlCoins {
   closing_fee: Coin
   pnl: PnL
-}
-export interface PnlValues {
-  accrued_funding: SignedDecimal
-  closing_fee: SignedDecimal
-  pnl: SignedDecimal
-  price_pnl: SignedDecimal
 }
 export type ArrayOfPositionResponse = PositionResponse[]
 export interface PositionsByAccountResponse {

@@ -36,9 +36,9 @@ import {
   PnL,
   PositionResponse,
   PerpPosition,
+  PnlValues,
   PositionPnl,
   PnlCoins,
-  PnlValues,
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
   ArrayOfUnlockState,
@@ -443,6 +443,31 @@ export function useMarsPerpsOwnerQuery<TData = OwnerResponse>({
     marsPerpsQueryKeys.owner(client?.contractAddress),
     () => (client ? client.owner() : Promise.reject(new Error('Invalid client'))),
     { ...options, enabled: !!client && (options?.enabled != undefined ? options.enabled : true) },
+  )
+}
+export interface MarsPerpsModifyPositionMutation {
+  client: MarsPerpsClient
+  msg: {
+    accountId: string
+    denom: string
+    newSize: SignedDecimal
+  }
+  args?: {
+    fee?: number | StdFee | 'auto'
+    memo?: string
+    funds?: Coin[]
+  }
+}
+export function useMarsPerpsModifyPositionMutation(
+  options?: Omit<
+    UseMutationOptions<ExecuteResult, Error, MarsPerpsModifyPositionMutation>,
+    'mutationFn'
+  >,
+) {
+  return useMutation<ExecuteResult, Error, MarsPerpsModifyPositionMutation>(
+    ({ client, msg, args: { fee, memo, funds } = {} }) =>
+      client.modifyPosition(msg, fee, memo, funds),
+    options,
   )
 }
 export interface MarsPerpsClosePositionMutation {

@@ -59,7 +59,7 @@ fn computing_funding() {
     // query state for h0
     let user_1_pos = mock.query_position("1", "ueth");
     // assert_eq!(user_1_pos.position.pnl.coins.pnl, PnL::BreakEven);
-    assert_eq!(user_1_pos.position.pnl.values.pnl, SignedDecimal::zero());
+    assert_eq!(user_1_pos.position.unrealised_pnl.values.pnl, SignedDecimal::zero());
     let ds = mock.query_perp_denom_state("ueth");
     assert_eq!(ds.rate, SignedDecimal::zero());
     assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("600090").unwrap());
@@ -79,12 +79,12 @@ fn computing_funding() {
     let user_1_pos = mock.query_position("1", "ueth");
     // assert_eq!(user_1_pos.position.pnl, PnL::Loss(coin(91u128, "uusdc")));
     assert_eq!(
-        user_1_pos.position.pnl.values.pnl,
+        user_1_pos.position.unrealised_pnl.values.pnl,
         SignedDecimal::from_str("-91.87499999999939994").unwrap()
     );
     let user_2_pos = mock.query_position("2", "ueth");
     // assert_eq!(user_2_pos.position.pnl, PnL::BreakEven);
-    assert_eq!(user_2_pos.position.pnl.values.pnl, SignedDecimal::zero());
+    assert_eq!(user_2_pos.position.unrealised_pnl.values.pnl, SignedDecimal::zero());
     let ds = mock.query_perp_denom_state("ueth");
     assert_eq!(ds.rate, SignedDecimal::from_str("0.000074999999999999").unwrap());
     assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("300022.5").unwrap());
@@ -103,13 +103,13 @@ fn computing_funding() {
     let user_1_pos = mock.query_position("1", "ueth");
     // assert_eq!(user_1_pos.position.pnl.coins.pnl, PnL::Loss(coin(121u128, "uusdc")));
     assert_eq!(
-        user_1_pos.position.pnl.values.pnl,
+        user_1_pos.position.unrealised_pnl.values.pnl,
         SignedDecimal::from_str("-121.8749999999987997").unwrap()
     );
     let user_2_pos = mock.query_position("2", "ueth");
     // assert_eq!(user_2_pos.position.pnl.coins.pnl, PnL::Profit(coin(14u128, "uusdc"))); // spreadsheet says 15 (rounding error in SC?)
     assert_eq!(
-        user_2_pos.position.pnl.values.pnl,
+        user_2_pos.position.unrealised_pnl.values.pnl,
         SignedDecimal::from_str("14.99999999999969988").unwrap()
     );
     let ds = mock.query_perp_denom_state("ueth");
@@ -133,13 +133,13 @@ fn computing_funding() {
     let user_1_pos = mock.query_position("1", "ueth");
     // assert_eq!(user_1_pos.position.pnl.coins.pnl, PnL::Profit(coin(5865u128, "uusdc")));
     assert_eq!(
-        user_1_pos.position.pnl.values.pnl,
+        user_1_pos.position.unrealised_pnl.values.pnl,
         SignedDecimal::from_str("5865.51562500000120621").unwrap()
     );
     let user_2_pos = mock.query_position("2", "ueth");
     // assert_eq!(user_2_pos.position.pnl.coins.pnl, PnL::Loss(coin(2979u128, "uusdc")));
     assert_eq!(
-        user_2_pos.position.pnl.values.pnl,
+        user_2_pos.position.unrealised_pnl.values.pnl,
         SignedDecimal::from_str("-2979.370312500000303075").unwrap()
     );
 
@@ -152,11 +152,11 @@ fn computing_funding() {
     // query state for h12 after user 1 realized pnl
     let user_1_pos = mock.query_position("1", "ueth");
     // assert_eq!(user_1_pos.position.pnl.coins.pnl, PnL::BreakEven); // realized pnl should be zero
-    assert_eq!(user_1_pos.position.pnl.values.pnl, SignedDecimal::zero());
+    assert_eq!(user_1_pos.position.unrealised_pnl.values.pnl, SignedDecimal::zero());
     let user_2_pos = mock.query_position("2", "ueth");
     // assert_eq!(user_2_pos.position.pnl.coins.pnl, PnL::Loss(coin(2979u128, "uusdc")));
     assert_eq!(
-        user_2_pos.position.pnl.values.pnl,
+        user_2_pos.position.unrealised_pnl.values.pnl,
         SignedDecimal::from_str("-2979.370312500000303075").unwrap()
     );
     let ds = mock.query_perp_denom_state("ueth");
@@ -180,13 +180,13 @@ fn computing_funding() {
     let user_1_pos = mock.query_position("1", "ueth");
     // assert_eq!(user_1_pos.position.pnl.coins.pnl, PnL::Profit(coin(5977u128, "uusdc")));
     assert_eq!(
-        user_1_pos.position.pnl.values.pnl,
+        user_1_pos.position.unrealised_pnl.values.pnl,
         SignedDecimal::from_str("5977.76718750000061209").unwrap()
     );
     let user_2_pos = mock.query_position("2", "ueth");
     // assert_eq!(user_2_pos.position.pnl.coins.pnl, PnL::Loss(coin(5968u128, "uusdc")));
     assert_eq!(
-        user_2_pos.position.pnl.values.pnl,
+        user_2_pos.position.unrealised_pnl.values.pnl,
         SignedDecimal::from_str("-5968.92890625000060912").unwrap()
     );
     let ds = mock.query_perp_denom_state("ueth");
@@ -210,12 +210,12 @@ fn computing_funding() {
     let user_1_pos = mock.query_position("1", "ueth");
     // assert_eq!(user_1_pos.position.pnl, PnL::Profit(coin(5855u128, "uusdc")));
     assert_eq!(
-        user_1_pos.position.pnl.values.pnl,
+        user_1_pos.position.unrealised_pnl.values.pnl,
         SignedDecimal::from_str("5855.36718750000061209").unwrap()
     );
     let user_2_pos = mock.query_position("2", "ueth");
     // assert_eq!(user_2_pos.position.pnl, PnL::BreakEven);
-    assert_eq!(user_2_pos.position.pnl.values.pnl, SignedDecimal::zero());
+    assert_eq!(user_2_pos.position.unrealised_pnl.values.pnl, SignedDecimal::zero());
     let ds = mock.query_perp_denom_state("ueth");
     assert_eq!(ds.rate, SignedDecimal::from_str("0.000318749999999998").unwrap()); // rate shouldn't change after closing and opening the same position size
     assert_eq!(ds.total_entry_cost, SignedDecimal::from_str("-108089.25").unwrap());
@@ -237,13 +237,13 @@ fn computing_funding() {
     let user_1_pos = mock.query_position("1", "ueth");
     // assert_eq!(user_1_pos.position.pnl, PnL::Loss(coin(12178u128, "uusdc")));
     assert_eq!(
-        user_1_pos.position.pnl.values.pnl,
+        user_1_pos.position.unrealised_pnl.values.pnl,
         SignedDecimal::from_str("-12178.54453124999899191").unwrap()
     );
     let user_2_pos = mock.query_position("2", "ueth");
     // assert_eq!(user_2_pos.position.pnl, PnL::Profit(coin(21046u128, "uusdc")));
     assert_eq!(
-        user_2_pos.position.pnl.values.pnl,
+        user_2_pos.position.unrealised_pnl.values.pnl,
         SignedDecimal::from_str("21046.388671874999538").unwrap()
     );
     let ds = mock.query_perp_denom_state("ueth");
@@ -261,7 +261,7 @@ fn computing_funding() {
 }
 
 fn from_position_to_coin(pos: PerpPosition) -> Vec<Coin> {
-    if let PnL::Loss(coin) = pos.pnl.coins.pnl {
+    if let PnL::Loss(coin) = pos.unrealised_pnl.coins.pnl {
         vec![coin]
     } else {
         vec![]

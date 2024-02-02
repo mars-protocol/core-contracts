@@ -116,6 +116,11 @@ pub enum ContractError {
         required: Uint128,
         received: Uint128,
     },
+
+    #[error("Illegal position modification: {reason}")]
+    IllegalPositionModification {
+        reason: String,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

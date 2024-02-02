@@ -110,7 +110,7 @@ fn perp_position_when_usdc_in_account() {
 
     // check perp position pnl
     let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
-    let loss_amt = pnl_loss(perp_position.pnl.coins.pnl);
+    let loss_amt = pnl_loss(perp_position.unrealised_pnl.coins.pnl);
 
     // close perp position
     mock.update_credit_account(
@@ -263,7 +263,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
 
     // check perp position pnl
     let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
-    let loss_amt = pnl_loss(perp_position.pnl.coins.pnl);
+    let loss_amt = pnl_loss(perp_position.unrealised_pnl.coins.pnl);
 
     // close perp position
     mock.update_credit_account(
@@ -389,7 +389,7 @@ fn perp_position_when_no_usdc_in_account() {
 
     // check perp position pnl
     let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
-    let loss_amt = pnl_loss(perp_position.pnl.coins.pnl);
+    let loss_amt = pnl_loss(perp_position.unrealised_pnl.coins.pnl);
 
     // close perp position
     mock.update_credit_account(
@@ -515,7 +515,7 @@ fn close_perp_position_with_profit() {
 
     // check perp position pnl
     let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
-    let profit_amt = pnl_profit(perp_position.pnl.coins.pnl);
+    let profit_amt = pnl_profit(perp_position.unrealised_pnl.coins.pnl);
 
     // close perp position
     mock.update_credit_account(

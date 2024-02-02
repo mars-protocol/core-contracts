@@ -304,6 +304,41 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "Modify a perp position.",
+        "type": "object",
+        "required": [
+          "modify_position"
+        ],
+        "properties": {
+          "modify_position": {
+            "type": "object",
+            "required": [
+              "account_id",
+              "denom",
+              "new_size"
+            ],
+            "properties": {
+              "account_id": {
+                "type": "string"
+              },
+              "denom": {
+                "type": "string"
+              },
+              "new_size": {
+                "description": "To increase a long or reduce a short, this will be positive To decrease a long or increase a short, this will be negative",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/SignedDecimal"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -1562,8 +1597,9 @@
             "current_price",
             "denom",
             "entry_price",
-            "pnl",
-            "size"
+            "realised_pnl",
+            "size",
+            "unrealised_pnl"
           ],
           "properties": {
             "base_denom": {
@@ -1581,11 +1617,14 @@
             "entry_price": {
               "$ref": "#/definitions/Decimal"
             },
-            "pnl": {
-              "$ref": "#/definitions/PositionPnl"
+            "realised_pnl": {
+              "$ref": "#/definitions/PnlValues"
             },
             "size": {
               "$ref": "#/definitions/SignedDecimal"
+            },
+            "unrealised_pnl": {
+              "$ref": "#/definitions/PositionPnl"
             }
           },
           "additionalProperties": false
@@ -1746,8 +1785,9 @@
             "current_price",
             "denom",
             "entry_price",
-            "pnl",
-            "size"
+            "realised_pnl",
+            "size",
+            "unrealised_pnl"
           ],
           "properties": {
             "base_denom": {
@@ -1765,11 +1805,14 @@
             "entry_price": {
               "$ref": "#/definitions/Decimal"
             },
-            "pnl": {
-              "$ref": "#/definitions/PositionPnl"
+            "realised_pnl": {
+              "$ref": "#/definitions/PnlValues"
             },
             "size": {
               "$ref": "#/definitions/SignedDecimal"
+            },
+            "unrealised_pnl": {
+              "$ref": "#/definitions/PositionPnl"
             }
           },
           "additionalProperties": false
@@ -1959,8 +2002,9 @@
             "current_price",
             "denom",
             "entry_price",
-            "pnl",
-            "size"
+            "realised_pnl",
+            "size",
+            "unrealised_pnl"
           ],
           "properties": {
             "base_denom": {
@@ -1978,11 +2022,14 @@
             "entry_price": {
               "$ref": "#/definitions/Decimal"
             },
-            "pnl": {
-              "$ref": "#/definitions/PositionPnl"
+            "realised_pnl": {
+              "$ref": "#/definitions/PnlValues"
             },
             "size": {
               "$ref": "#/definitions/SignedDecimal"
+            },
+            "unrealised_pnl": {
+              "$ref": "#/definitions/PositionPnl"
             }
           },
           "additionalProperties": false

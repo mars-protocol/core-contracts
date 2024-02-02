@@ -74,6 +74,25 @@ impl Perps {
         }))
     }
 
+    /// Generate message for modifying a perp position
+    pub fn modify_msg(
+        &self,
+        account_id: impl Into<String>,
+        denom: impl Into<String>,
+        new_size: impl Into<SignedDecimal>,
+        funds: Vec<Coin>,
+    ) -> StdResult<CosmosMsg> {
+        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: self.address().into(),
+            msg: to_binary(&ExecuteMsg::ModifyPosition {
+                account_id: account_id.into(),
+                denom: denom.into(),
+                new_size: new_size.into(),
+            })?,
+            funds,
+        }))
+    }
+
     pub fn query_position(
         &self,
         querier: &QuerierWrapper,

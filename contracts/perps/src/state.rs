@@ -2,7 +2,7 @@ use cosmwasm_std::{Addr, StdError, StdResult, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 use mars_owner::Owner;
 use mars_types::perps::{
-    CashFlow, Config, DenomState, Position, RealizedPnlAmounts, UnlockState, VaultState,
+    CashFlow, Config, DenomState, PnlValues, Position, RealizedPnlAmounts, UnlockState, VaultState,
 };
 
 pub const OWNER: Owner = Owner::new("owner");
@@ -31,6 +31,9 @@ pub const DENOM_CASH_FLOW: Map<&str, CashFlow> = Map::new("dcf");
 
 // total cash flow, accumulated across all denoms
 pub const TOTAL_CASH_FLOW: Item<CashFlow> = Item::new("tcf");
+
+// account_id, denom) => realised position pnl
+pub const REALISED_PNL_STATES: Map<(&str, &str), PnlValues> = Map::new("pnl");
 
 /// Increase the deposit shares of a depositor by the given amount.
 /// Return the updated deposit shares.
@@ -64,4 +67,27 @@ pub fn decrease_deposit_shares(
     }
 
     Ok(shares)
+}
+
+pub fn update_realised_pnl_for_position(
+    store: &mut dyn Storage,
+    account_id: &str,
+    denom: &str,
+    new_realised_pnl: PnlValues,
+) -> StdResult<PnlValues> {
+    let existing_pnl =
+        REALISED_PNL_STATES.may_load(store, (account_id, denom))?.unwrap_or_default();
+
+    let updated_pnl = PnlValues {
+        accrued_funding: new_realised_pnl
+            .accrued_funding
+            .checked_add(existing_pnl.accrued_funding)?,
+        price_pnl: new_realised_pnl.price_pnl.checked_add(existing_pnl.price_pnl)?,
+        closing_fee: new_realised_pnl.closing_fee.checked_add(existing_pnl.closing_fee)?,
+        pnl: new_realised_pnl.pnl.checked_add(existing_pnl.pnl)?,
+    };
+
+    REALISED_PNL_STATES.save(store, (account_id, denom), &updated_pnl)?;
+
+    Ok(updated_pnl)
 }

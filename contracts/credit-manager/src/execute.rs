@@ -21,7 +21,7 @@ use crate::{
     liquidate::assert_not_self_liquidation,
     liquidate_deposit::liquidate_deposit,
     liquidate_lend::liquidate_lend,
-    perp::{close_perp, open_perp},
+    perp::{close_perp, modify_perp, open_perp},
     reclaim::reclaim,
     refund::refund_coin_balances,
     repay::{repay, repay_for_recipient},
@@ -176,6 +176,14 @@ pub fn dispatch_actions(
             } => callbacks.push(CallbackMsg::ClosePerp {
                 account_id: account_id.to_string(),
                 denom,
+            }),
+            Action::ModifyPerp {
+                denom,
+                new_size,
+            } => callbacks.push(CallbackMsg::ModifyPerp {
+                account_id: account_id.to_string(),
+                denom,
+                new_size,
             }),
             Action::EnterVault {
                 vault,
@@ -381,6 +389,11 @@ pub fn execute_callback(
             account_id,
             denom,
         } => close_perp(deps, &account_id, &denom),
+        CallbackMsg::ModifyPerp {
+            account_id,
+            denom,
+            new_size,
+        } => modify_perp(deps, &account_id, &denom, new_size),
         CallbackMsg::EnterVault {
             account_id,
             vault,

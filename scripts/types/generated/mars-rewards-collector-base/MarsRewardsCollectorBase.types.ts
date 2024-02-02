@@ -120,6 +120,12 @@ export type Action =
       }
     }
   | {
+      modify_perp: {
+        denom: string
+        new_size: SignedDecimal
+      }
+    }
+  | {
       enter_vault: {
         coin: ActionCoin
         vault: VaultBaseForString

@@ -497,8 +497,11 @@ export class Deployer {
         base_denom: this.config.perps.baseDenom,
         cooldown_period: this.config.perps.cooldownPeriod,
         credit_manager: this.storage.addresses.creditManager!,
-        min_position_value: this.config.perps.minPositionValue,
+        min_position_in_base_denom: this.config.perps.minPositionValue,
         oracle: this.storage.addresses.oracle!,
+        params: this.storage.addresses.params!,
+        opening_fee_rate: this.config.perps.openingFeeRate,
+        closing_fee_rate: this.config.perps.closingFeeRate,
       }
       await this.instantiate('perps', this.storage.codeIds.perps!, msg)
     } else {
@@ -508,22 +511,45 @@ export class Deployer {
 
   async initializePerpDenom(perpDenom: PerpDenom) {
     if (this.storage.actions.perpsSet.includes(perpDenom.denom)) {
-      printBlue(`${perpDenom.denom} already initialized in perps contract`)
+      printBlue(`${perpDenom.denom} already initialized in perps and params contracts`)
       return
     }
     printBlue(`Initializing perp ${perpDenom.denom}...`)
 
-    const msg: PerpsExecuteMsg = {
+    const perpsMsg: PerpsExecuteMsg = {
       init_denom: {
         denom: perpDenom.denom,
         max_funding_velocity: perpDenom.maxFundingVelocity,
         skew_scale: perpDenom.skewScale,
       },
     }
+    await this.cwClient.execute(
+      this.deployerAddr,
+      this.storage.addresses['perps']!,
+      perpsMsg,
+      'auto',
+    )
+    printYellow(`${perpDenom.denom} initialized in perp contract`)
 
-    await this.cwClient.execute(this.deployerAddr, this.storage.addresses['perps']!, msg, 'auto')
-
-    printYellow(`${perpDenom.denom} initialized`)
+    const paramsMsg: ParamsExecuteMsg = {
+      update_perp_params: {
+        add_or_update: {
+          params: {
+            denom: perpDenom.denom,
+            max_net_oi: perpDenom.max_net_oi,
+            max_long_oi: perpDenom.max_long_oi,
+            max_short_oi: perpDenom.max_short_oi,
+          },
+        },
+      },
+    }
+    await this.cwClient.execute(
+      this.deployerAddr,
+      this.storage.addresses['params']!,
+      paramsMsg,
+      'auto',
+    )
+    printYellow(`${perpDenom.denom} initialized in params contract`)
 
     this.storage.actions.perpsSet.push(perpDenom.denom)
   }

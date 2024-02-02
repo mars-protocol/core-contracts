@@ -73,6 +73,11 @@ pub fn execute(
             account_id,
             denom,
         } => execute::close_position(deps, env, info, account_id, denom),
+        ExecuteMsg::ModifyPosition {
+            account_id,
+            denom,
+            new_size,
+        } => execute::modify_position(deps, env, info, account_id, denom, new_size),
     }
 }
 
