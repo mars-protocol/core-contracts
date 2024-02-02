@@ -135,7 +135,7 @@ pub fn query_total_deposit(
     let cm_deposit = deps.querier.query_balance(credit_manager_addr, &denom)?.amount;
 
     // total deposited amount
-    let amount = rb_deposit.checked_add(cm_deposit)?; // TODO: open PR in public repo to remove debt from the formula
+    let amount = rb_deposit.checked_add(cm_deposit)?;
 
     // additionally, we include the deposit cap in the response
     let asset_params = ASSET_PARAMS.load(deps.storage, &denom)?;
