@@ -26,6 +26,8 @@ const pythAtomID = 'b00b60f88b03a6a625a8d1c048c3f66653edf217439983d037e7222c4e61
 const pythUsdcID = 'eaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a'
 const pythNtrnID = 'a8e6517966a52cb1df864b2764f3629fde3f21d2b640b5c572fcd654cbccd65e'
 
+const defaultCreditLine = '100000000000000'
+
 // IBC config for rewards-collector. See https://rest-palvus.pion-1.ntrn.tech/neutron-org/neutron/feerefunder/params
 export const neutronIbcConfig: NeutronIbcConfig = {
   source_port: 'transfer',
@@ -348,7 +350,8 @@ export const ntrnPerpDenom: PerpDenom = {
 
 export const neutronTestnetConfig: DeploymentConfig = {
   mainnet: false,
-  deployerMnemonic: 'TODO',
+  deployerMnemonic:
+    'client walk tiger carpet video era zero siren effort illness shed huge memory hint genius pumpkin drill act tower ladder joke surprise kitchen target',
   marsDenom: marsDenom,
   atomDenom: atomDenom,
   safetyFundAddr: safetyFundAddr,
@@ -387,7 +390,11 @@ export const neutronTestnetConfig: DeploymentConfig = {
     routes: [atomUsdcRoute, atomMarsRoute, ntrnUsdcRoute, ntrnMarsRoute, usdcMarsRoute],
   },
   targetHealthFactor: '1.05',
-  creditLineCoins: [],
+  creditLineCoins: [
+    { denom: 'untrn', creditLine: defaultCreditLine },
+    { denom: axlUsdcDenom, creditLine: defaultCreditLine },
+    { denom: atomDenom, creditLine: defaultCreditLine },
+  ],
   maxValueForBurn: '10000',
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',

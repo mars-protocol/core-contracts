@@ -87,7 +87,7 @@ fn accounting() {
     assert_eq!(
         osmo_accounting.cash_flow,
         CashFlow {
-            opening_fees: SignedDecimal::from(osmo_opening_fee.amount),
+            opening_fee: SignedDecimal::from(osmo_opening_fee.amount),
             ..Default::default()
         }
     );
@@ -95,7 +95,7 @@ fn accounting() {
     assert_eq!(
         atom_accounting.cash_flow,
         CashFlow {
-            opening_fees: SignedDecimal::from(atom_opening_fee.amount),
+            opening_fee: SignedDecimal::from(atom_opening_fee.amount),
             ..Default::default()
         }
     );
@@ -103,7 +103,7 @@ fn accounting() {
     assert_eq!(
         total_accounting.cash_flow,
         CashFlow {
-            opening_fees: SignedDecimal::from(osmo_opening_fee.amount + atom_opening_fee.amount),
+            opening_fee: SignedDecimal::from(osmo_opening_fee.amount + atom_opening_fee.amount),
             ..Default::default()
         }
     );
@@ -140,17 +140,17 @@ fn accounting() {
         osmo_realized_pnl.accrued_funding.negative,
         osmo_accounting.cash_flow.accrued_funding.negative
     );
-    assert_eq!(osmo_realized_pnl.opening_fee.abs, osmo_accounting.cash_flow.opening_fees.abs);
+    assert_eq!(osmo_realized_pnl.opening_fee.abs, osmo_accounting.cash_flow.opening_fee.abs);
     assert!(osmo_realized_pnl.opening_fee.negative);
     assert_ne!(
         osmo_realized_pnl.opening_fee.negative,
-        osmo_accounting.cash_flow.opening_fees.negative
+        osmo_accounting.cash_flow.opening_fee.negative
     );
-    assert_eq!(osmo_realized_pnl.closing_fee.abs, osmo_accounting.cash_flow.closing_fees.abs);
+    assert_eq!(osmo_realized_pnl.closing_fee.abs, osmo_accounting.cash_flow.closing_fee.abs);
     assert!(osmo_realized_pnl.closing_fee.negative);
     assert_ne!(
         osmo_realized_pnl.closing_fee.negative,
-        osmo_accounting.cash_flow.opening_fees.negative
+        osmo_accounting.cash_flow.opening_fee.negative
     );
 
     // move time forward by 12 hour
@@ -184,17 +184,17 @@ fn accounting() {
         atom_realized_pnl.accrued_funding.negative,
         atom_accounting.cash_flow.accrued_funding.negative
     );
-    assert_eq!(atom_realized_pnl.opening_fee.abs, atom_accounting.cash_flow.opening_fees.abs);
+    assert_eq!(atom_realized_pnl.opening_fee.abs, atom_accounting.cash_flow.opening_fee.abs);
     assert!(atom_realized_pnl.opening_fee.negative);
     assert_ne!(
         atom_realized_pnl.opening_fee.negative,
-        atom_accounting.cash_flow.opening_fees.negative
+        atom_accounting.cash_flow.opening_fee.negative
     );
-    assert_eq!(atom_realized_pnl.closing_fee.abs, atom_accounting.cash_flow.closing_fees.abs);
+    assert_eq!(atom_realized_pnl.closing_fee.abs, atom_accounting.cash_flow.closing_fee.abs);
     assert!(atom_realized_pnl.closing_fee.negative);
     assert_ne!(
         atom_realized_pnl.closing_fee.negative,
-        atom_accounting.cash_flow.opening_fees.negative
+        atom_accounting.cash_flow.opening_fee.negative
     );
 }
 
@@ -228,8 +228,8 @@ fn assert_accounting(
 fn add_cash_flows(a: &CashFlow, b: &CashFlow) -> CashFlow {
     CashFlow {
         price_pnl: a.price_pnl.checked_add(b.price_pnl).unwrap(),
-        opening_fees: a.opening_fees.checked_add(b.opening_fees).unwrap(),
-        closing_fees: a.closing_fees.checked_add(b.closing_fees).unwrap(),
+        opening_fee: a.opening_fee.checked_add(b.opening_fee).unwrap(),
+        closing_fee: a.closing_fee.checked_add(b.closing_fee).unwrap(),
         accrued_funding: a.accrued_funding.checked_add(b.accrued_funding).unwrap(),
     }
 }
@@ -237,8 +237,8 @@ fn add_cash_flows(a: &CashFlow, b: &CashFlow) -> CashFlow {
 fn add_balances(a: &Balance, b: &Balance) -> Balance {
     Balance {
         price_pnl: a.price_pnl.checked_add(b.price_pnl).unwrap(),
-        opening_fees: a.opening_fees.checked_add(b.opening_fees).unwrap(),
-        closing_fees: a.closing_fees.checked_add(b.closing_fees).unwrap(),
+        opening_fee: a.opening_fee.checked_add(b.opening_fee).unwrap(),
+        closing_fee: a.closing_fee.checked_add(b.closing_fee).unwrap(),
         accrued_funding: a.accrued_funding.checked_add(b.accrued_funding).unwrap(),
         total: a.total.checked_add(b.total).unwrap(),
     }

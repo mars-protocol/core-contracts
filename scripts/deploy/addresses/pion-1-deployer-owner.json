@@ -1,14 +1,14 @@
 {
-  "addressProvider": "neutron16yfgu58zvh2f7yvu3ej7lfdq4d9ghqc8ykwvmychv8pkwthlt38sanpe37",
-  "redBank": "neutron17yzaz2z5x4u9exchhcnmxlfd78xsz79ujk8m98g6pd7kvzjvuqmsr5fzr5",
-  "incentives": "neutron13tr2nh8uy4ajsxxp7u9z807hpj2t8zcfj5a90kfl7yneahsh3stssqywpr",
-  "oracle": "neutron1mjyg353pfe5475xfajpk6nxq0ddv64als68mxkxxqzjepmv48htsqkrshp",
-  "rewardsCollector": "neutron174yfdvf6n7lhqw22gtq434dp25urlnauezsfzgpqrvvjywmn7vmsxek3y6",
-  "swapper": "neutron1cr0vdhdxdcgm5xx6pu3pn220544e79ysxmn05x6x25hhxq689q2swz2mjy",
-  "params": "neutron1qtps7n6z35x5tv2fuul6ejmvea8ntgvjpgyv2fqnwrgkg06kgzfssv6qxz",
-  "zapper": "neutron1jvhfvhl7z0jpqtnaldzunjk4k0z67s57a0axk9eupj2t9k5a4wysqcaj58",
-  "health": "neutron1xgymj007vhwgrjkq0v0wk7234n4gazkgzs83u9jt3sygzp49mg6q9e0wnt",
-  "creditManager": "neutron1sh3xzw30zke656rdyxl6y9el2uq846jwxquch94wfwrxsc7z2luq2emapf",
-  "accountNft": "neutron1qa0d8z9ensfzl30n2hvhrfxf3y0j7v5njqzut8m6wqken33htc6q6smt8q",
-  "perps": "neutron1swedm3yn5jpt8n3x77vve0rrrsespg5jzu33vcj2lnlxdajx2v3qpc76qt"
+  "addressProvider": "neutron1r26mu053pqgr3wte45s3ujma8w602ht6zyd0rgyrdylq44k7c6jsz43uws",
+  "redBank": "neutron1gpv59ff87mfvx8s3fn5ku3l8dn94fkj4q37sruhwfl0zzgjsejqs3xejyj",
+  "incentives": "neutron1au78lscqqh77ghvl6eq2d58vy439q0gprhz0sc5q4r9svh63hquqtwlrsw",
+  "oracle": "neutron1z44naqtpn20z5yws7updsgcplm7tcfkcn67uejvc0l7n8hy6vupq0894qs",
+  "rewardsCollector": "neutron1x4pk9ykehuqpq95avqpvwu5g02cc8r5qshagug940f69pktfdz9sd3m536",
+  "swapper": "neutron1td4dn53k7ythdj8ah3xv5p66swq3sy2a9jzq4yrue8aa4dvwacrs7dachf",
+  "params": "neutron16l9j74q6ht9ycd37qxt6tz83l3r3cwec4qu9r5mkd66kcve23ywspjqhjp",
+  "zapper": "neutron1qa20vgu0tytmxwawv4pwqrp2etklaedgps6muegs3w075sfjdg5qn0tcca",
+  "health": "neutron1pefcu7k4gzvxmf53ms5pcuh63r9nwl7ewk8d848h76ah86sq24eslrzrlm",
+  "creditManager": "neutron1swud86k6acvpjfn68cv6tz3h7z72nz395d7y5e3yxknrc8yl9faqxn5jjw",
+  "accountNft": "neutron1apus79ka5v30wmwdxzzapprrzxxw6mz0hc0uk3g030t0m5f0asuq8x3ldf",
+  "perps": "neutron1ssnc38h40fu0d2et8f38z83ealgugh06r4anqa6dn6hlz6syqaqsmj6zcy"
 }

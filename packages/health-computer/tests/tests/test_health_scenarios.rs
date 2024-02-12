@@ -11,7 +11,7 @@ use mars_types::{
     health::AccountKind,
     math::SignedDecimal,
     params::VaultConfig,
-    perps::{PerpPosition, PnlCoins, PnlValues, PositionPnl},
+    perps::{PerpPosition, PnlAmounts, PnlCoins, PnlValues, PositionPnl},
 };
 
 use super::helpers::{
@@ -1271,6 +1271,8 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
                 base_denom: uusd.denom,
                 current_price,
                 entry_price,
+                entry_exec_price: entry_price,
+                current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
                     // TODO fix numbers
@@ -1280,6 +1282,7 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
                         closing_fee: SignedDecimal::zero(),
                         pnl: SignedDecimal::zero(),
                     },
+                    amounts: PnlAmounts::default(),
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1288,7 +1291,7 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
                         }),
                     },
                 },
-                realised_pnl: PnlValues::default(),
+                realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
             }],
         },
@@ -1352,6 +1355,8 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
                 base_denom: uusd.denom,
                 current_price,
                 entry_price,
+                entry_exec_price: entry_price,
+                current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
                     // TODO fix numbers
@@ -1361,6 +1366,7 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
                         closing_fee: SignedDecimal::zero(),
                         pnl: SignedDecimal::zero(),
                     },
+                    amounts: PnlAmounts::default(),
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1369,7 +1375,7 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
                         }),
                     },
                 },
-                realised_pnl: PnlValues::default(),
+                realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
             }],
         },
@@ -1427,6 +1433,8 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
                 base_denom: uusd.denom,
                 current_price,
                 entry_price,
+                entry_exec_price: entry_price,
+                current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
                     // TODO fix numbers
@@ -1436,6 +1444,7 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
                         closing_fee: SignedDecimal::zero(),
                         pnl: SignedDecimal::zero(),
                     },
+                    amounts: PnlAmounts::default(),
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1446,7 +1455,7 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
                 },
 
                 closing_fee_rate,
-                realised_pnl: PnlValues::default(),
+                realised_pnl: PnlAmounts::default(),
             }],
         },
         denoms_data,
@@ -1539,6 +1548,8 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
                 base_denom: uusd.denom,
                 current_price,
                 entry_price,
+                entry_exec_price: entry_price,
+                current_exec_price: current_price,
                 size: SignedDecimal::from_str("-10000000").unwrap(),
                 unrealised_pnl: PositionPnl {
                     // TODO fix numbers
@@ -1548,6 +1559,7 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
                         closing_fee: SignedDecimal::zero(),
                         pnl: SignedDecimal::zero(),
                     },
+                    amounts: PnlAmounts::default(),
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1556,7 +1568,7 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
                         }),
                     },
                 },
-                realised_pnl: PnlValues::default(),
+                realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
             }],
         },
@@ -1621,6 +1633,8 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
                 base_denom: uusd.denom,
                 current_price,
                 entry_price,
+                entry_exec_price: entry_price,
+                current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
                     // TODO fix numbers
@@ -1630,6 +1644,7 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
                         closing_fee: SignedDecimal::zero(),
                         pnl: SignedDecimal::zero(),
                     },
+                    amounts: PnlAmounts::default(),
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1638,7 +1653,7 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
                         }),
                     },
                 },
-                realised_pnl: PnlValues::default(),
+                realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
             }],
         },
@@ -1723,6 +1738,8 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                     base_denom: uusd.denom.clone(),
                     current_price: current_price_btc,
                     entry_price: entry_price_btc,
+                    entry_exec_price: entry_price_btc,
+                    current_exec_price: current_price_btc,
                     size: size_btc,
                     // pnl is not used for calculating
                     unrealised_pnl: PositionPnl {
@@ -1733,6 +1750,7 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                             closing_fee: SignedDecimal::zero(),
                             pnl: SignedDecimal::zero(),
                         },
+                        amounts: PnlAmounts::default(),
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1741,7 +1759,7 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                             }),
                         },
                     },
-                    realised_pnl: PnlValues::default(),
+                    realised_pnl: PnlAmounts::default(),
                     closing_fee_rate,
                 },
                 PerpPosition {
@@ -1749,6 +1767,8 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                     base_denom: uusd.denom,
                     current_price: current_price_eth,
                     entry_price: entry_price_eth,
+                    entry_exec_price: entry_price_eth,
+                    current_exec_price: current_price_eth,
                     size: size_eth,
                     // pnl is not used for calculating
                     unrealised_pnl: PositionPnl {
@@ -1759,6 +1779,7 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                             closing_fee: SignedDecimal::zero(),
                             pnl: SignedDecimal::zero(),
                         },
+                        amounts: PnlAmounts::default(),
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1767,7 +1788,7 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                             }),
                         },
                     },
-                    realised_pnl: PnlValues::default(),
+                    realised_pnl: PnlAmounts::default(),
                     closing_fee_rate,
                 },
             ],
@@ -1853,6 +1874,8 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                     base_denom: uusd.denom.clone(),
                     current_price: current_price_btc,
                     entry_price: entry_price_btc,
+                    entry_exec_price: entry_price_btc,
+                    current_exec_price: current_price_btc,
                     size: size_btc,
                     // pnl is not used for calculating
                     unrealised_pnl: PositionPnl {
@@ -1863,6 +1886,7 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                             closing_fee: SignedDecimal::zero(),
                             pnl: SignedDecimal::zero(),
                         },
+                        amounts: PnlAmounts::default(),
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1871,7 +1895,7 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                             }),
                         },
                     },
-                    realised_pnl: PnlValues::default(),
+                    realised_pnl: PnlAmounts::default(),
                     closing_fee_rate,
                 },
                 PerpPosition {
@@ -1879,6 +1903,8 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                     base_denom: uusd.denom,
                     current_price: current_price_eth,
                     entry_price: entry_price_eth,
+                    entry_exec_price: entry_price_eth,
+                    current_exec_price: current_price_eth,
                     size: size_eth,
                     // pnl is not used for calculating
                     unrealised_pnl: PositionPnl {
@@ -1889,6 +1915,7 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                             closing_fee: SignedDecimal::zero(),
                             pnl: SignedDecimal::zero(),
                         },
+                        amounts: PnlAmounts::default(),
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1897,7 +1924,7 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                             }),
                         },
                     },
-                    realised_pnl: PnlValues::default(),
+                    realised_pnl: PnlAmounts::default(),
                     closing_fee_rate,
                 },
             ],
@@ -1971,6 +1998,8 @@ fn perp_short_delta_neutral_with_btc_collateral() {
                 base_denom: uusd.denom,
                 current_price,
                 entry_price,
+                entry_exec_price: entry_price,
+                current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
                     // TODO fix numbers
@@ -1980,6 +2009,7 @@ fn perp_short_delta_neutral_with_btc_collateral() {
                         closing_fee: SignedDecimal::zero(),
                         pnl: SignedDecimal::zero(),
                     },
+                    amounts: PnlAmounts::default(),
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1988,7 +2018,7 @@ fn perp_short_delta_neutral_with_btc_collateral() {
                         }),
                     },
                 },
-                realised_pnl: PnlValues::default(),
+                realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
             }],
         },
@@ -2065,6 +2095,8 @@ fn spot_short_delta_neutral_with_leverage() {
                 base_denom: uusd.denom,
                 current_price,
                 entry_price,
+                entry_exec_price: entry_price,
+                current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
                     // TODO fix numbers
@@ -2074,6 +2106,7 @@ fn spot_short_delta_neutral_with_leverage() {
                         closing_fee: SignedDecimal::zero(),
                         pnl: SignedDecimal::zero(),
                     },
+                    amounts: PnlAmounts::default(),
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -2082,7 +2115,7 @@ fn spot_short_delta_neutral_with_leverage() {
                         }),
                     },
                 },
-                realised_pnl: PnlValues::default(),
+                realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
             }],
         },
@@ -2197,6 +2230,8 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                     base_denom: base_denom.clone(),
                     current_price: current_price_btc.abs,
                     entry_price: entry_price_btc.abs,
+                    entry_exec_price: entry_price_btc.abs,
+                    current_exec_price: current_price_btc.abs,
                     size: btc_size,
                     unrealised_pnl: PositionPnl {
                         // TODO fix numbers
@@ -2206,6 +2241,7 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                             closing_fee: SignedDecimal::zero(),
                             pnl: SignedDecimal::zero(),
                         },
+                        amounts: PnlAmounts::default(),
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Profit(Coin {
@@ -2214,7 +2250,7 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                             }),
                         },
                     },
-                    realised_pnl: PnlValues::default(),
+                    realised_pnl: PnlAmounts::default(),
                     closing_fee_rate: Decimal::from_str("0.000").unwrap(),
                 },
                 PerpPosition {
@@ -2222,6 +2258,8 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                     base_denom: base_denom.clone(),
                     current_price: current_price_eth.abs,
                     entry_price: entry_price_eth.abs,
+                    entry_exec_price: entry_price_eth.abs,
+                    current_exec_price: current_price_eth.abs,
                     size: eth_size,
                     unrealised_pnl: PositionPnl {
                         // TODO fix numbers
@@ -2231,6 +2269,7 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                             closing_fee: SignedDecimal::zero(),
                             pnl: SignedDecimal::zero(),
                         },
+                        amounts: PnlAmounts::default(),
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Loss(Coin {
@@ -2239,7 +2278,7 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                             }),
                         },
                     },
-                    realised_pnl: PnlValues::default(),
+                    realised_pnl: PnlAmounts::default(),
                     closing_fee_rate: Decimal::from_str("0.0002").unwrap(),
                 },
                 PerpPosition {
@@ -2247,6 +2286,8 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                     base_denom: uusd.denom.clone(),
                     current_price: current_price_atom.abs,
                     entry_price: entry_price_atom.abs,
+                    entry_exec_price: entry_price_atom.abs,
+                    current_exec_price: current_price_atom.abs,
                     size: atom_size,
                     unrealised_pnl: PositionPnl {
                         // TODO fix numbers
@@ -2256,6 +2297,7 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                             closing_fee: SignedDecimal::zero(),
                             pnl: SignedDecimal::zero(),
                         },
+                        amounts: PnlAmounts::default(),
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Profit(Coin {
@@ -2264,7 +2306,7 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                             }),
                         },
                     },
-                    realised_pnl: PnlValues::default(),
+                    realised_pnl: PnlAmounts::default(),
                     closing_fee_rate: Decimal::from_str("0.0002").unwrap(),
                 },
             ],
@@ -2330,6 +2372,8 @@ fn single_perp_funding_greater_than_pnl() {
                 base_denom: uusd.denom,
                 current_price,
                 entry_price,
+                entry_exec_price: entry_price,
+                current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
                     // TODO fix numbers
@@ -2339,6 +2383,7 @@ fn single_perp_funding_greater_than_pnl() {
                         closing_fee: SignedDecimal::zero(),
                         pnl: SignedDecimal::zero(),
                     },
+                    amounts: PnlAmounts::default(),
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -2347,7 +2392,7 @@ fn single_perp_funding_greater_than_pnl() {
                         }),
                     },
                 },
-                realised_pnl: PnlValues::default(),
+                realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
             }],
         },

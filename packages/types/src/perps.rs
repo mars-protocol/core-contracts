@@ -1,7 +1,7 @@
 use std::{fmt, str::FromStr};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Addr, Api, Coin, Decimal, StdResult, Uint128};
+use cosmwasm_std::{coin, Addr, Api, Coin, Decimal, StdResult, Uint128};
 use mars_owner::OwnerUpdate;
 
 use crate::{
@@ -197,8 +197,8 @@ impl Default for Funding {
 #[derive(Default)]
 pub struct CashFlow {
     pub price_pnl: SignedDecimal,
-    pub opening_fees: SignedDecimal,
-    pub closing_fees: SignedDecimal,
+    pub opening_fee: SignedDecimal,
+    pub closing_fee: SignedDecimal,
     pub accrued_funding: SignedDecimal,
 }
 
@@ -207,8 +207,8 @@ pub struct CashFlow {
 #[derive(Default)]
 pub struct Balance {
     pub price_pnl: SignedDecimal,
-    pub opening_fees: SignedDecimal,
-    pub closing_fees: SignedDecimal,
+    pub opening_fee: SignedDecimal,
+    pub closing_fee: SignedDecimal,
     pub accrued_funding: SignedDecimal,
     pub total: SignedDecimal,
 }
@@ -233,22 +233,25 @@ pub struct Accounting {
 pub struct PerpDenomState {
     pub denom: String,
     pub enabled: bool,
+    pub long_oi: Decimal,
+    pub short_oi: Decimal,
     pub total_entry_cost: SignedDecimal,
     pub total_entry_funding: SignedDecimal,
     pub rate: SignedDecimal,
-    pub pnl_values: DenomPnlValues,
+    pub pnl_values: PnlValues,
 }
 
 /// This is the position data to be stored in the contract state. It does not
 /// include PnL, which is to be calculated according to the price at query time.
 /// It also does not include the denom, which is indicated by the Map key.
 #[cw_serde]
+#[derive(Default)]
 pub struct Position {
     pub size: SignedDecimal,
     pub entry_price: Decimal,
     pub entry_accrued_funding_per_unit_in_base_denom: SignedDecimal,
     pub initial_skew: SignedDecimal,
-    pub opening_fee_in_base_denom: Uint128,
+    pub realized_pnl: PnlAmounts,
 }
 
 /// This is the position data to be returned in a query. It includes current
@@ -260,8 +263,10 @@ pub struct PerpPosition {
     pub size: SignedDecimal,
     pub entry_price: Decimal,
     pub current_price: Decimal,
+    pub entry_exec_price: Decimal,
+    pub current_exec_price: Decimal,
     pub unrealised_pnl: PositionPnl,
-    pub realised_pnl: PnlValues,
+    pub realised_pnl: PnlAmounts,
     pub closing_fee_rate: Decimal,
 }
 
@@ -294,11 +299,13 @@ impl PnL {
 #[cw_serde]
 pub struct PositionPnl {
     pub values: PnlValues,
+    pub amounts: PnlAmounts,
     pub coins: PnlCoins,
 }
 
 /// Values denominated in the Oracle base currency (uusd)
 #[cw_serde]
+#[derive(Default)]
 pub struct PnlValues {
     pub price_pnl: SignedDecimal,
     pub accrued_funding: SignedDecimal,
@@ -306,17 +313,6 @@ pub struct PnlValues {
 
     /// PnL: price PnL + accrued funding + closing fee
     pub pnl: SignedDecimal,
-}
-
-impl Default for PnlValues {
-    fn default() -> Self {
-        Self {
-            price_pnl: SignedDecimal::zero(),
-            accrued_funding: SignedDecimal::zero(),
-            closing_fee: SignedDecimal::zero(),
-            pnl: SignedDecimal::zero(),
-        }
-    }
 }
 
 /// Coins with Perp Vault base denom (uusdc) as a denom
@@ -328,19 +324,8 @@ pub struct PnlCoins {
 
 /// Amounts denominated in the Perp Vault base denom (uusdc)
 #[cw_serde]
-pub struct PnlAmounts {
-    pub price_pnl: SignedDecimal,
-    pub accrued_funding: SignedDecimal,
-    pub closing_fee: SignedDecimal,
-
-    /// PnL: price PnL + accrued funding + closing fee
-    pub pnl: SignedDecimal,
-}
-
-/// Amounts denominated in the Perp Vault base denom (uusdc)
-#[cw_serde]
 #[derive(Default)]
-pub struct RealizedPnlAmounts {
+pub struct PnlAmounts {
     pub price_pnl: SignedDecimal,
     pub accrued_funding: SignedDecimal,
     pub opening_fee: SignedDecimal,
@@ -350,28 +335,41 @@ pub struct RealizedPnlAmounts {
     pub pnl: SignedDecimal,
 }
 
-impl RealizedPnlAmounts {
-    pub fn from_pnl_amounts(amounts: &PnlAmounts, opening_fee: Uint128) -> StdResult<Self> {
+impl PnlAmounts {
+    /// Create a new PnL amounts from the opening fee.
+    /// It can be used when opening a new position.
+    pub fn from_opening_fee(opening_fee: Uint128) -> StdResult<Self> {
         // make opening fee negative to show that it's a cost for the user
         let opening_fee = SignedDecimal::zero().checked_sub(opening_fee.into())?;
-        Ok(RealizedPnlAmounts {
-            price_pnl: amounts.price_pnl,
-            accrued_funding: amounts.accrued_funding,
+        Ok(PnlAmounts {
             opening_fee,
-            closing_fee: amounts.closing_fee,
-            pnl: amounts.pnl.checked_add(opening_fee)?,
+            pnl: opening_fee,
+            ..Default::default()
         })
     }
 
-    pub fn update(&mut self, amounts: &PnlAmounts, opening_fee: Uint128) -> StdResult<()> {
-        let realized_amounts = Self::from_pnl_amounts(amounts, opening_fee)?;
-        self.price_pnl = self.price_pnl.checked_add(realized_amounts.price_pnl)?;
-        self.accrued_funding =
-            self.accrued_funding.checked_add(realized_amounts.accrued_funding)?;
-        self.opening_fee = self.opening_fee.checked_add(realized_amounts.opening_fee)?;
-        self.closing_fee = self.closing_fee.checked_add(realized_amounts.closing_fee)?;
-        self.pnl = self.pnl.checked_add(realized_amounts.pnl)?;
+    pub fn add_opening_fee(&mut self, opening_fee: Uint128) -> StdResult<()> {
+        // make opening fee negative to show that it's a cost for the user
+        let opening_fee = SignedDecimal::zero().checked_sub(opening_fee.into())?;
+        self.opening_fee = self.opening_fee.checked_add(opening_fee)?;
+        self.pnl = self.pnl.checked_add(opening_fee)?;
         Ok(())
+    }
+
+    pub fn add(&mut self, amounts: &PnlAmounts) -> StdResult<()> {
+        self.price_pnl = self.price_pnl.checked_add(amounts.price_pnl)?;
+        self.accrued_funding = self.accrued_funding.checked_add(amounts.accrued_funding)?;
+        self.opening_fee = self.opening_fee.checked_add(amounts.opening_fee)?;
+        self.closing_fee = self.closing_fee.checked_add(amounts.closing_fee)?;
+        self.pnl = self.pnl.checked_add(amounts.pnl)?;
+        Ok(())
+    }
+
+    pub fn to_coins(&self, base_denom: &str) -> PnlCoins {
+        PnlCoins {
+            closing_fee: coin(self.closing_fee.abs.to_uint_floor().u128(), base_denom),
+            pnl: PnL::from_signed_decimal(base_denom, self.pnl),
+        }
     }
 }
 
@@ -401,18 +399,6 @@ impl fmt::Display for PnL {
             PnL::BreakEven => write!(f, "break_even"),
         }
     }
-}
-
-/// PnL values denominated in the base currency
-#[cw_serde]
-#[derive(Default)]
-pub struct DenomPnlValues {
-    pub price_pnl: SignedDecimal,
-    pub closing_fees: SignedDecimal,
-    pub accrued_funding: SignedDecimal,
-
-    /// The total PnL: price_pnl + closing_fees + accrued_funding
-    pub pnl: SignedDecimal,
 }
 
 pub type InstantiateMsg = Config<String>;
@@ -564,6 +550,7 @@ pub enum QueryMsg {
     Position {
         account_id: String,
         denom: String,
+        new_size: Option<SignedDecimal>,
     },
 
     /// List positions of all accounts and denoms
@@ -600,7 +587,7 @@ pub enum QueryMsg {
     #[returns(Accounting)]
     TotalAccounting {},
 
-    #[returns(RealizedPnlAmounts)]
+    #[returns(PnlAmounts)]
     DenomRealizedPnlForAccount {
         account_id: String,
         denom: String,

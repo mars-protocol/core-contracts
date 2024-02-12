@@ -652,6 +652,16 @@
               },
               "denom": {
                 "type": "string"
+              },
+              "new_size": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/SignedDecimal"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "additionalProperties": false
@@ -989,8 +999,8 @@
           "type": "object",
           "required": [
             "accrued_funding",
-            "closing_fees",
-            "opening_fees",
+            "closing_fee",
+            "opening_fee",
             "price_pnl",
             "total"
           ],
@@ -998,10 +1008,10 @@
             "accrued_funding": {
               "$ref": "#/definitions/SignedDecimal"
             },
-            "closing_fees": {
+            "closing_fee": {
               "$ref": "#/definitions/SignedDecimal"
             },
-            "opening_fees": {
+            "opening_fee": {
               "$ref": "#/definitions/SignedDecimal"
             },
             "price_pnl": {
@@ -1018,18 +1028,18 @@
           "type": "object",
           "required": [
             "accrued_funding",
-            "closing_fees",
-            "opening_fees",
+            "closing_fee",
+            "opening_fee",
             "price_pnl"
           ],
           "properties": {
             "accrued_funding": {
               "$ref": "#/definitions/SignedDecimal"
             },
-            "closing_fees": {
+            "closing_fee": {
               "$ref": "#/definitions/SignedDecimal"
             },
-            "opening_fees": {
+            "opening_fee": {
               "$ref": "#/definitions/SignedDecimal"
             },
             "price_pnl": {
@@ -1062,7 +1072,7 @@
     },
     "denom_realized_pnl_for_account": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "RealizedPnlAmounts",
+      "title": "PnlAmounts",
       "description": "Amounts denominated in the Perp Vault base denom (uusdc)",
       "type": "object",
       "required": [
@@ -1472,8 +1482,10 @@
       "required": [
         "denom",
         "enabled",
+        "long_oi",
         "pnl_values",
         "rate",
+        "short_oi",
         "total_entry_cost",
         "total_entry_funding"
       ],
@@ -1484,11 +1496,17 @@
         "enabled": {
           "type": "boolean"
         },
+        "long_oi": {
+          "$ref": "#/definitions/Decimal"
+        },
         "pnl_values": {
-          "$ref": "#/definitions/DenomPnlValues"
+          "$ref": "#/definitions/PnlValues"
         },
         "rate": {
           "$ref": "#/definitions/SignedDecimal"
+        },
+        "short_oi": {
+          "$ref": "#/definitions/Decimal"
         },
         "total_entry_cost": {
           "$ref": "#/definitions/SignedDecimal"
@@ -1503,12 +1521,12 @@
           "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
         },
-        "DenomPnlValues": {
-          "description": "PnL values denominated in the base currency",
+        "PnlValues": {
+          "description": "Values denominated in the Oracle base currency (uusd)",
           "type": "object",
           "required": [
             "accrued_funding",
-            "closing_fees",
+            "closing_fee",
             "pnl",
             "price_pnl"
           ],
@@ -1516,11 +1534,11 @@
             "accrued_funding": {
               "$ref": "#/definitions/SignedDecimal"
             },
-            "closing_fees": {
+            "closing_fee": {
               "$ref": "#/definitions/SignedDecimal"
             },
             "pnl": {
-              "description": "The total PnL: price_pnl + closing_fees + accrued_funding",
+              "description": "PnL: price PnL + accrued funding + closing fee",
               "allOf": [
                 {
                   "$ref": "#/definitions/SignedDecimal"
@@ -1594,8 +1612,10 @@
           "required": [
             "base_denom",
             "closing_fee_rate",
+            "current_exec_price",
             "current_price",
             "denom",
+            "entry_exec_price",
             "entry_price",
             "realised_pnl",
             "size",
@@ -1608,17 +1628,23 @@
             "closing_fee_rate": {
               "$ref": "#/definitions/Decimal"
             },
+            "current_exec_price": {
+              "$ref": "#/definitions/Decimal"
+            },
             "current_price": {
               "$ref": "#/definitions/Decimal"
             },
             "denom": {
               "type": "string"
             },
+            "entry_exec_price": {
+              "$ref": "#/definitions/Decimal"
+            },
             "entry_price": {
               "$ref": "#/definitions/Decimal"
             },
             "realised_pnl": {
-              "$ref": "#/definitions/PnlValues"
+              "$ref": "#/definitions/PnlAmounts"
             },
             "size": {
               "$ref": "#/definitions/SignedDecimal"
@@ -1663,6 +1689,40 @@
               "additionalProperties": false
             }
           ]
+        },
+        "PnlAmounts": {
+          "description": "Amounts denominated in the Perp Vault base denom (uusdc)",
+          "type": "object",
+          "required": [
+            "accrued_funding",
+            "closing_fee",
+            "opening_fee",
+            "pnl",
+            "price_pnl"
+          ],
+          "properties": {
+            "accrued_funding": {
+              "$ref": "#/definitions/SignedDecimal"
+            },
+            "closing_fee": {
+              "$ref": "#/definitions/SignedDecimal"
+            },
+            "opening_fee": {
+              "$ref": "#/definitions/SignedDecimal"
+            },
+            "pnl": {
+              "description": "PnL: price PnL + accrued funding + opening fee + closing fee",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SignedDecimal"
+                }
+              ]
+            },
+            "price_pnl": {
+              "$ref": "#/definitions/SignedDecimal"
+            }
+          },
+          "additionalProperties": false
         },
         "PnlCoins": {
           "description": "Coins with Perp Vault base denom (uusdc) as a denom",
@@ -1714,10 +1774,14 @@
         "PositionPnl": {
           "type": "object",
           "required": [
+            "amounts",
             "coins",
             "values"
           ],
           "properties": {
+            "amounts": {
+              "$ref": "#/definitions/PnlAmounts"
+            },
             "coins": {
               "$ref": "#/definitions/PnlCoins"
             },
@@ -1782,8 +1846,10 @@
           "required": [
             "base_denom",
             "closing_fee_rate",
+            "current_exec_price",
             "current_price",
             "denom",
+            "entry_exec_price",
             "entry_price",
             "realised_pnl",
             "size",
@@ -1796,17 +1862,23 @@
             "closing_fee_rate": {
               "$ref": "#/definitions/Decimal"
             },
+            "current_exec_price": {
+              "$ref": "#/definitions/Decimal"
+            },
             "current_price": {
               "$ref": "#/definitions/Decimal"
             },
             "denom": {
               "type": "string"
             },
+            "entry_exec_price": {
+              "$ref": "#/definitions/Decimal"
+            },
             "entry_price": {
               "$ref": "#/definitions/Decimal"
             },
             "realised_pnl": {
-              "$ref": "#/definitions/PnlValues"
+              "$ref": "#/definitions/PnlAmounts"
             },
             "size": {
               "$ref": "#/definitions/SignedDecimal"
@@ -1851,6 +1923,40 @@
               "additionalProperties": false
             }
           ]
+        },
+        "PnlAmounts": {
+          "description": "Amounts denominated in the Perp Vault base denom (uusdc)",
+          "type": "object",
+          "required": [
+            "accrued_funding",
+            "closing_fee",
+            "opening_fee",
+            "pnl",
+            "price_pnl"
+          ],
+          "properties": {
+            "accrued_funding": {
+              "$ref": "#/definitions/SignedDecimal"
+            },
+            "closing_fee": {
+              "$ref": "#/definitions/SignedDecimal"
+            },
+            "opening_fee": {
+              "$ref": "#/definitions/SignedDecimal"
+            },
+            "pnl": {
+              "description": "PnL: price PnL + accrued funding + opening fee + closing fee",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SignedDecimal"
+                }
+              ]
+            },
+            "price_pnl": {
+              "$ref": "#/definitions/SignedDecimal"
+            }
+          },
+          "additionalProperties": false
         },
         "PnlCoins": {
           "description": "Coins with Perp Vault base denom (uusdc) as a denom",
@@ -1902,10 +2008,14 @@
         "PositionPnl": {
           "type": "object",
           "required": [
+            "amounts",
             "coins",
             "values"
           ],
           "properties": {
+            "amounts": {
+              "$ref": "#/definitions/PnlAmounts"
+            },
             "coins": {
               "$ref": "#/definitions/PnlCoins"
             },
@@ -1999,8 +2109,10 @@
           "required": [
             "base_denom",
             "closing_fee_rate",
+            "current_exec_price",
             "current_price",
             "denom",
+            "entry_exec_price",
             "entry_price",
             "realised_pnl",
             "size",
@@ -2013,17 +2125,23 @@
             "closing_fee_rate": {
               "$ref": "#/definitions/Decimal"
             },
+            "current_exec_price": {
+              "$ref": "#/definitions/Decimal"
+            },
             "current_price": {
               "$ref": "#/definitions/Decimal"
             },
             "denom": {
               "type": "string"
             },
+            "entry_exec_price": {
+              "$ref": "#/definitions/Decimal"
+            },
             "entry_price": {
               "$ref": "#/definitions/Decimal"
             },
             "realised_pnl": {
-              "$ref": "#/definitions/PnlValues"
+              "$ref": "#/definitions/PnlAmounts"
             },
             "size": {
               "$ref": "#/definitions/SignedDecimal"
@@ -2068,6 +2186,40 @@
               "additionalProperties": false
             }
           ]
+        },
+        "PnlAmounts": {
+          "description": "Amounts denominated in the Perp Vault base denom (uusdc)",
+          "type": "object",
+          "required": [
+            "accrued_funding",
+            "closing_fee",
+            "opening_fee",
+            "pnl",
+            "price_pnl"
+          ],
+          "properties": {
+            "accrued_funding": {
+              "$ref": "#/definitions/SignedDecimal"
+            },
+            "closing_fee": {
+              "$ref": "#/definitions/SignedDecimal"
+            },
+            "opening_fee": {
+              "$ref": "#/definitions/SignedDecimal"
+            },
+            "pnl": {
+              "description": "PnL: price PnL + accrued funding + opening fee + closing fee",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SignedDecimal"
+                }
+              ]
+            },
+            "price_pnl": {
+              "$ref": "#/definitions/SignedDecimal"
+            }
+          },
+          "additionalProperties": false
         },
         "PnlCoins": {
           "description": "Coins with Perp Vault base denom (uusdc) as a denom",
@@ -2119,10 +2271,14 @@
         "PositionPnl": {
           "type": "object",
           "required": [
+            "amounts",
             "coins",
             "values"
           ],
           "properties": {
+            "amounts": {
+              "$ref": "#/definitions/PnlAmounts"
+            },
             "coins": {
               "$ref": "#/definitions/PnlCoins"
             },
@@ -2197,8 +2353,8 @@
           "type": "object",
           "required": [
             "accrued_funding",
-            "closing_fees",
-            "opening_fees",
+            "closing_fee",
+            "opening_fee",
             "price_pnl",
             "total"
           ],
@@ -2206,10 +2362,10 @@
             "accrued_funding": {
               "$ref": "#/definitions/SignedDecimal"
             },
-            "closing_fees": {
+            "closing_fee": {
               "$ref": "#/definitions/SignedDecimal"
             },
-            "opening_fees": {
+            "opening_fee": {
               "$ref": "#/definitions/SignedDecimal"
             },
             "price_pnl": {
@@ -2226,18 +2382,18 @@
           "type": "object",
           "required": [
             "accrued_funding",
-            "closing_fees",
-            "opening_fees",
+            "closing_fee",
+            "opening_fee",
             "price_pnl"
           ],
           "properties": {
             "accrued_funding": {
               "$ref": "#/definitions/SignedDecimal"
             },
-            "closing_fees": {
+            "closing_fee": {
               "$ref": "#/definitions/SignedDecimal"
             },
-            "opening_fees": {
+            "opening_fee": {
               "$ref": "#/definitions/SignedDecimal"
             },
             "price_pnl": {

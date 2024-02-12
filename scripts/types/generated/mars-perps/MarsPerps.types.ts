@@ -138,6 +138,7 @@ export type QueryMsg =
       position: {
         account_id: string
         denom: string
+        new_size?: SignedDecimal | null
       }
     }
   | {
@@ -192,18 +193,18 @@ export interface Accounting {
 }
 export interface Balance {
   accrued_funding: SignedDecimal
-  closing_fees: SignedDecimal
-  opening_fees: SignedDecimal
+  closing_fee: SignedDecimal
+  opening_fee: SignedDecimal
   price_pnl: SignedDecimal
   total: SignedDecimal
 }
 export interface CashFlow {
   accrued_funding: SignedDecimal
-  closing_fees: SignedDecimal
-  opening_fees: SignedDecimal
+  closing_fee: SignedDecimal
+  opening_fee: SignedDecimal
   price_pnl: SignedDecimal
 }
-export interface RealizedPnlAmounts {
+export interface PnlAmounts {
   accrued_funding: SignedDecimal
   closing_fee: SignedDecimal
   opening_fee: SignedDecimal
@@ -249,14 +250,16 @@ export interface OwnerResponse {
 export interface PerpDenomState {
   denom: string
   enabled: boolean
-  pnl_values: DenomPnlValues
+  long_oi: Decimal
+  pnl_values: PnlValues
   rate: SignedDecimal
+  short_oi: Decimal
   total_entry_cost: SignedDecimal
   total_entry_funding: SignedDecimal
 }
-export interface DenomPnlValues {
+export interface PnlValues {
   accrued_funding: SignedDecimal
-  closing_fees: SignedDecimal
+  closing_fee: SignedDecimal
   pnl: SignedDecimal
   price_pnl: SignedDecimal
 }
@@ -275,20 +278,17 @@ export interface PositionResponse {
 export interface PerpPosition {
   base_denom: string
   closing_fee_rate: Decimal
+  current_exec_price: Decimal
   current_price: Decimal
   denom: string
+  entry_exec_price: Decimal
   entry_price: Decimal
-  realised_pnl: PnlValues
+  realised_pnl: PnlAmounts
   size: SignedDecimal
   unrealised_pnl: PositionPnl
 }
-export interface PnlValues {
-  accrued_funding: SignedDecimal
-  closing_fee: SignedDecimal
-  pnl: SignedDecimal
-  price_pnl: SignedDecimal
-}
 export interface PositionPnl {
+  amounts: PnlAmounts
   coins: PnlCoins
   values: PnlValues
 }

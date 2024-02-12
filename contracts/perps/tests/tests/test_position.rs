@@ -5,7 +5,7 @@ use mars_perps::error::ContractError;
 use mars_types::{
     math::SignedDecimal,
     params::{PerpParams, PerpParamsUpdate},
-    perps::PnlValues,
+    perps::PnlAmounts,
 };
 
 use super::helpers::{assert_err, MockEnv};
@@ -729,17 +729,14 @@ fn modify_position_realises_pnl() {
         Decimal::from_str("1000000").unwrap(),
     )
     .unwrap();
-    let max_net_oi = Uint128::new(500);
-    let max_long_oi = Uint128::new(4000);
-    let max_short_oi = Uint128::new(4200);
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
                 denom: "uatom".to_string(),
-                max_net_oi,
-                max_long_oi,
-                max_short_oi,
+                max_net_oi: Uint128::new(500),
+                max_long_oi: Uint128::new(4000),
+                max_short_oi: Uint128::new(4200),
             },
         },
     );
@@ -747,14 +744,17 @@ fn modify_position_realises_pnl() {
     // prepare some OI
     let size = SignedDecimal::from_str("300").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee]).unwrap();
+    mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee.clone()]).unwrap();
 
     // update price - we are now up 10%
     mock.set_price(&owner, "uatom", Decimal::from_str("11").unwrap()).unwrap();
 
+    // how much opening fee we will pay for increase from 300 to 400
+    let atom_opening_fee_for_increase =
+        mock.query_opening_fee("uatom", SignedDecimal::from_str("100").unwrap()).fee;
+
     // modify and verify that our pnl is realised
     mock.modify_position(
-        // FIXME: provide fees
         &credit_manager,
         "1",
         "uatom",
@@ -765,13 +765,18 @@ fn modify_position_realises_pnl() {
 
     let position = mock.query_position("1", "uatom");
 
+    let atom_opening_fee_total = atom_opening_fee.amount + atom_opening_fee_for_increase.amount;
+    let atom_opening_fee_total =
+        SignedDecimal::zero().checked_sub(atom_opening_fee_total.into()).unwrap(); // make it negative because it's a cost
+    assert_eq!(atom_opening_fee_total, SignedDecimal::from_str("-43").unwrap());
     assert_eq!(
         position.position.realised_pnl,
-        PnlValues {
+        PnlAmounts {
             accrued_funding: SignedDecimal::zero(),
             price_pnl: SignedDecimal::from_str("300.045").unwrap(),
-            closing_fee: SignedDecimal::from_str("-11.00165").unwrap(),
-            pnl: SignedDecimal::from_str("289.04335").unwrap(),
+            opening_fee: atom_opening_fee_total,
+            closing_fee: SignedDecimal::zero(), // increased position does not have closing fee
+            pnl: SignedDecimal::from_str("257.045").unwrap(),
         }
     );
 
@@ -791,11 +796,12 @@ fn modify_position_realises_pnl() {
 
     assert_eq!(
         position.position.realised_pnl,
-        PnlValues {
+        PnlAmounts {
             accrued_funding: SignedDecimal::zero(),
             price_pnl: SignedDecimal::from_str("98.685").unwrap(),
-            closing_fee: SignedDecimal::from_str("-21.50375").unwrap(),
-            pnl: SignedDecimal::from_str("77.18125").unwrap(),
+            opening_fee: atom_opening_fee_total, // we are not paying opening fee for decrease
+            closing_fee: SignedDecimal::from_str("-10.5021").unwrap(),
+            pnl: SignedDecimal::from_str("45.1829").unwrap(),
         }
     );
 }

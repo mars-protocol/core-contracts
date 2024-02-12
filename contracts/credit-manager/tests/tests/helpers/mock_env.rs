@@ -769,6 +769,15 @@ impl MockEnv {
     }
 
     pub fn query_perp_position(&self, account_id: &str, denom: &str) -> PositionResponse {
+        self.query_perp_position_with_new_size(account_id, denom, None)
+    }
+
+    pub fn query_perp_position_with_new_size(
+        &self,
+        account_id: &str,
+        denom: &str,
+        new_size: Option<SignedDecimal>,
+    ) -> PositionResponse {
         self.app
             .wrap()
             .query_wasm_smart(
@@ -776,6 +785,7 @@ impl MockEnv {
                 &perps::QueryMsg::Position {
                     account_id: account_id.to_string(),
                     denom: denom.to_string(),
+                    new_size,
                 },
             )
             .unwrap()

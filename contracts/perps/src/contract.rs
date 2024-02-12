@@ -110,7 +110,14 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::Position {
             account_id,
             denom,
-        } => to_binary(&query::position(deps, env.block.time.seconds(), account_id, denom)?),
+            new_size,
+        } => to_binary(&query::position(
+            deps,
+            env.block.time.seconds(),
+            account_id,
+            denom,
+            new_size,
+        )?),
         QueryMsg::Positions {
             start_after,
             limit,

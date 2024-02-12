@@ -98,12 +98,14 @@ impl Perps {
         querier: &QuerierWrapper,
         account_id: impl Into<String>,
         denom: impl Into<String>,
+        new_size: Option<SignedDecimal>,
     ) -> StdResult<PerpPosition> {
         let res: PositionResponse = querier.query_wasm_smart(
             self.address(),
             &QueryMsg::Position {
                 account_id: account_id.into(),
                 denom: denom.into(),
+                new_size,
             },
         )?;
         Ok(res.position)

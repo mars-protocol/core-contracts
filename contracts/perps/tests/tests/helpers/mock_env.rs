@@ -13,9 +13,9 @@ use mars_types::{
     oracle,
     params::{self, ExecuteMsg::UpdatePerpParams, PerpParamsUpdate},
     perps::{
-        self, Accounting, Config, DenomPnlValues, DenomStateResponse, DepositResponse,
-        PerpDenomState, PositionResponse, PositionsByAccountResponse, RealizedPnlAmounts,
-        TradingFee, UnlockState, VaultState,
+        self, Accounting, Config, DenomStateResponse, DepositResponse, PerpDenomState, PnlAmounts,
+        PnlValues, PositionResponse, PositionsByAccountResponse, TradingFee, UnlockState,
+        VaultState,
     },
 };
 
@@ -372,6 +372,7 @@ impl MockEnv {
                 &perps::QueryMsg::Position {
                     account_id: account_id.to_string(),
                     denom: denom.to_string(),
+                    new_size: None,
                 },
             )
             .unwrap()
@@ -406,7 +407,7 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_total_pnl(&self) -> DenomPnlValues {
+    pub fn query_total_pnl(&self) -> PnlValues {
         self.app.wrap().query_wasm_smart(self.perps.clone(), &perps::QueryMsg::TotalPnl {}).unwrap()
     }
 
@@ -433,7 +434,7 @@ impl MockEnv {
         &self,
         account_id: &str,
         denom: &str,
-    ) -> RealizedPnlAmounts {
+    ) -> PnlAmounts {
         self.app
             .wrap()
             .query_wasm_smart(

@@ -22,7 +22,7 @@ import {
   Accounting,
   Balance,
   CashFlow,
-  RealizedPnlAmounts,
+  PnlAmounts,
   DenomStateResponse,
   Funding,
   ArrayOfDenomStateResponse,
@@ -32,11 +32,10 @@ import {
   Coin,
   OwnerResponse,
   PerpDenomState,
-  DenomPnlValues,
+  PnlValues,
   PnL,
   PositionResponse,
   PerpPosition,
-  PnlValues,
   PositionPnl,
   PnlCoins,
   ArrayOfPositionResponse,
@@ -116,18 +115,18 @@ export interface MarsPerpsReactQuery<TResponse, TData = TResponse> {
   }
 }
 export interface MarsPerpsDenomRealizedPnlForAccountQuery<TData>
-  extends MarsPerpsReactQuery<RealizedPnlAmounts, TData> {
+  extends MarsPerpsReactQuery<PnlAmounts, TData> {
   args: {
     accountId: string
     denom: string
   }
 }
-export function useMarsPerpsDenomRealizedPnlForAccountQuery<TData = RealizedPnlAmounts>({
+export function useMarsPerpsDenomRealizedPnlForAccountQuery<TData = PnlAmounts>({
   client,
   args,
   options,
 }: MarsPerpsDenomRealizedPnlForAccountQuery<TData>) {
-  return useQuery<RealizedPnlAmounts, Error, TData>(
+  return useQuery<PnlAmounts, Error, TData>(
     marsPerpsQueryKeys.denomRealizedPnlForAccount(client?.contractAddress, args),
     () =>
       client
@@ -258,6 +257,7 @@ export interface MarsPerpsPositionQuery<TData>
   args: {
     accountId: string
     denom: string
+    newSize?: SignedDecimal
   }
 }
 export function useMarsPerpsPositionQuery<TData = PositionResponse>({
@@ -272,6 +272,7 @@ export function useMarsPerpsPositionQuery<TData = PositionResponse>({
         ? client.position({
             accountId: args.accountId,
             denom: args.denom,
+            newSize: args.newSize,
           })
         : Promise.reject(new Error('Invalid client')),
     { ...options, enabled: !!client && (options?.enabled != undefined ? options.enabled : true) },

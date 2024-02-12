@@ -618,26 +618,36 @@ export interface DebtAmount {
 export interface PerpPosition {
   base_denom: string
   closing_fee_rate: Decimal
+  current_exec_price: Decimal
   current_price: Decimal
   denom: string
+  entry_exec_price: Decimal
   entry_price: Decimal
-  realised_pnl: PnlValues
+  realised_pnl: PnlAmounts
   size: SignedDecimal
   unrealised_pnl: PositionPnl
 }
-export interface PnlValues {
+export interface PnlAmounts {
   accrued_funding: SignedDecimal
   closing_fee: SignedDecimal
+  opening_fee: SignedDecimal
   pnl: SignedDecimal
   price_pnl: SignedDecimal
 }
 export interface PositionPnl {
+  amounts: PnlAmounts
   coins: PnlCoins
   values: PnlValues
 }
 export interface PnlCoins {
   closing_fee: Coin
   pnl: PnL
+}
+export interface PnlValues {
+  accrued_funding: SignedDecimal
+  closing_fee: SignedDecimal
+  pnl: SignedDecimal
+  price_pnl: SignedDecimal
 }
 export interface VaultPositionValue {
   base_coin: CoinValue

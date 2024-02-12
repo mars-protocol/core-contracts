@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
-use mars_perps::position::PositionExt;
+use mars_perps::position::{PositionExt, PositionModification};
 use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
 use mars_types::{
     adapters::vault::{
@@ -12,7 +12,7 @@ use mars_types::{
     health::AccountKind,
     math::SignedDecimal,
     params::{AssetParams, CmSettings, HlsParams, LiquidationBonus, RedBankSettings, VaultConfig},
-    perps::{Funding, PerpPosition, PnlValues, Position},
+    perps::{Funding, PerpPosition, PnlAmounts, Position, PositionPnl},
 };
 use proptest::{
     collection::vec,
@@ -273,7 +273,7 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                         entry_price,
                         entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::zero(),
                         initial_skew,
-                        opening_fee_in_base_denom: Uint128::zero(),
+                        realized_pnl: PnlAmounts::default(),
                     };
                     // We randomize the skew scale, the rate and the index
                     let skew_scale = Decimal::from_atomics(Uint128::new(skew_scale as u128), 0)
@@ -301,27 +301,32 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                         last_funding_accrued_per_unit_in_base_denom: funding_index_dec.into(),
                     };
 
-                    let (pnl, _) = position
+                    let (pnl_values, pnl_amounts) = position
                         .compute_pnl(
                             &funding,
                             current_skew,
                             current_price,
                             usdc_price,
-                            &base_denom,
                             closing_fee_rate,
-                            true,
-                            None,
+                            PositionModification::None,
                         )
                         .unwrap();
 
+                    let pnl_coins = pnl_amounts.to_coins(&base_denom);
                     PerpPosition {
                         denom: perp_denom,
                         base_denom,
                         size,
                         current_price,
                         entry_price,
-                        unrealised_pnl: pnl,
-                        realised_pnl: PnlValues::default(),
+                        entry_exec_price: entry_price,
+                        current_exec_price: current_price,
+                        unrealised_pnl: PositionPnl {
+                            values: pnl_values,
+                            amounts: pnl_amounts,
+                            coins: pnl_coins,
+                        },
+                        realised_pnl: PnlAmounts::default(),
                         closing_fee_rate,
                     }
                 },

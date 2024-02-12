@@ -327,8 +327,10 @@
       "required": [
         "base_denom",
         "closing_fee_rate",
+        "current_exec_price",
         "current_price",
         "denom",
+        "entry_exec_price",
         "entry_price",
         "realised_pnl",
         "size",
@@ -341,17 +343,23 @@
         "closing_fee_rate": {
           "$ref": "#/definitions/Decimal"
         },
+        "current_exec_price": {
+          "$ref": "#/definitions/Decimal"
+        },
         "current_price": {
           "$ref": "#/definitions/Decimal"
         },
         "denom": {
           "type": "string"
         },
+        "entry_exec_price": {
+          "$ref": "#/definitions/Decimal"
+        },
         "entry_price": {
           "$ref": "#/definitions/Decimal"
         },
         "realised_pnl": {
-          "$ref": "#/definitions/PnlValues"
+          "$ref": "#/definitions/PnlAmounts"
         },
         "size": {
           "$ref": "#/definitions/SignedDecimal"
@@ -396,6 +404,40 @@
           "additionalProperties": false
         }
       ]
+    },
+    "PnlAmounts": {
+      "description": "Amounts denominated in the Perp Vault base denom (uusdc)",
+      "type": "object",
+      "required": [
+        "accrued_funding",
+        "closing_fee",
+        "opening_fee",
+        "pnl",
+        "price_pnl"
+      ],
+      "properties": {
+        "accrued_funding": {
+          "$ref": "#/definitions/SignedDecimal"
+        },
+        "closing_fee": {
+          "$ref": "#/definitions/SignedDecimal"
+        },
+        "opening_fee": {
+          "$ref": "#/definitions/SignedDecimal"
+        },
+        "pnl": {
+          "description": "PnL: price PnL + accrued funding + opening fee + closing fee",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SignedDecimal"
+            }
+          ]
+        },
+        "price_pnl": {
+          "$ref": "#/definitions/SignedDecimal"
+        }
+      },
+      "additionalProperties": false
     },
     "PnlCoins": {
       "description": "Coins with Perp Vault base denom (uusdc) as a denom",
@@ -447,10 +489,14 @@
     "PositionPnl": {
       "type": "object",
       "required": [
+        "amounts",
         "coins",
         "values"
       ],
       "properties": {
+        "amounts": {
+          "$ref": "#/definitions/PnlAmounts"
+        },
         "coins": {
           "$ref": "#/definitions/PnlCoins"
         },

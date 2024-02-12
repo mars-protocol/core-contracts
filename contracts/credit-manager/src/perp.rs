@@ -76,7 +76,7 @@ fn deduct_payment(
 
 pub fn close_perp(deps: DepsMut, account_id: &str, denom: &str) -> ContractResult<Response> {
     let perps = PERPS.load(deps.storage)?;
-    let (funds, mut msgs) = calculate_payment(deps, perps.clone(), account_id, denom)?;
+    let (funds, mut msgs) = calculate_payment(deps, perps.clone(), account_id, denom, None)?;
     let close_msg = perps.close_msg(account_id, denom, funds)?;
     msgs.push(close_msg);
 
@@ -92,6 +92,7 @@ fn calculate_payment(
     perps: PerpsBase<Addr>,
     account_id: &str,
     denom: &str,
+    new_size: Option<SignedDecimal>,
 ) -> ContractResult<(Vec<Coin>, Vec<CosmosMsg>)> {
     // query the perp position PnL so that we know whether funds needs to be
     // sent to the perps contract
@@ -102,7 +103,7 @@ fn calculate_payment(
     // computes the PnL **again** to assert the amount is correct. A better
     // solution is the frontend provides the funds amount. Need to communicate
     // this with the FE team.
-    let position = perps.query_position(&deps.querier, account_id, denom)?;
+    let position = perps.query_position(&deps.querier, account_id, denom, new_size)?;
 
     // if PnL is negative, we need to send funds to the perps contract, and
     // decrement the internally tracked user coin balance.
@@ -133,7 +134,8 @@ pub fn modify_perp(
     new_size: SignedDecimal,
 ) -> ContractResult<Response> {
     let perps = PERPS.load(deps.storage)?;
-    let (funds, mut msgs) = calculate_payment(deps, perps.clone(), account_id, denom)?;
+    let (funds, mut msgs) =
+        calculate_payment(deps, perps.clone(), account_id, denom, Some(new_size))?;
 
     msgs.push(perps.modify_msg(account_id, denom, new_size, funds)?);
 

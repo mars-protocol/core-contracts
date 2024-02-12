@@ -6,21 +6,18 @@ use mars_types::{
     math::SignedDecimal,
     oracle::ActionKind,
     perps::{
-        Accounting, Config, DenomPnlValues, DenomState, DenomStateResponse, DepositResponse,
-        PerpDenomState, PerpPosition, PositionResponse, PositionsByAccountResponse,
-        RealizedPnlAmounts, TradingFee, UnlockState, VaultState,
+        Accounting, Config, DenomState, DenomStateResponse, DepositResponse, PerpDenomState,
+        PerpPosition, PnlAmounts, PnlValues, PositionPnl, PositionResponse,
+        PositionsByAccountResponse, TradingFee, UnlockState, VaultState,
     },
 };
 
 use crate::{
     denom::{compute_total_accounting_data, compute_total_pnl, DenomStateExt},
     error::ContractResult,
-    position::PositionExt,
-    pricing::opening_execution_price,
-    state::{
-        CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, REALISED_PNL_STATES, REALIZED_PNL,
-        UNLOCKS, VAULT_STATE,
-    },
+    position::{PositionExt, PositionModification},
+    pricing::{closing_execution_price, opening_execution_price},
+    state::{CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, REALIZED_PNL, UNLOCKS, VAULT_STATE},
     vault::shares_to_amount,
 };
 
@@ -85,6 +82,8 @@ pub fn perp_denom_state(
     Ok(PerpDenomState {
         denom,
         enabled: ds.enabled,
+        long_oi: ds.long_oi,
+        short_oi: ds.short_oi,
         total_entry_cost: ds.total_entry_cost,
         total_entry_funding: ds.total_entry_funding,
         rate: curr_funding.last_funding_rate,
@@ -157,6 +156,7 @@ pub fn position(
     current_time: u64,
     account_id: String,
     denom: String,
+    new_size: Option<SignedDecimal>,
 ) -> ContractResult<PositionResponse> {
     let cfg = CONFIG.load(deps.storage)?;
     let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
@@ -166,19 +166,43 @@ pub fn position(
     let ds = DENOM_STATES.load(deps.storage, &denom)?;
     let curr_funding = ds.current_funding(current_time, denom_price, base_denom_price)?;
     let position = POSITIONS.load(deps.storage, (&account_id, &denom))?;
-    let (pnl, _pnl_amounts) = position.compute_pnl(
+
+    // Update the opening fee amount if the position size is increased
+    let mut opening_fee_amt = Uint128::zero();
+    let modification = match new_size {
+        Some(ns) if ns.abs > position.size.abs => {
+            let opening_fee_size = ns.checked_sub(position.size)?;
+            opening_fee_amt = opening_fee(deps, &denom, opening_fee_size)?.fee.amount;
+            PositionModification::Increase
+        }
+        Some(ns) => {
+            let q_change = position.size.checked_sub(ns)?;
+            PositionModification::Decrease(q_change.abs)
+        }
+        _ => PositionModification::None,
+    };
+
+    let (pnl_values, mut pnl_amounts) = position.compute_pnl(
         &curr_funding,
         ds.skew()?,
         denom_price,
         base_denom_price,
-        &cfg.base_denom,
         cfg.closing_fee_rate,
-        true,
-        None,
+        modification,
     )?;
 
-    let realised_pnl =
-        REALISED_PNL_STATES.may_load(deps.storage, (&account_id, &denom))?.unwrap_or_default();
+    // FIXME: update pnl_values with opening_fee_amt
+    pnl_amounts.add_opening_fee(opening_fee_amt)?;
+    let pnl_coins = pnl_amounts.to_coins(&cfg.base_denom);
+
+    let entry_exec_price = opening_execution_price(
+        position.initial_skew,
+        curr_funding.skew_scale,
+        position.size,
+        position.entry_price,
+    )?;
+    let exit_exec_price =
+        closing_execution_price(ds.skew()?, curr_funding.skew_scale, position.size, denom_price)?;
 
     Ok(PositionResponse {
         account_id,
@@ -188,8 +212,14 @@ pub fn position(
             size: position.size,
             entry_price: position.entry_price,
             current_price: denom_price,
-            unrealised_pnl: pnl,
-            realised_pnl,
+            entry_exec_price: entry_exec_price.abs,
+            current_exec_price: exit_exec_price.abs,
+            unrealised_pnl: PositionPnl {
+                values: pnl_values,
+                amounts: pnl_amounts,
+                coins: pnl_coins,
+            },
+            realised_pnl: position.realized_pnl,
             closing_fee_rate: cfg.closing_fee_rate,
         },
     })
@@ -236,40 +266,46 @@ pub fn positions(
 
             // if denom state is already in the cache, simply read it
             // otherwise, recalculate it, and insert into the cache
-            let (pnl, _pnl_amounts) = if let Some(curr_ds) = denoms.get(&denom) {
-                position.compute_pnl(
-                    &curr_ds.funding,
-                    curr_ds.skew()?,
-                    current_price,
-                    base_denom_price,
-                    &cfg.base_denom,
-                    cfg.closing_fee_rate,
-                    true,
-                    None,
-                )?
-            } else {
-                let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
-                let curr_funding =
-                    ds.current_funding(current_time, current_price, base_denom_price)?;
-                let pnl = position.compute_pnl(
-                    &curr_funding,
-                    ds.skew()?,
-                    current_price,
-                    base_denom_price,
-                    &cfg.base_denom,
-                    cfg.closing_fee_rate,
-                    true,
-                    None,
-                )?;
-                ds.funding = curr_funding;
-                denoms.insert(denom.clone(), ds);
-                pnl
-            };
+            let (pnl_values, pnl_amounts, skew, skew_scale) =
+                if let Some(curr_ds) = denoms.get(&denom) {
+                    let (pnl, pnl_amounts) = position.compute_pnl(
+                        &curr_ds.funding,
+                        curr_ds.skew()?,
+                        current_price,
+                        base_denom_price,
+                        cfg.closing_fee_rate,
+                        PositionModification::None,
+                    )?;
+                    (pnl, pnl_amounts, curr_ds.skew()?, curr_ds.funding.skew_scale)
+                } else {
+                    let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
+                    let curr_funding =
+                        ds.current_funding(current_time, current_price, base_denom_price)?;
+                    let (pnl, pnl_amounts) = position.compute_pnl(
+                        &curr_funding,
+                        ds.skew()?,
+                        current_price,
+                        base_denom_price,
+                        cfg.closing_fee_rate,
+                        PositionModification::None,
+                    )?;
+                    let skew = ds.skew()?;
+                    let skew_scale = curr_funding.skew_scale;
+                    ds.funding = curr_funding;
+                    denoms.insert(denom.clone(), ds);
+                    (pnl, pnl_amounts, skew, skew_scale)
+                };
 
-            let realised_pnl = REALISED_PNL_STATES
-                .may_load(deps.storage, (&account_id, &denom))?
-                .unwrap_or_default();
+            let entry_exec_price = opening_execution_price(
+                position.initial_skew,
+                skew_scale,
+                position.size,
+                position.entry_price,
+            )?;
+            let exit_exec_price =
+                closing_execution_price(skew, skew_scale, position.size, current_price)?;
 
+            let pnl_coins = pnl_amounts.to_coins(&cfg.base_denom);
             Ok(PositionResponse {
                 account_id,
                 position: PerpPosition {
@@ -278,8 +314,14 @@ pub fn positions(
                     size: position.size,
                     entry_price: position.entry_price,
                     current_price,
-                    unrealised_pnl: pnl,
-                    realised_pnl,
+                    entry_exec_price: entry_exec_price.abs,
+                    current_exec_price: exit_exec_price.abs,
+                    unrealised_pnl: PositionPnl {
+                        values: pnl_values,
+                        amounts: pnl_amounts,
+                        coins: pnl_coins,
+                    },
+                    realised_pnl: position.realized_pnl,
                     closing_fee_rate: cfg.closing_fee_rate,
                 },
             })
@@ -309,29 +351,43 @@ pub fn positions_by_account(
             let ds = DENOM_STATES.load(deps.storage, &denom)?;
             let curr_funding = ds.current_funding(current_time, denom_price, base_denom_price)?;
 
-            let (pnl, _pnl_amounts) = position.compute_pnl(
+            let (pnl_values, pnl_amounts) = position.compute_pnl(
                 &curr_funding,
                 ds.skew()?,
                 denom_price,
                 base_denom_price,
-                &cfg.base_denom,
                 cfg.closing_fee_rate,
-                true,
-                None,
+                PositionModification::None,
             )?;
 
-            let realised_pnl = REALISED_PNL_STATES
-                .may_load(deps.storage, (&account_id, &denom))?
-                .unwrap_or_default();
+            let entry_exec_price = opening_execution_price(
+                position.initial_skew,
+                curr_funding.skew_scale,
+                position.size,
+                position.entry_price,
+            )?;
+            let exit_exec_price = closing_execution_price(
+                ds.skew()?,
+                curr_funding.skew_scale,
+                position.size,
+                denom_price,
+            )?;
 
+            let pnl_coins = pnl_amounts.to_coins(&cfg.base_denom);
             Ok(PerpPosition {
                 denom,
                 base_denom: cfg.base_denom.clone(),
                 size: position.size,
                 entry_price: position.entry_price,
                 current_price: denom_price,
-                unrealised_pnl: pnl,
-                realised_pnl,
+                entry_exec_price: entry_exec_price.abs,
+                current_exec_price: exit_exec_price.abs,
+                unrealised_pnl: PositionPnl {
+                    values: pnl_values,
+                    amounts: pnl_amounts,
+                    coins: pnl_coins,
+                },
+                realised_pnl: position.realized_pnl,
                 closing_fee_rate: cfg.closing_fee_rate,
             })
         })
@@ -343,7 +399,7 @@ pub fn positions_by_account(
     })
 }
 
-pub fn total_pnl(deps: Deps, current_time: u64) -> ContractResult<DenomPnlValues> {
+pub fn total_pnl(deps: Deps, current_time: u64) -> ContractResult<PnlValues> {
     let cfg = CONFIG.load(deps.storage)?;
     compute_total_pnl(&deps, &cfg.oracle, current_time)
 }
@@ -398,7 +454,7 @@ pub fn denom_realized_pnl_for_account(
     deps: Deps,
     account_id: String,
     denom: String,
-) -> ContractResult<RealizedPnlAmounts> {
+) -> ContractResult<PnlAmounts> {
     let realized_pnl = REALIZED_PNL.load(deps.storage, (&account_id, &denom))?;
     Ok(realized_pnl)
 }
