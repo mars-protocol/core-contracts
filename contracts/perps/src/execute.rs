@@ -18,7 +18,7 @@ use crate::{
     denom::DenomStateExt,
     error::{ContractError, ContractResult},
     position::{PositionExt, PositionModification},
-    query::opening_fee,
+    pricing::opening_execution_price,
     state::{
         decrease_deposit_shares, increase_deposit_shares, CONFIG, DENOM_STATES, OWNER, POSITIONS,
         REALIZED_PNL, TOTAL_CASH_FLOW, UNLOCKS, VAULT_STATE,
@@ -320,7 +320,7 @@ pub fn open_position(
     ds.validate_open_interest(size, &perp_params)?;
 
     // skew _before_ modification
-    let inital_skew = ds.skew()?;
+    let initial_skew = ds.skew()?;
 
     // Update the denom's accumulators.
     // Funding rates and index is updated to the current block time (using old size).
@@ -338,6 +338,9 @@ pub fn open_position(
         TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
     }
 
+    let entry_exec_price =
+        opening_execution_price(initial_skew, ds.funding.skew_scale, size, denom_price)?.abs;
+
     DENOM_STATES.save(deps.storage, &denom, &ds)?;
 
     // save the user's new position with updated funding
@@ -347,10 +350,11 @@ pub fn open_position(
         &Position {
             size,
             entry_price: denom_price,
+            entry_exec_price,
             entry_accrued_funding_per_unit_in_base_denom: ds
                 .funding
                 .last_funding_accrued_per_unit_in_base_denom,
-            initial_skew: inital_skew,
+            initial_skew,
             realized_pnl: PnlAmounts::from_opening_fee(opening_fee_amt)?,
         },
     )?;
@@ -409,7 +413,6 @@ fn update_position_state(
     ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
 
     let entry_size = position.size;
-    let q_change = new_size.checked_sub(entry_size)?;
 
     // Check if we have flipped sides (e.g long -> short or vice versa).
     // To reduce complexity and contract size we reject this.
@@ -432,8 +435,6 @@ fn update_position_state(
     // skew _before_ modification
     let initial_skew = ds.skew()?;
 
-    let mut opening_fee_amt = Uint128::zero();
-
     let modification = match new_size.abs.cmp(&entry_size.abs) {
         // Close the position
         Ordering::Less if new_size.is_zero() => {
@@ -441,7 +442,7 @@ fn update_position_state(
             // Funding rates and index is updated to the current block time (using old size).
             ds.close_position(env.block.time.seconds(), denom_price, base_denom_price, &position)?;
 
-            PositionModification::Decrease(entry_size.abs)
+            PositionModification::Decrease(entry_size)
         }
 
         // Decrease the position
@@ -459,7 +460,8 @@ fn update_position_state(
                 new_size,
             )?;
 
-            PositionModification::Decrease(q_change.abs)
+            let q_change = entry_size.checked_sub(new_size)?;
+            PositionModification::Decrease(q_change)
         }
 
         // Increase position
@@ -474,14 +476,11 @@ fn update_position_state(
             // Enforce position size cannot be too big when increasing
             ensure_max_position(position_in_base_denom, &cfg)?;
 
+            let q_change = new_size.checked_sub(entry_size)?;
+
             // validate the position's size against OI limits
             let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
             ds.validate_open_interest(q_change, &perp_params)?; // q change
-
-            if !cfg.opening_fee_rate.is_zero() {
-                let opening_fee = opening_fee(deps.as_ref(), &denom, q_change)?;
-                opening_fee_amt = opening_fee.fee.amount;
-            }
 
             // Update the denom's accumulators.
             // Funding rates and index is updated to the current block time (using old size).
@@ -493,7 +492,7 @@ fn update_position_state(
                 new_size,
             )?;
 
-            PositionModification::Increase
+            PositionModification::Increase(q_change)
         }
 
         // Means we have submitted a new size the same as the old size.
@@ -507,19 +506,15 @@ fn update_position_state(
     // REALISE PNL
     // ===========
     // compute the position's unrealized PnL
-    let (_, mut pnl_amounts) = position.compute_pnl(
+    let (_, pnl_amounts) = position.compute_pnl(
         &ds.funding,
         initial_skew,
         denom_price,
         base_denom_price,
+        cfg.opening_fee_rate,
         cfg.closing_fee_rate,
         modification,
     )?;
-
-    // Update realized PnL with opening fee. This is only done when increasing the position.
-    if !opening_fee_amt.is_zero() {
-        pnl_amounts.add_opening_fee(opening_fee_amt)?;
-    }
 
     // Convert PnL amounts to coins
     let pnl = pnl_amounts.to_coins(&cfg.base_denom).pnl;
@@ -551,12 +546,17 @@ fn update_position_state(
         let mut realized_pnl = position.realized_pnl;
         realized_pnl.add(&pnl_amounts)?;
 
+        let entry_exec_price =
+            opening_execution_price(initial_skew, ds.funding.skew_scale, new_size, denom_price)?
+                .abs;
+
         POSITIONS.save(
             deps.storage,
             (&account_id, &denom),
             &Position {
                 size: new_size,
                 entry_price: denom_price,
+                entry_exec_price,
                 entry_accrued_funding_per_unit_in_base_denom: ds
                     .funding
                     .last_funding_accrued_per_unit_in_base_denom,

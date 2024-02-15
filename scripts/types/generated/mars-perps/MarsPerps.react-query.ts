@@ -38,6 +38,7 @@ import {
   PerpPosition,
   PositionPnl,
   PnlCoins,
+  PositionFeesResponse,
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
   ArrayOfUnlockState,
@@ -104,6 +105,8 @@ export const marsPerpsQueryKeys = {
         args,
       },
     ] as const,
+  positionFees: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+    [{ ...marsPerpsQueryKeys.address(contractAddress)[0], method: 'position_fees', args }] as const,
 }
 export interface MarsPerpsReactQuery<TResponse, TData = TResponse> {
   client: MarsPerpsQueryClient | undefined
@@ -113,6 +116,32 @@ export interface MarsPerpsReactQuery<TResponse, TData = TResponse> {
   > & {
     initialData?: undefined
   }
+}
+export interface MarsPerpsPositionFeesQuery<TData>
+  extends MarsPerpsReactQuery<PositionFeesResponse, TData> {
+  args: {
+    accountId: string
+    denom: string
+    newSize: SignedDecimal
+  }
+}
+export function useMarsPerpsPositionFeesQuery<TData = PositionFeesResponse>({
+  client,
+  args,
+  options,
+}: MarsPerpsPositionFeesQuery<TData>) {
+  return useQuery<PositionFeesResponse, Error, TData>(
+    marsPerpsQueryKeys.positionFees(client?.contractAddress, args),
+    () =>
+      client
+        ? client.positionFees({
+            accountId: args.accountId,
+            denom: args.denom,
+            newSize: args.newSize,
+          })
+        : Promise.reject(new Error('Invalid client')),
+    { ...options, enabled: !!client && (options?.enabled != undefined ? options.enabled : true) },
+  )
 }
 export interface MarsPerpsDenomRealizedPnlForAccountQuery<TData>
   extends MarsPerpsReactQuery<PnlAmounts, TData> {

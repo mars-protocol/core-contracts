@@ -249,6 +249,7 @@ pub struct PerpDenomState {
 pub struct Position {
     pub size: SignedDecimal,
     pub entry_price: Decimal,
+    pub entry_exec_price: Decimal,
     pub entry_accrued_funding_per_unit_in_base_denom: SignedDecimal,
     pub initial_skew: SignedDecimal,
     pub realized_pnl: PnlAmounts,
@@ -592,6 +593,13 @@ pub enum QueryMsg {
         account_id: String,
         denom: String,
     },
+
+    #[returns(PositionFeesResponse)]
+    PositionFees {
+        account_id: String,
+        denom: String,
+        new_size: SignedDecimal,
+    },
 }
 
 #[cw_serde]
@@ -633,4 +641,26 @@ pub struct PositionsByAccountResponse {
 pub struct TradingFee {
     pub rate: Decimal,
     pub fee: Coin,
+}
+
+#[cw_serde]
+#[derive(Default)]
+pub struct PositionFeesResponse {
+    /// Denomination of the base asset
+    pub base_denom: String,
+
+    /// The fee charged when opening/increasing a position
+    pub opening_fee: Uint128,
+
+    /// The fee charged when closing/reducing a position
+    pub closing_fee: Uint128,
+
+    /// Opening execution price of the position calculated with:
+    /// - entry size if the position is opened
+    /// - new size if the position is increased or reduced
+    pub opening_exec_price: Option<Decimal>,
+
+    /// Closing execution price of the position calculated with:
+    /// - entry size if the position is closed or reduced
+    pub closing_exec_price: Option<Decimal>,
 }

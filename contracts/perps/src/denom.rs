@@ -483,13 +483,7 @@ impl DenomStateExt for DenomState {
 
 fn decrease_accumulators(denom_state: &mut DenomState, position: &Position) -> ContractResult<()> {
     // decrease the total_entry_cost accumulator
-    let entry_exec_price = opening_execution_price(
-        position.initial_skew,
-        denom_state.funding.skew_scale,
-        position.size,
-        position.entry_price,
-    )?;
-    let value = position.size.checked_mul(entry_exec_price)?;
+    let value = position.size.checked_mul(position.entry_exec_price.into())?;
     denom_state.total_entry_cost = denom_state.total_entry_cost.checked_sub(value)?;
 
     // decrease the total_entry_funding accumulator accordingly
@@ -835,6 +829,7 @@ mod tests {
             &Position {
                 size: SignedDecimal::from_str("-100").unwrap(),
                 entry_price: Decimal::from_str("4200").unwrap(),
+                entry_exec_price: Decimal::from_str("4149.39").unwrap(),
                 entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("77.25")
                     .unwrap(),
                 initial_skew: SignedDecimal::from_str("-12000").unwrap(),
@@ -898,10 +893,15 @@ mod tests {
 
         let mut ds_1 = ds_before_modification.clone();
 
+        let skew = ds_1.skew().unwrap();
+        let entry_price = Decimal::from_str("4200").unwrap();
+        let entry_exec_price =
+            opening_execution_price(skew, ds_1.funding.skew_scale, size, entry_price).unwrap().abs;
         let mut pos = Position {
             size,
-            entry_price: Decimal::from_str("4200").unwrap(),
-            initial_skew: ds_1.skew().unwrap(),
+            entry_price,
+            entry_exec_price,
+            initial_skew: skew,
             ..Default::default()
         };
         ds_1.open_position(43400, pos.size, pos.entry_price, Decimal::from_str("0.8").unwrap())
@@ -918,6 +918,10 @@ mod tests {
         // update the position with new data
         pos.size = new_size;
         pos.entry_price = new_denom_price;
+        pos.entry_exec_price =
+            opening_execution_price(new_skew, ds_1.funding.skew_scale, new_size, new_denom_price)
+                .unwrap()
+                .abs;
         pos.entry_accrued_funding_per_unit_in_base_denom =
             ds_1.funding.last_funding_accrued_per_unit_in_base_denom;
         pos.initial_skew = new_skew;

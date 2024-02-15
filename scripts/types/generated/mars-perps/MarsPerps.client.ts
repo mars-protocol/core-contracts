@@ -37,6 +37,7 @@ import {
   PerpPosition,
   PositionPnl,
   PnlCoins,
+  PositionFeesResponse,
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
   ArrayOfUnlockState,
@@ -94,6 +95,15 @@ export interface MarsPerpsReadOnlyInterface {
     accountId: string
     denom: string
   }) => Promise<PnlAmounts>
+  positionFees: ({
+    accountId,
+    denom,
+    newSize,
+  }: {
+    accountId: string
+    denom: string
+    newSize: SignedDecimal
+  }) => Promise<PositionFeesResponse>
 }
 export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
   client: CosmWasmClient
@@ -119,6 +129,7 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
     this.denomAccounting = this.denomAccounting.bind(this)
     this.totalAccounting = this.totalAccounting.bind(this)
     this.denomRealizedPnlForAccount = this.denomRealizedPnlForAccount.bind(this)
+    this.positionFees = this.positionFees.bind(this)
   }
 
   owner = async (): Promise<OwnerResponse> => {
@@ -276,6 +287,23 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
       denom_realized_pnl_for_account: {
         account_id: accountId,
         denom,
+      },
+    })
+  }
+  positionFees = async ({
+    accountId,
+    denom,
+    newSize,
+  }: {
+    accountId: string
+    denom: string
+    newSize: SignedDecimal
+  }): Promise<PositionFeesResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      position_fees: {
+        account_id: accountId,
+        denom,
+        new_size: newSize,
       },
     })
   }

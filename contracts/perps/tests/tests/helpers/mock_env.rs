@@ -14,8 +14,8 @@ use mars_types::{
     params::{self, ExecuteMsg::UpdatePerpParams, PerpParamsUpdate},
     perps::{
         self, Accounting, Config, DenomStateResponse, DepositResponse, PerpDenomState, PnlAmounts,
-        PnlValues, PositionResponse, PositionsByAccountResponse, TradingFee, UnlockState,
-        VaultState,
+        PnlValues, PositionFeesResponse, PositionResponse, PositionsByAccountResponse, TradingFee,
+        UnlockState, VaultState,
     },
 };
 
@@ -455,6 +455,25 @@ impl MockEnv {
                 &perps::QueryMsg::OpeningFee {
                     denom: denom.to_string(),
                     size,
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_position_fees(
+        &self,
+        account_id: &str,
+        denom: &str,
+        new_size: SignedDecimal,
+    ) -> PositionFeesResponse {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.clone(),
+                &perps::QueryMsg::PositionFees {
+                    account_id: account_id.to_string(),
+                    denom: denom.to_string(),
+                    new_size,
                 },
             )
             .unwrap()

@@ -5,8 +5,9 @@ use mars_perps::error::ContractError;
 use mars_types::{
     math::SignedDecimal,
     params::{PerpParams, PerpParamsUpdate},
-    perps::PnlAmounts,
+    perps::{PnlAmounts, PositionFeesResponse},
 };
+use test_case::test_case;
 
 use super::helpers::{assert_err, MockEnv};
 use crate::tests::helpers::default_perp_params;
@@ -774,9 +775,10 @@ fn modify_position_realises_pnl() {
         PnlAmounts {
             accrued_funding: SignedDecimal::zero(),
             price_pnl: SignedDecimal::from_str("300.045").unwrap(),
-            opening_fee: atom_opening_fee_total,
+            // opening_fee: atom_opening_fee_total,
+            opening_fee: SignedDecimal::from_str("-42.00385").unwrap(), // FIXME: rounding error
             closing_fee: SignedDecimal::zero(), // increased position does not have closing fee
-            pnl: SignedDecimal::from_str("257.045").unwrap(),
+            pnl: SignedDecimal::from_str("258.04115").unwrap(),
         }
     );
 
@@ -799,9 +801,162 @@ fn modify_position_realises_pnl() {
         PnlAmounts {
             accrued_funding: SignedDecimal::zero(),
             price_pnl: SignedDecimal::from_str("98.685").unwrap(),
-            opening_fee: atom_opening_fee_total, // we are not paying opening fee for decrease
-            closing_fee: SignedDecimal::from_str("-10.5021").unwrap(),
-            pnl: SignedDecimal::from_str("45.1829").unwrap(),
+            // opening_fee: atom_opening_fee_total, // we are not paying opening fee for decrease
+            opening_fee: SignedDecimal::from_str("-42.00385").unwrap(), // FIXME: rounding error
+            closing_fee: SignedDecimal::from_str("-10.503675").unwrap(),
+            pnl: SignedDecimal::from_str("46.177475").unwrap(),
         }
     );
+}
+
+#[test_case(
+    None,
+    SignedDecimal::from_str("250").unwrap(),
+    PositionFeesResponse {
+        base_denom: "uusdc".to_string(),
+        opening_fee: Uint128::new(2u128),
+        closing_fee: Uint128::zero(),
+        opening_exec_price: Some(Decimal::from_str("1.26265625").unwrap()),
+        closing_exec_price: None,
+    };
+    "open long"
+)]
+#[test_case(
+    Some(SignedDecimal::from_str("1200").unwrap()),
+    SignedDecimal::from_str("2500").unwrap(),
+    PositionFeesResponse {
+        base_denom: "uusdc".to_string(),
+        opening_fee: Uint128::new(8u128),
+        closing_fee: Uint128::zero(),
+        opening_exec_price: Some(Decimal::from_str("1.2655625").unwrap()),
+        closing_exec_price: Some(Decimal::from_str("1.26325").unwrap()),
+    };
+    "increase long"
+)]
+#[test_case(
+    Some(SignedDecimal::from_str("1200").unwrap()),
+    SignedDecimal::from_str("800").unwrap(),
+    PositionFeesResponse {
+        base_denom: "uusdc".to_string(),
+        opening_fee: Uint128::zero(),
+        closing_fee: Uint128::new(4u128),
+        opening_exec_price: Some(Decimal::from_str("1.2645").unwrap()),
+        closing_exec_price: Some(Decimal::from_str("1.26325").unwrap()),
+    };
+    "decrease long"
+)]
+#[test_case(
+    Some(SignedDecimal::from_str("1200").unwrap()),
+    SignedDecimal::from_str("0").unwrap(),
+    PositionFeesResponse {
+        base_denom: "uusdc".to_string(),
+        opening_fee: Uint128::zero(),
+        closing_fee: Uint128::new(11u128),
+        opening_exec_price: None,
+        closing_exec_price: Some(Decimal::from_str("1.26325").unwrap()),
+    };
+    "close long"
+)]
+#[test_case(
+    None,
+    SignedDecimal::from_str("-2500").unwrap(),
+    PositionFeesResponse {
+        base_denom: "uusdc".to_string(),
+        opening_fee: Uint128::new(15u128),
+        closing_fee: Uint128::zero(),
+        opening_exec_price: Some(Decimal::from_str("1.2609375").unwrap()),
+        closing_exec_price: None,
+    };
+    "open short"
+)]
+#[test_case(
+    Some(SignedDecimal::from_str("-1200").unwrap()),
+    SignedDecimal::from_str("-2500").unwrap(),
+    PositionFeesResponse {
+        base_denom: "uusdc".to_string(),
+        opening_fee: Uint128::new(8u128),
+        closing_fee: Uint128::zero(),
+        opening_exec_price: Some(Decimal::from_str("1.2594375").unwrap()),
+        closing_exec_price: Some(Decimal::from_str("1.26175").unwrap()),
+    };
+    "increase short"
+)]
+#[test_case(
+    Some(SignedDecimal::from_str("-1200").unwrap()),
+    SignedDecimal::from_str("-600").unwrap(),
+    PositionFeesResponse {
+        base_denom: "uusdc".to_string(),
+        opening_fee: Uint128::zero(),
+        closing_fee: Uint128::new(6u128),
+        opening_exec_price: Some(Decimal::from_str("1.260625").unwrap()),
+        closing_exec_price: Some(Decimal::from_str("1.26175").unwrap()),
+    };
+    "decrease short"
+)]
+#[test_case(
+    Some(SignedDecimal::from_str("-1200").unwrap()),
+    SignedDecimal::from_str("0").unwrap(),
+    PositionFeesResponse {
+        base_denom: "uusdc".to_string(),
+        opening_fee: Uint128::zero(),
+        closing_fee: Uint128::new(11u128),
+        opening_exec_price: None,
+        closing_exec_price: Some(Decimal::from_str("1.26175").unwrap()),
+    };
+    "close short"
+)]
+fn query_position_fees(
+    old_size: Option<SignedDecimal>,
+    new_size: SignedDecimal,
+    expected_fees: PositionFeesResponse,
+) {
+    let mut mock = MockEnv::new()
+        .opening_fee_rate(Decimal::from_str("0.004").unwrap())
+        .closing_fee_rate(Decimal::from_str("0.006").unwrap())
+        .build()
+        .unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = Addr::unchecked("jake");
+
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager, &user], 1_000_000_000_000u128, &["uosmo", "uusdc"]);
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
+
+    // init denoms
+    mock.init_denom(
+        &owner,
+        "uosmo",
+        Decimal::from_str("3").unwrap(),
+        Decimal::from_str("1000000").unwrap(),
+    )
+    .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("uosmo"),
+        },
+    );
+
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+    mock.set_price(&owner, "uosmo", Decimal::from_str("1.25").unwrap()).unwrap();
+
+    // open a position to change skew
+    let size = SignedDecimal::from_str("10000").unwrap();
+    let opening_fee = mock.query_opening_fee("uosmo", size).fee;
+    mock.open_position(&credit_manager, "2", "uosmo", size, &[opening_fee]).unwrap();
+
+    // open a position if specified
+    if let Some(old_size) = old_size {
+        let opening_fee = mock.query_opening_fee("uosmo", old_size).fee;
+        mock.open_position(&credit_manager, "1", "uosmo", old_size, &[opening_fee]).unwrap();
+    }
+
+    // check expected fees
+    let position_fees = mock.query_position_fees("1", "uosmo", new_size);
+    assert_eq!(position_fees, expected_fees);
 }

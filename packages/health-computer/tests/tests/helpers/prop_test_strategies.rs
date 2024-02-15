@@ -1,7 +1,10 @@
 use std::{collections::HashMap, str::FromStr};
 
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
-use mars_perps::position::{PositionExt, PositionModification};
+use mars_perps::{
+    position::{PositionExt, PositionModification},
+    pricing::opening_execution_price,
+};
 use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
 use mars_types::{
     adapters::vault::{
@@ -268,18 +271,26 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                         negative: current_skew < 0,
                         abs: Decimal::from_atomics(i32::abs(current_skew) as u128, 0).unwrap(),
                     };
-                    let position = Position {
-                        size,
-                        entry_price,
-                        entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::zero(),
-                        initial_skew,
-                        realized_pnl: PnlAmounts::default(),
-                    };
                     // We randomize the skew scale, the rate and the index
                     let skew_scale = Decimal::from_atomics(Uint128::new(skew_scale as u128), 0)
                         .unwrap()
                         .checked_mul(Decimal::from_str("1000000").unwrap())
                         .unwrap();
+                    let position = Position {
+                        size,
+                        entry_price,
+                        entry_exec_price: opening_execution_price(
+                            initial_skew,
+                            skew_scale,
+                            size,
+                            entry_price,
+                        )
+                        .unwrap()
+                        .abs,
+                        entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::zero(),
+                        initial_skew,
+                        realized_pnl: PnlAmounts::default(),
+                    };
 
                     // This gives us a max of 10
                     let rate = Decimal::from_atomics(Uint128::new(rate as u128), 3).unwrap();
@@ -307,6 +318,7 @@ fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpP
                             current_skew,
                             current_price,
                             usdc_price,
+                            Decimal::zero(), // TODO: provide a real value
                             closing_fee_rate,
                             PositionModification::None,
                         )

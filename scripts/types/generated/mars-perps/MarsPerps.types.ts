@@ -175,6 +175,13 @@ export type QueryMsg =
         denom: string
       }
     }
+  | {
+      position_fees: {
+        account_id: string
+        denom: string
+        new_size: SignedDecimal
+      }
+    }
 export interface ConfigForString {
   base_denom: string
   closing_fee_rate: Decimal
@@ -295,6 +302,13 @@ export interface PositionPnl {
 export interface PnlCoins {
   closing_fee: Coin
   pnl: PnL
+}
+export interface PositionFeesResponse {
+  base_denom: string
+  closing_exec_price?: Decimal | null
+  closing_fee: Uint128
+  opening_exec_price?: Decimal | null
+  opening_fee: Uint128
 }
 export type ArrayOfPositionResponse = PositionResponse[]
 export interface PositionsByAccountResponse {

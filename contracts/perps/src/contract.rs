@@ -140,6 +140,11 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             account_id,
             denom,
         } => to_binary(&query::denom_realized_pnl_for_account(deps, account_id, denom)?),
+        QueryMsg::PositionFees {
+            account_id,
+            denom,
+            new_size,
+        } => to_binary(&query::position_fees(deps, &account_id, &denom, new_size)?),
     }
     .map_err(Into::into)
 }
