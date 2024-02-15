@@ -94,7 +94,7 @@ pub fn health_state(
 
     // Helpful to not have to do computations & query the oracle for cases
     // like liquidations where oracle circuit breakers may hinder it.
-    if positions.debts.is_empty() {
+    if positions.debts.is_empty() && positions.perps.is_empty() {
         return Ok(HealthState::Healthy);
     }
 

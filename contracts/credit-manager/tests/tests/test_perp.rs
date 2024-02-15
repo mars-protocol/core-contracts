@@ -1,12 +1,14 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
+use mars_credit_manager::error::ContractError;
 use mars_mock_oracle::msg::CoinPrice;
 use mars_types::{
     credit_manager::{
         Action::{ClosePerp, Deposit, ModifyPerp, OpenPerp},
         Positions,
     },
+    health::AccountKind,
     math::SignedDecimal,
     oracle::ActionKind,
     params::PerpParamsUpdate,
@@ -14,7 +16,7 @@ use mars_types::{
 };
 
 use super::helpers::{coin_info, uatom_info, uosmo_info, AccountToFund, CoinInfo, MockEnv};
-use crate::tests::helpers::{default_perp_params, get_coin};
+use crate::tests::helpers::{assert_err, default_perp_params, get_coin};
 
 #[test]
 fn perp_position_when_usdc_in_account() {
@@ -756,6 +758,51 @@ fn decrease_position_with_realized_pnl() {
     // check if perp balance increased by position loss
     let current_perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
     assert_eq!(current_perp_usdc_balance.amount, perp_usdc_balance_after_modification + loss_amt);
+}
+
+#[test]
+fn cannot_open_perp_above_max_ltv() {
+    let osmo_info = uosmo_info();
+    let atom_info = uatom_info();
+    let usdc_info = coin_info("uusdc");
+
+    let osmo_coin_deposited = osmo_info.to_coin(10000);
+    let usdc_coin_deposited = usdc_info.to_coin(1000);
+
+    let cm_user = Addr::unchecked("user");
+
+    let (mut mock, account_id) = setup(
+        &osmo_info,
+        &atom_info,
+        &usdc_info,
+        &osmo_coin_deposited,
+        &usdc_coin_deposited,
+        &cm_user,
+    );
+
+    let perp_size = SignedDecimal::from_str("100000").unwrap();
+
+    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    assert!(!health.above_max_ltv);
+    assert!(!health.liquidatable);
+
+    // open perp position
+    let res = mock.update_credit_account(
+        &account_id,
+        &cm_user,
+        vec![OpenPerp {
+            denom: atom_info.denom.clone(),
+            size: perp_size,
+        }],
+        &[],
+    );
+    assert_err(
+        res,
+        ContractError::AboveMaxLTV {
+            account_id,
+            max_ltv_health_factor: "0.82878".to_string(),
+        },
+    );
 }
 
 fn setup(
