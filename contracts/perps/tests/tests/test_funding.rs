@@ -28,6 +28,9 @@ fn computing_funding() {
     // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
     mock.fund_accounts(&[&credit_manager, &depositor], 1_000_000_000_000u128, &["ueth", "uusdc"]);
 
+    // set usdc price
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+
     // deposit some big number of uusdc to vault
     mock.deposit_to_vault(&depositor, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
 
@@ -45,9 +48,6 @@ fn computing_funding() {
             params: default_perp_params("ueth"),
         },
     );
-
-    // set usdc price
-    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
 
     // set entry price
     mock.set_price(&owner, "ueth", Decimal::from_str("2000").unwrap()).unwrap();

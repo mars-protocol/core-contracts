@@ -403,7 +403,6 @@ fn update_position_state(
 
     // States
     let cfg = CONFIG.load(deps.storage)?;
-    let mut vs = VAULT_STATE.load(deps.storage)?;
     let mut realized_pnl =
         REALIZED_PNL.may_load(deps.storage, (&account_id, &denom))?.unwrap_or_default();
     let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
@@ -519,10 +518,7 @@ fn update_position_state(
     // Convert PnL amounts to coins
     let pnl = pnl_amounts.to_coins(&cfg.base_denom).pnl;
 
-    let (send_amount, updated_liquidity) =
-        execute_payment(&cfg.base_denom, vs.total_liquidity, paid_amount, &pnl)?;
-
-    vs.total_liquidity = updated_liquidity;
+    let send_amount = execute_payment(&cfg.base_denom, paid_amount, &pnl)?;
 
     if !send_amount.is_zero() {
         // send coins to credit manager
@@ -569,7 +565,6 @@ fn update_position_state(
     };
 
     // Save updated states
-    VAULT_STATE.save(deps.storage, &vs)?;
     REALIZED_PNL.save(deps.storage, (&account_id, &denom), &realized_pnl)?;
     DENOM_STATES.save(deps.storage, &denom, &ds)?;
     TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
@@ -612,16 +607,14 @@ fn apply_new_amounts_to_realized_pnl(
     Ok(())
 }
 
-/// Compute how many coins should be sent to the credit account, and
-/// update global liquidity amount.
+/// Compute how many coins should be sent to the credit account.
 /// Credit manager doesn't send more coins than required.
 fn execute_payment(
     base_denom: &str,
-    total_liquidity: Uint128,
     paid_amount: Uint128,
     pnl: &PnL,
-) -> Result<(Uint128, Uint128), ContractError> {
-    let (send_amount, updated_liquidity) = match pnl {
+) -> Result<Uint128, ContractError> {
+    match pnl {
         PnL::Profit(Coin {
             amount,
             ..
@@ -635,7 +628,7 @@ fn execute_payment(
                 });
             }
 
-            (*amount, total_liquidity.checked_sub(*amount)?)
+            Ok(*amount)
         }
         PnL::Loss(Coin {
             amount,
@@ -651,7 +644,7 @@ fn execute_payment(
                 });
             }
 
-            (Uint128::zero(), total_liquidity.checked_add(*amount)?)
+            Ok(Uint128::zero())
         }
         PnL::BreakEven => {
             if !paid_amount.is_zero() {
@@ -663,8 +656,7 @@ fn execute_payment(
                 });
             }
 
-            (Uint128::zero(), total_liquidity)
+            Ok(Uint128::zero())
         }
-    };
-    Ok((send_amount, updated_liquidity))
+    }
 }

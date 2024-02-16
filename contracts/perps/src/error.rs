@@ -84,6 +84,9 @@ pub enum ContractError {
     #[error("cannot unlock when there is zero shares")]
     ZeroShares,
 
+    #[error("cannot unlock with zero withdrawal balance")]
+    ZeroWithdrawalBalance,
+
     #[error("Invalid param: {reason}")]
     InvalidParam {
         reason: String,

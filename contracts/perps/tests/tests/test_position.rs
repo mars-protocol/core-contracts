@@ -41,12 +41,12 @@ fn random_user_cannot_modify_position() {
         &["uosmo", "uatom", "uusdc"],
     );
 
-    // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
-
     // set prices
     mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
     mock.set_price(&owner, "uatom", Decimal::from_str("7.2").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
 
     // init denoms
     mock.init_denom(
@@ -128,12 +128,12 @@ fn cannot_increase_position_for_disabled_denom() {
         &["uosmo", "uatom", "uusdc"],
     );
 
-    // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
-
     // set prices
     mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
     mock.set_price(&owner, "uatom", Decimal::from_str("7.2").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
 
     // init denoms
     mock.init_denom(
@@ -294,12 +294,12 @@ fn reduced_position_cannot_be_too_small() {
         &["uosmo", "uatom", "uusdc"],
     );
 
-    // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
-
     // set prices
     mock.set_price(&owner, "uusdc", Decimal::from_str("0.8").unwrap()).unwrap();
     mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
 
     // init denoms
     mock.init_denom(
@@ -411,12 +411,12 @@ fn increased_position_cannot_be_too_big() {
         &["uosmo", "uatom", "uusdc"],
     );
 
-    // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
-
     // set prices
     mock.set_price(&owner, "uusdc", Decimal::from_str("0.8").unwrap()).unwrap();
     mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
 
     // init denoms
     mock.init_denom(
@@ -592,12 +592,12 @@ fn validate_modify_position() {
         &["uosmo", "uatom", "uusdc"],
     );
 
-    // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
-
     // set prices
     mock.set_price(&owner, "uusdc", Decimal::from_str("0.8").unwrap()).unwrap();
     mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
 
     // init denoms
     mock.init_denom(
@@ -715,12 +715,12 @@ fn modify_position_realises_pnl() {
         &["uosmo", "uatom", "uusdc"],
     );
 
-    // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
-
     // set prices
     mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
     mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
 
     // init denoms
     mock.init_denom(
@@ -920,6 +920,10 @@ fn query_position_fees(
     let credit_manager = mock.credit_manager.clone();
     let user = Addr::unchecked("jake");
 
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+    mock.set_price(&owner, "uosmo", Decimal::from_str("1.25").unwrap()).unwrap();
+
     // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
     mock.fund_accounts(&[&credit_manager, &user], 1_000_000_000_000u128, &["uosmo", "uusdc"]);
 
@@ -940,10 +944,6 @@ fn query_position_fees(
             params: default_perp_params("uosmo"),
         },
     );
-
-    // set prices
-    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
-    mock.set_price(&owner, "uosmo", Decimal::from_str("1.25").unwrap()).unwrap();
 
     // open a position to change skew
     let size = SignedDecimal::from_str("10000").unwrap();

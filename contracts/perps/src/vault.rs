@@ -62,14 +62,14 @@ pub fn amount_to_shares(
     base_denom: &str,
     amount: Uint128,
 ) -> ContractResult<Uint128> {
-    if vs.total_shares.is_zero() {
+    let available_liquidity =
+        compute_global_withdrawal_balance(deps, vs, oracle, current_time, base_denom)?;
+
+    if vs.total_shares.is_zero() || available_liquidity.is_zero() {
         return amount.checked_mul(Uint128::new(DEFAULT_SHARES_PER_AMOUNT)).map_err(Into::into);
     }
 
-    // TODO: what if total_liquidity is zero?
-    let total_liquidity =
-        compute_global_withdrawal_balance(deps, vs, oracle, current_time, base_denom)?;
-    vs.total_shares.checked_multiply_ratio(amount, total_liquidity).map_err(Into::into)
+    vs.total_shares.checked_multiply_ratio(amount, available_liquidity).map_err(Into::into)
 }
 
 /// Convert a deposit shares to amount, given the current total amount and
@@ -93,8 +93,12 @@ pub fn shares_to_amount(
         return Err(ContractError::ZeroTotalShares);
     }
 
-    // TODO: what if total_liquidity is zero?
-    let total_liquidity =
+    // We can't continue if there is zero available liquidity in the vault
+    let available_liquidity =
         compute_global_withdrawal_balance(deps, vs, oracle, current_time, base_denom)?;
-    total_liquidity.checked_multiply_ratio(shares, vs.total_shares).map_err(Into::into)
+    if available_liquidity.is_zero() {
+        return Err(ContractError::ZeroWithdrawalBalance);
+    }
+
+    available_liquidity.checked_multiply_ratio(shares, vs.total_shares).map_err(Into::into)
 }

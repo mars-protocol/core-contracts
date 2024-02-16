@@ -26,6 +26,8 @@ fn computing_total_pnl() {
         &["uosmo", "uatom", "utia", "uusdc"],
     );
 
+    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
+
     // deposit some big number of uusdc to vault
     mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
 
@@ -69,8 +71,6 @@ fn computing_total_pnl() {
             params: default_perp_params("utia"),
         },
     );
-
-    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
 
     // set entry prices
     mock.set_price(&owner, "uosmo", Decimal::from_str("0.25").unwrap()).unwrap();

@@ -179,6 +179,9 @@ fn funding_change_accordingly_to_denom_state_modification() {
     // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
     mock.fund_accounts(&[&credit_manager, &depositor], 1_000_000_000_000u128, &["ueth", "uusdc"]);
 
+    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
+    mock.set_price(&owner, "ueth", Decimal::from_str("2000").unwrap()).unwrap();
+
     // deposit some big number of uusdc to vault
     mock.deposit_to_vault(&depositor, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
 
@@ -196,8 +199,6 @@ fn funding_change_accordingly_to_denom_state_modification() {
             params: default_perp_params("ueth"),
         },
     );
-    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
-    mock.set_price(&owner, "ueth", Decimal::from_str("2000").unwrap()).unwrap();
     mock.open_position(&credit_manager, "1", "ueth", SignedDecimal::from_str("300").unwrap(), &[])
         .unwrap();
     mock.disable_denom(&owner, "ueth").unwrap();

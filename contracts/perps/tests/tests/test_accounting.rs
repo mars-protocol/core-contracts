@@ -29,6 +29,8 @@ fn accounting() {
         &["uosmo", "uatom", "uusdc"],
     );
 
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+
     // deposit some big number of uusdc to vault
     mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
 
@@ -60,8 +62,6 @@ fn accounting() {
         },
     );
 
-    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
-
     // set entry prices
     mock.set_price(&owner, "uosmo", Decimal::from_str("1.25").unwrap()).unwrap();
     mock.set_price(&owner, "uatom", Decimal::from_str("10.5").unwrap()).unwrap();
@@ -74,6 +74,8 @@ fn accounting() {
     let total_accounting = mock.query_total_accounting();
     assert_eq!(total_accounting, Accounting::default());
 
+    let vault_state_before_opening = mock.query_vault_state();
+
     // open few positions for account 1
     let size = SignedDecimal::from_str("1000").unwrap();
     let osmo_opening_fee = mock.query_opening_fee("uosmo", size).fee;
@@ -81,6 +83,10 @@ fn accounting() {
     let size = SignedDecimal::from_str("-2500").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee.clone()]).unwrap();
+
+    // check vault state after opening positions
+    let vault_state = mock.query_vault_state();
+    assert_eq!(vault_state_before_opening, vault_state);
 
     // check accounting after opening positions
     let osmo_accounting = mock.query_denom_accounting("uosmo");
@@ -115,10 +121,16 @@ fn accounting() {
     // change only uosmo price
     mock.set_price(&owner, "uosmo", Decimal::from_str("2").unwrap()).unwrap();
 
+    let vault_state_before_closing = mock.query_vault_state();
+
     // close uosmo position
     let pos = mock.query_position("1", "uosmo");
     mock.close_position(&credit_manager, "1", "uosmo", &from_position_to_coin(pos.position))
         .unwrap();
+
+    // check vault state after closing uosmo position
+    let vault_state = mock.query_vault_state();
+    assert_eq!(vault_state_before_closing, vault_state);
 
     // check accounting after closing uosmo position
     let osmo_accounting = mock.query_denom_accounting("uosmo");
@@ -159,10 +171,16 @@ fn accounting() {
     // change only uatom price
     mock.set_price(&owner, "uatom", Decimal::from_str("15").unwrap()).unwrap();
 
+    let vault_state_before_closing = mock.query_vault_state();
+
     // close uatom position
     let pos = mock.query_position("1", "uatom");
     mock.close_position(&credit_manager, "1", "uatom", &from_position_to_coin(pos.position))
         .unwrap();
+
+    // check vault state after closing uatom position
+    let vault_state = mock.query_vault_state();
+    assert_eq!(vault_state_before_closing, vault_state);
 
     // check accounting after closing uatom position
     let osmo_accounting = mock.query_denom_accounting("uosmo");

@@ -791,7 +791,7 @@ fn cannot_open_perp_above_max_ltv() {
         &account_id,
         &cm_user,
         vec![OpenPerp {
-            denom: atom_info.denom.clone(),
+            denom: atom_info.denom,
             size: perp_size,
         }],
         &[],
