@@ -988,7 +988,6 @@ impl MockEnvBuilder {
                 &mars_types::params::InstantiateMsg {
                     owner: self.owner.to_string(),
                     address_provider: address_provider_addr.to_string(),
-                    target_health_factor: self.target_health_factor,
                 },
                 &[],
                 "params",

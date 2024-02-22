@@ -700,7 +700,6 @@ fn liquidation_calculation_adjustment() {
             addr: liquidator.clone(),
             funds: vec![ujake.to_coin(500)],
         })
-        .target_health_factor(Decimal::from_atomics(15u128, 1).unwrap())
         .build()
         .unwrap();
 

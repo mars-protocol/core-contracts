@@ -38,8 +38,8 @@ pub fn calculate_liquidation(
         current_debt_for_denom(deps.as_ref(), liquidatee_account_id, &debt_coin.denom)?;
 
     let params = PARAMS.load(deps.storage)?;
-    let target_health_factor = params.query_target_health_factor(&deps.querier)?;
     let request_coin_params = params.query_asset_params(&deps.querier, request_coin)?;
+    let debt_coin_params = params.query_asset_params(&deps.querier, &debt_coin.denom)?;
 
     let oracle = ORACLE.load(deps.storage)?;
     let debt_coin_price =
@@ -55,7 +55,7 @@ pub fn calculate_liquidation(
             total_debt_amount,
             debt_coin.amount,
             debt_coin_price,
-            target_health_factor,
+            &debt_coin_params,
             &health.into(),
         )?;
 

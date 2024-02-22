@@ -13,7 +13,7 @@ use mars_utils::helpers::{build_send_asset_msg, option_string_to_addr};
 use crate::{
     error::ContractError,
     health::get_health_and_positions,
-    helpers::{query_asset_params, query_target_health_factor},
+    helpers::query_asset_params,
     interest_rates::{apply_accumulated_interests, update_interest_rates},
     state::{COLLATERALS, CONFIG, DEBTS, MARKETS},
     user::User,
@@ -126,7 +126,7 @@ pub fn liquidate(
         get_underlying_debt_amount(user_debt.amount_scaled, &debt_market, block_time)?;
 
     let collateral_params = query_asset_params(&deps.querier, params_addr, &collateral_denom)?;
-    let target_health_factor = query_target_health_factor(&deps.querier, params_addr)?;
+    let debt_params = query_asset_params(&deps.querier, params_addr, &debt_denom)?;
 
     let user_collateral_amount = get_underlying_liquidity_amount(
         user_collateral.amount_scaled,
@@ -144,7 +144,7 @@ pub fn liquidate(
         user_debt_amount,
         sent_debt_amount,
         debt_price,
-        target_health_factor,
+        &debt_params,
         &health,
     )?;
     let protocol_fee = collateral_amount_to_liquidate - collateral_amount_received_by_liquidator;

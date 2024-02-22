@@ -1,4 +1,4 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Decimal};
 use mars_owner::OwnerError;
 use mars_params::error::ContractError::Owner;
 use mars_types::params::AssetParamsUpdate;
@@ -125,6 +125,7 @@ fn update_existing_asset_params() {
 
     params.credit_manager.whitelisted = true;
     params.red_bank.deposit_enabled = false;
+    params.close_factor = Decimal::percent(16);
 
     mock.update_asset_params(
         &owner,
@@ -140,6 +141,7 @@ fn update_existing_asset_params() {
     let asset_params = mock.query_asset_params(&denom0);
     assert!(asset_params.credit_manager.whitelisted);
     assert!(!asset_params.red_bank.deposit_enabled);
+    assert_eq!(asset_params.close_factor, Decimal::percent(16));
 }
 
 #[test]

@@ -192,7 +192,6 @@ impl MockEnvBuilder {
                 &ParamsInstantiateMsg {
                     owner: owner.to_string(),
                     address_provider: "n/a".to_string(),
-                    target_health_factor: Decimal::from_str("1.2").unwrap(),
                 },
                 &[],
                 "mock-params-contract",

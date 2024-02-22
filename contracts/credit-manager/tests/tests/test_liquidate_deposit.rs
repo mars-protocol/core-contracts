@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use cosmwasm_std::{coins, Addr, Coin, Decimal, OverflowError, OverflowOperation, Uint128};
 use mars_credit_manager::error::{
     ContractError,
@@ -17,6 +19,7 @@ use super::helpers::{
     assert_err, get_coin, get_debt, lp_token_info, uatom_info, ujake_info, unlocked_vault_info,
     uosmo_info, AccountToFund, MockEnv,
 };
+use crate::tests::helpers::{uatom_info_with_cf, ujake_info_with_cf};
 
 // Reference figures behind various scenarios
 // https://docs.google.com/spreadsheets/d/14Dk0L2oqI4gOKQZqe12TyjE4ZbVsJMViN1h1B4sJaQs/edit#gid=884610559
@@ -448,14 +451,13 @@ fn liquidation_not_profitable_after_calculations() {
 }
 
 #[test]
-fn target_health_factor_reached_after_max_debt_repayed() {
+fn max_debt_repayed() {
     let uosmo_info = uosmo_info();
-    let uatom_info = uatom_info();
+    let uatom_info = uatom_info_with_cf(Decimal::from_str("0.505").unwrap());
     let liquidator = Addr::unchecked("liquidator");
     let liquidatee = Addr::unchecked("liquidatee");
     let thf = Decimal::from_atomics(12u128, 1).unwrap();
     let mut mock = MockEnv::new()
-        .target_health_factor(thf)
         .set_params(&[uosmo_info.clone(), uatom_info.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),
@@ -545,11 +547,10 @@ fn target_health_factor_reached_after_max_debt_repayed() {
 fn debt_amount_adjusted_to_total_debt_for_denom() {
     let uosmo_info = uosmo_info();
     let uatom_info = uatom_info();
-    let ujake_info = ujake_info();
+    let ujake_info = ujake_info_with_cf(Decimal::one());
     let liquidator = Addr::unchecked("liquidator");
     let liquidatee = Addr::unchecked("liquidatee");
     let mut mock = MockEnv::new()
-        .target_health_factor(Decimal::from_atomics(12u128, 1).unwrap())
         .set_params(&[uosmo_info.clone(), uatom_info.clone(), ujake_info.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),
@@ -726,7 +727,6 @@ fn debt_amount_no_adjustment() {
     let liquidator = Addr::unchecked("liquidator");
     let liquidatee = Addr::unchecked("liquidatee");
     let mut mock = MockEnv::new()
-        .target_health_factor(Decimal::from_atomics(12u128, 1).unwrap())
         .set_params(&[uosmo_info.clone(), uatom_info.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),
@@ -812,7 +812,6 @@ fn improve_hf_but_acc_unhealthy() {
     let liquidator = Addr::unchecked("liquidator");
     let liquidatee = Addr::unchecked("liquidatee");
     let mut mock = MockEnv::new()
-        .target_health_factor(Decimal::from_atomics(12u128, 1).unwrap())
         .set_params(&[uosmo_info.clone(), uatom_info.clone(), ujake_info.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),

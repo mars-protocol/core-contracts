@@ -38,6 +38,7 @@ pub fn umars_info() -> CoinInfo {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     }
 }
@@ -67,6 +68,7 @@ pub fn udai_info() -> CoinInfo {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     }
 }
@@ -96,6 +98,7 @@ pub fn uluna_info() -> CoinInfo {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     }
 }
@@ -131,6 +134,7 @@ pub fn ustars_info() -> CoinInfo {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     }
 }
@@ -160,6 +164,7 @@ pub fn ujuno_info() -> CoinInfo {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     }
 }
@@ -195,6 +200,7 @@ pub fn uatom_info() -> CoinInfo {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     }
 }
@@ -230,6 +236,7 @@ pub fn uusdc_info() -> CoinInfo {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     }
 }
@@ -293,6 +300,7 @@ pub fn create_coin_info(
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     }
 }

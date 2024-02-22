@@ -30,5 +30,6 @@ pub fn default_asset_params(denom: &str) -> AssetParamsUnchecked {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         deposit_cap: Default::default(),
+        close_factor: Decimal::percent(80u64),
     }
 }

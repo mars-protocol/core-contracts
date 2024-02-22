@@ -1,4 +1,4 @@
-use std::{default::Default, mem::take, str::FromStr};
+use std::{default::Default, mem::take};
 
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{coins, testing::MockApi, Addr, Coin, Decimal, Empty, StdResult, Uint128};
@@ -100,7 +100,6 @@ pub struct MockEnvBuilder {
     pub deploy_nft_contract: bool,
     pub set_nft_contract_minter: bool,
     pub accounts_to_fund: Vec<AccountToFund>,
-    pub target_health_factor: Option<Decimal>,
     pub max_unlocking_positions: Option<Uint128>,
     pub max_slippage: Option<Decimal>,
     pub health_contract: Option<HealthContract>,
@@ -124,7 +123,6 @@ impl MockEnv {
             deploy_nft_contract: true,
             set_nft_contract_minter: true,
             accounts_to_fund: vec![],
-            target_health_factor: None,
             max_unlocking_positions: None,
             max_slippage: None,
             health_contract: None,
@@ -1119,9 +1117,6 @@ impl MockEnvBuilder {
                 &ParamsInstantiateMsg {
                     owner: owner.to_string(),
                     address_provider: address_provider.into(),
-                    target_health_factor: self
-                        .target_health_factor
-                        .unwrap_or(Decimal::from_str("1.2").unwrap()),
                 },
                 &[],
                 "mock-params-contract",
@@ -1460,11 +1455,6 @@ impl MockEnvBuilder {
 
     pub fn no_nft_contract_minter(&mut self) -> &mut Self {
         self.set_nft_contract_minter = false;
-        self
-    }
-
-    pub fn target_health_factor(&mut self, thf: Decimal) -> &mut Self {
-        self.target_health_factor = Some(thf);
         self
     }
 

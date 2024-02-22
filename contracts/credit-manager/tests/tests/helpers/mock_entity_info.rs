@@ -21,6 +21,7 @@ pub fn coin_info(denom: &str) -> CoinInfo {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     }
 }
 
@@ -39,10 +40,15 @@ pub fn uosmo_info() -> CoinInfo {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     }
 }
 
 pub fn uatom_info() -> CoinInfo {
+    uatom_info_with_cf(Decimal::percent(80))
+}
+
+pub fn uatom_info_with_cf(close_factor: Decimal) -> CoinInfo {
     CoinInfo {
         denom: "uatom".to_string(),
         price: Decimal::from_atomics(10u128, 1).unwrap(),
@@ -71,10 +77,15 @@ pub fn uatom_info() -> CoinInfo {
                 },
             ],
         }),
+        close_factor,
     }
 }
 
 pub fn ujake_info() -> CoinInfo {
+    ujake_info_with_cf(Decimal::percent(80))
+}
+
+pub fn ujake_info_with_cf(close_factor: Decimal) -> CoinInfo {
     CoinInfo {
         denom: "ujake".to_string(),
         price: Decimal::from_atomics(23654u128, 4).unwrap(),
@@ -93,6 +104,7 @@ pub fn ujake_info() -> CoinInfo {
             liquidation_threshold: Decimal::from_str("0.8").unwrap(),
             correlations: vec![],
         }),
+        close_factor,
     }
 }
 
@@ -111,6 +123,7 @@ pub fn blacklisted_coin() -> CoinInfo {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: false,
         hls: None,
+        close_factor: Decimal::percent(80),
     }
 }
 
@@ -133,6 +146,7 @@ pub fn lp_token_info() -> CoinInfo {
             liquidation_threshold: Decimal::from_str("0.82").unwrap(),
             correlations: vec![],
         }),
+        close_factor: Decimal::percent(80),
     }
 }
 

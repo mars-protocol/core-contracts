@@ -1,4 +1,4 @@
-use std::{mem::take, str::FromStr};
+use std::mem::take;
 
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{Addr, Decimal};
@@ -80,19 +80,6 @@ impl MockEnv {
             sender.clone(),
             self.params_contract.clone(),
             &ExecuteMsg::UpdateOwner(update),
-            &[],
-        )
-    }
-
-    pub fn update_target_health_factor(
-        &mut self,
-        sender: &Addr,
-        thf: Decimal,
-    ) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            sender.clone(),
-            self.params_contract.clone(),
-            &ExecuteMsg::UpdateTargetHealthFactor(thf),
             &[],
         )
     }
@@ -225,13 +212,6 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_target_health_factor(&self) -> Decimal {
-        self.app
-            .wrap()
-            .query_wasm_smart(self.params_contract.clone(), &QueryMsg::TargetHealthFactor {})
-            .unwrap()
-    }
-
     pub fn query_config(&self) -> ConfigResponse {
         self.app
             .wrap()
@@ -250,7 +230,6 @@ impl MockEnvBuilder {
             &InstantiateMsg {
                 owner: "owner".to_string(),
                 address_provider: "address_provider".to_string(),
-                target_health_factor: self.get_target_health_factor(),
             },
             &[],
             "mock-params-contract",
@@ -281,21 +260,8 @@ impl MockEnvBuilder {
     }
 
     //--------------------------------------------------------------------------------------------------
-    // Get or defaults
-    //--------------------------------------------------------------------------------------------------
-
-    pub fn get_target_health_factor(&self) -> Decimal {
-        self.target_health_factor.unwrap_or(Decimal::from_str("1.05").unwrap())
-    }
-
-    //--------------------------------------------------------------------------------------------------
     // Setter functions
     //--------------------------------------------------------------------------------------------------
-    pub fn target_health_factor(&mut self, thf: Decimal) -> &mut Self {
-        self.target_health_factor = Some(thf);
-        self
-    }
-
     pub fn emergency_owner(&mut self, eo: &str) -> &mut Self {
         self.emergency_owner = Some(eo.to_string());
         self

@@ -80,6 +80,7 @@ fn setup_test() -> TestSuite {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Uint128::new(12_000_000),
+            close_factor: Decimal::percent(80u64),
         },
     );
 

@@ -135,6 +135,7 @@ fn adds_vault_base_denoms_to_oracle_and_red_bank() {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     };
 
@@ -196,6 +197,7 @@ fn whitelisted_coins_work() {
         liquidation_bonus,
         protocol_liquidation_fee: Decimal::percent(2u64),
         deposit_cap: Default::default(),
+        close_factor: Decimal::percent(80u64),
     };
 
     let update = AddOrUpdate {
@@ -304,6 +306,7 @@ fn vault_whitelist_affects_max_ltv() {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     };
 

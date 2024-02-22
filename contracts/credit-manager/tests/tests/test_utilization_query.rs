@@ -50,6 +50,7 @@ fn utilization_if_cap_is_base_denom() {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     };
 
     let leverage_vault = VaultTestInfo {

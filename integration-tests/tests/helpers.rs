@@ -45,6 +45,7 @@ pub fn default_asset_params(denom: &str) -> (InitOrUpdateAssetParams, AssetParam
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         deposit_cap: Uint128::MAX,
+        close_factor: Decimal::percent(80u64),
     };
     (market_params, asset_params)
 }
@@ -79,6 +80,7 @@ pub fn default_asset_params_with(
         liquidation_bonus,
         protocol_liquidation_fee: Decimal::percent(2u64),
         deposit_cap: Uint128::MAX,
+        close_factor: Decimal::percent(80u64),
     };
     (market_params, asset_params)
 }

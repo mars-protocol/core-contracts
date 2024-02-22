@@ -11,16 +11,13 @@ use mars_types::params::{
 use crate::{
     emergency_powers::{disable_borrowing, disallow_coin, set_zero_deposit_cap, set_zero_max_ltv},
     error::ContractResult,
-    execute::{
-        assert_thf, update_asset_params, update_config, update_perp_params,
-        update_target_health_factor, update_vault_config,
-    },
+    execute::{update_asset_params, update_config, update_perp_params, update_vault_config},
     migrations,
     query::{
         query_all_asset_params, query_all_perp_params, query_all_vault_configs, query_config,
         query_total_deposit, query_vault_config,
     },
-    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, PERP_PARAMS, TARGET_HEALTH_FACTOR},
+    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, PERP_PARAMS},
 };
 
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -46,9 +43,6 @@ pub fn instantiate(
     let address_provider_addr = deps.api.addr_validate(&msg.address_provider)?;
     ADDRESS_PROVIDER.save(deps.storage, &address_provider_addr)?;
 
-    assert_thf(msg.target_health_factor)?;
-    TARGET_HEALTH_FACTOR.save(deps.storage, &msg.target_health_factor)?;
-
     Ok(Response::default())
 }
 
@@ -65,7 +59,6 @@ pub fn execute(
             address_provider,
         } => update_config(deps, info, address_provider),
         ExecuteMsg::UpdateAssetParams(update) => update_asset_params(deps, info, update),
-        ExecuteMsg::UpdateTargetHealthFactor(mcf) => update_target_health_factor(deps, info, mcf),
         ExecuteMsg::UpdateVaultConfig(update) => update_vault_config(deps, info, update),
         ExecuteMsg::UpdatePerpParams(update) => update_perp_params(deps, info, update),
         ExecuteMsg::EmergencyUpdate(update) => match update {
@@ -111,7 +104,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             start_after,
             limit,
         } => to_binary(&query_all_perp_params(deps, start_after, limit)?),
-        QueryMsg::TargetHealthFactor {} => to_binary(&TARGET_HEALTH_FACTOR.load(deps.storage)?),
         QueryMsg::TotalDeposit {
             denom,
         } => to_binary(&query_total_deposit(deps, &env, denom)?),

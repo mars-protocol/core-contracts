@@ -24,6 +24,7 @@ pub struct CoinInfo {
     pub whitelisted: bool,
     pub hls: Option<HlsParamsUnchecked>,
     pub protocol_liquidation_fee: Decimal,
+    pub close_factor: Decimal,
 }
 
 #[cw_serde]
@@ -84,6 +85,7 @@ impl From<CoinInfo> for AssetParamsUnchecked {
             liquidation_bonus: c.liquidation_bonus,
             protocol_liquidation_fee: c.protocol_liquidation_fee,
             deposit_cap: Uint128::MAX,
+            close_factor: c.close_factor,
         }
     }
 }

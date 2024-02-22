@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::Uint128;
 use mars_owner::OwnerUpdate;
 
 use super::{asset::AssetParamsUnchecked, vault::VaultConfigUnchecked, PerpParams};
@@ -10,8 +10,6 @@ pub struct InstantiateMsg {
     pub owner: String,
     /// Address of the address provider contract
     pub address_provider: String,
-    /// Determines the ideal HF a position should be left at immediately after the position has been liquidated.
-    pub target_health_factor: Decimal,
 }
 
 #[cw_serde]
@@ -20,7 +18,6 @@ pub enum ExecuteMsg {
     UpdateConfig {
         address_provider: Option<String>,
     },
-    UpdateTargetHealthFactor(Decimal),
     UpdateAssetParams(AssetParamsUpdate),
     UpdateVaultConfig(VaultConfigUpdate),
     UpdatePerpParams(PerpParamsUpdate),
@@ -69,9 +66,6 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
-
-    #[returns(Decimal)]
-    TargetHealthFactor {},
 
     /// Compute the total amount deposited of the given asset across Red Bank
     /// and Credit Manager.

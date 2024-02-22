@@ -45,6 +45,7 @@ fn uses_liquidation_pricing() {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     };
 

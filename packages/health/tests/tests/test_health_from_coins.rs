@@ -43,6 +43,7 @@ fn health_success_from_coins() {
             },
             protocol_liquidation_fee: Decimal::zero(),
             deposit_cap: Uint128::MAX,
+            close_factor: Decimal::percent(80u64),
         },
     );
     let atom_market = Market {
@@ -72,6 +73,7 @@ fn health_success_from_coins() {
             },
             protocol_liquidation_fee: Decimal::zero(),
             deposit_cap: Uint128::MAX,
+            close_factor: Decimal::percent(80u64),
         },
     );
 
@@ -140,6 +142,7 @@ fn health_error_from_coins() {
             },
             protocol_liquidation_fee: Decimal::zero(),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     );
 

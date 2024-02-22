@@ -196,10 +196,6 @@ impl MarsMockQuerier {
         self.params_querier.params.insert(denom.to_string(), params);
     }
 
-    pub fn set_target_health_factor(&mut self, thf: Decimal) {
-        self.params_querier.target_health_factor = thf;
-    }
-
     pub fn set_total_deposit(&mut self, denom: impl Into<String>, amount: impl Into<Uint128>) {
         self.params_querier.total_deposits.insert(denom.into(), amount.into());
     }

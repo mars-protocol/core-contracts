@@ -364,3 +364,25 @@ fn liquidation_bonus_param_max_lb_gt_min_lb() {
         })),
     );
 }
+
+#[test]
+fn close_factor_less_than_or_equal_to_one() {
+    let mut mock = MockEnv::new().build().unwrap();
+    let mut params = default_asset_params("denom_xyz");
+    params.close_factor = Decimal::percent(101);
+
+    let res = mock.update_asset_params(
+        &mock.query_owner(),
+        AssetParamsUpdate::AddOrUpdate {
+            params,
+        },
+    );
+    assert_err(
+        res,
+        ContractError::Mars(Validation(InvalidParam {
+            param_name: "close_factor".to_string(),
+            invalid_value: "1.01".to_string(),
+            predicate: "<= 1".to_string(),
+        })),
+    );
+}

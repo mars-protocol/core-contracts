@@ -18,7 +18,6 @@ fn liquidation_uses_correct_price_kind() {
     let liquidator = Addr::unchecked("liquidator");
     let liquidatee = Addr::unchecked("liquidatee");
     let mut mock = MockEnv::new()
-        .target_health_factor(Decimal::from_atomics(12u128, 1).unwrap())
         .set_params(&[uosmo_info.clone(), uatom_info.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),

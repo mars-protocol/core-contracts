@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Api, Decimal, QuerierWrapper, StdResult};
+use cosmwasm_std::{Addr, Api, QuerierWrapper, StdResult};
 
 use crate::params::{AssetParams, PerpParams, QueryMsg, TotalDepositResponse, VaultConfig};
 
@@ -82,9 +82,5 @@ impl Params {
                 address: vault_address.to_string(),
             },
         )
-    }
-
-    pub fn query_target_health_factor(&self, querier: &QuerierWrapper) -> StdResult<Decimal> {
-        querier.query_wasm_smart(self.address().to_string(), &QueryMsg::TargetHealthFactor {})
     }
 }

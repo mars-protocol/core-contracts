@@ -44,14 +44,15 @@ fn random_price() -> impl Strategy<Value = Decimal> {
 }
 
 fn random_coin_info() -> impl Strategy<Value = AssetParams> {
-    (random_denom(), 30..70, 2..10, 80..90, random_bool()).prop_map(
-        |(denom, max_ltv, liq_thresh_buffer, hls_base, whitelisted)| {
+    (random_denom(), 30..70, 2..10, 80..90, 50..80, random_bool()).prop_map(
+        |(denom, max_ltv, liq_thresh_buffer, hls_base, close_factor, whitelisted)| {
             let max_loan_to_value = Decimal::from_atomics(max_ltv as u128, 2).unwrap();
             let liquidation_threshold =
                 max_loan_to_value + Decimal::from_atomics(liq_thresh_buffer as u128, 2).unwrap();
             let hls_max_ltv = Decimal::from_atomics(hls_base as u128, 2).unwrap();
             let hls_liq_threshold =
                 hls_max_ltv + Decimal::from_atomics(liq_thresh_buffer as u128, 2).unwrap();
+            let close_factor = Decimal::from_atomics(close_factor as u128, 2).unwrap();
 
             AssetParams {
                 denom,
@@ -77,6 +78,7 @@ fn random_coin_info() -> impl Strategy<Value = AssetParams> {
                 },
                 protocol_liquidation_fee: Default::default(),
                 deposit_cap: Default::default(),
+                close_factor,
             }
         },
     )

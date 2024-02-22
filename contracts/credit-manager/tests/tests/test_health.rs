@@ -90,6 +90,7 @@ fn terra_ragnarok() {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     };
 
     let user = Addr::unchecked("user");
@@ -312,6 +313,7 @@ fn cannot_borrow_more_but_not_liquidatable() {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     };
     let uatom_info = CoinInfo {
         denom: "uatom".to_string(),
@@ -327,6 +329,7 @@ fn cannot_borrow_more_but_not_liquidatable() {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     };
 
     let user = Addr::unchecked("user");
@@ -406,6 +409,7 @@ fn assets_and_ltv_lqdt_adjusted_value() {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     };
     let uatom_info = CoinInfo {
         denom: "uatom".to_string(),
@@ -421,6 +425,7 @@ fn assets_and_ltv_lqdt_adjusted_value() {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     };
 
     let user = Addr::unchecked("user");
@@ -528,6 +533,7 @@ fn debt_value() {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     };
     let uatom_info = CoinInfo {
         denom: "uatom".to_string(),
@@ -543,6 +549,7 @@ fn debt_value() {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     };
 
     let user_a = Addr::unchecked("user_a");
@@ -863,6 +870,7 @@ fn can_take_actions_if_ltv_does_not_weaken() {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     };
     let uatom_info = CoinInfo {
         denom: "uatom".to_string(),
@@ -878,6 +886,7 @@ fn can_take_actions_if_ltv_does_not_weaken() {
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     };
 
     let user = Addr::unchecked("user");

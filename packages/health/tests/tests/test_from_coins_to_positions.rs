@@ -149,6 +149,7 @@ fn mock_setup() -> MarsMockQuerier {
             },
             protocol_liquidation_fee: Decimal::zero(),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     );
     let atom_market = Market {
@@ -178,6 +179,7 @@ fn mock_setup() -> MarsMockQuerier {
             },
             protocol_liquidation_fee: Decimal::zero(),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     );
 

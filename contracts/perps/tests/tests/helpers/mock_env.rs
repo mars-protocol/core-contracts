@@ -567,7 +567,6 @@ impl MockEnvBuilder {
                 &params::InstantiateMsg {
                     owner: self.deployer.clone().to_string(),
                     address_provider: address_provider.to_string(),
-                    target_health_factor: Decimal::from_str("1.05").unwrap(),
                 },
                 &[],
                 "mock-params",
