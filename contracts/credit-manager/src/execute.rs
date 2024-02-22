@@ -222,7 +222,17 @@ pub fn dispatch_actions(
                         position_type,
                     },
                 }),
+                LiquidateRequest::Perp(_) => {
+                    // We keep Liquidate msg for backward compatibility. Use new LiquidateV2 for perp liquidation.
+                    unimplemented!("Use LiquidateV2 for perp liquidation")
+                }
             },
+            Action::LiquidateV2 {
+                ..
+            } => {
+                // TODO: Implement liquidate_v2
+                unimplemented!("LiquidateV2 is not implemented yet")
+            }
             Action::SwapExactIn {
                 coin_in,
                 denom_out,
@@ -446,7 +456,17 @@ pub fn execute_callback(
                     request_vault,
                     position_type,
                 ),
+                LiquidateRequest::Perp(_) => {
+                    // We keep Liquidate msg for backward compatibility. Use new LiquidateV2 for perp liquidation.
+                    unimplemented!("Use LiquidateV2 for perp liquidation")
+                }
             }
+        }
+        CallbackMsg::LiquidateV2 {
+            ..
+        } => {
+            // TODO: Implement liquidate_v2
+            unimplemented!("LiquidateV2 is not implemented yet")
         }
         CallbackMsg::SwapExactIn {
             account_id,
