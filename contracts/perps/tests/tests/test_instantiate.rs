@@ -11,8 +11,8 @@ use super::helpers::MockEnv;
 fn proper_initialization() {
     let mock = MockEnv::new()
         .perps_base_denom("uusdc")
-        .min_position_in_base_denom(Uint128::new(5_000_000))
-        .max_position_in_base_denom(Some(Uint128::new(6_000_000)))
+        .min_position_value(Uint128::new(5_000_000))
+        .max_position_value(Some(Uint128::new(6_000_000)))
         .cooldown_period(3688)
         .opening_fee_rate(Decimal::from_ratio(12u128, 100u128))
         .closing_fee_rate(Decimal::from_ratio(16u128, 100u128))
@@ -44,8 +44,8 @@ fn proper_initialization() {
             oracle: OracleBase::new(oracle),
             params: ParamsBase::new(params),
             base_denom: "uusdc".to_string(),
-            min_position_in_base_denom: Uint128::new(5_000_000),
-            max_position_in_base_denom: Some(Uint128::new(6_000_000)),
+            min_position_value: Uint128::new(5_000_000),
+            max_position_value: Some(Uint128::new(6_000_000)),
             cooldown_period: 3688,
             opening_fee_rate: Decimal::from_ratio(12u128, 100u128),
             closing_fee_rate: Decimal::from_ratio(16u128, 100u128)

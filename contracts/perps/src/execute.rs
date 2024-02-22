@@ -308,16 +308,15 @@ pub fn open_position(
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     // the position's initial value cannot be too small
-    let price = denom_price.checked_div(base_denom_price)?;
-    let position_in_base_denom = size.abs.checked_mul(price)?.to_uint_floor();
-    ensure_min_position(position_in_base_denom, &cfg)?;
+    let position_value = size.abs.checked_mul(denom_price)?.to_uint_floor();
+    ensure_min_position(position_value, &cfg)?;
 
     // the position's initial value cannot be too big
-    ensure_max_position(position_in_base_denom, &cfg)?;
+    ensure_max_position(position_value, &cfg)?;
 
     // validate the position's size against OI limits
     let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
-    ds.validate_open_interest(size, &perp_params)?;
+    ds.validate_open_interest(size, denom_price, &perp_params)?;
 
     // skew _before_ modification
     let initial_skew = ds.skew()?;
@@ -423,8 +422,7 @@ fn update_position_state(
     let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-    let price = denom_price.checked_div(base_denom_price)?;
-    let position_in_base_denom = new_size.abs.checked_mul(price)?.to_uint_floor();
+    let position_value = new_size.abs.checked_mul(denom_price)?.to_uint_floor();
 
     // When modifying a position, we must realise all PnL. The credit manager
     // may send no coin (in case the position is winning or breaking even) or
@@ -447,7 +445,7 @@ fn update_position_state(
         // Decrease the position
         Ordering::Less => {
             // Enforce min size when decreasing
-            ensure_min_position(position_in_base_denom, &cfg)?;
+            ensure_min_position(position_value, &cfg)?;
 
             // Update the denom's accumulators.
             // Funding rates and index is updated to the current block time (using old size).
@@ -473,13 +471,13 @@ fn update_position_state(
             }
 
             // Enforce position size cannot be too big when increasing
-            ensure_max_position(position_in_base_denom, &cfg)?;
+            ensure_max_position(position_value, &cfg)?;
 
             let q_change = new_size.checked_sub(entry_size)?;
 
             // validate the position's size against OI limits
             let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
-            ds.validate_open_interest(q_change, &perp_params)?; // q change
+            ds.validate_open_interest(q_change, denom_price, &perp_params)?; // q change
 
             // Update the denom's accumulators.
             // Funding rates and index is updated to the current block time (using old size).

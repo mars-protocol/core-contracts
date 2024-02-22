@@ -57,22 +57,16 @@ pub enum ContractError {
         denom: String,
     },
 
-    #[error(
-        "position opening size is too small: min {min} {base_denom}, found {found} {base_denom}"
-    )]
+    #[error("position opening size is too small: min {min} uusd, found {found} uusd")]
     PositionTooSmall {
         min: Uint128,
         found: Uint128,
-        base_denom: String,
     },
 
-    #[error(
-        "position opening size is too big: max {max} {base_denom}, found {found} {base_denom}"
-    )]
+    #[error("position opening size is too big: max {max} uusd, found {found} uusd")]
     PositionTooBig {
         max: Uint128,
         found: Uint128,
-        base_denom: String,
     },
 
     #[error("only the credit manager can modify perp positions")]

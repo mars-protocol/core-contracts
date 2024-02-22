@@ -78,8 +78,12 @@ pub trait DenomStateExt {
     ) -> ContractResult<Funding>;
 
     /// Validate the position size against the open interest limits
-    fn validate_open_interest(&self, size: SignedDecimal, param: &PerpParams)
-        -> ContractResult<()>;
+    fn validate_open_interest(
+        &self,
+        size: SignedDecimal,
+        denom_price: Decimal,
+        param: &PerpParams,
+    ) -> ContractResult<()>;
 
     /// Increase open interest accumulators (new position is opened)
     fn increase_open_interest(&mut self, size: SignedDecimal) -> ContractResult<()>;
@@ -256,34 +260,38 @@ impl DenomStateExt for DenomState {
     fn validate_open_interest(
         &self,
         size: SignedDecimal,
+        denom_price: Decimal,
         param: &PerpParams,
     ) -> ContractResult<()> {
         let net_oi = if size.is_positive() {
             let long_oi = self.long_oi.checked_add(size.abs)?;
-            if long_oi.to_uint_floor() > param.max_long_oi {
+            let long_oi_value = long_oi.checked_mul(denom_price)?.to_uint_floor();
+            if long_oi_value > param.max_long_oi_value {
                 return Err(ContractError::LongOpenInterestReached {
-                    max: param.max_long_oi,
-                    found: long_oi.to_uint_floor(),
+                    max: param.max_long_oi_value,
+                    found: long_oi_value,
                 });
             }
 
             long_oi.abs_diff(self.short_oi)
         } else {
             let short_oi = self.short_oi.checked_add(size.abs)?;
-            if short_oi.to_uint_floor() > param.max_short_oi {
+            let short_oi_value = short_oi.checked_mul(denom_price)?.to_uint_floor();
+            if short_oi_value > param.max_short_oi_value {
                 return Err(ContractError::ShortOpenInterestReached {
-                    max: param.max_short_oi,
-                    found: short_oi.to_uint_floor(),
+                    max: param.max_short_oi_value,
+                    found: short_oi_value,
                 });
             }
 
             self.long_oi.abs_diff(short_oi)
         };
 
-        if net_oi.to_uint_floor() > param.max_net_oi {
+        let net_oi_value = net_oi.checked_mul(denom_price)?.to_uint_floor();
+        if net_oi_value > param.max_net_oi_value {
             return Err(ContractError::NetOpenInterestReached {
-                max: param.max_net_oi,
-                found: net_oi.to_uint_floor(),
+                max: param.max_net_oi_value,
+                found: net_oi_value,
             });
         }
 

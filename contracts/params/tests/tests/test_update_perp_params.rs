@@ -105,9 +105,9 @@ fn update_existing_perp_params() {
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
                 denom: denom0.clone(),
-                max_net_oi: Uint128::new(1_888_999_000),
-                max_long_oi: Uint128::new(1_123_000_000),
-                max_short_oi: Uint128::new(1_321_000_000),
+                max_net_oi_value: Uint128::new(1_888_999_000),
+                max_long_oi_value: Uint128::new(1_123_000_000),
+                max_short_oi_value: Uint128::new(1_321_000_000),
             },
         },
     )
@@ -117,12 +117,12 @@ fn update_existing_perp_params() {
     assert_eq!(1, all_perp_params.len());
 
     let perp_params = mock.query_perp_params(&denom0);
-    assert_ne!(perp_params.max_net_oi, old_perp_params.max_net_oi);
-    assert_ne!(perp_params.max_long_oi, old_perp_params.max_long_oi);
-    assert_ne!(perp_params.max_short_oi, old_perp_params.max_short_oi);
-    assert_eq!(perp_params.max_net_oi, Uint128::new(1_888_999_000));
-    assert_eq!(perp_params.max_long_oi, Uint128::new(1_123_000_000));
-    assert_eq!(perp_params.max_short_oi, Uint128::new(1_321_000_000));
+    assert_ne!(perp_params.max_net_oi_value, old_perp_params.max_net_oi_value);
+    assert_ne!(perp_params.max_long_oi_value, old_perp_params.max_long_oi_value);
+    assert_ne!(perp_params.max_short_oi_value, old_perp_params.max_short_oi_value);
+    assert_eq!(perp_params.max_net_oi_value, Uint128::new(1_888_999_000));
+    assert_eq!(perp_params.max_long_oi_value, Uint128::new(1_123_000_000));
+    assert_eq!(perp_params.max_short_oi_value, Uint128::new(1_321_000_000));
 }
 
 #[test]

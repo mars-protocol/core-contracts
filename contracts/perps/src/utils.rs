@@ -3,31 +3,23 @@ use mars_types::{math::SignedDecimal, perps::Config};
 
 use crate::error::{ContractError, ContractResult};
 
-pub fn ensure_min_position(
-    position_in_base_denom: Uint128,
-    cfg: &Config<Addr>,
-) -> ContractResult<()> {
-    if position_in_base_denom < cfg.min_position_in_base_denom {
+pub fn ensure_min_position(position_value: Uint128, cfg: &Config<Addr>) -> ContractResult<()> {
+    if position_value < cfg.min_position_value {
         return Err(ContractError::PositionTooSmall {
-            min: cfg.min_position_in_base_denom,
-            found: position_in_base_denom,
-            base_denom: cfg.base_denom.clone(),
+            min: cfg.min_position_value,
+            found: position_value,
         });
     }
     Ok(())
 }
 
-pub fn ensure_max_position(
-    position_in_base_denom: Uint128,
-    cfg: &Config<Addr>,
-) -> ContractResult<()> {
+pub fn ensure_max_position(position_value: Uint128, cfg: &Config<Addr>) -> ContractResult<()> {
     // could be set to None if not needed
-    if let Some(max_pos_in_base_denom) = cfg.max_position_in_base_denom {
-        if position_in_base_denom > max_pos_in_base_denom {
+    if let Some(max_pos_value) = cfg.max_position_value {
+        if position_value > max_pos_value {
             return Err(ContractError::PositionTooBig {
-                max: max_pos_in_base_denom,
-                found: position_in_base_denom,
-                base_denom: cfg.base_denom.clone(),
+                max: max_pos_value,
+                found: position_value,
             });
         }
     }

@@ -229,10 +229,10 @@ fn only_one_position_possible_for_denom() {
 
 #[test]
 fn open_position_cannot_be_too_small() {
-    let min_position_in_base_denom = Uint128::new(1251u128);
+    let min_position_value = Uint128::new(1251u128);
     let mut mock = MockEnv::new()
         .opening_fee_rate(Decimal::zero())
-        .min_position_in_base_denom(min_position_in_base_denom)
+        .min_position_value(min_position_value)
         .build()
         .unwrap();
 
@@ -241,7 +241,7 @@ fn open_position_cannot_be_too_small() {
 
     // set prices
     mock.set_price(&owner, "uusdc", Decimal::from_str("0.8").unwrap()).unwrap();
-    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("12.5").unwrap()).unwrap();
 
     // init denoms
     mock.init_denom(
@@ -259,7 +259,7 @@ fn open_position_cannot_be_too_small() {
     );
 
     // position size is too small
-    // 100 * 10 / 0.8 = 1250
+    // 100 * 12.5 = 1250
     let res = mock.open_position(
         &credit_manager,
         "2",
@@ -270,18 +270,16 @@ fn open_position_cannot_be_too_small() {
     assert_err(
         res,
         ContractError::PositionTooSmall {
-            min: min_position_in_base_denom,
-            found: min_position_in_base_denom - Uint128::one(),
-            base_denom: "uusdc".to_string(),
+            min: min_position_value,
+            found: min_position_value - Uint128::one(),
         },
     );
 }
 
 #[test]
 fn reduced_position_cannot_be_too_small() {
-    let min_position_in_base_denom = Uint128::new(1251u128);
-    let mut mock =
-        MockEnv::new().min_position_in_base_denom(min_position_in_base_denom).build().unwrap();
+    let min_position_value = Uint128::new(1251u128);
+    let mut mock = MockEnv::new().min_position_value(min_position_value).build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -296,7 +294,7 @@ fn reduced_position_cannot_be_too_small() {
 
     // set prices
     mock.set_price(&owner, "uusdc", Decimal::from_str("0.8").unwrap()).unwrap();
-    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("12.5").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
     mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
@@ -333,20 +331,19 @@ fn reduced_position_cannot_be_too_small() {
     assert_err(
         res,
         ContractError::PositionTooSmall {
-            min: min_position_in_base_denom,
-            found: min_position_in_base_denom - Uint128::one(),
-            base_denom: "uusdc".to_string(),
+            min: min_position_value,
+            found: min_position_value - Uint128::one(),
         },
     );
 }
 
 #[test]
 fn open_position_cannot_be_too_big() {
-    let max_position_in_base_denom = Uint128::new(1249u128);
+    let max_position_value = Uint128::new(1249u128);
     let mut mock = MockEnv::new()
         .opening_fee_rate(Decimal::zero())
-        .min_position_in_base_denom(Uint128::zero())
-        .max_position_in_base_denom(Some(max_position_in_base_denom))
+        .min_position_value(Uint128::zero())
+        .max_position_value(Some(max_position_value))
         .build()
         .unwrap();
 
@@ -355,7 +352,7 @@ fn open_position_cannot_be_too_big() {
 
     // set prices
     mock.set_price(&owner, "uusdc", Decimal::from_str("0.8").unwrap()).unwrap();
-    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("12.5").unwrap()).unwrap();
 
     // init denoms
     mock.init_denom(
@@ -373,7 +370,7 @@ fn open_position_cannot_be_too_big() {
     );
 
     // position size is too big
-    // 100 * 10 / 0.8 = 1250
+    // 100 * 12.5 = 1250
     let res = mock.open_position(
         &credit_manager,
         "2",
@@ -384,19 +381,18 @@ fn open_position_cannot_be_too_big() {
     assert_err(
         res,
         ContractError::PositionTooBig {
-            max: max_position_in_base_denom,
-            found: max_position_in_base_denom + Uint128::one(),
-            base_denom: "uusdc".to_string(),
+            max: max_position_value,
+            found: max_position_value + Uint128::one(),
         },
     );
 }
 
 #[test]
 fn increased_position_cannot_be_too_big() {
-    let max_position_in_base_denom = Uint128::new(1249u128);
+    let max_position_value = Uint128::new(1249u128);
     let mut mock = MockEnv::new()
-        .min_position_in_base_denom(Uint128::zero())
-        .max_position_in_base_denom(Some(max_position_in_base_denom))
+        .min_position_value(Uint128::zero())
+        .max_position_value(Some(max_position_value))
         .build()
         .unwrap();
 
@@ -413,7 +409,7 @@ fn increased_position_cannot_be_too_big() {
 
     // set prices
     mock.set_price(&owner, "uusdc", Decimal::from_str("0.8").unwrap()).unwrap();
-    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("12.5").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
     mock.deposit_to_vault(&user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
@@ -434,7 +430,7 @@ fn increased_position_cannot_be_too_big() {
     );
 
     // position size is too big
-    // 100 * 10 / 0.8 = 1250
+    // 100 * 12.5 = 1250
     let size = SignedDecimal::from_str("50").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
@@ -450,9 +446,8 @@ fn increased_position_cannot_be_too_big() {
     assert_err(
         res,
         ContractError::PositionTooBig {
-            max: max_position_in_base_denom,
-            found: max_position_in_base_denom + Uint128::one(),
-            base_denom: "uusdc".to_string(),
+            max: max_position_value,
+            found: max_position_value + Uint128::one(),
         },
     );
 }
@@ -461,8 +456,8 @@ fn increased_position_cannot_be_too_big() {
 fn validate_opening_position() {
     let mut mock = MockEnv::new()
         .opening_fee_rate(Decimal::zero())
-        .min_position_in_base_denom(Uint128::zero())
-        .max_position_in_base_denom(None)
+        .min_position_value(Uint128::zero())
+        .max_position_value(None)
         .build()
         .unwrap();
 
@@ -481,23 +476,23 @@ fn validate_opening_position() {
         Decimal::from_str("1000000").unwrap(),
     )
     .unwrap();
-    let max_net_oi = Uint128::new(500);
-    let max_long_oi = Uint128::new(4000);
-    let max_short_oi = Uint128::new(4200);
+    let max_net_oi = Uint128::new(2009);
+    let max_long_oi = Uint128::new(6029);
+    let max_short_oi = Uint128::new(5009);
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
                 denom: "uatom".to_string(),
-                max_net_oi,
-                max_long_oi,
-                max_short_oi,
+                max_net_oi_value: max_net_oi,
+                max_long_oi_value: max_long_oi,
+                max_short_oi_value: max_short_oi,
             },
         },
     );
 
     // prepare some OI
-    mock.open_position(&credit_manager, "1", "uatom", SignedDecimal::from_str("300").unwrap(), &[])
+    mock.open_position(&credit_manager, "1", "uatom", SignedDecimal::from_str("200").unwrap(), &[])
         .unwrap();
     mock.open_position(
         &credit_manager,
@@ -513,9 +508,9 @@ fn validate_opening_position() {
         &credit_manager,
         "3",
         "uatom",
-        SignedDecimal::from_str("3701").unwrap(),
+        SignedDecimal::from_str("403").unwrap(),
         &[],
-    ); // 300 + 3701 = 4001
+    ); // (200 + 403) * 10 = 6030
     assert_err(
         res,
         ContractError::LongOpenInterestReached {
@@ -529,9 +524,9 @@ fn validate_opening_position() {
         &credit_manager,
         "3",
         "uatom",
-        SignedDecimal::from_str("601").unwrap(),
+        SignedDecimal::from_str("401").unwrap(),
         &[],
-    ); // 300 + 601 = 901, abs(901 - 400) = 501
+    ); // 200 + 401 = 601, abs(601 - 400) = 201 * 10 = 2010
     assert_err(
         res,
         ContractError::NetOpenInterestReached {
@@ -545,9 +540,9 @@ fn validate_opening_position() {
         &credit_manager,
         "4",
         "uatom",
-        SignedDecimal::from_str("-3801").unwrap(),
+        SignedDecimal::from_str("-101").unwrap(),
         &[],
-    ); // 400 + 3801 = 4201
+    ); // (400 + 101) * 10 = 5010
     assert_err(
         res,
         ContractError::ShortOpenInterestReached {
@@ -561,9 +556,9 @@ fn validate_opening_position() {
         &credit_manager,
         "4",
         "uatom",
-        SignedDecimal::from_str("-401").unwrap(),
+        SignedDecimal::from_str("-1").unwrap(),
         &[],
-    ); // 400 + 401 = 801, abs(300 - 801) = 501
+    ); // 400 + 1 = 401, abs(200 - 401) = 201 * 10 = 2010
     assert_err(
         res,
         ContractError::NetOpenInterestReached {
@@ -576,8 +571,8 @@ fn validate_opening_position() {
 #[test]
 fn validate_modify_position() {
     let mut mock = MockEnv::new()
-        .min_position_in_base_denom(Uint128::zero())
-        .max_position_in_base_denom(None)
+        .min_position_value(Uint128::zero())
+        .max_position_value(None)
         .build()
         .unwrap();
 
@@ -607,27 +602,27 @@ fn validate_modify_position() {
         Decimal::from_str("1000000").unwrap(),
     )
     .unwrap();
-    let max_net_oi = Uint128::new(500);
-    let max_long_oi = Uint128::new(4000);
-    let max_short_oi = Uint128::new(4200);
+    let max_net_oi = Uint128::new(509);
+    let max_long_oi = Uint128::new(4009);
+    let max_short_oi = Uint128::new(4209);
 
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
                 denom: "uatom".to_string(),
-                max_net_oi,
-                max_long_oi,
-                max_short_oi,
+                max_net_oi_value: max_net_oi,
+                max_long_oi_value: max_long_oi,
+                max_short_oi_value: max_short_oi,
             },
         },
     );
 
     // prepare some OI
-    let size = SignedDecimal::from_str("300").unwrap();
+    let size = SignedDecimal::from_str("30").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee]).unwrap();
-    let size = SignedDecimal::from_str("-400").unwrap();
+    let size = SignedDecimal::from_str("-40").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
 
@@ -636,7 +631,7 @@ fn validate_modify_position() {
         &credit_manager,
         "1",
         "uatom",
-        SignedDecimal::from_str("4001").unwrap(),
+        SignedDecimal::from_str("401").unwrap(),
         &[],
     );
     assert_err(
@@ -652,9 +647,9 @@ fn validate_modify_position() {
         &credit_manager,
         "1",
         "uatom",
-        SignedDecimal::from_str("901").unwrap(),
+        SignedDecimal::from_str("91").unwrap(),
         &[],
-    ); // 300 + 601 = 901, abs(901 - 400) = 501
+    ); // abs(91 - 40) = 51 * 10 = 510
     assert_err(
         res,
         ContractError::NetOpenInterestReached {
@@ -668,9 +663,9 @@ fn validate_modify_position() {
         &credit_manager,
         "2",
         "uatom",
-        SignedDecimal::from_str("-4201").unwrap(),
+        SignedDecimal::from_str("-421").unwrap(),
         &[],
-    ); // 400 + 3801 = 4201
+    );
     assert_err(
         res,
         ContractError::ShortOpenInterestReached {
@@ -684,9 +679,9 @@ fn validate_modify_position() {
         &credit_manager,
         "2",
         "uatom",
-        SignedDecimal::from_str("-801").unwrap(),
+        SignedDecimal::from_str("-81").unwrap(),
         &[],
-    ); // 400 + 401 = 801, abs(300 - 801) = 501
+    ); // abs(30 - 81) = 51 * 10 = 510
     assert_err(
         res,
         ContractError::NetOpenInterestReached {
@@ -699,8 +694,8 @@ fn validate_modify_position() {
 #[test]
 fn modify_position_realises_pnl() {
     let mut mock = MockEnv::new()
-        .min_position_in_base_denom(Uint128::zero())
-        .max_position_in_base_denom(None)
+        .min_position_value(Uint128::zero())
+        .max_position_value(None)
         .build()
         .unwrap();
 
@@ -733,12 +728,7 @@ fn modify_position_realises_pnl() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: PerpParams {
-                denom: "uatom".to_string(),
-                max_net_oi: Uint128::new(500),
-                max_long_oi: Uint128::new(4000),
-                max_short_oi: Uint128::new(4200),
-            },
+            params: default_perp_params("uatom"),
         },
     );
 
