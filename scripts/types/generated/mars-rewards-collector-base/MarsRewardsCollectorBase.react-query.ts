@@ -20,6 +20,7 @@ import {
   ActionAmount,
   LiquidateRequestForVaultBaseForString,
   VaultPositionType,
+  LiquidateDebt,
   SwapperRoute,
   UpdateConfig,
   ActionCoin,

@@ -8,8 +8,7 @@
     "type": "object",
     "required": [
       "address_provider",
-      "owner",
-      "target_health_factor"
+      "owner"
     ],
     "properties": {
       "address_provider": {
@@ -19,23 +18,9 @@
       "owner": {
         "description": "Contract's owner",
         "type": "string"
-      },
-      "target_health_factor": {
-        "description": "Determines the ideal HF a position should be left at immediately after the position has been liquidated.",
-        "allOf": [
-          {
-            "$ref": "#/definitions/Decimal"
-          }
-        ]
       }
     },
-    "additionalProperties": false,
-    "definitions": {
-      "Decimal": {
-        "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
-        "type": "string"
-      }
-    }
+    "additionalProperties": false
   },
   "execute": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -70,18 +55,6 @@
               }
             },
             "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "type": "object",
-        "required": [
-          "update_target_health_factor"
-        ],
-        "properties": {
-          "update_target_health_factor": {
-            "$ref": "#/definitions/Decimal"
           }
         },
         "additionalProperties": false
@@ -139,6 +112,7 @@
       "AssetParamsBase_for_String": {
         "type": "object",
         "required": [
+          "close_factor",
           "credit_manager",
           "denom",
           "deposit_cap",
@@ -149,6 +123,9 @@
           "red_bank"
         ],
         "properties": {
+          "close_factor": {
+            "$ref": "#/definitions/Decimal"
+          },
           "credit_manager": {
             "$ref": "#/definitions/CmSettings_for_String"
           },
@@ -505,22 +482,38 @@
         "type": "object",
         "required": [
           "denom",
-          "max_long_oi",
-          "max_net_oi",
-          "max_short_oi"
+          "max_long_oi_value",
+          "max_net_oi_value",
+          "max_short_oi_value"
         ],
         "properties": {
           "denom": {
+            "description": "Perp denomination",
             "type": "string"
           },
-          "max_long_oi": {
-            "$ref": "#/definitions/Uint128"
+          "max_long_oi_value": {
+            "description": "The maximum long open interest value (in oracle uusd denomination)",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Uint128"
+              }
+            ]
           },
-          "max_net_oi": {
-            "$ref": "#/definitions/Uint128"
+          "max_net_oi_value": {
+            "description": "The maximum net open interest value (in oracle uusd denomination)",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Uint128"
+              }
+            ]
           },
-          "max_short_oi": {
-            "$ref": "#/definitions/Uint128"
+          "max_short_oi_value": {
+            "description": "The maximum short open interest value (in oracle uusd denomination)",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Uint128"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -833,19 +826,6 @@
         "additionalProperties": false
       },
       {
-        "type": "object",
-        "required": [
-          "target_health_factor"
-        ],
-        "properties": {
-          "target_health_factor": {
-            "type": "object",
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
         "description": "Compute the total amount deposited of the given asset across Red Bank and Credit Manager.",
         "type": "object",
         "required": [
@@ -887,6 +867,7 @@
         "AssetParamsBase_for_Addr": {
           "type": "object",
           "required": [
+            "close_factor",
             "credit_manager",
             "denom",
             "deposit_cap",
@@ -897,6 +878,9 @@
             "red_bank"
           ],
           "properties": {
+            "close_factor": {
+              "$ref": "#/definitions/Decimal"
+            },
             "credit_manager": {
               "$ref": "#/definitions/CmSettings_for_Addr"
             },
@@ -1099,22 +1083,38 @@
           "type": "object",
           "required": [
             "denom",
-            "max_long_oi",
-            "max_net_oi",
-            "max_short_oi"
+            "max_long_oi_value",
+            "max_net_oi_value",
+            "max_short_oi_value"
           ],
           "properties": {
             "denom": {
+              "description": "Perp denomination",
               "type": "string"
             },
-            "max_long_oi": {
-              "$ref": "#/definitions/Uint128"
+            "max_long_oi_value": {
+              "description": "The maximum long open interest value (in oracle uusd denomination)",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
             },
-            "max_net_oi": {
-              "$ref": "#/definitions/Uint128"
+            "max_net_oi_value": {
+              "description": "The maximum net open interest value (in oracle uusd denomination)",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
             },
-            "max_short_oi": {
-              "$ref": "#/definitions/Uint128"
+            "max_short_oi_value": {
+              "description": "The maximum short open interest value (in oracle uusd denomination)",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -1275,6 +1275,7 @@
       "title": "AssetParamsBase_for_Addr",
       "type": "object",
       "required": [
+        "close_factor",
         "credit_manager",
         "denom",
         "deposit_cap",
@@ -1285,6 +1286,9 @@
         "red_bank"
       ],
       "properties": {
+        "close_factor": {
+          "$ref": "#/definitions/Decimal"
+        },
         "credit_manager": {
           "$ref": "#/definitions/CmSettings_for_Addr"
         },
@@ -1537,22 +1541,38 @@
       "type": "object",
       "required": [
         "denom",
-        "max_long_oi",
-        "max_net_oi",
-        "max_short_oi"
+        "max_long_oi_value",
+        "max_net_oi_value",
+        "max_short_oi_value"
       ],
       "properties": {
         "denom": {
+          "description": "Perp denomination",
           "type": "string"
         },
-        "max_long_oi": {
-          "$ref": "#/definitions/Uint128"
+        "max_long_oi_value": {
+          "description": "The maximum long open interest value (in oracle uusd denomination)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
         },
-        "max_net_oi": {
-          "$ref": "#/definitions/Uint128"
+        "max_net_oi_value": {
+          "description": "The maximum net open interest value (in oracle uusd denomination)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
         },
-        "max_short_oi": {
-          "$ref": "#/definitions/Uint128"
+        "max_short_oi_value": {
+          "description": "The maximum short open interest value (in oracle uusd denomination)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
         }
       },
       "additionalProperties": false,
@@ -1562,12 +1582,6 @@
           "type": "string"
         }
       }
-    },
-    "target_health_factor": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Decimal",
-      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
-      "type": "string"
     },
     "total_deposit": {
       "$schema": "http://json-schema.org/draft-07/schema#",

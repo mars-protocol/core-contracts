@@ -12,7 +12,7 @@
       "closing_fee_rate",
       "cooldown_period",
       "credit_manager",
-      "min_position_in_base_denom",
+      "min_position_value",
       "opening_fee_rate",
       "oracle",
       "params"
@@ -40,8 +40,8 @@
         "description": "Address of the Mars Rover credit manager (CM) contract.\n\nUsers open, modify, or close perp positions by interacting with the CM. The CM then invokes the appropriate execute method(s) on the perps contract to fulfill the user requests.",
         "type": "string"
       },
-      "max_position_in_base_denom": {
-        "description": "The maximum value of a position, in the base asset (i.e. USDC).",
+      "max_position_value": {
+        "description": "The maximum value of a position, in oracle uusd denomination.",
         "anyOf": [
           {
             "$ref": "#/definitions/Uint128"
@@ -51,8 +51,8 @@
           }
         ]
       },
-      "min_position_in_base_denom": {
-        "description": "The minimum value of a position, in the base asset (i.e. USDC).",
+      "min_position_value": {
+        "description": "The minimum value of a position, in oracle uusd denomination.",
         "allOf": [
           {
             "$ref": "#/definitions/Uint128"
@@ -895,7 +895,7 @@
         "closing_fee_rate",
         "cooldown_period",
         "credit_manager",
-        "min_position_in_base_denom",
+        "min_position_value",
         "opening_fee_rate",
         "oracle",
         "params"
@@ -923,8 +923,8 @@
           "description": "Address of the Mars Rover credit manager (CM) contract.\n\nUsers open, modify, or close perp positions by interacting with the CM. The CM then invokes the appropriate execute method(s) on the perps contract to fulfill the user requests.",
           "type": "string"
         },
-        "max_position_in_base_denom": {
-          "description": "The maximum value of a position, in the base asset (i.e. USDC).",
+        "max_position_value": {
+          "description": "The maximum value of a position, in oracle uusd denomination.",
           "anyOf": [
             {
               "$ref": "#/definitions/Uint128"
@@ -934,8 +934,8 @@
             }
           ]
         },
-        "min_position_in_base_denom": {
-          "description": "The minimum value of a position, in the base asset (i.e. USDC).",
+        "min_position_value": {
+          "description": "The minimum value of a position, in oracle uusd denomination.",
           "allOf": [
             {
               "$ref": "#/definitions/Uint128"

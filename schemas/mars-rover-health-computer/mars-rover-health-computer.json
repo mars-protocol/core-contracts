@@ -39,6 +39,7 @@
     "AssetParamsBase_for_Addr": {
       "type": "object",
       "required": [
+        "close_factor",
         "credit_manager",
         "denom",
         "deposit_cap",
@@ -49,6 +50,9 @@
         "red_bank"
       ],
       "properties": {
+        "close_factor": {
+          "$ref": "#/definitions/Decimal"
+        },
         "credit_manager": {
           "$ref": "#/definitions/CmSettings_for_Addr"
         },

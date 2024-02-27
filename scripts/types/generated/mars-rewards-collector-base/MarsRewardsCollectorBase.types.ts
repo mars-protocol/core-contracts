@@ -159,6 +159,13 @@ export type Action =
       }
     }
   | {
+      liquidate_v2: {
+        debt: LiquidateDebt
+        liquidatee_account_id: string
+        request: LiquidateRequestForVaultBaseForString
+      }
+    }
+  | {
       swap_exact_in: {
         coin_in: ActionCoin
         denom_out: string
@@ -200,7 +207,20 @@ export type LiquidateRequestForVaultBaseForString =
         request_vault: VaultBaseForString
       }
     }
+  | {
+      perp: string
+    }
 export type VaultPositionType = 'u_n_l_o_c_k_e_d' | 'l_o_c_k_e_d' | 'u_n_l_o_c_k_i_n_g'
+export type LiquidateDebt =
+  | {
+      debt: Coin
+    }
+  | {
+      perp: {
+        denom: string
+        pnl_amount: Uint128
+      }
+    }
 export type SwapperRoute =
   | {
       astro: AstroRoute

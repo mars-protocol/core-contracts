@@ -292,6 +292,7 @@ export const ntrnAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const atomAsset: AssetConfig = {
@@ -322,6 +323,7 @@ export const atomAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const axlUSDCAsset: AssetConfig = {
@@ -352,6 +354,7 @@ export const axlUSDCAsset: AssetConfig = {
     slope_1: '0.125',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const neutronMainnetConfig: DeploymentConfig = {
@@ -395,7 +398,6 @@ export const neutronMainnetConfig: DeploymentConfig = {
     name: 'astroport',
     routes: [atomUsdcRoute, atomMarsRoute, ntrnUsdcRoute, ntrnMarsRoute, usdcMarsRoute],
   },
-  targetHealthFactor: '1.05',
   creditLineCoins: [],
   maxValueForBurn: '10000',
   maxUnlockingPositions: '1',

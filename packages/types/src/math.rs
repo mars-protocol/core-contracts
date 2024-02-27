@@ -198,23 +198,7 @@ impl From<Uint128> for SignedDecimal {
 
 impl PartialOrd for SignedDecimal {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match (self.is_negative(), other.is_negative()) {
-            (true, true) => other.abs.partial_cmp(&self.abs),
-            (true, false) => Some(Ordering::Less),
-            (false, true) => Some(Ordering::Greater),
-            _ => {
-                let self_abs = self.abs;
-                let other_abs = other.abs;
-                match (self_abs.is_zero(), other_abs.is_zero()) {
-                    (true, true) => Some(Ordering::Equal),
-                    (true, false) if other.is_positive() => Some(Ordering::Less),
-                    (true, false) => Some(Ordering::Greater),
-                    (false, true) if self.is_positive() => Some(Ordering::Greater),
-                    (false, true) => Some(Ordering::Less),
-                    (false, false) => self_abs.partial_cmp(&other_abs),
-                }
-            }
-        }
+        Some(self.cmp(other))
     }
 }
 

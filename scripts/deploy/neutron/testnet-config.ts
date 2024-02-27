@@ -267,6 +267,7 @@ export const ntrnAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const atomAsset: AssetConfig = {
@@ -297,6 +298,7 @@ export const atomAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const axlUSDCAsset: AssetConfig = {
@@ -327,6 +329,7 @@ export const axlUSDCAsset: AssetConfig = {
     slope_1: '0.125',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 // Perps configurations
@@ -334,18 +337,18 @@ export const atomPerpDenom: PerpDenom = {
   denom: atomDenom,
   maxFundingVelocity: '3',
   skewScale: '1000000',
-  max_net_oi: '100000000000000',
-  max_long_oi: '100000000000000',
-  max_short_oi: '100000000000000',
+  maxNetOiValue: '100000000000000',
+  maxLongOiValue: '100000000000000',
+  maxShortOiValue: '100000000000000',
 }
 
 export const ntrnPerpDenom: PerpDenom = {
   denom: 'untrn',
   maxFundingVelocity: '3',
   skewScale: '1000000',
-  max_net_oi: '100000000000000',
-  max_long_oi: '100000000000000',
-  max_short_oi: '100000000000000',
+  maxNetOiValue: '100000000000000',
+  maxLongOiValue: '100000000000000',
+  maxShortOiValue: '100000000000000',
 }
 
 export const neutronTestnetConfig: DeploymentConfig = {
@@ -389,7 +392,6 @@ export const neutronTestnetConfig: DeploymentConfig = {
     name: 'astroport',
     routes: [atomUsdcRoute, atomMarsRoute, ntrnUsdcRoute, ntrnMarsRoute, usdcMarsRoute],
   },
-  targetHealthFactor: '1.05',
   creditLineCoins: [
     { denom: 'untrn', creditLine: defaultCreditLine },
     { denom: axlUsdcDenom, creditLine: defaultCreditLine },

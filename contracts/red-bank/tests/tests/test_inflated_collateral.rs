@@ -162,7 +162,7 @@ fn atom_asset_params(denom: &str) -> (InitOrUpdateAssetParams, AssetParams) {
         },
         protocol_liquidation_fee: Decimal::percent(25),
         deposit_cap: Uint128::from(700000000000u128),
-        close_factor: Decimal::percent(90)
+        close_factor: Decimal::percent(90),
     };
     (market_params, asset_params)
 }
@@ -197,7 +197,7 @@ fn osmo_asset_params(denom: &str) -> (InitOrUpdateAssetParams, AssetParams) {
         },
         protocol_liquidation_fee: Decimal::percent(25),
         deposit_cap: Uint128::from(10000000000000u128),
-        close_factor: Decimal::percent(90)
+        close_factor: Decimal::percent(90),
     };
     (market_params, asset_params)
 }

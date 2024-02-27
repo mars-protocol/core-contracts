@@ -14,8 +14,8 @@ export interface InstantiateMsg {
   closing_fee_rate: Decimal
   cooldown_period: number
   credit_manager: string
-  max_position_in_base_denom?: Uint128 | null
-  min_position_in_base_denom: Uint128
+  max_position_value?: Uint128 | null
+  min_position_value: Uint128
   opening_fee_rate: Decimal
   oracle: OracleBaseForString
   params: ParamsBaseForString
@@ -187,8 +187,8 @@ export interface ConfigForString {
   closing_fee_rate: Decimal
   cooldown_period: number
   credit_manager: string
-  max_position_in_base_denom?: Uint128 | null
-  min_position_in_base_denom: Uint128
+  max_position_value?: Uint128 | null
+  min_position_value: Uint128
   opening_fee_rate: Decimal
   oracle: OracleBaseForString
   params: ParamsBaseForString
