@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use cosmwasm_std::{to_binary, Binary, Coin, ContractResult, QuerierResult, Uint128};
+use cosmwasm_std::{to_json_binary, Binary, Coin, ContractResult, QuerierResult, Uint128};
 use mars_types::params::{AssetParams, QueryMsg};
 
 #[derive(Default)]
@@ -15,13 +15,13 @@ impl ParamsQuerier {
             QueryMsg::AssetParams {
                 denom,
             } => match self.params.get(&denom) {
-                Some(params) => to_binary(&params).into(),
+                Some(params) => to_json_binary(&params).into(),
                 None => Err(format!("[mock]: could not find the params for {denom}")).into(),
             },
             QueryMsg::TotalDeposit {
                 denom,
             } => match self.total_deposits.get(&denom) {
-                Some(amount) => to_binary(&Coin {
+                Some(amount) => to_json_binary(&Coin {
                     denom,
                     amount: *amount,
                 })

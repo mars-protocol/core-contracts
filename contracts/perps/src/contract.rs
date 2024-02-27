@@ -1,4 +1,6 @@
-use cosmwasm_std::{entry_point, to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+};
 use mars_owner::OwnerInit;
 use mars_types::perps::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
@@ -84,34 +86,34 @@ pub fn execute(
 #[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
     match msg {
-        QueryMsg::Owner {} => to_binary(&OWNER.query(deps.storage)?),
-        QueryMsg::Config {} => to_binary(&query::config(deps.storage)?),
-        QueryMsg::VaultState {} => to_binary(&query::vault_state(deps.storage)?),
+        QueryMsg::Owner {} => to_json_binary(&OWNER.query(deps.storage)?),
+        QueryMsg::Config {} => to_json_binary(&query::config(deps.storage)?),
+        QueryMsg::VaultState {} => to_json_binary(&query::vault_state(deps.storage)?),
         QueryMsg::DenomState {
             denom,
-        } => to_binary(&query::denom_state(deps.storage, denom)?),
+        } => to_json_binary(&query::denom_state(deps.storage, denom)?),
         QueryMsg::DenomStates {
             start_after,
             limit,
-        } => to_binary(&query::denom_states(deps.storage, start_after, limit)?),
+        } => to_json_binary(&query::denom_states(deps.storage, start_after, limit)?),
         QueryMsg::PerpDenomState {
             denom,
-        } => to_binary(&query::perp_denom_state(deps, env.block.time.seconds(), denom)?),
+        } => to_json_binary(&query::perp_denom_state(deps, env.block.time.seconds(), denom)?),
         QueryMsg::Deposit {
             depositor,
-        } => to_binary(&query::deposit(deps, depositor, env.block.time.seconds())?),
+        } => to_json_binary(&query::deposit(deps, depositor, env.block.time.seconds())?),
         QueryMsg::Deposits {
             start_after,
             limit,
-        } => to_binary(&query::deposits(deps, start_after, limit, env.block.time.seconds())?),
+        } => to_json_binary(&query::deposits(deps, start_after, limit, env.block.time.seconds())?),
         QueryMsg::Unlocks {
             depositor,
-        } => to_binary(&query::unlocks(deps, depositor)?),
+        } => to_json_binary(&query::unlocks(deps, depositor)?),
         QueryMsg::Position {
             account_id,
             denom,
             new_size,
-        } => to_binary(&query::position(
+        } => to_json_binary(&query::position(
             deps,
             env.block.time.seconds(),
             account_id,
@@ -121,30 +123,34 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::Positions {
             start_after,
             limit,
-        } => to_binary(&query::positions(deps, env.block.time.seconds(), start_after, limit)?),
+        } => to_json_binary(&query::positions(deps, env.block.time.seconds(), start_after, limit)?),
         QueryMsg::PositionsByAccount {
             account_id,
-        } => to_binary(&query::positions_by_account(deps, env.block.time.seconds(), account_id)?),
-        QueryMsg::TotalPnl {} => to_binary(&query::total_pnl(deps, env.block.time.seconds())?),
+        } => to_json_binary(&query::positions_by_account(
+            deps,
+            env.block.time.seconds(),
+            account_id,
+        )?),
+        QueryMsg::TotalPnl {} => to_json_binary(&query::total_pnl(deps, env.block.time.seconds())?),
         QueryMsg::OpeningFee {
             denom,
             size,
-        } => to_binary(&query::opening_fee(deps, &denom, size)?),
+        } => to_json_binary(&query::opening_fee(deps, &denom, size)?),
         QueryMsg::DenomAccounting {
             denom,
-        } => to_binary(&query::denom_accounting(deps, &denom, env.block.time.seconds())?),
+        } => to_json_binary(&query::denom_accounting(deps, &denom, env.block.time.seconds())?),
         QueryMsg::TotalAccounting {} => {
-            to_binary(&query::total_accounting(deps, env.block.time.seconds())?)
+            to_json_binary(&query::total_accounting(deps, env.block.time.seconds())?)
         }
         QueryMsg::DenomRealizedPnlForAccount {
             account_id,
             denom,
-        } => to_binary(&query::denom_realized_pnl_for_account(deps, account_id, denom)?),
+        } => to_json_binary(&query::denom_realized_pnl_for_account(deps, account_id, denom)?),
         QueryMsg::PositionFees {
             account_id,
             denom,
             new_size,
-        } => to_binary(&query::position_fees(deps, &account_id, &denom, new_size)?),
+        } => to_json_binary(&query::position_fees(deps, &account_id, &denom, new_size)?),
     }
     .map_err(Into::into)
 }

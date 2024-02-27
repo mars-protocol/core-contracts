@@ -49,6 +49,11 @@ pub fn update_debt(
             .checked_multiply_ratio(coin.amount, total_debt_amount)?
     };
 
+    // It shouldn't happen but just in case
+    if debt_shares_to_add.is_zero() {
+        return Err(ContractError::ZeroDebtShares);
+    }
+
     TOTAL_DEBT_SHARES.update(deps.storage, &coin.denom, |shares| {
         shares
             .unwrap_or_else(Uint128::zero)

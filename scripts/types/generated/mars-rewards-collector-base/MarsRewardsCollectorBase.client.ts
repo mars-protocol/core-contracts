@@ -19,10 +19,15 @@ import {
   ActionAmount,
   LiquidateRequestForVaultBaseForString,
   VaultPositionType,
+  SwapperRoute,
   UpdateConfig,
   ActionCoin,
   SignedDecimal,
   VaultBaseForString,
+  AstroRoute,
+  AstroSwap,
+  OsmoRoute,
+  OsmoSwap,
   QueryMsg,
   ConfigResponse,
 } from './MarsRewardsCollectorBase.types'
@@ -108,9 +113,13 @@ export interface MarsRewardsCollectorBaseInterface
     {
       amount,
       denom,
+      feeCollectorRoute,
+      safetyFundRoute,
     }: {
       amount?: Uint128
       denom: string
+      feeCollectorRoute?: SwapperRoute
+      safetyFundRoute?: SwapperRoute
     },
     fee?: number | StdFee | 'auto',
     memo?: string,
@@ -275,9 +284,13 @@ export class MarsRewardsCollectorBaseClient
     {
       amount,
       denom,
+      feeCollectorRoute,
+      safetyFundRoute,
     }: {
       amount?: Uint128
       denom: string
+      feeCollectorRoute?: SwapperRoute
+      safetyFundRoute?: SwapperRoute
     },
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,
@@ -290,6 +303,8 @@ export class MarsRewardsCollectorBaseClient
         swap_asset: {
           amount,
           denom,
+          fee_collector_route: feeCollectorRoute,
+          safety_fund_route: safetyFundRoute,
         },
       },
       fee,
