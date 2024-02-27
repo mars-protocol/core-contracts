@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_binary, Addr, Coin, CosmosMsg, Decimal, StdResult, Uint128, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, Coin, CosmosMsg, Decimal, StdResult, Uint128, WasmMsg};
 use mars_owner::OwnerUpdate;
 
 use super::ConfigUpdates;
@@ -9,6 +9,7 @@ use crate::{
     account_nft::NftConfigUpdates,
     adapters::vault::{Vault, VaultPositionType, VaultUnchecked},
     health::{AccountKind, HealthState},
+    swapper::SwapperRoute,
 };
 
 #[cw_serde]
@@ -171,6 +172,7 @@ pub enum Action {
         coin_in: ActionCoin,
         denom_out: String,
         slippage: Decimal,
+        route: Option<SwapperRoute>,
     },
     /// Add Vec<Coin> to liquidity pool in exchange for LP tokens.
     /// Slippage allowance (%) is used to calculate the minimum amount of LP tokens to receive.
@@ -299,6 +301,7 @@ pub enum CallbackMsg {
         coin_in: ActionCoin,
         denom_out: String,
         slippage: Decimal,
+        route: Option<SwapperRoute>,
     },
     /// Used to update the coin balance of account after an async action
     UpdateCoinBalance {
@@ -357,7 +360,7 @@ impl CallbackMsg {
     pub fn into_cosmos_msg(&self, contract_addr: &Addr) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: contract_addr.to_string(),
-            msg: to_binary(&ExecuteMsg::Callback(self.clone()))?,
+            msg: to_json_binary(&ExecuteMsg::Callback(self.clone()))?,
             funds: vec![],
         }))
     }

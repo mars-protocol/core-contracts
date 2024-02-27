@@ -3,13 +3,16 @@ use std::{fmt, str::FromStr};
 use astroport::{asset::AssetInfo, pair::MAX_ALLOWED_SLIPPAGE, router::SwapOperation};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    to_binary, Coin, CosmosMsg, Decimal, Empty, Env, QuerierWrapper, QueryRequest, StdError,
+    to_json_binary, Coin, CosmosMsg, Decimal, Empty, Env, QuerierWrapper, QueryRequest, StdError,
     StdResult, Uint128, WasmMsg, WasmQuery,
 };
 use mars_swapper_base::{ContractError, ContractResult, Route};
-use mars_types::{oracle::PriceResponse, swapper::EstimateExactInSwapResponse};
+use mars_types::{
+    oracle::PriceResponse,
+    swapper::{EstimateExactInSwapResponse, SwapperRoute},
+};
 
-use crate::helpers::hashset;
+use crate::{config::AstroportConfig, helpers::hashset};
 
 #[cw_serde]
 pub struct AstroportRoute {
@@ -54,7 +57,7 @@ impl AstroportRoute {
         querier
             .query::<PriceResponse>(&QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr: self.oracle.clone(),
-                msg: to_binary(&mars_types::oracle::QueryMsg::Price {
+                msg: to_json_binary(&mars_types::oracle::QueryMsg::Price {
                     denom: denom.to_string(),
                     kind: None,
                 })?,
@@ -99,7 +102,40 @@ impl AstroportRoute {
     }
 }
 
-impl Route<Empty, Empty> for AstroportRoute {
+impl Route<Empty, Empty, AstroportConfig> for AstroportRoute {
+    fn from(route: SwapperRoute, config: Option<AstroportConfig>) -> ContractResult<Self> {
+        let Some(config) = config else {
+            return Err(ContractError::InvalidRoute {
+                reason: "AstroportConfig not set".to_string(),
+            });
+        };
+        match route {
+            SwapperRoute::Astro(route) => {
+                let operations: Vec<_> = route
+                    .swaps
+                    .into_iter()
+                    .map(|op| SwapOperation::AstroSwap {
+                        offer_asset_info: AssetInfo::NativeToken {
+                            denom: op.from,
+                        },
+                        ask_asset_info: AssetInfo::NativeToken {
+                            denom: op.to,
+                        },
+                    })
+                    .collect();
+                Ok(Self {
+                    operations,
+                    router: config.router,
+                    factory: config.factory,
+                    oracle: config.oracle,
+                })
+            }
+            SwapperRoute::Osmo(_) => Err(ContractError::InvalidRoute {
+                reason: "OsmosisRoute not supported".to_string(),
+            }),
+        }
+    }
+
     // Perform basic validation of the swap steps
     fn validate(
         &self,
@@ -123,7 +159,7 @@ impl Route<Empty, Empty> for AstroportRoute {
             denom: denom_in.to_string(),
         };
         let mut seen_denoms = hashset(&[prev_denom_out.clone()]);
-        for (_, step) in steps.iter().enumerate() {
+        for step in steps.iter() {
             let offer = step.offer();
             let ask = step.ask();
 
@@ -177,7 +213,7 @@ impl Route<Empty, Empty> for AstroportRoute {
 
         let swap_msg: CosmosMsg = WasmMsg::Execute {
             contract_addr: self.router.clone(),
-            msg: to_binary(&astroport::router::ExecuteMsg::ExecuteSwapOperations {
+            msg: to_json_binary(&astroport::router::ExecuteMsg::ExecuteSwapOperations {
                 operations: self.operations.clone(),
                 minimum_receive,
                 to: None,

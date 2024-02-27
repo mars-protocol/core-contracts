@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use cosmwasm_std::{
-    to_binary, Addr, Coins, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg,
+    to_json_binary, Addr, Coins, CosmosMsg, DepsMut, Env, MessageInfo, Response, StdResult, WasmMsg,
 };
 use mars_types::{
     account_nft::ExecuteMsg as NftExecuteMsg,
@@ -49,7 +49,7 @@ pub fn create_credit_account(
     let nft_mint_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: account_nft.address().into(),
         funds: vec![],
-        msg: to_binary(&NftExecuteMsg::Mint {
+        msg: to_json_binary(&NftExecuteMsg::Mint {
             user: user.to_string(),
         })?,
     });
@@ -204,12 +204,14 @@ pub fn dispatch_actions(
                 coin_in,
                 denom_out,
                 slippage,
+                route,
             } => {
                 callbacks.push(CallbackMsg::SwapExactIn {
                     account_id: account_id.to_string(),
                     coin_in,
                     denom_out: denom_out.clone(),
                     slippage,
+                    route,
                 });
                 // check the deposit cap of the swap output denom
                 denoms_for_cap_check.insert(denom_out);
@@ -416,7 +418,8 @@ pub fn execute_callback(
             coin_in,
             denom_out,
             slippage,
-        } => swap_exact_in(deps, env, &account_id, &coin_in, &denom_out, slippage),
+            route,
+        } => swap_exact_in(deps, env, &account_id, &coin_in, &denom_out, slippage, route),
         CallbackMsg::UpdateCoinBalance {
             account_id,
             previous_balance,
