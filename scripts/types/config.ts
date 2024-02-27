@@ -72,7 +72,6 @@ export interface DeploymentConfig {
     name: string
     routes: SwapRoute[]
   }
-  targetHealthFactor: string
   creditLineCoins: { denom: string; creditLine: String }[]
   maxValueForBurn: string
   maxUnlockingPositions: string
@@ -111,6 +110,7 @@ export interface AssetConfig {
     slope_1: string
     slope_2: string
   }
+  close_factor: Decimal
 }
 
 export enum VaultType {
@@ -169,7 +169,7 @@ export interface PerpDenom {
   denom: string
   maxFundingVelocity: string
   skewScale: string
-  max_net_oi: string
-  max_long_oi: string
-  max_short_oi: string
+  maxNetOiValue: string
+  maxLongOiValue: string
+  maxShortOiValue: string
 }

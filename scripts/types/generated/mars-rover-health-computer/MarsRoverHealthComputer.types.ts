@@ -5,6 +5,7 @@
  * and run the @cosmwasm/ts-codegen generate command to regenerate this file.
  */
 
+export type Decimal = string
 export type HlsAssetTypeForAddr =
   | {
       coin: {
@@ -17,7 +18,6 @@ export type HlsAssetTypeForAddr =
       }
     }
 export type Addr = string
-export type Decimal = string
 export type Uint128 = string
 export type AccountKind = 'default' | 'high_levered_strategy'
 export type PnL =
@@ -53,6 +53,7 @@ export interface DenomsData {
   }
 }
 export interface AssetParamsBaseForAddr {
+  close_factor: Decimal
   credit_manager: CmSettingsForAddr
   denom: string
   deposit_cap: Uint128

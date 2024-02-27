@@ -6,9 +6,9 @@
  */
 
 import {
+  Decimal,
   HlsAssetTypeForAddr,
   Addr,
-  Decimal,
   Uint128,
   AccountKind,
   PnL,

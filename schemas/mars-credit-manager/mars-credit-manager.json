@@ -1,6 +1,6 @@
 {
   "contract_name": "mars-credit-manager",
-  "contract_version": "2.0.1",
+  "contract_version": "2.0.3",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -598,10 +598,51 @@
                 ],
                 "properties": {
                   "debt_coin": {
-                    "description": "The coin they wish to acquire from the liquidatee (amount returned will include the bonus)",
+                    "description": "The debt coin to be repayed",
                     "allOf": [
                       {
                         "$ref": "#/definitions/Coin"
+                      }
+                    ]
+                  },
+                  "liquidatee_account_id": {
+                    "description": "The credit account id of the one with a liquidation threshold health factor 1 or below",
+                    "type": "string"
+                  },
+                  "request": {
+                    "description": "Position details to be liquidated",
+                    "allOf": [
+                      {
+                        "$ref": "#/definitions/LiquidateRequest_for_VaultBase_for_String"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Pay back debt of a liquidatable rover account for a via liquidating a specific type of the position.",
+            "type": "object",
+            "required": [
+              "liquidate_v2"
+            ],
+            "properties": {
+              "liquidate_v2": {
+                "type": "object",
+                "required": [
+                  "debt",
+                  "liquidatee_account_id",
+                  "request"
+                ],
+                "properties": {
+                  "debt": {
+                    "description": "The debt to be repayed",
+                    "allOf": [
+                      {
+                        "$ref": "#/definitions/LiquidateDebt"
                       }
                     ]
                   },
@@ -643,6 +684,16 @@
                   },
                   "denom_out": {
                     "type": "string"
+                  },
+                  "route": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/SwapperRoute"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "slippage": {
                     "$ref": "#/definitions/Decimal"
@@ -820,6 +871,40 @@
       "Addr": {
         "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
         "type": "string"
+      },
+      "AstroRoute": {
+        "type": "object",
+        "required": [
+          "swaps"
+        ],
+        "properties": {
+          "swaps": {
+            "description": "The swap operations of the route",
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/AstroSwap"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "AstroSwap": {
+        "type": "object",
+        "required": [
+          "from",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "description": "Asset to swap from",
+            "type": "string"
+          },
+          "to": {
+            "description": "Asset to swap to",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "CallbackMsg": {
         "description": "Internal actions made by the contract with pre-validated inputs",
@@ -1344,6 +1429,40 @@
             "additionalProperties": false
           },
           {
+            "description": "Pay back debts of a liquidatable rover account for a bonus",
+            "type": "object",
+            "required": [
+              "liquidate_v2"
+            ],
+            "properties": {
+              "liquidate_v2": {
+                "type": "object",
+                "required": [
+                  "debt",
+                  "liquidatee_account_id",
+                  "liquidator_account_id",
+                  "request"
+                ],
+                "properties": {
+                  "debt": {
+                    "$ref": "#/definitions/LiquidateDebt"
+                  },
+                  "liquidatee_account_id": {
+                    "type": "string"
+                  },
+                  "liquidator_account_id": {
+                    "type": "string"
+                  },
+                  "request": {
+                    "$ref": "#/definitions/LiquidateRequest_for_VaultBase_for_Addr"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Perform a swapper with an exact-in amount. Requires slippage allowance %. If `coin_in.amount: AccountBalance`, the accounts entire balance of `coin_in.denom` will be used.",
             "type": "object",
             "required": [
@@ -1367,6 +1486,16 @@
                   },
                   "denom_out": {
                     "type": "string"
+                  },
+                  "route": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/SwapperRoute"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "slippage": {
                     "$ref": "#/definitions/Decimal"
@@ -1853,6 +1982,49 @@
       "IncentivesUnchecked": {
         "type": "string"
       },
+      "LiquidateDebt": {
+        "oneOf": [
+          {
+            "description": "Pay back debt of a liquidatable credit manager account for a bonus. Requires specifying the debt denom/amount.",
+            "type": "object",
+            "required": [
+              "debt"
+            ],
+            "properties": {
+              "debt": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Pay back negative PnL of a liquidatable credit manager account for a bonus. Requires specifying the perp denom and unrealized PnL amount.",
+            "type": "object",
+            "required": [
+              "perp"
+            ],
+            "properties": {
+              "perp": {
+                "type": "object",
+                "required": [
+                  "denom",
+                  "pnl_amount"
+                ],
+                "properties": {
+                  "denom": {
+                    "type": "string"
+                  },
+                  "pnl_amount": {
+                    "$ref": "#/definitions/Uint128"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "LiquidateRequest_for_VaultBase_for_Addr": {
         "oneOf": [
           {
@@ -1903,6 +2075,19 @@
                   }
                 },
                 "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Pay back debt of a liquidatable credit manager account via liquidating a Perp position. When positive unrealized PnL serves as a collateral for the position: - part of the unrealized PnL is paid by the vault to the liquidator, - liquidation fee is paid by the vault to the protocol, - the rest of the unrealized PnL is paid by the vault to the liquidatee and added as base denom (e.g. USDC) collateral.",
+            "type": "object",
+            "required": [
+              "perp"
+            ],
+            "properties": {
+              "perp": {
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -1962,6 +2147,19 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "description": "Pay back debt of a liquidatable credit manager account via liquidating a Perp position. When positive unrealized PnL serves as a collateral for the position: - part of the unrealized PnL is paid by the vault to the liquidator, - liquidation fee is paid by the vault to the protocol, - the rest of the unrealized PnL is paid by the vault to the liquidatee and added as base denom (e.g. USDC) collateral.",
+            "type": "object",
+            "required": [
+              "perp"
+            ],
+            "properties": {
+              "perp": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -1995,6 +2193,42 @@
       },
       "OracleBase_for_String": {
         "type": "string"
+      },
+      "OsmoRoute": {
+        "type": "object",
+        "required": [
+          "swaps"
+        ],
+        "properties": {
+          "swaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/OsmoSwap"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "OsmoSwap": {
+        "description": "Swap operation with pool id and asset to swap to. \"from\" is another asset in the pool.",
+        "type": "object",
+        "required": [
+          "pool_id",
+          "to"
+        ],
+        "properties": {
+          "pool_id": {
+            "description": "Pool id",
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "to": {
+            "description": "Asset to swap to",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "OwnerUpdate": {
         "oneOf": [
@@ -2099,6 +2333,34 @@
       },
       "SwapperBase_for_String": {
         "type": "string"
+      },
+      "SwapperRoute": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "astro"
+            ],
+            "properties": {
+              "astro": {
+                "$ref": "#/definitions/AstroRoute"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "osmo"
+            ],
+            "properties": {
+              "osmo": {
+                "$ref": "#/definitions/OsmoRoute"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "Timestamp": {
         "description": "A point in time in nanosecond precision.\n\nThis type can represent times from 1970-01-01T00:00:00Z to 2554-07-21T23:34:33Z.\n\n## Examples\n\n``` # use cosmwasm_std::Timestamp; let ts = Timestamp::from_nanos(1_000_000_202); assert_eq!(ts.nanos(), 1_000_000_202); assert_eq!(ts.seconds(), 1); assert_eq!(ts.subsec_nanos(), 202);\n\nlet ts = ts.plus_seconds(2); assert_eq!(ts.nanos(), 3_000_000_202); assert_eq!(ts.seconds(), 3); assert_eq!(ts.subsec_nanos(), 202); ```",

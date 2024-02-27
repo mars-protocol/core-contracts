@@ -62,7 +62,7 @@ use mars_types::{
     },
     swapper::{
         EstimateExactInSwapResponse, InstantiateMsg as SwapperInstantiateMsg,
-        QueryMsg::EstimateExactInSwap,
+        QueryMsg::EstimateExactInSwap, SwapperRoute,
     },
 };
 use mars_zapper_mock::msg::{InstantiateMsg as ZapperInstantiateMsg, LpConfig};
@@ -726,6 +726,7 @@ impl MockEnv {
         &self,
         coin_in: &Coin,
         denom_out: &str,
+        route: SwapperRoute,
     ) -> EstimateExactInSwapResponse {
         let config = self.query_config();
         self.app
@@ -735,6 +736,7 @@ impl MockEnv {
                 &EstimateExactInSwap {
                     coin_in: coin_in.clone(),
                     denom_out: denom_out.to_string(),
+                    route: Some(route),
                 },
             )
             .unwrap()

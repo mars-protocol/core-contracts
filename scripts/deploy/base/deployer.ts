@@ -449,7 +449,6 @@ export class Deployer {
     const msg: ParamsInstantiateMsg = {
       owner: this.deployerAddr,
       address_provider: this.storage.addresses['addressProvider']!,
-      target_health_factor: this.config.targetHealthFactor,
     }
     await this.instantiate('params', this.storage.codeIds.params!, msg)
   }
@@ -479,6 +478,7 @@ export class Deployer {
               deposit_enabled: assetConfig.red_bank.deposit_enabled,
             },
             deposit_cap: assetConfig.deposit_cap,
+            close_factor: assetConfig.close_factor,
           },
         },
       },
@@ -497,7 +497,7 @@ export class Deployer {
         base_denom: this.config.perps.baseDenom,
         cooldown_period: this.config.perps.cooldownPeriod,
         credit_manager: this.storage.addresses.creditManager!,
-        min_position_in_base_denom: this.config.perps.minPositionValue,
+        min_position_value: this.config.perps.minPositionValue,
         oracle: this.storage.addresses.oracle!,
         params: this.storage.addresses.params!,
         opening_fee_rate: this.config.perps.openingFeeRate,
@@ -536,9 +536,9 @@ export class Deployer {
         add_or_update: {
           params: {
             denom: perpDenom.denom,
-            max_net_oi: perpDenom.max_net_oi,
-            max_long_oi: perpDenom.max_long_oi,
-            max_short_oi: perpDenom.max_short_oi,
+            max_net_oi_value: perpDenom.maxNetOiValue,
+            max_long_oi_value: perpDenom.maxLongOiValue,
+            max_short_oi_value: perpDenom.maxShortOiValue,
           },
         },
       },

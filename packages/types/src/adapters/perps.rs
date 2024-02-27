@@ -1,5 +1,7 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_binary, Addr, Api, Coin, CosmosMsg, QuerierWrapper, StdResult, WasmMsg};
+use cosmwasm_std::{
+    to_json_binary, Addr, Api, Coin, CosmosMsg, QuerierWrapper, StdResult, WasmMsg,
+};
 
 use crate::{
     math::SignedDecimal,
@@ -48,7 +50,7 @@ impl Perps {
     ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
-            msg: to_binary(&ExecuteMsg::OpenPosition {
+            msg: to_json_binary(&ExecuteMsg::OpenPosition {
                 account_id: account_id.into(),
                 denom: denom.into(),
                 size,
@@ -66,7 +68,7 @@ impl Perps {
     ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
-            msg: to_binary(&ExecuteMsg::ClosePosition {
+            msg: to_json_binary(&ExecuteMsg::ClosePosition {
                 account_id: account_id.into(),
                 denom: denom.into(),
             })?,
@@ -84,7 +86,7 @@ impl Perps {
     ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
-            msg: to_binary(&ExecuteMsg::ModifyPosition {
+            msg: to_json_binary(&ExecuteMsg::ModifyPosition {
                 account_id: account_id.into(),
                 denom: denom.into(),
                 new_size: new_size.into(),

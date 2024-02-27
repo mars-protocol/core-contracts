@@ -54,6 +54,7 @@ export const atomOsmoPoolAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const usdcOsmoPoolAsset: AssetConfig = {
@@ -83,6 +84,7 @@ export const usdcOsmoPoolAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const wethOsmoPoolAsset: AssetConfig = {
@@ -112,6 +114,7 @@ export const wethOsmoPoolAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const wbtcOsmoPoolAsset: AssetConfig = {
@@ -141,6 +144,7 @@ export const wbtcOsmoPoolAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const atomStAtomPoolAsset: AssetConfig = {
@@ -170,6 +174,7 @@ export const atomStAtomPoolAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const osmoAsset: AssetConfig = {
@@ -199,6 +204,7 @@ export const osmoAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const atomAsset: AssetConfig = {
@@ -228,6 +234,7 @@ export const atomAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const axlAsset: AssetConfig = {
@@ -257,6 +264,7 @@ export const axlAsset: AssetConfig = {
     slope_1: '0.17',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const stAtomAsset: AssetConfig = {
@@ -286,6 +294,7 @@ export const stAtomAsset: AssetConfig = {
     slope_1: '0.1',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const wbtcAsset: AssetConfig = {
@@ -315,6 +324,7 @@ export const wbtcAsset: AssetConfig = {
     slope_1: '0.1',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const axlUSDCAsset: AssetConfig = {
@@ -344,6 +354,7 @@ export const axlUSDCAsset: AssetConfig = {
     slope_1: '0.125',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const wethAsset: AssetConfig = {
@@ -373,6 +384,7 @@ export const wethAsset: AssetConfig = {
     slope_1: '0.1',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const atomOsmoVault: VaultConfig = {
@@ -1029,7 +1041,6 @@ export const osmosisMainnetConfig: DeploymentConfig = {
     name: 'osmosis',
     routes: swapperRoutes,
   },
-  targetHealthFactor: '1.05',
   creditLineCoins: [
     // AXL and stAtom has borrowing disabled
     { denom: osmo, creditLine: defaultCreditLine },

@@ -49,6 +49,7 @@ export const osmoAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const atomAsset: AssetConfig = {
@@ -78,6 +79,7 @@ export const atomAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const USDCAsset: AssetConfig = {
@@ -107,6 +109,7 @@ export const USDCAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const usdcOsmoVault: VaultConfig = {
@@ -275,7 +278,6 @@ export const osmosisTestnetConfig: DeploymentConfig = {
       { denom_in: uosmo, denom_out: aUSDC, route: [{ pool_id: 5, token_out_denom: aUSDC }] },
     ],
   },
-  targetHealthFactor: '1.05',
   creditLineCoins: [
     { denom: uosmo, creditLine: defaultCreditLine },
     { denom: aUSDC, creditLine: defaultCreditLine },
