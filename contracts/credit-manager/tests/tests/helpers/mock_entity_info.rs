@@ -188,5 +188,11 @@ pub fn default_perp_params(denom: &str) -> PerpParams {
         max_net_oi_value: Uint128::new(1_000_000_000),
         max_long_oi_value: Uint128::new(1_000_000_000),
         max_short_oi_value: Uint128::new(1_000_000_000),
+        closing_fee_rate: Decimal::from_str("0.006").unwrap(),
+        opening_fee_rate: Decimal::from_str("0.004").unwrap(),
+        liquidation_threshold: Decimal::from_str("0.90").unwrap(),
+        max_loan_to_value: Decimal::from_str("0.82").unwrap(),
+        max_position_value: None,
+        min_position_value: Uint128::zero(),
     }
 }

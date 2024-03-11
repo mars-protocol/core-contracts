@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cosmwasm_std::{coin, Uint128};
-use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
+use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
 use mars_types::{
     credit_manager::Positions,
     health::{AccountKind, BorrowTarget},
@@ -14,10 +14,8 @@ fn max_borrow_vault_offset_good() {
     let udai = udai_info();
     let osmo_atom_1_config = osmo_atom_1_config();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(udai.denom.clone(), udai.price)]),
-        params: HashMap::from([(udai.denom.clone(), udai.params.clone())]),
-    };
+    let params = HashMap::from([(udai.denom.clone(), udai.params.clone())]);
+    let prices = HashMap::from([(udai.denom.clone(), udai.price)]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
@@ -26,6 +24,8 @@ fn max_borrow_vault_offset_good() {
             osmo_atom_1_config.clone(),
         )]),
     };
+
+    let perps_data = Default::default();
 
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -37,8 +37,10 @@ fn max_borrow_vault_offset_good() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params: params,
+        oracle_prices: prices,
         vaults_data,
+        perps_data,
     };
 
     let max_borrow_amount = h
@@ -58,10 +60,8 @@ fn max_borrow_vault_offset_margin_of_error() {
     let umars = umars_info();
     let osmo_atom_1_config = osmo_atom_1_config();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(umars.denom.clone(), umars.price)]),
-        params: HashMap::from([(umars.denom.clone(), umars.params.clone())]),
-    };
+    let prices = HashMap::from([(umars.denom.clone(), umars.price)]);
+    let params = HashMap::from([(umars.denom.clone(), umars.params.clone())]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
@@ -69,6 +69,11 @@ fn max_borrow_vault_offset_margin_of_error() {
             osmo_atom_1_config.addr.clone(),
             osmo_atom_1_config.clone(),
         )]),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -81,8 +86,10 @@ fn max_borrow_vault_offset_margin_of_error() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params: params,
+        oracle_prices: prices,
         vaults_data,
+        perps_data,
     };
 
     let max_borrow_amount = h

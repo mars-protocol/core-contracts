@@ -1,7 +1,7 @@
 use std::{collections::HashMap, ops::Add, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
-use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
+use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
 use mars_types::{
     adapters::vault::{
         CoinValue, LockingVaultAmount, UnlockingPositions, Vault, VaultAmount, VaultPosition,
@@ -18,7 +18,7 @@ use super::helpers::{
     atomperp_info, btcperp_info, ethperp_info, udai_info, ujuno_info, uluna_info, umars_info,
     ustars_info, uusdc_info,
 };
-use crate::tests::helpers::create_coin_info;
+use crate::tests::helpers::{create_coin_info, create_perp_info};
 
 /// Action: User deposits 300 mars (1 price)
 /// Health: assets_value: 300
@@ -29,14 +29,17 @@ use crate::tests::helpers::create_coin_info;
 fn only_assets_with_no_debts() {
     let umars = umars_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(umars.denom.clone(), umars.price)]),
-        params: HashMap::from([(umars.denom.clone(), umars.params.clone())]),
-    };
+    let oracle_prices = HashMap::from([(umars.denom.clone(), umars.price)]);
+    let asset_params = HashMap::from([(umars.denom.clone(), umars.params.clone())]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let deposit_amount = Uint128::new(300);
@@ -53,8 +56,10 @@ fn only_assets_with_no_debts() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -88,15 +93,17 @@ fn only_assets_with_no_debts() {
 #[test]
 fn terra_ragnarok() {
     let mut uluna = uluna_info();
-
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(uluna.denom.clone(), uluna.price)]),
-        params: HashMap::from([(uluna.denom.clone(), uluna.params.clone())]),
-    };
+    let oracle_prices = HashMap::from([(uluna.denom.clone(), uluna.price)]);
+    let asset_params = HashMap::from([(uluna.denom.clone(), uluna.params.clone())]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let deposit_amount = Uint128::new(12);
@@ -119,8 +126,10 @@ fn terra_ragnarok() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data: vaults_data.clone(),
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -157,9 +166,12 @@ fn terra_ragnarok() {
     // Terra implosion
     uluna.price = Decimal::zero();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(uluna.denom.clone(), uluna.price)]),
-        params: HashMap::from([(uluna.denom.clone(), uluna.params.clone())]),
+    let oracle_prices = HashMap::from([(uluna.denom.clone(), uluna.price)]);
+    let asset_params = HashMap::from([(uluna.denom.clone(), uluna.params.clone())]);
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -179,8 +191,10 @@ fn terra_ragnarok() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -205,20 +219,22 @@ fn ltv_and_lqdt_adjusted_values() {
     let ustars = ustars_info();
     let ujuno = ujuno_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (ustars.denom.clone(), ustars.price),
-            (ujuno.denom.clone(), ujuno.price),
-        ]),
-        params: HashMap::from([
-            (ustars.denom.clone(), ustars.params.clone()),
-            (ujuno.denom.clone(), ujuno.params.clone()),
-        ]),
-    };
+    let oracle_prices =
+        HashMap::from([(ustars.denom.clone(), ustars.price), (ujuno.denom.clone(), ujuno.price)]);
+
+    let asset_params = HashMap::from([
+        (ustars.denom.clone(), ustars.params.clone()),
+        (ujuno.denom.clone(), ujuno.params.clone()),
+    ]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let deposit_amount = Uint128::new(300);
@@ -247,8 +263,10 @@ fn ltv_and_lqdt_adjusted_values() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -314,20 +332,22 @@ fn debt_value() {
     let ustars = ustars_info();
     let ujuno = ujuno_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (ustars.denom.clone(), ustars.price),
-            (ujuno.denom.clone(), ujuno.price),
-        ]),
-        params: HashMap::from([
-            (ustars.denom.clone(), ustars.params.clone()),
-            (ujuno.denom.clone(), ujuno.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (ustars.denom.clone(), ustars.params.clone()),
+        (ujuno.denom.clone(), ujuno.params.clone()),
+    ]);
+
+    let oracle_prices =
+        HashMap::from([(ustars.denom.clone(), ustars.price), (ujuno.denom.clone(), ujuno.price)]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let deposit_amount_stars = Uint128::new(298);
@@ -368,8 +388,10 @@ fn debt_value() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -441,20 +463,22 @@ fn above_max_ltv_below_liq_threshold() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
+
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -471,8 +495,10 @@ fn above_max_ltv_below_liq_threshold() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -497,20 +523,22 @@ fn liquidatable() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
+
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -534,8 +562,10 @@ fn liquidatable() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -562,20 +592,22 @@ fn rover_whitelist_influences_max_ltv() {
 
     udai.params.credit_manager.whitelisted = false;
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
+
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -599,8 +631,10 @@ fn rover_whitelist_influences_max_ltv() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -625,16 +659,13 @@ fn unlocked_vault() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
+
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -665,6 +696,11 @@ fn unlocked_vault() {
                 hls: None,
             },
         )]),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -691,8 +727,10 @@ fn unlocked_vault() {
             }],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -717,16 +755,13 @@ fn locked_vault() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
+
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -757,6 +792,11 @@ fn locked_vault() {
                 hls: None,
             },
         )]),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -786,8 +826,10 @@ fn locked_vault() {
             }],
             perps: vec![],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -812,16 +854,13 @@ fn locked_vault_with_unlocking_positions() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
+
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -852,6 +891,11 @@ fn locked_vault_with_unlocking_positions() {
                 hls: None,
             },
         )]),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -890,8 +934,10 @@ fn locked_vault_with_unlocking_positions() {
             }],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -916,16 +962,13 @@ fn vault_is_not_whitelisted() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
+
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -958,6 +1001,11 @@ fn vault_is_not_whitelisted() {
         )]),
     };
 
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
+    };
+
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -982,8 +1030,10 @@ fn vault_is_not_whitelisted() {
             }],
             perps: vec![],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -1012,18 +1062,17 @@ fn vault_base_token_is_not_whitelisted() {
 
     ujuno.params.credit_manager.whitelisted = false;
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-            (ujuno.denom.clone(), ujuno.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-            (ujuno.denom.clone(), ujuno.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+        (ujuno.denom.clone(), ujuno.params.clone()),
+    ]);
+
+    let oracle_prices = HashMap::from([
+        (umars.denom.clone(), umars.price),
+        (udai.denom.clone(), udai.price),
+        (ujuno.denom.clone(), ujuno.price),
+    ]);
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -1054,6 +1103,11 @@ fn vault_base_token_is_not_whitelisted() {
                 hls: None,
             },
         )]),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -1092,8 +1146,10 @@ fn vault_base_token_is_not_whitelisted() {
             }],
             perps: vec![],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -1119,22 +1175,25 @@ fn lent_coins_used_as_collateral() {
     let udai = udai_info();
     let uluna = uluna_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-            (uluna.denom.clone(), uluna.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-            (uluna.denom.clone(), uluna.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+        (uluna.denom.clone(), uluna.params.clone()),
+    ]);
 
+    let oracle_prices = HashMap::from([
+        (umars.denom.clone(), umars.price),
+        (udai.denom.clone(), udai.price),
+        (uluna.denom.clone(), uluna.price),
+    ]);
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -1151,8 +1210,10 @@ fn lent_coins_used_as_collateral() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -1180,22 +1241,26 @@ fn allowed_lent_coins_influence_max_ltv() {
 
     uluna.params.credit_manager.whitelisted = false;
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-            (uluna.denom.clone(), uluna.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-            (uluna.denom.clone(), uluna.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+        (uluna.denom.clone(), uluna.params.clone()),
+    ]);
+
+    let oracle_prices = HashMap::from([
+        (umars.denom.clone(), umars.price),
+        (udai.denom.clone(), udai.price),
+        (uluna.denom.clone(), uluna.price),
+    ]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -1212,8 +1277,10 @@ fn allowed_lent_coins_influence_max_ltv() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -1243,21 +1310,21 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
     let size = SignedDecimal::from_str("10000000").unwrap();
     let btcperp =
-        create_coin_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (uusd.denom.clone(), uusd.price),
-            (btcperp.denom.clone(), btcperp.price),
-        ]),
-        params: HashMap::from([
-            (uusd.denom.clone(), uusd.params.clone()),
-            (btcperp.denom.clone(), btcperp.params.clone()),
-        ]),
-    };
+        create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
+
+    let asset_params = HashMap::from([(uusd.denom.clone(), uusd.params.clone())]);
+
+    let oracle_prices =
+        HashMap::from([(uusd.denom.clone(), uusd.price), (btcperp.denom.clone(), btcperp.price)]);
 
     let vaults_data = Default::default();
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedDecimal::from_str("-25210000").unwrap();
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
+    };
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -1295,8 +1362,10 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
                 closing_fee_rate,
             }],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -1327,18 +1396,17 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
     let size = SignedDecimal::from_str("10000000").unwrap();
     let btcperp =
-        create_coin_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (uusd.denom.clone(), uusd.price),
-            (btcperp.denom.clone(), btcperp.price),
-        ]),
-        params: HashMap::from([
-            (uusd.denom.clone(), uusd.params.clone()),
-            (btcperp.denom.clone(), btcperp.params.clone()),
-        ]),
-    };
+        create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
 
+    let asset_params = HashMap::from([(uusd.denom.clone(), uusd.params.clone())]);
+
+    let oracle_prices =
+        HashMap::from([(uusd.denom.clone(), uusd.price), (btcperp.denom.clone(), btcperp.price)]);
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
+    };
     let vaults_data = Default::default();
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedDecimal::from_str("15210000").unwrap();
@@ -1379,8 +1447,10 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
                 closing_fee_rate,
             }],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -1405,19 +1475,19 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
     let size = SignedDecimal::from_str("-10000000").unwrap();
     let btcperp =
-        create_coin_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (uusd.denom.clone(), uusd.price),
-            (btcperp.denom.clone(), btcperp.price),
-        ]),
-        params: HashMap::from([
-            (uusd.denom.clone(), uusd.params.clone()),
-            (btcperp.denom.clone(), btcperp.params.clone()),
-        ]),
-    };
+        create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
+
+    let asset_params = HashMap::from([(uusd.denom.clone(), uusd.params.clone())]);
+
+    let oracle_prices =
+        HashMap::from([(uusd.denom.clone(), uusd.price), (btcperp.denom.clone(), btcperp.price)]);
 
     let vaults_data = Default::default();
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
+    };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedDecimal::from_str("15210000").unwrap();
     let h = HealthComputer {
@@ -1458,8 +1528,10 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
                 realised_pnl: PnlAmounts::default(),
             }],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -1483,19 +1555,18 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
 #[test]
 fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
     let uusd = uusdc_info();
-    let btcperp = btcperp_info();
+
     let entry_price = Decimal::from_str("100").unwrap();
     let current_price = Decimal::from_str("105.50").unwrap();
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (uusd.denom.clone(), uusd.price),
-            (btcperp.denom.clone(), current_price),
-        ]),
-        params: HashMap::from([
-            (uusd.denom.clone(), uusd.params.clone()),
-            (btcperp.denom.clone(), btcperp.params.clone()),
-        ]),
-    };
+    let max_ltv = Decimal::from_str("0.9").unwrap();
+    let liquidation_threshold = Decimal::from_str("0.95").unwrap();
+    let btcperp =
+        create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
+
+    let asset_params = HashMap::from([(uusd.denom.clone(), uusd.params.clone())]);
+
+    let oracle_prices =
+        HashMap::from([(uusd.denom.clone(), uusd.price), (btcperp.denom.clone(), current_price)]);
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -1526,6 +1597,11 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
                 hls: None,
             },
         )]),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
 
     let closing_fee_rate = Decimal::from_str("0.000").unwrap();
@@ -1572,8 +1648,10 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
                 closing_fee_rate,
             }],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -1605,19 +1683,19 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
     let size = SignedDecimal::from_str("-10000000").unwrap();
     let btcperp =
-        create_coin_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (uusd.denom.clone(), uusd.price),
-            (btcperp.denom.clone(), btcperp.price),
-        ]),
-        params: HashMap::from([
-            (uusd.denom.clone(), uusd.params.clone()),
-            (btcperp.denom.clone(), btcperp.params.clone()),
-        ]),
-    };
+        create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
+
+    let asset_params = HashMap::from([(uusd.denom.clone(), uusd.params.clone())]);
+
+    let oracle_prices =
+        HashMap::from([(uusd.denom.clone(), uusd.price), (btcperp.denom.clone(), btcperp.price)]);
 
     let vaults_data = Default::default();
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
+    };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedDecimal::from_str("15210000").unwrap();
     let h = HealthComputer {
@@ -1657,8 +1735,10 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
                 closing_fee_rate,
             }],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -1688,7 +1768,7 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
     let max_ltv_btc = Decimal::from_str("0.9").unwrap();
     let liquidation_threshold_btc = Decimal::from_str("0.95").unwrap();
     let size_btc = SignedDecimal::from_str("10000000").unwrap();
-    let btcperp = create_coin_info(
+    let btcperp = create_perp_info(
         "btc/usd/perp".to_string(),
         current_price_btc,
         max_ltv_btc,
@@ -1700,27 +1780,30 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
     let max_ltv_eth = Decimal::from_str("0.85").unwrap();
     let liquidation_threshold_eth = Decimal::from_str("0.9").unwrap();
     let size_eth = SignedDecimal::from_str("-80000000").unwrap();
-    let ethperp = create_coin_info(
+    let ethperp = create_perp_info(
         "eth/usd/perp".to_string(),
         current_price_eth,
         max_ltv_eth,
         liquidation_threshold_eth,
     );
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (uusd.denom.clone(), uusd.price),
-            (btcperp.denom.clone(), btcperp.price),
-            (ethperp.denom.clone(), ethperp.price),
-        ]),
-        params: HashMap::from([
-            (uusd.denom.clone(), uusd.params.clone()),
-            (btcperp.denom.clone(), btcperp.params.clone()),
-            (ethperp.denom.clone(), ethperp.params.clone()),
-        ]),
-    };
+    let oracle_prices = HashMap::from([
+        (uusd.denom.clone(), uusd.price),
+        (btcperp.denom.clone(), btcperp.price),
+        (ethperp.denom.clone(), ethperp.price),
+    ]);
+
+    let asset_params = HashMap::from([(uusd.denom.clone(), uusd.params.clone())]);
 
     let vaults_data = Default::default();
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: HashMap::from([
+            (btcperp.denom.clone(), btcperp.perp_params.clone()),
+            (ethperp.denom.clone(), ethperp.perp_params.clone()),
+        ]),
+    };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued_btc = SignedDecimal::from_str("15210000").unwrap();
     let unrealised_funding_accrued_eth = SignedDecimal::from_str("-12650000").unwrap();
@@ -1793,8 +1876,10 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                 },
             ],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -1824,7 +1909,7 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
     let max_ltv_btc = Decimal::from_str("0.9").unwrap();
     let liquidation_threshold_btc = Decimal::from_str("0.95").unwrap();
     let size_btc = SignedDecimal::from_str("10000000").unwrap();
-    let btcperp = create_coin_info(
+    let btcperp = create_perp_info(
         "btc/usd/perp".to_string(),
         current_price_btc,
         max_ltv_btc,
@@ -1836,27 +1921,30 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
     let max_ltv_eth = Decimal::from_str("0.85").unwrap();
     let liquidation_threshold_eth = Decimal::from_str("0.9").unwrap();
     let size_eth = SignedDecimal::from_str("-80000000").unwrap();
-    let ethperp = create_coin_info(
+    let ethperp = create_perp_info(
         "eth/usd/perp".to_string(),
         current_price_eth,
         max_ltv_eth,
         liquidation_threshold_eth,
     );
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (uusd.denom.clone(), uusd.price),
-            (btcperp.denom.clone(), btcperp.price),
-            (ethperp.denom.clone(), ethperp.price),
-        ]),
-        params: HashMap::from([
-            (uusd.denom.clone(), uusd.params.clone()),
-            (btcperp.denom.clone(), btcperp.params.clone()),
-            (ethperp.denom.clone(), ethperp.params.clone()),
-        ]),
-    };
+    let oracle_prices = HashMap::from([
+        (uusd.denom.clone(), uusd.price),
+        (btcperp.denom.clone(), btcperp.price),
+        (ethperp.denom.clone(), ethperp.price),
+    ]);
+
+    let asset_params = HashMap::from([(uusd.denom.clone(), uusd.params.clone())]);
 
     let vaults_data = Default::default();
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: HashMap::from([
+            (btcperp.denom.clone(), btcperp.perp_params.clone()),
+            (ethperp.denom.clone(), ethperp.perp_params.clone()),
+        ]),
+    };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued_btc = SignedDecimal::from_str("15210000").unwrap();
     let unrealised_funding_accrued_eth = SignedDecimal::from_str("-12650000").unwrap();
@@ -1929,8 +2017,10 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                 },
             ],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -1961,7 +2051,7 @@ fn perp_short_delta_neutral_with_btc_collateral() {
     let liquidation_threshold = Decimal::from_str("0.85").unwrap();
     let size = SignedDecimal::from_str("-10000000").unwrap();
     let btcperp =
-        create_coin_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
+        create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
     let btc_coin = create_coin_info(
         "btc".to_string(),
         current_price,
@@ -1969,20 +2059,23 @@ fn perp_short_delta_neutral_with_btc_collateral() {
         Decimal::from_str("0.72").unwrap(),
     );
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (uusd.denom.clone(), uusd.price),
-            (btcperp.denom.clone(), btcperp.price),
-            (btc_coin.denom.clone(), btc_coin.price),
-        ]),
-        params: HashMap::from([
-            (uusd.denom.clone(), uusd.params.clone()),
-            (btcperp.denom.clone(), btcperp.params.clone()),
-            (btc_coin.denom.clone(), btc_coin.params.clone()),
-        ]),
-    };
+    let oracle_prices = HashMap::from([
+        (uusd.denom.clone(), uusd.price),
+        (btcperp.denom.clone(), btcperp.price),
+        (btc_coin.denom.clone(), btc_coin.price),
+    ]);
+
+    let asset_params = HashMap::from([
+        (uusd.denom.clone(), uusd.params.clone()),
+        (btc_coin.denom.clone(), btc_coin.params.clone()),
+    ]);
 
     let vaults_data = Default::default();
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
+    };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedDecimal::from_str("15210000").unwrap();
     let h = HealthComputer {
@@ -2022,8 +2115,10 @@ fn perp_short_delta_neutral_with_btc_collateral() {
                 closing_fee_rate,
             }],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -2054,7 +2149,7 @@ fn spot_short_delta_neutral_with_leverage() {
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
     let size = SignedDecimal::from_str("10000000").unwrap();
     let btcperp =
-        create_coin_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
+        create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
     let btc_coin = create_coin_info(
         "btc".to_string(),
         current_price,
@@ -2062,20 +2157,24 @@ fn spot_short_delta_neutral_with_leverage() {
         Decimal::from_str("0.72").unwrap(),
     );
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (uusd.denom.clone(), uusd.price),
-            (btcperp.denom.clone(), btcperp.price),
-            (btc_coin.denom.clone(), btc_coin.price),
-        ]),
-        params: HashMap::from([
-            (uusd.denom.clone(), uusd.params.clone()),
-            (btcperp.denom.clone(), btcperp.params.clone()),
-            (btc_coin.denom.clone(), btc_coin.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (uusd.denom.clone(), uusd.params.clone()),
+        (btc_coin.denom.clone(), btc_coin.params.clone()),
+    ]);
+
+    let oracle_prices = HashMap::from([
+        (uusd.denom.clone(), uusd.price),
+        (btcperp.denom.clone(), btcperp.price),
+        (btc_coin.denom.clone(), btc_coin.price),
+    ]);
 
     let vaults_data = Default::default();
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
+    };
+
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedDecimal::from_str("15210000").unwrap();
     let h = HealthComputer {
@@ -2119,8 +2218,10 @@ fn spot_short_delta_neutral_with_leverage() {
                 closing_fee_rate,
             }],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -2183,33 +2284,32 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
     let raw_pnl_btc = notional_btc_current.checked_sub(notional_btc_entry).unwrap();
     let raw_pnl_atom = notional_atom_current.checked_sub(notional_atom_entry).unwrap();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (uusd.denom.clone(), uusd.price),
-            (
-                btcperp.denom.clone(),
-                Decimal::from_str(current_price_btc.to_string().as_str()).unwrap(),
-            ),
-            (
-                ethperp.denom.clone(),
-                Decimal::from_str(current_price_eth.to_string().as_str()).unwrap(),
-            ),
-            (
-                atomperp.denom.clone(),
-                Decimal::from_str(current_price_atom.to_string().as_str()).unwrap(),
-            ),
-            (uluna.denom.clone(), Decimal::from_str(price_luna.to_string().as_str()).unwrap()),
-        ]),
+    let asset_params = HashMap::from([
+        (uusd.denom.clone(), uusd.params.clone()),
+        (uluna.denom.clone(), uluna.params.clone()),
+    ]);
+
+    let oracle_prices = HashMap::from([
+        (uusd.denom.clone(), uusd.price),
+        (btcperp.denom.clone(), Decimal::from_str(current_price_btc.to_string().as_str()).unwrap()),
+        (ethperp.denom.clone(), Decimal::from_str(current_price_eth.to_string().as_str()).unwrap()),
+        (
+            atomperp.denom.clone(),
+            Decimal::from_str(current_price_atom.to_string().as_str()).unwrap(),
+        ),
+        (uluna.denom.clone(), Decimal::from_str(price_luna.to_string().as_str()).unwrap()),
+    ]);
+    let vaults_data = Default::default();
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
         params: HashMap::from([
-            (uusd.denom.clone(), uusd.params.clone()),
-            (btcperp.denom.clone(), btcperp.params.clone()),
-            (ethperp.denom.clone(), ethperp.params.clone()),
-            (atomperp.denom.clone(), atomperp.params.clone()),
-            (uluna.denom.clone(), uluna.params.clone()),
+            (btcperp.denom.clone(), btcperp.perp_params.clone()),
+            (ethperp.denom.clone(), ethperp.perp_params.clone()),
+            (atomperp.denom.clone(), atomperp.perp_params.clone()),
         ]),
     };
 
-    let vaults_data = Default::default();
     let unrealised_funding_accrued = Decimal::from_str("1234").unwrap().into();
     let base_denom = uusd.denom.clone();
     let h = HealthComputer {
@@ -2311,8 +2411,10 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                 },
             ],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -2344,16 +2446,16 @@ fn single_perp_funding_greater_than_pnl() {
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
     let size = SignedDecimal::from_str("10000000").unwrap();
     let btcperp =
-        create_coin_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (uusd.denom.clone(), uusd.price),
-            (btcperp.denom.clone(), btcperp.price),
-        ]),
-        params: HashMap::from([
-            (uusd.denom.clone(), uusd.params.clone()),
-            (btcperp.denom.clone(), btcperp.params.clone()),
-        ]),
+        create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
+
+    let asset_params = HashMap::from([(uusd.denom.clone(), uusd.params.clone())]);
+
+    let oracle_prices =
+        HashMap::from([(uusd.denom.clone(), uusd.price), (btcperp.denom.clone(), btcperp.price)]);
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
 
     let vaults_data = Default::default();
@@ -2396,8 +2498,10 @@ fn single_perp_funding_greater_than_pnl() {
                 closing_fee_rate,
             }],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
-use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
+use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
 use mars_types::{
     adapters::vault::{
         CoinValue, Vault, VaultAmount, VaultPosition, VaultPositionAmount, VaultPositionValue,
@@ -18,17 +18,20 @@ fn missing_price_data() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(umars.denom.clone(), umars.price)]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let oracle_prices = HashMap::from([(umars.denom.clone(), umars.price)]);
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -52,8 +55,10 @@ fn missing_price_data() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let err: HealthError = h.max_withdraw_amount_estimate(&udai.denom).unwrap_err();
@@ -65,17 +70,18 @@ fn missing_params() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([(udai.denom.clone(), udai.params.clone())]),
-    };
+    let asset_params = HashMap::from([(udai.denom.clone(), udai.params.clone())]);
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -99,24 +105,29 @@ fn missing_params() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let err: HealthError = h.max_withdraw_amount_estimate(&umars.denom).unwrap_err();
-    assert_eq!(err, HealthError::MissingParams(umars.denom));
+    assert_eq!(err, HealthError::MissingAssetParams(umars.denom));
 }
 
 #[test]
 fn deposit_not_present() {
-    let denoms_data = DenomsData {
-        prices: Default::default(),
-        params: Default::default(),
-    };
+    let oracle_prices = Default::default();
+    let asset_params = Default::default();
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -129,8 +140,10 @@ fn deposit_not_present() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let max_withdraw_amount = h.max_withdraw_amount_estimate("xyz").unwrap();
@@ -144,20 +157,22 @@ fn blacklisted_assets_should_be_able_be_fully_withdrawn() {
 
     umars.params.credit_manager.whitelisted = false;
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
+
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let total_deposit = Uint128::new(200);
@@ -183,8 +198,10 @@ fn blacklisted_assets_should_be_able_be_fully_withdrawn() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -200,20 +217,22 @@ fn zero_when_unhealthy() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
+
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -237,8 +256,10 @@ fn zero_when_unhealthy() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -251,14 +272,16 @@ fn zero_when_unhealthy() {
 fn no_debts() {
     let ustars = ustars_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(ustars.denom.clone(), ustars.price)]),
-        params: HashMap::from([(ustars.denom.clone(), ustars.params.clone())]),
-    };
+    let asset_params = HashMap::from([(ustars.denom.clone(), ustars.params.clone())]);
+    let oracle_prices = HashMap::from([(ustars.denom.clone(), ustars.price)]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let deposit_amount = Uint128::new(1200);
@@ -272,8 +295,10 @@ fn no_debts() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let max_withdraw_amount = h.max_withdraw_amount_estimate(&ustars.denom).unwrap();
@@ -285,20 +310,21 @@ fn should_allow_max_withdraw() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
+
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let deposit_amount = Uint128::new(33);
@@ -316,8 +342,10 @@ fn should_allow_max_withdraw() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     // Max when debt value is smaller than collateral value - withdraw denom value
@@ -330,16 +358,13 @@ fn hls_with_max_withdraw() {
     let ustars = ustars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (ustars.denom.clone(), ustars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (ustars.denom.clone(), ustars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (ustars.denom.clone(), ustars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
+
+    let oracle_prices =
+        HashMap::from([(ustars.denom.clone(), ustars.price), (udai.denom.clone(), udai.price)]);
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -376,6 +401,11 @@ fn hls_with_max_withdraw() {
         )]),
     };
 
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
+    };
+
     let mut h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -400,8 +430,10 @@ fn hls_with_max_withdraw() {
             }],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let max_before = h.max_withdraw_amount_estimate(&ustars.denom).unwrap();
@@ -418,20 +450,22 @@ fn max_when_perp_in_profit() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
+
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -455,8 +489,10 @@ fn max_when_perp_in_profit() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();

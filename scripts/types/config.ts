@@ -172,4 +172,10 @@ export interface PerpDenom {
   maxNetOiValue: string
   maxLongOiValue: string
   maxShortOiValue: string
+  closingFeeRate: string
+  openingFeeRate: string
+  liquidationThreshold: string
+  maxLoanToValue: string
+  maxPositionValue: string
+  minPositionValue: string
 }

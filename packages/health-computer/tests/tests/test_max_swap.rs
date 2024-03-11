@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cosmwasm_std::{coin, Decimal, Uint128};
-use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
+use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
 use mars_types::{
     credit_manager::Positions,
     health::{AccountKind, SwapKind},
@@ -14,20 +14,22 @@ fn max_swap_default() {
     let udai = udai_info();
     let umars = umars_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (udai.denom.clone(), udai.price),
-            (umars.denom.clone(), umars.price),
-        ]),
-        params: HashMap::from([
-            (udai.denom.clone(), udai.params.clone()),
-            (umars.denom.clone(), umars.params.clone()),
-        ]),
-    };
+    let oracle_prices =
+        HashMap::from([(udai.denom.clone(), udai.price), (umars.denom.clone(), umars.price)]);
+
+    let asset_params = HashMap::from([
+        (udai.denom.clone(), udai.params.clone()),
+        (umars.denom.clone(), umars.params.clone()),
+    ]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -40,8 +42,10 @@ fn max_swap_default() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let max_borrow_amount = h
@@ -55,20 +59,22 @@ fn max_swap_margin() {
     let udai = udai_info();
     let umars = umars_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (udai.denom.clone(), udai.price),
-            (umars.denom.clone(), umars.price),
-        ]),
-        params: HashMap::from([
-            (udai.denom.clone(), udai.params.clone()),
-            (umars.denom.clone(), umars.params.clone()),
-        ]),
-    };
+    let oracle_prices =
+        HashMap::from([(udai.denom.clone(), udai.price), (umars.denom.clone(), umars.price)]);
+
+    let asset_params = HashMap::from([
+        (udai.denom.clone(), udai.params.clone()),
+        (umars.denom.clone(), umars.params.clone()),
+    ]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        denom_states: Default::default(),
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -81,8 +87,10 @@ fn max_swap_margin() {
             vaults: vec![],
             perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let max_borrow_amount = h

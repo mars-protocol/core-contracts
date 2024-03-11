@@ -1,4 +1,4 @@
-use std::{cmp::min, str::FromStr};
+use std::{cmp::min, collections::HashMap, str::FromStr};
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal, Fraction, Uint128};
@@ -7,8 +7,8 @@ use mars_types::{
     health::{
         AccountKind, BorrowTarget, Health,
         HealthError::{
-            MissingAmount, MissingHLSParams, MissingParams, MissingPrice, MissingVaultConfig,
-            MissingVaultValues,
+            MissingAmount, MissingAssetParams, MissingDenomState, MissingHLSParams,
+            MissingPerpParams, MissingPrice, MissingVaultConfig, MissingVaultValues,
         },
         HealthResult, LiquidationPriceKind, SwapKind,
     },
@@ -19,7 +19,10 @@ use mars_types::{
 #[cfg(feature = "javascript")]
 use tsify::Tsify;
 
-use crate::{CollateralValue, DenomsData, PerpHealthFactorValues, PerpPnlValues, VaultsData};
+use crate::{
+    utils::calculate_remaining_oi_value, CollateralValue, PerpHealthFactorValues, PerpPnlValues,
+    PerpsData, VaultsData,
+};
 
 /// `HealthComputer` is a shared struct with the frontend that gets compiled to wasm.
 /// For this reason, it uses a dependency-injection-like pattern where all required data is needed up front.
@@ -29,8 +32,28 @@ use crate::{CollateralValue, DenomsData, PerpHealthFactorValues, PerpPnlValues, 
 pub struct HealthComputer {
     pub kind: AccountKind,
     pub positions: Positions,
-    pub denoms_data: DenomsData,
+    pub asset_params: HashMap<String, AssetParams>,
     pub vaults_data: VaultsData,
+    pub perps_data: PerpsData,
+    pub oracle_prices: HashMap<String, Decimal>,
+}
+
+#[derive(PartialEq)]
+pub enum Direction {
+    Long,
+    Short,
+}
+
+impl Direction {
+    pub fn sign(&self) -> SignedDecimal {
+        match self {
+            Direction::Long => SignedDecimal::one(),
+            Direction::Short => SignedDecimal {
+                negative: true,
+                abs: Decimal::one(),
+            },
+        }
+    }
 }
 
 impl HealthComputer {
@@ -46,7 +69,7 @@ impl HealthComputer {
         let max_ltv_adjusted_collateral_dec: SignedDecimal = max_ltv_adjusted_collateral.into();
         let spot_debt_value: SignedDecimal = self.spot_debt_value()?.into();
 
-        let perp_hf_values = self.perp_health_factor_values()?;
+        let perp_hf_values = self.perp_health_factor_values(&self.positions.perps)?;
 
         let (max_ltv_health_factor, liquidation_health_factor) =
             if spot_debt_value.is_zero() && self.positions.perps.is_empty() {
@@ -104,10 +127,9 @@ impl HealthComputer {
         };
 
         let params = self
-            .denoms_data
-            .params
+            .asset_params
             .get(withdraw_denom)
-            .ok_or(MissingParams(withdraw_denom.to_string()))?;
+            .ok_or(MissingAssetParams(withdraw_denom.to_string()))?;
 
         // If no debt or coin is blacklisted (meaning does not contribute to max ltv hf),
         // the total amount deposited can be withdrawn
@@ -123,8 +145,7 @@ impl HealthComputer {
         let debt_value: SignedDecimal = self.spot_debt_value()?.into();
 
         let withdraw_denom_price: SignedDecimal = (*self
-            .denoms_data
-            .prices
+            .oracle_prices
             .get(withdraw_denom)
             .ok_or(MissingPrice(withdraw_denom.to_string()))?)
         .into();
@@ -146,7 +167,7 @@ impl HealthComputer {
             max_ltv_denominator: perp_denominator,
             max_ltv_numerator: perp_numerator,
             ..
-        } = self.perp_health_factor_values()?;
+        } = self.perp_health_factor_values(&self.positions.perps)?;
 
         // We often add one to calcs for a margin of error
         let one = SignedDecimal::one();
@@ -206,7 +227,7 @@ impl HealthComputer {
             max_ltv_denominator: perp_denominator,
             max_ltv_numerator: perp_numerator,
             ..
-        } = self.perp_health_factor_values()?;
+        } = self.perp_health_factor_values(&self.positions.perps)?;
 
         let one = SignedDecimal::one();
 
@@ -230,7 +251,7 @@ impl HealthComputer {
         }
 
         let from_price =
-            self.denoms_data.prices.get(from_denom).ok_or(MissingPrice(from_denom.to_string()))?;
+            self.oracle_prices.get(from_denom).ok_or(MissingPrice(from_denom.to_string()))?;
 
         // An asset that has a price of 1 and max ltv of 0.5 has a collateral_value of 0.5.
         // Swapping that asset for an asset with the same price, but 0.8 max ltv results in a collateral_value of 0.8.
@@ -343,13 +364,12 @@ impl HealthComputer {
             max_ltv_denominator: perp_denominator,
             max_ltv_numerator: perp_numerator,
             ..
-        } = self.perp_health_factor_values()?;
+        } = self.perp_health_factor_values(&self.positions.perps)?;
 
         let params = self
-            .denoms_data
-            .params
+            .asset_params
             .get(borrow_denom)
-            .ok_or(MissingParams(borrow_denom.to_string()))?;
+            .ok_or(MissingAssetParams(borrow_denom.to_string()))?;
 
         // If asset not whitelisted we cannot borrow
         if !params.credit_manager.whitelisted || total_max_ltv_adjusted_value.is_zero() {
@@ -382,8 +402,7 @@ impl HealthComputer {
         .into();
 
         let borrow_denom_price: SignedDecimal = self
-            .denoms_data
-            .prices
+            .oracle_prices
             .get(borrow_denom)
             .cloned()
             .ok_or(MissingPrice(borrow_denom.to_string()))?
@@ -515,7 +534,249 @@ impl HealthComputer {
         Ok(max_borrow_amount)
     }
 
-    fn perp_health_factor_values(&self) -> HealthResult<PerpHealthFactorValues> {
+    /// Estimate the max long and short size that our user can take.
+    /// The max position size can be calculated as: - (b+sqr(d)) / (2*a)
+    pub fn max_perp_size_estimate(
+        &self,
+        denom: &str,
+        base_denom: &str,
+        long_oi_amount: Decimal,
+        short_oi_amount: Decimal,
+        direction: &Direction,
+    ) -> HealthResult<SignedDecimal> {
+        // Constant
+        let two = SignedDecimal::from_str("2")?;
+
+        // prices
+        let perp_oracle_price: SignedDecimal =
+            (*self.oracle_prices.get(denom).ok_or(MissingPrice(denom.to_string()))?).into();
+        let base_denom_price: SignedDecimal =
+            (*self.oracle_prices.get(base_denom).ok_or(MissingPrice(base_denom.to_string()))?)
+                .into();
+
+        // Denom state
+        let denom_state =
+            self.perps_data.denom_states.get(denom).ok_or(MissingDenomState(denom.to_string()))?;
+
+        // Perp market params
+        let perp_params =
+            self.perps_data.params.get(denom).ok_or(MissingPerpParams(denom.to_string()))?;
+        let closing_fee_rate = perp_params.closing_fee_rate;
+        let opening_fee_rate = perp_params.opening_fee_rate;
+        let skew_scale: SignedDecimal = denom_state.funding.skew_scale.into();
+        let ltv_base_denom = self.get_coin_max_ltv(base_denom)?;
+        let ltv_p: SignedDecimal = perp_params.max_loan_to_value.into();
+
+        // The max position change amount afforded by the open interest caps, in the given direction
+        let max_oi_change_amount = calculate_remaining_oi_value(
+            long_oi_amount,
+            short_oi_amount,
+            perp_oracle_price.abs,
+            perp_params,
+            direction,
+        )?;
+
+        if max_oi_change_amount.is_zero() {
+            return Ok(max_oi_change_amount);
+        }
+        // Current skew
+        let k = SignedDecimal::from(long_oi_amount).checked_sub(short_oi_amount.into())?;
+
+        let (
+            // Current unrealised funding
+            f,
+            // Current size,
+            q_old,
+            // Entry price
+            p_ex_o,
+        ) = self.positions.perps.iter().find(|&x| x.denom == *denom).map_or(
+            (
+                SignedDecimal::zero(),
+                SignedDecimal::zero(),
+                self.get_execution_price(perp_oracle_price, k, skew_scale, SignedDecimal::zero())?,
+            ),
+            |f| (f.unrealised_pnl.values.accrued_funding, f.size, f.entry_exec_price.into()),
+        );
+
+        let p_ex = self.get_execution_price(perp_oracle_price, k, skew_scale, q_old)?;
+        let closing_fee_value = p_ex.abs.checked_mul(closing_fee_rate)?.checked_mul(q_old.abs)?;
+
+        // Indicator functions
+        let (i, i_prim) = if (q_old.is_negative() && direction == &Direction::Long)
+            || (q_old.is_positive() && direction == &Direction::Short)
+        {
+            // opposite direction
+            (Decimal::zero(), Decimal::one())
+            // Same direction
+        } else {
+            (Decimal::one(), Decimal::zero())
+        };
+
+        let u_pnl = match q_old.is_zero() {
+            true => SignedDecimal::zero(),
+            false => q_old.checked_mul(p_ex.checked_sub(p_ex_o)?)?.checked_add(f)?,
+        };
+
+        let (base_denom_collateral_value, rwa_value, debt_value) =
+            self.account_composition(base_denom, denom, base_denom_price)?;
+
+        // z = LTVp - closing fee - opening fee - 1
+        let z: SignedDecimal = ltv_p
+            .checked_sub(closing_fee_rate.into())?
+            .checked_sub(opening_fee_rate.into())?
+            .checked_sub(SignedDecimal::one())?;
+
+        // a = - z * (price_oracle / (2 * skew_scale)) (SHORT)
+        // a = z * (price_oracle / (2 * skew_scale)) (LONG)
+        let mut a = z.checked_mul(perp_oracle_price.checked_div(two.checked_mul(skew_scale)?)?)?;
+        a = a.checked_mul(direction.sign())?;
+
+        // b = z * price_oracle * (1 + (k - q_old / 2) / skew_scale)
+        let b = perp_oracle_price.checked_mul(z)?.checked_mul(
+            SignedDecimal::one().checked_add(k.checked_sub(q_old)?.checked_div(skew_scale)?)?,
+        )?;
+
+        // c = based_denom_value + u_pnl - closing_fee_value * i_prim
+        let c = base_denom_collateral_value
+            .checked_add(u_pnl.checked_sub(closing_fee_value.checked_mul(i_prim)?.into())?)?;
+
+        // c+ = max(0, c)
+        let c_max = SignedDecimal::zero().max(c);
+
+        // c- = -min(0, c)
+        let c_min = SignedDecimal::zero().checked_sub(SignedDecimal::zero().min(c))?;
+
+        // c_delta = (c_max * LTV_base_denom) - c_min
+        let c_delta = c_max.checked_mul(ltv_base_denom.into())?.checked_sub(c_min)?;
+
+        // C_add = price_oracle * |q_old| * opening_fee_rate * (1 + (k - q_old / 2) / skew_scale) * i
+        let c_add =
+            perp_oracle_price
+                .checked_mul(q_old.abs.into())?
+                .checked_mul(opening_fee_rate.into())?
+                .checked_mul(SignedDecimal::from_str("1")?.checked_add(
+                    k.checked_sub(q_old.checked_div(two)?)?.checked_div(skew_scale)?,
+                )?)?
+                .checked_mul(i.into())?;
+
+        // c = RWA - debt + c_delta + c_add
+        let c = rwa_value.checked_sub(debt_value)?.checked_add(c_delta)?.checked_add(c_add)?;
+
+        // d = b^2 - 4ac
+        let d = b
+            .checked_mul(b)?
+            .checked_sub(SignedDecimal::from_str("4")?.checked_mul(a)?.checked_mul(c)?)?;
+
+        // q_max = - (b + sqrt(d)) / (2 * a)
+        let mut q_max_amount = SignedDecimal::zero()
+            .checked_sub(b.checked_add(d.abs.sqrt().into())?.checked_div(two.checked_mul(a)?)?)?;
+
+        q_max_amount = if q_max_amount.abs > max_oi_change_amount.abs {
+            max_oi_change_amount
+        } else {
+            q_max_amount
+        };
+
+        q_max_amount = if direction == &Direction::Long {
+            q_max_amount
+        } else {
+            SignedDecimal::zero().checked_sub(q_max_amount)?
+        };
+
+        Ok(q_max_amount)
+    }
+
+    // TODO this calc seems to be functionally equivilent to the execution_closing_price in perps::pricing.
+    // We should look to extract to a common helper method
+    fn get_execution_price(
+        &self,
+        perp_oracle_price: SignedDecimal,
+        skew: SignedDecimal,
+        skew_scale: SignedDecimal,
+        q_old: SignedDecimal,
+    ) -> HealthResult<SignedDecimal> {
+        let subtractor = if q_old.is_zero() {
+            SignedDecimal::zero()
+        } else {
+            q_old.checked_div(SignedDecimal::from_str("2")?)?
+        };
+
+        Ok(perp_oracle_price.checked_mul(
+            SignedDecimal::one()
+                .checked_add(skew.checked_sub(subtractor)?.checked_div(skew_scale)?)?,
+        )?)
+    }
+
+    fn account_composition(
+        &self,
+        base_denom: &str,
+        denom: &str,
+        base_denom_price: SignedDecimal,
+    ) -> HealthResult<(SignedDecimal, SignedDecimal, SignedDecimal)> {
+        let (base_denom_deposits, other_deposits): (Vec<_>, Vec<_>) =
+            self.positions.deposits.iter().partition(|deposit| deposit.denom == base_denom);
+
+        // there is only one base denom deposit
+        let account_base_denom_deposits =
+            base_denom_deposits.first().map_or(Uint128::zero(), |d| d.amount);
+
+        let (base_denom_lends, other_lends): (Vec<_>, Vec<_>) =
+            self.positions.lends.iter().partition(|lend| lend.denom == base_denom);
+        let account_base_denom_lends =
+            base_denom_lends.first().map_or(Uint128::zero(), |l| l.amount);
+
+        let filtered_perps: Vec<_> =
+            self.positions.perps.iter().filter(|x| x.denom != denom).cloned().collect();
+
+        // (named c_usdc in docs + sheet)
+        // Refers to the value of collateral the user has in the base_denom (e.g usdc)
+        let base_denom_collateral_value = base_denom_price.checked_mul(
+            account_base_denom_deposits.checked_add(account_base_denom_lends)?.into(),
+        )?;
+
+        let deref_deposits: Vec<Coin> = other_deposits.into_iter().cloned().collect();
+        let deref_lends: Vec<Coin> = other_lends.into_iter().cloned().collect();
+
+        let assets_ltv_adjusted_value = self
+            .coins_value(deref_deposits.as_slice())?
+            .max_ltv_adjusted_collateral
+            .checked_add(self.coins_value(deref_lends.as_slice())?.max_ltv_adjusted_collateral)?
+            .checked_add(self.vaults_value()?.max_ltv_adjusted_collateral)?;
+
+        // Contains denominator / numerator for HF for all perps *excluding* a perp position for given denom
+        let other_perp_hf_values = self.perp_health_factor_values(&filtered_perps)?;
+
+        // Risk Weighted Assets (rwa) are assets other than base_denom and the perp position being considered, weighted using corresponding Maximum LTVs
+        let other_collateral_value: SignedDecimal = SignedDecimal::from(assets_ltv_adjusted_value)
+            .checked_add(other_perp_hf_values.max_ltv_numerator)?;
+
+        // raw_debt = all debt and everything from the denominator of perps besides
+        // the position for given denom.
+        let mut raw_debt_value = Uint128::zero();
+
+        for d in &self.positions.debts {
+            let price = self
+                .oracle_prices
+                .get(&d.denom)
+                .ok_or_else(|| MissingPrice(d.denom.to_string()))?;
+
+            let product = d.amount.checked_mul_ceil(*price)?;
+            raw_debt_value += product;
+        }
+
+        let sd_debt: SignedDecimal = raw_debt_value.into();
+
+        // debt = raw_debt + max_ltv_denominator for perp positions *excluding* a perp position for given denom
+        let debt_value: SignedDecimal =
+            sd_debt.checked_add(other_perp_hf_values.max_ltv_denominator)?;
+
+        Ok((base_denom_collateral_value, other_collateral_value, debt_value))
+    }
+
+    fn perp_health_factor_values(
+        &self,
+        perps: &[PerpPosition],
+    ) -> HealthResult<PerpHealthFactorValues> {
         let mut max_ltv_numerator = SignedDecimal::zero();
         let mut max_ltv_denominator = SignedDecimal::zero();
         let mut liq_ltv_numerator = SignedDecimal::zero();
@@ -523,7 +784,7 @@ impl HealthComputer {
         let mut profit = Uint128::zero();
         let mut loss = Uint128::zero();
 
-        for position in self.positions.perps.iter() {
+        for position in perps.iter() {
             // Update our pnl values
             match &position.unrealised_pnl.coins.pnl {
                 PnL::Profit(pnl) => profit = profit.checked_add(pnl.amount)?,
@@ -534,8 +795,7 @@ impl HealthComputer {
             let denom = &position.denom;
             let base_denom = &position.base_denom;
             let base_denom_price: SignedDecimal = (*self
-                .denoms_data
-                .prices
+                .oracle_prices
                 .get(base_denom)
                 .ok_or(MissingPrice(base_denom.to_string()))?)
             .into();
@@ -549,10 +809,9 @@ impl HealthComputer {
 
             // Perp(0)
             let position_value_open: SignedDecimal =
-                position.size.abs.checked_mul(position.entry_price)?.into(); // todo: change to execution price
-                                                                             // Perp(t)
+                position.size.abs.checked_mul(position.entry_exec_price)?.into();
             let position_value_current: SignedDecimal =
-                position.size.checked_mul(position.current_price.into())?.abs.into();
+                position.size.checked_mul(position.current_exec_price.into())?.abs.into();
 
             // Borrow and liquidation ltv maximums for the perp and the funding demom
             let checked_max_ltv: SignedDecimal = self.get_perp_max_ltv(denom)?.into();
@@ -662,7 +921,7 @@ impl HealthComputer {
 
         for c in coins {
             let coin_price =
-                self.denoms_data.prices.get(&c.denom).ok_or(MissingPrice(c.denom.clone()))?;
+                self.oracle_prices.get(&c.denom).ok_or(MissingPrice(c.denom.clone()))?;
             let coin_value = c.amount.checked_mul_floor(*coin_price)?;
             total_collateral_value = total_collateral_value.checked_add(coin_value)?;
 
@@ -674,7 +933,7 @@ impl HealthComputer {
                     },
                 liquidation_threshold,
                 ..
-            } = self.denoms_data.params.get(&c.denom).ok_or(MissingParams(c.denom.clone()))?;
+            } = self.asset_params.get(&c.denom).ok_or(MissingAssetParams(c.denom.clone()))?;
 
             let checked_max_ltv = self.get_coin_max_ltv(&c.denom)?;
 
@@ -728,10 +987,9 @@ impl HealthComputer {
                 .ok_or(MissingVaultConfig(v.vault.address.to_string()))?;
 
             let base_params = self
-                .denoms_data
-                .params
+                .asset_params
                 .get(&values.base_coin.denom)
-                .ok_or(MissingParams(values.base_coin.denom.clone()))?;
+                .ok_or(MissingAssetParams(values.base_coin.denom.clone()))?;
 
             // If vault or base token has been de-listed, drop MaxLTV to zero
             let checked_vault_max_ltv = if *whitelisted && base_params.credit_manager.whitelisted {
@@ -794,7 +1052,7 @@ impl HealthComputer {
         // spot debt borrowed from redbank
         for debt in &self.positions.debts {
             let coin_price =
-                self.denoms_data.prices.get(&debt.denom).ok_or(MissingPrice(debt.denom.clone()))?;
+                self.oracle_prices.get(&debt.denom).ok_or(MissingPrice(debt.denom.clone()))?;
             let debt_value = debt.amount.checked_mul_ceil(*coin_price)?;
             total = total.checked_add(debt_value)?;
         }
@@ -806,35 +1064,31 @@ impl HealthComputer {
         let AssetParams {
             liquidation_threshold,
             ..
-        } = self.denoms_data.params.get(denom).ok_or(MissingParams(denom.to_string()))?;
+        } = self.asset_params.get(denom).ok_or(MissingAssetParams(denom.to_string()))?;
 
         Ok(*liquidation_threshold)
     }
 
     fn get_perp_max_ltv(&self, denom: &str) -> HealthResult<Decimal> {
-        let params = self.denoms_data.params.get(denom).ok_or(MissingParams(denom.to_string()))?;
+        let params =
+            self.perps_data.params.get(denom).ok_or(MissingPerpParams(denom.to_string()))?;
 
-        // If the coin has been de-listed, drop MaxLTV to zero
-        if !params.credit_manager.whitelisted {
-            return Ok(Decimal::zero());
-        }
-
+        // TODO: If the coin has been de-listed, drop MaxLTV to zero
+        //
         Ok(params.max_loan_to_value)
     }
 
     fn get_perp_liq_ltv(&self, denom: &str) -> HealthResult<Decimal> {
-        let params = self.denoms_data.params.get(denom).ok_or(MissingParams(denom.to_string()))?;
+        let params =
+            self.perps_data.params.get(denom).ok_or(MissingPerpParams(denom.to_string()))?;
 
-        // If the coin has been de-listed, drop MaxLTV to zero
-        if !params.credit_manager.whitelisted {
-            return Ok(Decimal::zero());
-        }
+        // TODO check if we are enabled, if not return 0
 
         Ok(params.liquidation_threshold)
     }
 
     fn get_coin_max_ltv(&self, denom: &str) -> HealthResult<Decimal> {
-        let params = self.denoms_data.params.get(denom).ok_or(MissingParams(denom.to_string()))?;
+        let params = self.asset_params.get(denom).ok_or(MissingAssetParams(denom.to_string()))?;
 
         // If the coin has been de-listed, drop MaxLTV to zero
         if !params.credit_manager.whitelisted {
@@ -899,8 +1153,7 @@ impl HealthComputer {
             return Ok(Uint128::zero());
         }
 
-        let current_price =
-            self.denoms_data.prices.get(denom).ok_or(MissingPrice(denom.to_string()))?;
+        let current_price = self.oracle_prices.get(denom).ok_or(MissingPrice(denom.to_string()))?;
 
         if total_debt_value >= collateral_ltv_value {
             return Ok(Uint128::one() * *current_price);

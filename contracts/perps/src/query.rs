@@ -89,6 +89,7 @@ pub fn perp_denom_state(
         total_entry_funding: ds.total_entry_funding,
         rate: curr_funding.last_funding_rate,
         pnl_values,
+        funding: ds.funding,
     })
 }
 

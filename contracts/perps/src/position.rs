@@ -42,7 +42,7 @@ impl PositionExt for Position {
         let price_pnl_value = self.size.checked_mul(price_diff)?;
         let price_pnl_in_base_denom = price_pnl_value.checked_div(base_denom_price.into())?;
 
-        // size * (current_accrued_funding_per_unit - entry_accrued_funding_per_unit) * usdc_price
+        // size * (current_accrued_funding_per_unit - entry_accrued_funding_per_unit) * base_denom_price
         let accrued_funding_diff = funding
             .last_funding_accrued_per_unit_in_base_denom
             .checked_sub(self.entry_accrued_funding_per_unit_in_base_denom)?;

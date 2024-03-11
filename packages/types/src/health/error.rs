@@ -1,5 +1,6 @@
 use cosmwasm_std::{
-    CheckedFromRatioError, CheckedMultiplyFractionError, DivideByZeroError, OverflowError, StdError,
+    CheckedFromRatioError, CheckedMultiplyFractionError, DecimalRangeExceeded, DivideByZeroError,
+    OverflowError, StdError,
 };
 use mars_owner::OwnerError;
 use thiserror::Error;
@@ -32,7 +33,13 @@ pub enum HealthError {
     MissingHLSParams(String),
 
     #[error("{0} was not provided asset params to compute health with")]
-    MissingParams(String),
+    MissingAssetParams(String),
+
+    #[error("{0} was not provided perp params to compute health with")]
+    MissingPerpParams(String),
+
+    #[error("{0} was not provided denom state to compute health with")]
+    MissingDenomState(String),
 
     #[error("{0} was not provided a price to compute health with")]
     MissingPrice(String),
@@ -54,4 +61,7 @@ pub enum HealthError {
 
     #[error("{0}")]
     Std(#[from] StdError),
+
+    #[error("{0}")]
+    DecimalRangeExceeded(#[from] DecimalRangeExceeded),
 }

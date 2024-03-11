@@ -1,11 +1,7 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, ops::RangeInclusive};
 
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
-use mars_perps::{
-    position::{PositionExt, PositionModification},
-    pricing::opening_execution_price,
-};
-use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
+use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
 use mars_types::{
     adapters::vault::{
         CoinValue, LockingVaultAmount, UnlockingPositions, Vault, VaultAmount, VaultPosition,
@@ -14,8 +10,11 @@ use mars_types::{
     credit_manager::{DebtAmount, Positions},
     health::AccountKind,
     math::SignedDecimal,
-    params::{AssetParams, CmSettings, HlsParams, LiquidationBonus, RedBankSettings, VaultConfig},
-    perps::{Funding, PerpPosition, PnlAmounts, Position, PositionPnl},
+    params::{
+        AssetParams, CmSettings, HlsParams, LiquidationBonus, PerpParams, RedBankSettings,
+        VaultConfig,
+    },
+    perps::PerpDenomState,
 };
 use proptest::{
     collection::vec,
@@ -40,6 +39,18 @@ fn random_bool() -> impl Strategy<Value = bool> {
 
 fn random_price() -> impl Strategy<Value = Decimal> {
     (1..=10000, 1..6)
+        .prop_map(|(price, offset)| Decimal::from_atomics(price as u128, offset as u32).unwrap())
+}
+
+fn random_signed_decimal(range: RangeInclusive<u128>) -> impl Strategy<Value = SignedDecimal> {
+    (range, 1..6, random_bool()).prop_map(|(price, offset, negative)| SignedDecimal {
+        abs: Decimal::from_atomics(price, offset as u32).unwrap(),
+        negative,
+    })
+}
+
+fn random_decimal(range: RangeInclusive<i32>) -> impl Strategy<Value = Decimal> {
+    (range, 1..6)
         .prop_map(|(price, offset)| Decimal::from_atomics(price as u128, offset as u32).unwrap())
 }
 
@@ -84,25 +95,127 @@ fn random_coin_info() -> impl Strategy<Value = AssetParams> {
     )
 }
 
-fn random_denoms_data() -> impl Strategy<Value = DenomsData> {
-    vec((random_coin_info(), random_price()), 2..=5).prop_map(|info| {
+fn random_denoms_data(
+) -> impl Strategy<Value = (HashMap<String, AssetParams>, PerpsData, HashMap<String, Decimal>)> {
+    // Construct prices, perp_params, asset_params
+    vec(
+        (
+            random_coin_info(),
+            random_price(),
+            random_price(),
+            random_perp_info(),
+            random_denom_state(),
+        ),
+        2..=8,
+    )
+    .prop_map(|info| {
+        let mut asset_params = HashMap::new();
         let mut prices = HashMap::new();
-        let mut params = HashMap::new();
+        let mut perp_params: HashMap<String, PerpParams> = HashMap::new();
+        let mut denom_states: HashMap<String, PerpDenomState> = HashMap::new();
+
+        // Base denom
         let usdc = uusdc_info();
-
         prices.insert(usdc.denom.clone(), usdc.price);
-        params.insert(usdc.denom.clone(), usdc.params);
+        asset_params.insert(usdc.denom.clone(), usdc.params);
 
-        for (coin_info, price) in info {
-            prices.insert(coin_info.denom.clone(), price);
-            params.insert(coin_info.denom.clone(), coin_info);
+        for (coin_info, coin_price, perp_price, perp_info, denom_state) in info {
+            // Coins
+            asset_params.insert(coin_info.denom.clone(), coin_info.clone());
+            prices.insert(coin_info.denom.clone(), coin_price);
+
+            // Perps
+            perp_params.insert(perp_info.denom.clone(), perp_info.clone());
+            prices.insert(perp_info.denom.clone(), perp_price);
+            denom_states.insert(perp_info.denom.clone(), denom_state);
         }
 
-        DenomsData {
+        (
+            asset_params,
+            PerpsData {
+                params: perp_params,
+                denom_states,
+            },
             prices,
-            params,
-        }
+        )
     })
+}
+
+fn random_perp_info() -> impl Strategy<Value = PerpParams> {
+    (
+        random_denom(),
+        0..1000000000,
+        0..1000000000,
+        0..1000000000,
+        1..100,
+        1..100,
+        1..1000,
+        10..1000000000,
+        20..90,
+        1..5,
+    )
+        .prop_map(
+            |(
+                denom,
+                max_net_oi_value,
+                max_long_oi_value,
+                max_short_oi_value,
+                closing_fee_rate_denominator,
+                opening_rate_fee_denominator,
+                min_position_size_in_base_denom,
+                max_position_size_in_base_denom,
+                max_ltv_base,
+                liq_thresh_buffer,
+            )| {
+                let max_net_oi_value = Uint128::new(max_net_oi_value as u128);
+                let max_long_oi_value = Uint128::new(max_long_oi_value as u128);
+                let max_short_oi_value = Uint128::new(max_short_oi_value as u128);
+                let opening_fee_rate =
+                    Decimal::from_atomics(opening_rate_fee_denominator as u128, 3).unwrap();
+                let closing_fee_rate =
+                    Decimal::from_atomics(closing_fee_rate_denominator as u128, 3).unwrap();
+                let min_position_in_base_denom =
+                    Uint128::new(min_position_size_in_base_denom as u128);
+                let max_position_in_base_denom =
+                    Uint128::new(max_position_size_in_base_denom as u128);
+                let max_loan_to_value = Decimal::from_atomics(max_ltv_base as u128, 2).unwrap();
+                let liquidation_threshold = max_loan_to_value
+                    + Decimal::from_atomics(liq_thresh_buffer as u128, 2).unwrap();
+
+                PerpParams {
+                    denom,
+                    max_net_oi_value,
+                    max_long_oi_value,
+                    max_short_oi_value,
+                    closing_fee_rate,
+                    opening_fee_rate,
+                    min_position_value: min_position_in_base_denom,
+                    max_position_value: Some(max_position_in_base_denom),
+                    max_loan_to_value,
+                    liquidation_threshold,
+                }
+            },
+        )
+}
+
+fn random_denom_state() -> impl Strategy<Value = PerpDenomState> {
+    (
+        random_bool(),
+        random_decimal(0..=1000000),
+        random_decimal(0..=1000000),
+        random_signed_decimal(0..=100000),
+        random_signed_decimal(0..=100000),
+    )
+        .prop_map(|(enabled, long_oi, short_oi, total_entry_cost, total_entry_funding)| {
+            PerpDenomState {
+                enabled,
+                long_oi,
+                short_oi,
+                total_entry_cost,
+                total_entry_funding,
+                ..Default::default()
+            }
+        })
 }
 
 fn random_address() -> impl Strategy<Value = String> {
@@ -114,7 +227,7 @@ fn random_vault_denom() -> impl Strategy<Value = String> {
 }
 
 fn random_vault(
-    denoms_data: DenomsData,
+    asset_params: HashMap<String, AssetParams>,
 ) -> impl Strategy<Value = (String, VaultPositionValue, VaultConfig)> {
     (
         random_address(),
@@ -137,11 +250,8 @@ fn random_vault(
                 hls_base,
                 whitelisted,
             )| {
-                let denoms = denoms_data
-                    .params
-                    .values()
-                    .map(|params| params.denom.clone())
-                    .collect::<Vec<_>>();
+                let denoms =
+                    asset_params.values().map(|params| params.denom.clone()).collect::<Vec<_>>();
                 let base_denom = denoms.first().unwrap();
                 let position_val = VaultPositionValue {
                     vault_coin: CoinValue {
@@ -180,31 +290,35 @@ fn random_vault(
         )
 }
 
-fn random_param_maps() -> impl Strategy<Value = (DenomsData, VaultsData)> {
-    random_denoms_data().prop_flat_map(|denoms_data| {
-        vec(random_vault(denoms_data.clone()), 0..=3).prop_map(move |vaults| {
+fn random_param_maps(
+) -> impl Strategy<Value = (HashMap<String, AssetParams>, HashMap<String, Decimal>, VaultsData, PerpsData)>
+{
+    random_denoms_data().prop_flat_map(|(asset_params, perps_data, prices)| {
+        vec(random_vault(asset_params.clone()), 0..=3).prop_map(move |result| {
             let mut vault_values = HashMap::new();
             let mut vault_configs: HashMap<Addr, VaultConfig> = HashMap::new();
 
-            for (addr, position_val, config) in vaults {
+            for (addr, position_val, config) in result {
                 let addr = Addr::unchecked(addr.clone());
                 vault_values.insert(addr.clone(), position_val);
                 vault_configs.insert(addr, config);
             }
 
             (
-                denoms_data.clone(),
+                asset_params.clone(),
+                prices.clone(),
                 VaultsData {
                     vault_values,
                     vault_configs,
                 },
+                perps_data.clone(),
             )
         })
     })
 }
 
-fn random_coins(denoms_data: DenomsData) -> impl Strategy<Value = Vec<Coin>> {
-    let denoms = denoms_data.params.keys().cloned().collect::<Vec<String>>();
+fn random_coins(asset_params: HashMap<String, AssetParams>) -> impl Strategy<Value = Vec<Coin>> {
+    let denoms = asset_params.keys().cloned().collect::<Vec<String>>();
     let denoms_len = denoms.len();
     vec(
         (0..denoms_len, 1..=10000).prop_map(move |(index, amount)| {
@@ -220,137 +334,10 @@ fn random_coins(denoms_data: DenomsData) -> impl Strategy<Value = Vec<Coin>> {
     )
 }
 
-fn random_perps(perp_denoms_data: DenomsData) -> impl Strategy<Value = Vec<PerpPosition>> {
-    let perp_denoms = perp_denoms_data.params.keys().cloned().collect::<Vec<String>>();
-    let perp_denoms_len = perp_denoms.len();
-    let usdc = uusdc_info();
-    vec(
-        (
-            0..perp_denoms_len,
-            1..=10000,
-            1..=10000,
-            1..=10000,
-            1..=10000,
-            1..=10000,
-            1..=10000,
-            80..=120,
-            -1000000..=1000000,
-            -1000000..=1000000,
-        )
-            .prop_map(
-                move |(
-                    index,
-                    size,
-                    entry_price,
-                    current_price,
-                    skew_scale,
-                    rate,
-                    funding_index,
-                    usdc_price,
-                    inital_skew,
-                    current_skew,
-                )| {
-                    let perp_denom = perp_denoms.get(index).unwrap().clone();
-                    let base_denom = usdc.denom.clone();
-                    let amount = Uint128::new(size as u128);
-                    let current_price =
-                        Decimal::from_atomics(Uint128::new(current_price as u128), 2).unwrap();
-                    let entry_price =
-                        Decimal::from_atomics(Uint128::new(entry_price as u128), 2).unwrap();
-                    let usdc_price =
-                        Decimal::from_atomics(Uint128::new(usdc_price as u128), 2).unwrap();
-                    let size = SignedDecimal::from(amount)
-                        .checked_sub(
-                            // Size can be negative. Subtracing 5000 means we range from -5000 : 5000
-                            SignedDecimal::from(Uint128::new(5000)),
-                        )
-                        .unwrap();
-                    let initial_skew = SignedDecimal {
-                        negative: inital_skew < 0,
-                        abs: Decimal::from_atomics(i32::abs(inital_skew) as u128, 0).unwrap(),
-                    };
-                    let current_skew = SignedDecimal {
-                        negative: current_skew < 0,
-                        abs: Decimal::from_atomics(i32::abs(current_skew) as u128, 0).unwrap(),
-                    };
-                    // We randomize the skew scale, the rate and the index
-                    let skew_scale = Decimal::from_atomics(Uint128::new(skew_scale as u128), 0)
-                        .unwrap()
-                        .checked_mul(Decimal::from_str("1000000").unwrap())
-                        .unwrap();
-                    let position = Position {
-                        size,
-                        entry_price,
-                        entry_exec_price: opening_execution_price(
-                            initial_skew,
-                            skew_scale,
-                            size,
-                            entry_price,
-                        )
-                        .unwrap()
-                        .abs,
-                        entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::zero(),
-                        initial_skew,
-                        realized_pnl: PnlAmounts::default(),
-                    };
-
-                    // This gives us a max of 10
-                    let rate = Decimal::from_atomics(Uint128::new(rate as u128), 3).unwrap();
-
-                    // Rate is between 0 and 10, so our closing fee will be between 0 and 1%
-                    let closing_fee_rate =
-                        rate.checked_div(Decimal::from_str("1000").unwrap()).unwrap();
-
-                    let funding_index_dec =
-                        Decimal::from_atomics(Uint128::new(funding_index as u128), 6)
-                            .unwrap()
-                            .checked_add(Decimal::one())
-                            .unwrap();
-
-                    let funding = Funding {
-                        max_funding_velocity: Decimal::from_str("3").unwrap(),
-                        skew_scale,
-                        last_funding_rate: rate.into(),
-                        last_funding_accrued_per_unit_in_base_denom: funding_index_dec.into(),
-                    };
-
-                    let (pnl_values, pnl_amounts) = position
-                        .compute_pnl(
-                            &funding,
-                            current_skew,
-                            current_price,
-                            usdc_price,
-                            Decimal::zero(), // TODO: provide a real value
-                            closing_fee_rate,
-                            PositionModification::None,
-                        )
-                        .unwrap();
-
-                    let pnl_coins = pnl_amounts.to_coins(&base_denom);
-                    PerpPosition {
-                        denom: perp_denom,
-                        base_denom,
-                        size,
-                        current_price,
-                        entry_price,
-                        entry_exec_price: entry_price,
-                        current_exec_price: current_price,
-                        unrealised_pnl: PositionPnl {
-                            values: pnl_values,
-                            amounts: pnl_amounts,
-                            coins: pnl_coins,
-                        },
-                        realised_pnl: PnlAmounts::default(),
-                        closing_fee_rate,
-                    }
-                },
-            ),
-        0..perp_denoms_len,
-    )
-}
-
-fn random_debts(denoms_data: DenomsData) -> impl Strategy<Value = Vec<DebtAmount>> {
-    let denoms = denoms_data.params.keys().cloned().collect::<Vec<String>>();
+fn random_debts(
+    asset_params: HashMap<String, AssetParams>,
+) -> impl Strategy<Value = Vec<DebtAmount>> {
+    let denoms = asset_params.keys().cloned().collect::<Vec<String>>();
     let denoms_len = denoms.len();
     vec(
         (0..denoms_len, 1..=10000).prop_map(move |(index, amount)| {
@@ -403,29 +390,29 @@ fn random_vault_positions(vd: VaultsData) -> impl Strategy<Value = Vec<VaultPosi
 }
 
 pub fn random_health_computer() -> impl Strategy<Value = HealthComputer> {
-    (random_param_maps()).prop_flat_map(|(denoms_data, vaults_data)| {
+    (random_param_maps()).prop_flat_map(|(asset_params, oracle_prices, vaults_data, perps_data)| {
         (
+            // Get prices
             random_account_kind(),
-            random_coins(denoms_data.clone()),
-            random_debts(denoms_data.clone()),
-            random_coins(denoms_data.clone()),
+            random_coins(asset_params.clone()),
+            random_debts(asset_params.clone()),
+            random_coins(asset_params.clone()),
             random_vault_positions(vaults_data.clone()),
-            random_perps(denoms_data.clone()),
         )
-            .prop_map(move |(kind, deposits, debts, lends, vaults, perps)| {
-                HealthComputer {
-                    kind,
-                    positions: Positions {
-                        account_id: "123".to_string(),
-                        deposits,
-                        debts,
-                        lends,
-                        vaults,
-                        perps,
-                    },
-                    denoms_data: denoms_data.clone(),
-                    vaults_data: vaults_data.clone(),
-                }
+            .prop_map(move |(kind, deposits, debts, lends, vaults)| HealthComputer {
+                kind,
+                positions: Positions {
+                    account_id: "123".to_string(),
+                    deposits,
+                    debts,
+                    lends,
+                    vaults,
+                    perps: vec![],
+                },
+                vaults_data: vaults_data.clone(),
+                oracle_prices: oracle_prices.clone(),
+                asset_params: asset_params.clone(),
+                perps_data: perps_data.clone(),
             })
     })
 }

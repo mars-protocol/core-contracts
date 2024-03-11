@@ -1,6 +1,6 @@
 use cosmwasm_std::{Addr, Deps, QuerierWrapper, StdError, StdResult};
 use mars_types::{
-    adapters::{oracle::Oracle, params::Params, vault::Vault},
+    adapters::{oracle::Oracle, params::Params, perps::Perps, vault::Vault},
     credit_manager::{ConfigResponse, Positions, QueryMsg as CmQueryMsg},
     health::HealthResult,
     params::VaultConfig,
@@ -13,6 +13,7 @@ pub struct HealthQuerier<'a> {
     credit_manager: Addr,
     pub params: Params,
     pub oracle: Oracle,
+    pub perps: Perps,
 }
 
 impl<'a> HealthQuerier<'a> {
@@ -30,6 +31,7 @@ impl<'a> HealthQuerier<'a> {
             credit_manager,
             params: Params::new(Addr::unchecked(config.params)),
             oracle: Oracle::new(Addr::unchecked(config.oracle)),
+            perps: Perps::new(Addr::unchecked(config.perps)),
         })
     }
 

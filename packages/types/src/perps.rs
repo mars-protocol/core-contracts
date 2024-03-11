@@ -230,6 +230,7 @@ pub struct Accounting {
 /// This is the denom data to be returned in a query. It includes current
 /// price, PnL and funding.
 #[cw_serde]
+#[derive(Default)]
 pub struct PerpDenomState {
     pub denom: String,
     pub enabled: bool,
@@ -239,6 +240,7 @@ pub struct PerpDenomState {
     pub total_entry_funding: SignedDecimal,
     pub rate: SignedDecimal,
     pub pnl_values: PnlValues,
+    pub funding: Funding,
 }
 
 /// This is the position data to be stored in the contract state. It does not

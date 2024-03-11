@@ -487,6 +487,12 @@ fn validate_opening_position() {
                 max_net_oi_value: max_net_oi,
                 max_long_oi_value: max_long_oi,
                 max_short_oi_value: max_short_oi,
+                closing_fee_rate: Decimal::from_str("0.006").unwrap(),
+                opening_fee_rate: Decimal::from_str("0.004").unwrap(),
+                liquidation_threshold: Decimal::from_str("0.85").unwrap(),
+                max_loan_to_value: Decimal::from_str("0.8").unwrap(),
+                max_position_value: None,
+                min_position_value: Uint128::zero(),
             },
         },
     );
@@ -614,6 +620,12 @@ fn validate_modify_position() {
                 max_net_oi_value: max_net_oi,
                 max_long_oi_value: max_long_oi,
                 max_short_oi_value: max_short_oi,
+                closing_fee_rate: Decimal::from_str("0.006").unwrap(),
+                opening_fee_rate: Decimal::from_str("0.004").unwrap(),
+                liquidation_threshold: Decimal::from_str("0.85").unwrap(),
+                max_loan_to_value: Decimal::from_str("0.8").unwrap(),
+                max_position_value: None,
+                min_position_value: Uint128::zero(),
             },
         },
     );
@@ -728,7 +740,18 @@ fn modify_position_realises_pnl() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uatom"),
+            params: PerpParams {
+                denom: "uatom".to_string(),
+                max_net_oi_value: Uint128::new(400000),
+                max_long_oi_value: Uint128::new(400000),
+                max_short_oi_value: Uint128::new(800000),
+                closing_fee_rate: Decimal::from_str("0.006").unwrap(),
+                opening_fee_rate: Decimal::from_str("0.004").unwrap(),
+                liquidation_threshold: Decimal::from_str("0.85").unwrap(),
+                max_loan_to_value: Decimal::from_str("0.8").unwrap(),
+                max_position_value: None,
+                min_position_value: Uint128::zero(),
+            },
         },
     );
 

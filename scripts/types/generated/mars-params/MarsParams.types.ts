@@ -137,10 +137,16 @@ export interface Coin {
   [k: string]: unknown
 }
 export interface PerpParams {
+  closing_fee_rate: Decimal
   denom: string
+  liquidation_threshold: Decimal
+  max_loan_to_value: Decimal
   max_long_oi_value: Uint128
   max_net_oi_value: Uint128
+  max_position_value?: Uint128 | null
   max_short_oi_value: Uint128
+  min_position_value: Uint128
+  opening_fee_rate: Decimal
 }
 export type QueryMsg =
   | {

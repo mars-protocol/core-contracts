@@ -6,8 +6,8 @@ use cosmwasm_std::{
 use crate::{
     math::SignedDecimal,
     perps::{
-        ExecuteMsg, PerpPosition, PositionResponse, PositionsByAccountResponse, QueryMsg,
-        TradingFee,
+        ExecuteMsg, PerpDenomState, PerpPosition, PositionResponse, PositionsByAccountResponse,
+        QueryMsg, TradingFee,
     },
 };
 
@@ -138,6 +138,20 @@ impl Perps {
             &QueryMsg::OpeningFee {
                 denom: denom.into(),
                 size,
+            },
+        )?;
+        Ok(res)
+    }
+
+    pub fn query_perp_denom_state(
+        &self,
+        querier: &QuerierWrapper,
+        denom: impl Into<String>,
+    ) -> StdResult<PerpDenomState> {
+        let res: PerpDenomState = querier.query_wasm_smart(
+            self.address(),
+            &QueryMsg::PerpDenomState {
+                denom: denom.into(),
             },
         )?;
         Ok(res)

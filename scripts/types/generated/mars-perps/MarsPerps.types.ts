@@ -257,6 +257,7 @@ export interface OwnerResponse {
 export interface PerpDenomState {
   denom: string
   enabled: boolean
+  funding: Funding
   long_oi: Decimal
   pnl_values: PnlValues
   rate: SignedDecimal

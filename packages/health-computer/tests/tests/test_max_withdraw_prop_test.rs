@@ -21,7 +21,7 @@ fn withdraw_amount_renders_healthy_max_ltv() {
             let health_before = h.compute_health()?;
 
             let random_deposit = h.positions.deposits.first().unwrap().clone();
-            let params = h.denoms_data.params.get(&random_deposit.denom).unwrap();
+            let params = h.asset_params.get(&random_deposit.denom).unwrap();
             let max_withdraw = h.max_withdraw_amount_estimate(&random_deposit.denom)?;
             if health_before.is_above_max_ltv() && params.credit_manager.whitelisted {
                 assert_eq!(Uint128::zero(), max_withdraw);

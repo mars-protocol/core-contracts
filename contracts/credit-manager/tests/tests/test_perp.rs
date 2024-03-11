@@ -800,7 +800,7 @@ fn cannot_open_perp_above_max_ltv() {
         res,
         ContractError::AboveMaxLTV {
             account_id,
-            max_ltv_health_factor: "0.82878".to_string(),
+            max_ltv_health_factor: "0.827885714285714285".to_string(),
         },
     );
 }

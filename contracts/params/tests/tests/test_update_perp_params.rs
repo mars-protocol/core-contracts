@@ -1,4 +1,6 @@
-use cosmwasm_std::{Addr, Uint128};
+use std::str::FromStr;
+
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use mars_owner::OwnerError;
 use mars_params::error::ContractError::Owner;
 use mars_types::params::{PerpParams, PerpParamsUpdate};
@@ -108,6 +110,12 @@ fn update_existing_perp_params() {
                 max_net_oi_value: Uint128::new(1_888_999_000),
                 max_long_oi_value: Uint128::new(1_123_000_000),
                 max_short_oi_value: Uint128::new(1_321_000_000),
+                closing_fee_rate: Decimal::from_str("0.006").unwrap(),
+                opening_fee_rate: Decimal::from_str("0.004").unwrap(),
+                liquidation_threshold: Decimal::from_str("0.85").unwrap(),
+                max_loan_to_value: Decimal::from_str("0.8").unwrap(),
+                max_position_value: None,
+                min_position_value: Uint128::zero(),
             },
         },
     )

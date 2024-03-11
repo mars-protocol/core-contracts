@@ -1511,6 +1511,7 @@
       "required": [
         "denom",
         "enabled",
+        "funding",
         "long_oi",
         "pnl_values",
         "rate",
@@ -1524,6 +1525,9 @@
         },
         "enabled": {
           "type": "boolean"
+        },
+        "funding": {
+          "$ref": "#/definitions/Funding"
         },
         "long_oi": {
           "$ref": "#/definitions/Decimal"
@@ -1549,6 +1553,51 @@
         "Decimal": {
           "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
+        },
+        "Funding": {
+          "description": "Funding parameters for a single denom.\n\nThe role of funding rates is generally to balance long and short demand. Traders will either pay or receive funding rates, depending on their positions. If the funding rate is positive, long position holders will pay the funding rate to those holding short positions, and vice versa.",
+          "type": "object",
+          "required": [
+            "last_funding_accrued_per_unit_in_base_denom",
+            "last_funding_rate",
+            "max_funding_velocity",
+            "skew_scale"
+          ],
+          "properties": {
+            "last_funding_accrued_per_unit_in_base_denom": {
+              "description": "Last funding accrued per unit",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SignedDecimal"
+                }
+              ]
+            },
+            "last_funding_rate": {
+              "description": "The current funding rate calculated as an 24-hour rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SignedDecimal"
+                }
+              ]
+            },
+            "max_funding_velocity": {
+              "description": "Determines the maximum rate at which funding can be adjusted",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "skew_scale": {
+              "description": "Determines the funding rate for a given level of skew. The lower the skew_scale the higher the funding rate.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
         },
         "PnlValues": {
           "description": "Values denominated in the Oracle base currency (uusd)",

@@ -340,6 +340,12 @@ export const atomPerpDenom: PerpDenom = {
   maxNetOiValue: '100000000000000',
   maxLongOiValue: '100000000000000',
   maxShortOiValue: '100000000000000',
+  closingFeeRate: '0.0006',
+  openingFeeRate: '0.0005',
+  minPositionValue: '0',
+  maxPositionValue: '100000000000000',
+  liquidationThreshold: '0.7',
+  maxLoanToValue: '0.68',
 }
 
 export const ntrnPerpDenom: PerpDenom = {
@@ -349,6 +355,12 @@ export const ntrnPerpDenom: PerpDenom = {
   maxNetOiValue: '100000000000000',
   maxLongOiValue: '100000000000000',
   maxShortOiValue: '100000000000000',
+  closingFeeRate: '0.0006',
+  openingFeeRate: '0.0005',
+  minPositionValue: '0',
+  maxPositionValue: '100000000000000',
+  liquidationThreshold: '0.7',
+  maxLoanToValue: '0.68',
 }
 
 export const neutronTestnetConfig: DeploymentConfig = {

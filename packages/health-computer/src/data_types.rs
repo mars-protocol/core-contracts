@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal, Uint128};
+use cosmwasm_std::{Addr, Uint128};
 use mars_types::{
     adapters::vault::VaultPositionValue,
     math::SignedDecimal,
-    params::{AssetParams, VaultConfig},
+    params::{PerpParams, VaultConfig},
+    perps::PerpDenomState,
 };
 
 /// Used as storage when trying to compute Health
@@ -33,10 +34,9 @@ pub struct PerpPnlValues {
 
 #[cw_serde]
 #[derive(Default)]
-pub struct DenomsData {
-    /// Must include data from info.base token for the vaults
-    pub prices: HashMap<String, Decimal>,
-    pub params: HashMap<String, AssetParams>,
+pub struct PerpsData {
+    pub denom_states: HashMap<String, PerpDenomState>,
+    pub params: HashMap<String, PerpParams>,
 }
 
 #[cw_serde]

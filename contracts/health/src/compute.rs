@@ -1,11 +1,12 @@
 use std::collections::HashMap;
 
-use cosmwasm_std::{Deps, StdResult};
-use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
+use cosmwasm_std::{Decimal, Deps, StdResult};
+use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
 use mars_types::{
     credit_manager::Positions,
     health::{AccountKind, HealthResult, HealthState, HealthValuesResponse},
     oracle::ActionKind,
+    params::AssetParams,
 };
 
 use crate::querier::HealthQuerier;
@@ -33,24 +34,36 @@ pub fn compute_health(
         })
         .collect::<StdResult<HashMap<_, _>>>()?;
     let vault_base_token_denoms = vault_infos.values().map(|v| &v.base_token).collect::<Vec<_>>();
-    // TODO: use perp infos from params contract, it should be fixed in health computer logic too
     let perp_denoms = positions.perps.iter().map(|p| &p.denom).collect::<Vec<_>>();
 
     // Collect prices + asset
-    let mut denoms_data: DenomsData = Default::default();
+    let mut asset_params: HashMap<String, AssetParams> = HashMap::new();
+    let mut oracle_prices: HashMap<String, Decimal> = HashMap::new();
+
     deposit_denoms
         .into_iter()
         .chain(debt_denoms)
         .chain(lend_denoms)
         .chain(vault_base_token_denoms)
-        .chain(perp_denoms)
         .try_for_each(|denom| -> StdResult<()> {
+            // Asset data
             let price = q.oracle.query_price(&deps.querier, denom, action.clone())?.price;
-            denoms_data.prices.insert(denom.clone(), price);
+            oracle_prices.insert(denom.clone(), price);
             let params = q.params.query_asset_params(&deps.querier, denom)?;
-            denoms_data.params.insert(denom.clone(), params);
+            asset_params.insert(denom.clone(), params);
+
             Ok(())
         })?;
+
+    let mut perps_data: PerpsData = Default::default();
+    perp_denoms.into_iter().try_for_each(|denom| -> StdResult<()> {
+        // Perp data
+        let perp_params = q.params.query_perp_params(&deps.querier, denom)?;
+        let perp_denom_state = q.perps.query_perp_denom_state(&deps.querier, denom)?;
+        perps_data.denom_states.insert(denom.clone(), perp_denom_state);
+        perps_data.params.insert(denom.clone(), perp_params);
+        Ok(())
+    })?;
 
     // Collect all vault data
     let mut vaults_data: VaultsData = Default::default();
@@ -65,8 +78,10 @@ pub fn compute_health(
     let computer = HealthComputer {
         kind,
         positions,
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     Ok(computer.compute_health()?.into())

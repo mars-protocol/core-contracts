@@ -241,36 +241,6 @@ pub fn uusdc_info() -> CoinInfo {
     }
 }
 
-///
-/// PERPS
-///
-pub fn btcperp_info() -> CoinInfo {
-    let denom: String = "btc/usd/perp".to_string();
-    let price = Decimal::from_str("100").unwrap();
-    let max_loan_to_value = Decimal::from_str("0.9").unwrap();
-    let liquidation_threshold = Decimal::from_str("0.95").unwrap();
-
-    create_coin_info(denom, price, max_loan_to_value, liquidation_threshold)
-}
-
-pub fn ethperp_info() -> CoinInfo {
-    let denom: String = "eth/usd/perp".to_string();
-    let price = Decimal::from_str("10").unwrap();
-    let max_loan_to_value = Decimal::from_str("0.85").unwrap();
-    let liquidation_threshold = Decimal::from_str("0.90").unwrap();
-
-    create_coin_info(denom, price, max_loan_to_value, liquidation_threshold)
-}
-
-pub fn atomperp_info() -> CoinInfo {
-    let denom: String = "atom/usd/perp".to_string();
-    let price = Decimal::from_str("10").unwrap();
-    let max_loan_to_value = Decimal::from_str("0.80").unwrap();
-    let liquidation_threshold = Decimal::from_str("0.85").unwrap();
-
-    create_coin_info(denom, price, max_loan_to_value, liquidation_threshold)
-}
-
 pub fn create_coin_info(
     denom: String,
     price: Decimal,
