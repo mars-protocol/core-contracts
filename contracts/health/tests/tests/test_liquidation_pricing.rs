@@ -68,6 +68,7 @@ fn uses_liquidation_pricing() {
             lends: vec![],
             vaults: vec![],
             perps: vec![],
+            perp_vault: None,
         },
     );
 

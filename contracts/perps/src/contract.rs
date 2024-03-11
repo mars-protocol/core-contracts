@@ -59,13 +59,16 @@ pub fn execute(
         ExecuteMsg::DisableDenom {
             denom,
         } => execute::disable_denom(deps, env, &info.sender, &denom),
-        ExecuteMsg::Deposit {} => execute::deposit(deps, info, env.block.time.seconds()),
+        ExecuteMsg::Deposit {
+            account_id,
+        } => execute::deposit(deps, info, env.block.time.seconds(), &account_id),
         ExecuteMsg::Unlock {
+            account_id,
             shares,
-        } => execute::unlock(deps, env.block.time.seconds(), &info.sender, shares),
-        ExecuteMsg::Withdraw {} => {
-            execute::withdraw(deps.storage, env.block.time.seconds(), &info.sender)
-        }
+        } => execute::unlock(deps, info, env.block.time.seconds(), &account_id, shares),
+        ExecuteMsg::Withdraw {
+            account_id,
+        } => execute::withdraw(deps.storage, info, env.block.time.seconds(), &account_id),
         ExecuteMsg::OpenPosition {
             account_id,
             denom,
@@ -99,16 +102,21 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::PerpDenomState {
             denom,
         } => to_json_binary(&query::perp_denom_state(deps, env.block.time.seconds(), denom)?),
+        QueryMsg::PerpVaultPosition {
+            account_id,
+        } => {
+            to_json_binary(&query::perp_vault_position(deps, account_id, env.block.time.seconds())?)
+        }
         QueryMsg::Deposit {
-            depositor,
-        } => to_json_binary(&query::deposit(deps, depositor, env.block.time.seconds())?),
+            account_id,
+        } => to_json_binary(&query::deposit(deps, account_id, env.block.time.seconds())?),
         QueryMsg::Deposits {
             start_after,
             limit,
         } => to_json_binary(&query::deposits(deps, start_after, limit, env.block.time.seconds())?),
         QueryMsg::Unlocks {
-            depositor,
-        } => to_json_binary(&query::unlocks(deps, depositor)?),
+            account_id,
+        } => to_json_binary(&query::unlocks(deps, account_id)?),
         QueryMsg::Position {
             account_id,
             denom,

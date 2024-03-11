@@ -22,6 +22,7 @@ use crate::{
     liquidate_deposit::liquidate_deposit,
     liquidate_lend::liquidate_lend,
     perp::{close_perp, modify_perp, open_perp},
+    perp_vault::{deposit_to_perp_vault, unlock_from_perp_vault, withdraw_from_perp_vault},
     reclaim::reclaim,
     refund::refund_coin_balances,
     repay::{repay, repay_for_recipient},
@@ -163,6 +164,21 @@ pub fn dispatch_actions(
                 account_id: account_id.to_string(),
                 recipient: info.sender.clone(),
             }),
+            Action::DepositToPerpVault(coin) => callbacks.push(CallbackMsg::DepositToPerpVault {
+                account_id: account_id.to_string(),
+                coin,
+            }),
+            Action::UnlockFromPerpVault {
+                shares,
+            } => callbacks.push(CallbackMsg::UnlockFromPerpVault {
+                account_id: account_id.to_string(),
+                shares,
+            }),
+            Action::WithdrawFromPerpVault {} => {
+                callbacks.push(CallbackMsg::WithdrawFromPerpVault {
+                    account_id: account_id.to_string(),
+                })
+            }
             Action::OpenPerp {
                 denom,
                 size,
@@ -392,6 +408,17 @@ pub fn execute_callback(
         CallbackMsg::AssertDepositCaps {
             denoms,
         } => assert_deposit_caps(deps.as_ref(), denoms),
+        CallbackMsg::DepositToPerpVault {
+            account_id,
+            coin,
+        } => deposit_to_perp_vault(deps, &account_id, &coin),
+        CallbackMsg::UnlockFromPerpVault {
+            account_id,
+            shares,
+        } => unlock_from_perp_vault(deps.as_ref(), &account_id, shares),
+        CallbackMsg::WithdrawFromPerpVault {
+            account_id,
+        } => withdraw_from_perp_vault(deps.as_ref(), env, &account_id),
         CallbackMsg::OpenPerp {
             account_id,
             denom,

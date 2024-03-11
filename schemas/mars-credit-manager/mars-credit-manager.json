@@ -404,6 +404,55 @@
             "additionalProperties": false
           },
           {
+            "description": "Provide liquidity of the base token to the perp vault",
+            "type": "object",
+            "required": [
+              "deposit_to_perp_vault"
+            ],
+            "properties": {
+              "deposit_to_perp_vault": {
+                "$ref": "#/definitions/ActionCoin"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Unlock liquidity from the perp vault. The unlocked tokens will have to wait a cooldown period before they can be withdrawn.",
+            "type": "object",
+            "required": [
+              "unlock_from_perp_vault"
+            ],
+            "properties": {
+              "unlock_from_perp_vault": {
+                "type": "object",
+                "required": [
+                  "shares"
+                ],
+                "properties": {
+                  "shares": {
+                    "$ref": "#/definitions/Uint128"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Withdraw liquidity from the perp vault",
+            "type": "object",
+            "required": [
+              "withdraw_from_perp_vault"
+            ],
+            "properties": {
+              "withdraw_from_perp_vault": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Open a new perpetual futures position",
             "type": "object",
             "required": [
@@ -1152,6 +1201,80 @@
             "additionalProperties": false
           },
           {
+            "description": "Corresponding to the DepositToPerpVault action",
+            "type": "object",
+            "required": [
+              "deposit_to_perp_vault"
+            ],
+            "properties": {
+              "deposit_to_perp_vault": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "coin"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "coin": {
+                    "$ref": "#/definitions/ActionCoin"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Corresponding to the UnlockFromPerpVault action",
+            "type": "object",
+            "required": [
+              "unlock_from_perp_vault"
+            ],
+            "properties": {
+              "unlock_from_perp_vault": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "shares"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "shares": {
+                    "$ref": "#/definitions/Uint128"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Corresponding to the WithdrawFromPerpVault action",
+            "type": "object",
+            "required": [
+              "withdraw_from_perp_vault"
+            ],
+            "properties": {
+              "withdraw_from_perp_vault": {
+                "type": "object",
+                "required": [
+                  "account_id"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Corresponding to the OpenPerp action",
             "type": "object",
             "required": [
@@ -1208,6 +1331,7 @@
             "additionalProperties": false
           },
           {
+            "description": "Corresponding to the ModifyPerp action",
             "type": "object",
             "required": [
               "modify_perp"
@@ -3410,6 +3534,16 @@
             "$ref": "#/definitions/Coin"
           }
         },
+        "perp_vault": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PerpVaultPosition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "perps": {
           "type": "array",
           "items": {
@@ -3539,6 +3673,45 @@
             },
             "unrealised_pnl": {
               "$ref": "#/definitions/PositionPnl"
+            }
+          },
+          "additionalProperties": false
+        },
+        "PerpVaultDeposit": {
+          "type": "object",
+          "required": [
+            "amount",
+            "shares"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "shares": {
+              "$ref": "#/definitions/Uint128"
+            }
+          },
+          "additionalProperties": false
+        },
+        "PerpVaultPosition": {
+          "type": "object",
+          "required": [
+            "denom",
+            "deposit",
+            "unlocks"
+          ],
+          "properties": {
+            "denom": {
+              "type": "string"
+            },
+            "deposit": {
+              "$ref": "#/definitions/PerpVaultDeposit"
+            },
+            "unlocks": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/UnlockState"
+              }
             }
           },
           "additionalProperties": false
@@ -3698,6 +3871,31 @@
         "Uint128": {
           "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
           "type": "string"
+        },
+        "UnlockState": {
+          "description": "Unlock state for a single user",
+          "type": "object",
+          "required": [
+            "amount",
+            "cooldown_end",
+            "created_at"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "cooldown_end": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "created_at": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
         },
         "UnlockingPositions": {
           "type": "array",

@@ -460,6 +460,55 @@
             "additionalProperties": false
           },
           {
+            "description": "Provide liquidity of the base token to the perp vault",
+            "type": "object",
+            "required": [
+              "deposit_to_perp_vault"
+            ],
+            "properties": {
+              "deposit_to_perp_vault": {
+                "$ref": "#/definitions/ActionCoin"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Unlock liquidity from the perp vault. The unlocked tokens will have to wait a cooldown period before they can be withdrawn.",
+            "type": "object",
+            "required": [
+              "unlock_from_perp_vault"
+            ],
+            "properties": {
+              "unlock_from_perp_vault": {
+                "type": "object",
+                "required": [
+                  "shares"
+                ],
+                "properties": {
+                  "shares": {
+                    "$ref": "#/definitions/Uint128"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Withdraw liquidity from the perp vault",
+            "type": "object",
+            "required": [
+              "withdraw_from_perp_vault"
+            ],
+            "properties": {
+              "withdraw_from_perp_vault": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Open a new perpetual futures position",
             "type": "object",
             "required": [

@@ -7,7 +7,7 @@ use cosmwasm_std::{
 use cw721::OwnerOfResponse;
 use cw721_base::QueryMsg;
 use mars_types::{
-    credit_manager::{CallbackMsg, ChangeExpected, ExecuteMsg},
+    credit_manager::{ActionCoin, CallbackMsg, ChangeExpected, ExecuteMsg},
     health::AccountKind,
 };
 
@@ -208,4 +208,24 @@ where
     let set_a: HashSet<_> = vec_a.iter().collect();
     let set_b: HashSet<_> = vec_b.iter().collect();
     set_a == set_b
+}
+
+/// Queries balance to ensure passing EXACT is not too high.
+/// Also asserts the amount is greater than zero.
+pub fn get_amount_from_action_coin(
+    deps: Deps,
+    account_id: &str,
+    coin: &ActionCoin,
+) -> ContractResult<Uint128> {
+    let amount = if let Some(amount) = coin.amount.value() {
+        amount
+    } else {
+        COIN_BALANCES.may_load(deps.storage, (account_id, &coin.denom))?.unwrap_or(Uint128::zero())
+    };
+
+    if amount.is_zero() {
+        Err(ContractError::NoAmount)
+    } else {
+        Ok(amount)
+    }
 }

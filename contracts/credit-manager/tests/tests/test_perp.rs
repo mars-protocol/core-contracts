@@ -125,6 +125,8 @@ fn perp_position_when_not_enough_usdc_in_account() {
     let atom_info = uatom_info();
     let usdc_info = coin_info("uusdc");
 
+    let vault_coin_deposited = coin(100000, usdc_info.denom.clone());
+
     let contract_owner = Addr::unchecked("owner");
     let cm_user = Addr::unchecked("user");
     let vault_depositor = Addr::unchecked("vault_depositor");
@@ -145,11 +147,12 @@ fn perp_position_when_not_enough_usdc_in_account() {
         })
         .fund_account(AccountToFund {
             addr: vault_depositor.clone(),
-            funds: vec![coin(100000, usdc_info.denom.clone())],
+            funds: vec![vault_coin_deposited.clone()],
         })
         .build()
         .unwrap();
-    let account_id = mock.create_credit_account(&cm_user).unwrap();
+    let trader_account_id = mock.create_credit_account(&cm_user).unwrap();
+    let vault_depositor_account_id = mock.create_credit_account(&vault_depositor).unwrap();
 
     // setup params contract
     mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
@@ -164,7 +167,14 @@ fn perp_position_when_not_enough_usdc_in_account() {
         Decimal::from_str("1000000").unwrap(),
     )
     .unwrap();
-    mock.deposit_to_perp_vault(&vault_depositor, &coin(100000, usdc_info.denom.clone())).unwrap();
+    mock.update_credit_account(
+        &vault_depositor_account_id,
+        &vault_depositor,
+        vec![Deposit(vault_coin_deposited.clone())],
+        &[vault_coin_deposited.clone()],
+    )
+    .unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
 
     let perp_size = SignedDecimal::from_str("400").unwrap();
 
@@ -174,7 +184,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
 
     // open perp position
     mock.update_credit_account(
-        &account_id,
+        &trader_account_id,
         &cm_user,
         vec![
             Deposit(osmo_coin_deposited.clone()),
@@ -189,7 +199,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
     .unwrap();
 
     // check position data
-    let position = mock.query_positions(&account_id);
+    let position = mock.query_positions(&trader_account_id);
     assert_eq!(position.deposits.len(), 1); // only osmo left, usdc is taken for opening fee payment
     assert_present(&position, &osmo_coin_deposited.denom, osmo_coin_deposited.amount);
     assert_eq!(position.lends.len(), 0);
@@ -200,7 +210,8 @@ fn perp_position_when_not_enough_usdc_in_account() {
     assert_eq!(debt.amount, expected_pos_debt_after_opening_perp);
     assert_eq!(position.perps.len(), 1);
     let perp_position = position.perps.first().unwrap().clone();
-    let expected_perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
+    let expected_perp_position =
+        mock.query_perp_position(&trader_account_id, &atom_info.denom).position;
     assert_eq!(perp_position, expected_perp_position);
 
     // check if perp balance increased by opening fee
@@ -211,7 +222,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
 
     // deposit usdc again
     mock.update_credit_account(
-        &account_id,
+        &trader_account_id,
         &cm_user,
         vec![Deposit(usdc_coin_deposited.clone())],
         &[usdc_coin_deposited.clone()],
@@ -226,12 +237,12 @@ fn perp_position_when_not_enough_usdc_in_account() {
     });
 
     // check perp position pnl
-    let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
+    let perp_position = mock.query_perp_position(&trader_account_id, &atom_info.denom).position;
     let loss_amt = pnl_loss(perp_position.unrealised_pnl.coins.pnl);
 
     // close perp position
     mock.update_credit_account(
-        &account_id,
+        &trader_account_id,
         &cm_user,
         vec![ClosePerp {
             denom: atom_info.denom.clone(),
@@ -241,7 +252,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
     .unwrap();
 
     // check position data
-    let position = mock.query_positions(&account_id);
+    let position = mock.query_positions(&trader_account_id);
     assert_eq!(position.deposits.len(), 1); // only osmo left, usdc is taken for closing perp payment
     assert_present(&position, &osmo_coin_deposited.denom, osmo_coin_deposited.amount);
     assert_eq!(position.lends.len(), 0);
@@ -267,6 +278,8 @@ fn perp_position_when_no_usdc_in_account() {
     let atom_info = uatom_info();
     let usdc_info = coin_info("uusdc");
 
+    let vault_coin_deposited = coin(100000, usdc_info.denom.clone());
+
     let contract_owner = Addr::unchecked("owner");
     let cm_user = Addr::unchecked("user");
     let vault_depositor = Addr::unchecked("vault_depositor");
@@ -282,11 +295,12 @@ fn perp_position_when_no_usdc_in_account() {
         })
         .fund_account(AccountToFund {
             addr: vault_depositor.clone(),
-            funds: vec![coin(100000, usdc_info.denom.clone())],
+            funds: vec![vault_coin_deposited.clone()],
         })
         .build()
         .unwrap();
-    let account_id = mock.create_credit_account(&cm_user).unwrap();
+    let trader_account_id = mock.create_credit_account(&cm_user).unwrap();
+    let vault_depositor_account_id = mock.create_credit_account(&vault_depositor).unwrap();
 
     // setup params contract
     mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
@@ -301,7 +315,14 @@ fn perp_position_when_no_usdc_in_account() {
         Decimal::from_str("1000000").unwrap(),
     )
     .unwrap();
-    mock.deposit_to_perp_vault(&vault_depositor, &coin(100000, usdc_info.denom.clone())).unwrap();
+    mock.update_credit_account(
+        &vault_depositor_account_id,
+        &vault_depositor,
+        vec![Deposit(vault_coin_deposited.clone())],
+        &[vault_coin_deposited.clone()],
+    )
+    .unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
 
     let perp_size = SignedDecimal::from_str("400").unwrap();
 
@@ -311,7 +332,7 @@ fn perp_position_when_no_usdc_in_account() {
 
     // open perp position
     mock.update_credit_account(
-        &account_id,
+        &trader_account_id,
         &cm_user,
         vec![
             Deposit(osmo_coin_deposited.clone()),
@@ -325,7 +346,7 @@ fn perp_position_when_no_usdc_in_account() {
     .unwrap();
 
     // check position data
-    let position = mock.query_positions(&account_id);
+    let position = mock.query_positions(&trader_account_id);
     assert_eq!(position.deposits.len(), 1);
     assert_present(&position, &osmo_coin_deposited.denom, osmo_coin_deposited.amount);
     assert_eq!(position.lends.len(), 0);
@@ -335,7 +356,8 @@ fn perp_position_when_no_usdc_in_account() {
     assert_eq!(debt.amount, expected_pos_debt_after_opening_perp);
     assert_eq!(position.perps.len(), 1);
     let perp_position = position.perps.first().unwrap().clone();
-    let expected_perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
+    let expected_perp_position =
+        mock.query_perp_position(&trader_account_id, &atom_info.denom).position;
     assert_eq!(perp_position, expected_perp_position);
 
     // check if perp balance increased by opening fee
@@ -352,12 +374,12 @@ fn perp_position_when_no_usdc_in_account() {
     });
 
     // check perp position pnl
-    let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
+    let perp_position = mock.query_perp_position(&trader_account_id, &atom_info.denom).position;
     let loss_amt = pnl_loss(perp_position.unrealised_pnl.coins.pnl);
 
     // close perp position
     mock.update_credit_account(
-        &account_id,
+        &trader_account_id,
         &cm_user,
         vec![ClosePerp {
             denom: atom_info.denom.clone(),
@@ -367,7 +389,7 @@ fn perp_position_when_no_usdc_in_account() {
     .unwrap();
 
     // check position data
-    let position = mock.query_positions(&account_id);
+    let position = mock.query_positions(&trader_account_id);
     assert_eq!(position.deposits.len(), 1);
     assert_present(&position, &osmo_coin_deposited.denom, osmo_coin_deposited.amount);
     assert_eq!(position.lends.len(), 0);
@@ -816,6 +838,8 @@ fn setup(
     let contract_owner = Addr::unchecked("owner");
     let vault_depositor = Addr::unchecked("vault_depositor");
 
+    let vault_coin_deposited = coin(100000, usdc_info.denom.clone());
+
     let mut mock = MockEnv::new()
         .owner(contract_owner.as_str())
         .set_params(&[osmo_info.clone(), atom_info.clone(), usdc_info.clone()])
@@ -825,11 +849,13 @@ fn setup(
         })
         .fund_account(AccountToFund {
             addr: vault_depositor.clone(),
-            funds: vec![coin(100000, usdc_info.denom.clone())],
+            funds: vec![vault_coin_deposited.clone()],
         })
         .build()
         .unwrap();
-    let account_id = mock.create_credit_account(cm_user).unwrap();
+
+    let trader_account_id = mock.create_credit_account(cm_user).unwrap();
+    let vault_depositor_account_id = mock.create_credit_account(&vault_depositor).unwrap();
 
     // setup params contract
     mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
@@ -844,17 +870,25 @@ fn setup(
         Decimal::from_str("1000000").unwrap(),
     )
     .unwrap();
-    mock.deposit_to_perp_vault(&vault_depositor, &coin(100000, usdc_info.denom.clone())).unwrap();
 
     mock.update_credit_account(
-        &account_id,
+        &vault_depositor_account_id,
+        &vault_depositor,
+        vec![Deposit(vault_coin_deposited.clone())],
+        &[vault_coin_deposited.clone()],
+    )
+    .unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
+
+    mock.update_credit_account(
+        &trader_account_id,
         cm_user,
         vec![Deposit(osmo_coin_deposited.clone()), Deposit(usdc_coin_deposited.clone())],
         &[osmo_coin_deposited.clone(), usdc_coin_deposited.clone()],
     )
     .unwrap();
 
-    (mock, account_id)
+    (mock, trader_account_id)
 }
 
 fn pnl_profit(pnl: PnL) -> Uint128 {

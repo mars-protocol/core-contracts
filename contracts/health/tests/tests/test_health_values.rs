@@ -57,6 +57,7 @@ fn computes_correct_position_with_zero_assets() {
             lends: vec![],
             vaults: vec![],
             perps: vec![],
+            perp_vault: None,
         },
     );
 
@@ -103,6 +104,7 @@ fn adds_vault_base_denoms_to_oracle_and_red_bank() {
                 }),
             }],
             perps: vec![],
+            perp_vault: None,
         },
     );
 
@@ -220,6 +222,7 @@ fn whitelisted_coins_work() {
             lends: vec![],
             vaults: vec![],
             perps: vec![],
+            perp_vault: None,
         },
     );
 
@@ -277,6 +280,7 @@ fn vault_whitelist_affects_max_ltv() {
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(vault_token_amount)),
             }],
             perps: vec![],
+            perp_vault: None,
         },
     );
 

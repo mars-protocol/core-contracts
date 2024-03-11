@@ -1,7 +1,9 @@
 use std::{default::Default, mem::take};
 
 use anyhow::Result as AnyResult;
-use cosmwasm_std::{coins, testing::MockApi, Addr, Coin, Decimal, Empty, StdResult, Uint128};
+use cosmwasm_std::{
+    coins, testing::MockApi, Addr, Coin, Decimal, Empty, StdResult, Timestamp, Uint128,
+};
 use cw721::TokensResponse;
 use cw721_base::{Action::TransferOwnership, Ownership};
 use cw_multi_test::{App, AppResponse, BankSudo, BasicApp, Executor, SudoMsg};
@@ -36,8 +38,8 @@ use mars_types::{
     address_provider::{self, MarsAddressType},
     credit_manager::{
         Account, Action, CallbackMsg, CoinBalanceResponseItem, ConfigResponse, ConfigUpdates,
-        DebtShares, ExecuteMsg, InstantiateMsg, Positions, QueryMsg,
-        QueryMsg::{EstimateProvideLiquidity, VaultPositionValue},
+        DebtShares, ExecuteMsg, InstantiateMsg, Positions,
+        QueryMsg::{self, EstimateProvideLiquidity, VaultPositionValue},
         SharesResponseItem, VaultPositionResponseItem, VaultUtilizationResponse,
     },
     health::{
@@ -48,13 +50,13 @@ use mars_types::{
     math::SignedDecimal,
     oracle::ActionKind,
     params::{
-        AssetParams, AssetParamsUpdate,
-        AssetParamsUpdate::AddOrUpdate,
+        AssetParams,
+        AssetParamsUpdate::{self, AddOrUpdate},
         ExecuteMsg::{UpdateAssetParams, UpdatePerpParams, UpdateVaultConfig},
         InstantiateMsg as ParamsInstantiateMsg, PerpParamsUpdate, QueryMsg as ParamsQueryMsg,
         VaultConfig, VaultConfigUnchecked, VaultConfigUpdate,
     },
-    perps::{self, InstantiateMsg as PerpsInstantiateMsg, PositionResponse, TradingFee},
+    perps::{self, Config, InstantiateMsg as PerpsInstantiateMsg, PositionResponse, TradingFee},
     red_bank::{
         self, InitOrUpdateAssetParams, InterestRateModel,
         QueryMsg::{UserCollateral, UserDebt},
@@ -380,18 +382,34 @@ impl MockEnv {
         )
     }
 
-    pub fn deposit_to_perp_vault(&mut self, sender: &Addr, coin: &Coin) -> AnyResult<AppResponse> {
+    pub fn deposit_to_perp_vault(
+        &mut self,
+        account_id: &str,
+        coin: &Coin,
+    ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
-            sender.clone(),
+            self.rover.clone(),
             self.perps.address().clone(),
-            &perps::ExecuteMsg::Deposit {},
+            &perps::ExecuteMsg::Deposit {
+                account_id: account_id.to_string(),
+            },
             &[coin.clone()],
         )
+    }
+
+    pub fn set_block_time(&mut self, seconds: u64) {
+        self.app.update_block(|block| {
+            block.time = Timestamp::from_seconds(seconds);
+        })
     }
 
     //--------------------------------------------------------------------------------------------------
     // Queries
     //--------------------------------------------------------------------------------------------------
+
+    pub fn query_block_time(&self) -> u64 {
+        self.app.block_info().time.seconds()
+    }
 
     pub fn query_positions(&self, account_id: &str) -> Positions {
         self.app
@@ -802,6 +820,10 @@ impl MockEnv {
                 },
             )
             .unwrap()
+    }
+
+    pub fn query_perp_config(&self) -> Config<String> {
+        self.app.wrap().query_wasm_smart(self.perps.address(), &perps::QueryMsg::Config {}).unwrap()
     }
 }
 

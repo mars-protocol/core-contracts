@@ -14,11 +14,11 @@ pub const VAULT_STATE: Item<VaultState> = Item::new("gs");
 // denom => denom state
 pub const DENOM_STATES: Map<&str, DenomState> = Map::new("ds");
 
-// depositor_addr => shares
-pub const DEPOSIT_SHARES: Map<&Addr, Uint128> = Map::new("s");
+// account id => shares
+pub const DEPOSIT_SHARES: Map<&str, Uint128> = Map::new("s");
 
-// depositor_addr => unlocks
-pub const UNLOCKS: Map<&Addr, Vec<UnlockState>> = Map::new("ul");
+// account id => unlocks
+pub const UNLOCKS: Map<&str, Vec<UnlockState>> = Map::new("ul");
 
 // (account_id, denom) => position
 pub const POSITIONS: Map<(&str, &str), Position> = Map::new("p");
@@ -36,10 +36,10 @@ pub const TOTAL_CASH_FLOW: Item<CashFlow> = Item::new("tcf");
 /// Return the updated deposit shares.
 pub fn increase_deposit_shares(
     store: &mut dyn Storage,
-    depositor: &Addr,
+    account_id: &str,
     shares: Uint128,
 ) -> StdResult<Uint128> {
-    DEPOSIT_SHARES.update(store, depositor, |old_shares| {
+    DEPOSIT_SHARES.update(store, account_id, |old_shares| {
         old_shares.unwrap_or_else(Uint128::zero).checked_add(shares).map_err(StdError::overflow)
     })
 }
@@ -49,18 +49,18 @@ pub fn increase_deposit_shares(
 /// If the shares is reduced to zero, delete the entry from contract store.
 pub fn decrease_deposit_shares(
     store: &mut dyn Storage,
-    depositor: &Addr,
+    account_id: &str,
     shares: Uint128,
 ) -> StdResult<Uint128> {
     let shares = DEPOSIT_SHARES
-        .may_load(store, depositor)?
+        .may_load(store, account_id)?
         .unwrap_or_else(Uint128::zero)
         .checked_sub(shares)?;
 
     if shares.is_zero() {
-        DEPOSIT_SHARES.remove(store, depositor);
+        DEPOSIT_SHARES.remove(store, account_id);
     } else {
-        DEPOSIT_SHARES.save(store, depositor, &shares)?;
+        DEPOSIT_SHARES.save(store, account_id, &shares)?;
     }
 
     Ok(shares)

@@ -1,10 +1,10 @@
-use cosmwasm_std::{Coin, Deps, DepsMut, Response, Uint128};
+use cosmwasm_std::{Coin, DepsMut, Response};
 use mars_types::credit_manager::ActionCoin;
 
 use crate::{
-    error::{ContractError, ContractResult},
-    state::{COIN_BALANCES, RED_BANK},
-    utils::{assert_coin_is_whitelisted, decrement_coin_balance},
+    error::ContractResult,
+    state::RED_BANK,
+    utils::{assert_coin_is_whitelisted, decrement_coin_balance, get_amount_from_action_coin},
 };
 
 pub fn lend(mut deps: DepsMut, account_id: &str, coin: &ActionCoin) -> ContractResult<Response> {
@@ -12,7 +12,7 @@ pub fn lend(mut deps: DepsMut, account_id: &str, coin: &ActionCoin) -> ContractR
 
     let amount_to_lend = Coin {
         denom: coin.denom.to_string(),
-        amount: get_lend_amount(deps.as_ref(), account_id, coin)?,
+        amount: get_amount_from_action_coin(deps.as_ref(), account_id, coin)?,
     };
 
     decrement_coin_balance(deps.storage, account_id, &amount_to_lend)?;
@@ -24,20 +24,4 @@ pub fn lend(mut deps: DepsMut, account_id: &str, coin: &ActionCoin) -> ContractR
         .add_attribute("action", "lend")
         .add_attribute("account_id", account_id)
         .add_attribute("coin_lent", &amount_to_lend.denom))
-}
-
-/// Queries balance to ensure passing EXACT is not too high.
-/// Also asserts the amount is greater than zero.
-fn get_lend_amount(deps: Deps, account_id: &str, coin: &ActionCoin) -> ContractResult<Uint128> {
-    let amount_to_lend = if let Some(amount) = coin.amount.value() {
-        amount
-    } else {
-        COIN_BALANCES.may_load(deps.storage, (account_id, &coin.denom))?.unwrap_or(Uint128::zero())
-    };
-
-    if amount_to_lend.is_zero() {
-        Err(ContractError::NoAmount)
-    } else {
-        Ok(amount_to_lend)
-    }
 }

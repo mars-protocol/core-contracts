@@ -13,9 +13,9 @@ use mars_types::{
     oracle,
     params::{self, ExecuteMsg::UpdatePerpParams, PerpParamsUpdate},
     perps::{
-        self, Accounting, Config, DenomStateResponse, DepositResponse, PerpDenomState, PnlAmounts,
-        PnlValues, PositionFeesResponse, PositionResponse, PositionsByAccountResponse, TradingFee,
-        UnlockState, VaultState,
+        self, Accounting, Config, DenomStateResponse, DepositResponse, PerpDenomState,
+        PerpVaultPosition, PnlAmounts, PnlValues, PositionFeesResponse, PositionResponse,
+        PositionsByAccountResponse, TradingFee, UnlockState, VaultState,
     },
 };
 
@@ -163,31 +163,50 @@ impl MockEnv {
         )
     }
 
-    pub fn deposit_to_vault(&mut self, sender: &Addr, funds: &[Coin]) -> AnyResult<AppResponse> {
+    pub fn deposit_to_vault(
+        &mut self,
+        sender: &Addr,
+        account_id: &str,
+        funds: &[Coin],
+    ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
             self.perps.clone(),
-            &perps::ExecuteMsg::Deposit {},
+            &perps::ExecuteMsg::Deposit {
+                account_id: account_id.to_string(),
+            },
             funds,
         )
     }
 
-    pub fn unlock_from_vault(&mut self, sender: &Addr, shares: Uint128) -> AnyResult<AppResponse> {
+    pub fn unlock_from_vault(
+        &mut self,
+        sender: &Addr,
+        account_id: &str,
+        shares: Uint128,
+    ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
             self.perps.clone(),
             &perps::ExecuteMsg::Unlock {
+                account_id: account_id.to_string(),
                 shares,
             },
             &[],
         )
     }
 
-    pub fn withdraw_from_vault(&mut self, sender: &Addr) -> AnyResult<AppResponse> {
+    pub fn withdraw_from_vault(
+        &mut self,
+        sender: &Addr,
+        account_id: &str,
+    ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
             self.perps.clone(),
-            &perps::ExecuteMsg::Withdraw {},
+            &perps::ExecuteMsg::Withdraw {
+                account_id: account_id.to_string(),
+            },
             &[],
         )
     }
@@ -346,7 +365,7 @@ impl MockEnv {
             .query_wasm_smart(
                 self.perps.clone(),
                 &perps::QueryMsg::Deposit {
-                    depositor: depositor.to_string(),
+                    account_id: depositor.to_string(),
                 },
             )
             .unwrap()
@@ -358,7 +377,19 @@ impl MockEnv {
             .query_wasm_smart(
                 self.perps.clone(),
                 &perps::QueryMsg::Unlocks {
-                    depositor: depositor.to_string(),
+                    account_id: depositor.to_string(),
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_vault_position(&self, account_id: &str) -> Option<PerpVaultPosition> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.clone(),
+                &perps::QueryMsg::PerpVaultPosition {
+                    account_id: account_id.to_string(),
                 },
             )
             .unwrap()

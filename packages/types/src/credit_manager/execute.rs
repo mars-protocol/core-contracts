@@ -155,6 +155,15 @@ pub enum Action {
         recipient_account_id: Option<String>,
         coin: ActionCoin,
     },
+    /// Provide liquidity of the base token to the perp vault
+    DepositToPerpVault(ActionCoin),
+    /// Unlock liquidity from the perp vault. The unlocked tokens will have to wait
+    /// a cooldown period before they can be withdrawn.
+    UnlockFromPerpVault {
+        shares: Uint128,
+    },
+    /// Withdraw liquidity from the perp vault
+    WithdrawFromPerpVault {},
     /// Open a new perpetual futures position
     OpenPerp {
         denom: String,
@@ -305,6 +314,20 @@ pub enum CallbackMsg {
     AssertDepositCaps {
         denoms: BTreeSet<String>,
     },
+    /// Corresponding to the DepositToPerpVault action
+    DepositToPerpVault {
+        account_id: String,
+        coin: ActionCoin,
+    },
+    /// Corresponding to the UnlockFromPerpVault action
+    UnlockFromPerpVault {
+        account_id: String,
+        shares: Uint128,
+    },
+    /// Corresponding to the WithdrawFromPerpVault action
+    WithdrawFromPerpVault {
+        account_id: String,
+    },
     /// Corresponding to the OpenPerp action
     OpenPerp {
         account_id: String,
@@ -316,6 +339,7 @@ pub enum CallbackMsg {
         account_id: String,
         denom: String,
     },
+    /// Corresponding to the ModifyPerp action
     ModifyPerp {
         account_id: String,
         denom: String,

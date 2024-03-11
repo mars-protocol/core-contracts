@@ -442,16 +442,26 @@ pub enum ExecuteMsg {
     /// The deposited tokens will be used to settle perp trades. liquidity
     /// providers win if traders have negative PnLs, or loss if traders have
     /// positive PnLs.
-    Deposit {},
+    Deposit {
+        /// The user's credit account token ID
+        account_id: String,
+    },
 
     /// Unlock liquidity from the vault. The unlocked tokens will have to wait
     /// a cooldown period before they can be withdrawn.
     Unlock {
+        /// The user's credit account token ID
+        account_id: String,
+
+        /// The amount of shares to unlock
         shares: Uint128,
     },
 
     /// Withdraw liquidity from the vault.
-    Withdraw {},
+    Withdraw {
+        /// The user's credit account token ID
+        account_id: String,
+    },
 
     /// Open a new perp position.
     ///
@@ -527,13 +537,18 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
 
+    #[returns(Option<PerpVaultPosition>)]
+    PerpVaultPosition {
+        account_id: String,
+    },
+
     /// Query the amount of deposit made to the vault by a single user
     //
     // TODO: in case a deposit is not found, should we return zero (the current
     // behavior) or throw an error?
     #[returns(DepositResponse)]
     Deposit {
-        depositor: String,
+        account_id: String,
     },
 
     /// List all deposits to the vault
@@ -545,7 +560,7 @@ pub enum QueryMsg {
 
     #[returns(Vec<UnlockState>)]
     Unlocks {
-        depositor: String,
+        account_id: String,
     },
 
     /// Query a single perp position by ID
@@ -616,7 +631,28 @@ pub struct DenomStateResponse {
 
 #[cw_serde]
 pub struct DepositResponse {
-    pub depositor: String,
+    pub account_id: String,
+    pub shares: Uint128,
+    pub amount: Uint128,
+}
+
+#[cw_serde]
+pub struct PerpVaultPosition {
+    pub denom: String,
+    pub deposit: PerpVaultDeposit,
+    pub unlocks: Vec<UnlockState>,
+}
+
+impl PerpVaultPosition {
+    /// The total amount of the deposit and all unlocks
+    pub fn total_amount(&self) -> Uint128 {
+        self.deposit.amount + self.unlocks.iter().map(|u| u.amount).sum::<Uint128>()
+    }
+}
+
+#[cw_serde]
+#[derive(Default)]
+pub struct PerpVaultDeposit {
     pub shares: Uint128,
     pub amount: Uint128,
 }

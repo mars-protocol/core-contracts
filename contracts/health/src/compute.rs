@@ -35,6 +35,11 @@ pub fn compute_health(
         .collect::<StdResult<HashMap<_, _>>>()?;
     let vault_base_token_denoms = vault_infos.values().map(|v| &v.base_token).collect::<Vec<_>>();
     let perp_denoms = positions.perps.iter().map(|p| &p.denom).collect::<Vec<_>>();
+    let perp_vault_denoms = if let Some(p) = &positions.perp_vault {
+        vec![&p.denom]
+    } else {
+        vec![]
+    };
 
     // Collect prices + asset
     let mut asset_params: HashMap<String, AssetParams> = HashMap::new();
@@ -45,6 +50,7 @@ pub fn compute_health(
         .chain(debt_denoms)
         .chain(lend_denoms)
         .chain(vault_base_token_denoms)
+        .chain(perp_vault_denoms)
         .try_for_each(|denom| -> StdResult<()> {
             // Asset data
             let price = q.oracle.query_price(&deps.querier, denom, action.clone())?.price;

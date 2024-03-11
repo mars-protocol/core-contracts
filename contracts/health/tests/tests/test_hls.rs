@@ -40,6 +40,7 @@ fn hls_account_kind_passed_along() {
             amount: VaultPositionAmount::Unlocked(VaultAmount::new(vault_token_amount)),
         }],
         perps: vec![],
+        perp_vault: None,
     };
     mock.set_positions_response(account_id, &positions);
     mock.set_price(debt_token, Decimal::one(), ActionKind::Default);

@@ -1,7 +1,7 @@
 import { DeploymentConfig, AssetConfig, OracleConfig, PerpDenom } from '../../types/config'
 import { NeutronIbcConfig } from '../../types/generated/mars-rewards-collector-base/MarsRewardsCollectorBase.types'
 
-const axlUsdcDenom = 'ibc/F91EA2C0A23697A1048E08C2F787E3A58AC6F706A1CD2257A504925158CFC0F3'
+const nobleUsdcDenom = 'ibc/4C19E7EC06C1AB2EC2D70C6855FEB6D48E9CE174913991DA0A517D21978E7E42'
 const atomDenom = 'ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9'
 const marsDenom = 'ibc/584A4A23736884E0C198FD1EE932455A9357A492A7B94324E4A02B5628687831'
 
@@ -84,8 +84,8 @@ export const atomOracle: OracleConfig = {
   },
 }
 
-export const axlUSDCOracle: OracleConfig = {
-  denom: axlUsdcDenom,
+export const nobleUSDCOracle: OracleConfig = {
+  denom: nobleUsdcDenom,
   price_source: {
     pyth: {
       contract_addr: pythAddr,
@@ -110,7 +110,7 @@ export const usdOracle: OracleConfig = {
 // Router configurations
 export const atomUsdcRoute = {
   denom_in: atomDenom,
-  denom_out: axlUsdcDenom,
+  denom_out: nobleUsdcDenom,
   route: {
     factory: astroportFactory,
     operations: [
@@ -118,7 +118,7 @@ export const atomUsdcRoute = {
         astro_swap: {
           ask_asset_info: {
             native_token: {
-              denom: axlUsdcDenom,
+              denom: nobleUsdcDenom,
             },
           },
           offer_asset_info: {
@@ -136,7 +136,7 @@ export const atomUsdcRoute = {
 
 export const ntrnUsdcRoute = {
   denom_in: 'untrn',
-  denom_out: axlUsdcDenom,
+  denom_out: nobleUsdcDenom,
   route: {
     factory: astroportFactory,
     operations: [
@@ -144,7 +144,7 @@ export const ntrnUsdcRoute = {
         astro_swap: {
           ask_asset_info: {
             native_token: {
-              denom: axlUsdcDenom,
+              denom: nobleUsdcDenom,
             },
           },
           offer_asset_info: {
@@ -213,7 +213,7 @@ export const ntrnMarsRoute = {
 }
 
 export const usdcMarsRoute = {
-  denom_in: axlUsdcDenom,
+  denom_in: nobleUsdcDenom,
   denom_out: marsDenom,
   route: {
     factory: astroportFactory,
@@ -227,7 +227,7 @@ export const usdcMarsRoute = {
           },
           offer_asset_info: {
             native_token: {
-              denom: axlUsdcDenom,
+              denom: nobleUsdcDenom,
             },
           },
         },
@@ -301,8 +301,8 @@ export const atomAsset: AssetConfig = {
   close_factor: '0.9',
 }
 
-export const axlUSDCAsset: AssetConfig = {
-  denom: axlUsdcDenom,
+export const nobleUSDCAsset: AssetConfig = {
+  denom: nobleUsdcDenom,
   max_loan_to_value: '0.74',
   liquidation_threshold: '0.75',
   liquidation_bonus: {
@@ -392,7 +392,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
     channelId: marsNeutronChannelId,
     safetyFundFeeShare: '0.5',
     feeCollectorDenom: marsDenom,
-    safetyFundDenom: axlUsdcDenom,
+    safetyFundDenom: nobleUsdcDenom,
     slippageTolerance: '0.01',
     neutronIbcConfig: neutronIbcConfig,
   },
@@ -406,7 +406,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
   },
   creditLineCoins: [
     { denom: 'untrn', creditLine: defaultCreditLine },
-    { denom: axlUsdcDenom, creditLine: defaultCreditLine },
+    { denom: nobleUsdcDenom, creditLine: defaultCreditLine },
     { denom: atomDenom, creditLine: defaultCreditLine },
   ],
   maxValueForBurn: '10000',
@@ -414,11 +414,11 @@ export const neutronTestnetConfig: DeploymentConfig = {
   maxSlippage: '0.2',
   zapperContractName: 'mars_zapper_osmosis',
   runTests: false,
-  assets: [ntrnAsset, atomAsset, axlUSDCAsset],
+  assets: [ntrnAsset, atomAsset, nobleUSDCAsset],
   vaults: [],
-  oracleConfigs: [usdOracle, axlUSDCOracle, atomOracle, ntrnOracle],
+  oracleConfigs: [usdOracle, nobleUSDCOracle, atomOracle, ntrnOracle],
   perps: {
-    baseDenom: axlUsdcDenom,
+    baseDenom: nobleUsdcDenom,
     cooldownPeriod: 300, // 5 min
     minPositionValue: '0',
     openingFeeRate: '0.0005',

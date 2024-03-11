@@ -154,8 +154,17 @@ pub fn disable_denom(
     Ok(Response::new().add_attribute("method", "disable_denom").add_attribute("denom", denom))
 }
 
-pub fn deposit(deps: DepsMut, info: MessageInfo, current_time: u64) -> ContractResult<Response> {
+pub fn deposit(
+    deps: DepsMut,
+    info: MessageInfo,
+    current_time: u64,
+    account_id: &str,
+) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
+
+    // only the credit manager contract can open positions
+    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+
     let mut vs = VAULT_STATE.load(deps.storage)?;
 
     // find the deposit amount
@@ -171,7 +180,7 @@ pub fn deposit(deps: DepsMut, info: MessageInfo, current_time: u64) -> ContractR
     VAULT_STATE.save(deps.storage, &vs)?;
 
     // increment the user's deposit shares
-    increase_deposit_shares(deps.storage, &info.sender, shares)?;
+    increase_deposit_shares(deps.storage, account_id, shares)?;
 
     Ok(Response::new()
         .add_attribute("method", "deposit")
@@ -181,11 +190,16 @@ pub fn deposit(deps: DepsMut, info: MessageInfo, current_time: u64) -> ContractR
 
 pub fn unlock(
     deps: DepsMut,
+    info: MessageInfo,
     current_time: u64,
-    depositor: &Addr,
+    account_id: &str,
     shares: Uint128,
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
+
+    // only the credit manager contract can open positions
+    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+
     let mut vs = VAULT_STATE.load(deps.storage)?;
 
     // convert the shares to amount
@@ -203,11 +217,11 @@ pub fn unlock(
     VAULT_STATE.save(deps.storage, &vs)?;
 
     // decrement the user's deposit shares
-    decrease_deposit_shares(deps.storage, depositor, shares)?;
+    decrease_deposit_shares(deps.storage, account_id, shares)?;
 
     // add new unlock position
     let cooldown_end = current_time + cfg.cooldown_period;
-    UNLOCKS.update(deps.storage, depositor, |maybe_unlocks| {
+    UNLOCKS.update(deps.storage, account_id, |maybe_unlocks| {
         let mut unlocks = maybe_unlocks.unwrap_or_default();
 
         unlocks.push(UnlockState {
@@ -229,11 +243,16 @@ pub fn unlock(
 
 pub fn withdraw(
     store: &mut dyn Storage,
+    info: MessageInfo,
     current_time: u64,
-    depositor: &Addr,
+    account_id: &str,
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(store)?;
-    let unlocks = UNLOCKS.load(store, depositor)?;
+
+    // only the credit manager contract can open positions
+    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+
+    let unlocks = UNLOCKS.load(store, account_id)?;
 
     // find all unlocked positions
     let (unlocked, unlocking): (Vec<_>, Vec<_>) =
@@ -246,9 +265,9 @@ pub fn withdraw(
 
     // clear state if no more unlocking positions
     if unlocking.is_empty() {
-        UNLOCKS.remove(store, depositor);
+        UNLOCKS.remove(store, account_id);
     } else {
-        UNLOCKS.save(store, depositor, &unlocking)?;
+        UNLOCKS.save(store, account_id, &unlocking)?;
     }
 
     // compute the total amount to be withdrawn
@@ -258,7 +277,7 @@ pub fn withdraw(
         .add_attribute("method", "withdraw")
         .add_attribute("amount", unlocked_amt)
         .add_message(BankMsg::Send {
-            to_address: depositor.into(),
+            to_address: info.sender.into(),
             amount: coins(unlocked_amt.u128(), cfg.base_denom),
         }))
 }

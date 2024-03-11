@@ -111,6 +111,17 @@ export type Action =
       }
     }
   | {
+      deposit_to_perp_vault: ActionCoin
+    }
+  | {
+      unlock_from_perp_vault: {
+        shares: Uint128
+      }
+    }
+  | {
+      withdraw_from_perp_vault: {}
+    }
+  | {
       open_perp: {
         denom: string
         size: SignedDecimal

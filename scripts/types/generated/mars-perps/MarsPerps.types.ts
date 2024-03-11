@@ -42,15 +42,20 @@ export type ExecuteMsg =
       }
     }
   | {
-      deposit: {}
+      deposit: {
+        account_id: string
+      }
     }
   | {
       unlock: {
+        account_id: string
         shares: Uint128
       }
     }
   | {
-      withdraw: {}
+      withdraw: {
+        account_id: string
+      }
     }
   | {
       open_position: {
@@ -119,8 +124,13 @@ export type QueryMsg =
       }
     }
   | {
+      perp_vault_position: {
+        account_id: string
+      }
+    }
+  | {
       deposit: {
-        depositor: string
+        account_id: string
       }
     }
   | {
@@ -131,7 +141,7 @@ export type QueryMsg =
     }
   | {
       unlocks: {
-        depositor: string
+        account_id: string
       }
     }
   | {
@@ -233,8 +243,8 @@ export interface Funding {
 }
 export type ArrayOfDenomStateResponse = DenomStateResponse[]
 export interface DepositResponse {
+  account_id: string
   amount: Uint128
-  depositor: string
   shares: Uint128
 }
 export type ArrayOfDepositResponse = DepositResponse[]
@@ -270,6 +280,21 @@ export interface PnlValues {
   closing_fee: SignedDecimal
   pnl: SignedDecimal
   price_pnl: SignedDecimal
+}
+export type NullablePerpVaultPosition = PerpVaultPosition | null
+export interface PerpVaultPosition {
+  denom: string
+  deposit: PerpVaultDeposit
+  unlocks: UnlockState[]
+}
+export interface PerpVaultDeposit {
+  amount: Uint128
+  shares: Uint128
+}
+export interface UnlockState {
+  amount: Uint128
+  cooldown_end: number
+  created_at: number
 }
 export type PnL =
   | 'break_even'
@@ -317,11 +342,6 @@ export interface PositionsByAccountResponse {
   positions: PerpPosition[]
 }
 export type ArrayOfUnlockState = UnlockState[]
-export interface UnlockState {
-  amount: Uint128
-  cooldown_end: number
-  created_at: number
-}
 export interface VaultState {
   total_liquidity: Uint128
   total_shares: Uint128

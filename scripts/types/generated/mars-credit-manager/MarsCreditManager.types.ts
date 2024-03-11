@@ -85,6 +85,17 @@ export type Action =
       }
     }
   | {
+      deposit_to_perp_vault: ActionCoin
+    }
+  | {
+      unlock_from_perp_vault: {
+        shares: Uint128
+      }
+    }
+  | {
+      withdraw_from_perp_vault: {}
+    }
+  | {
       open_perp: {
         denom: string
         size: SignedDecimal
@@ -294,6 +305,23 @@ export type CallbackMsg =
   | {
       assert_deposit_caps: {
         denoms: string[]
+      }
+    }
+  | {
+      deposit_to_perp_vault: {
+        account_id: string
+        coin: ActionCoin
+      }
+    }
+  | {
+      unlock_from_perp_vault: {
+        account_id: string
+        shares: Uint128
+      }
+    }
+  | {
+      withdraw_from_perp_vault: {
+        account_id: string
       }
     }
   | {
@@ -661,6 +689,7 @@ export interface Positions {
   debts: DebtAmount[]
   deposits: Coin[]
   lends: Coin[]
+  perp_vault?: PerpVaultPosition | null
   perps: PerpPosition[]
   vaults: VaultPosition[]
 }
@@ -668,6 +697,20 @@ export interface DebtAmount {
   amount: Uint128
   denom: string
   shares: Uint128
+}
+export interface PerpVaultPosition {
+  denom: string
+  deposit: PerpVaultDeposit
+  unlocks: UnlockState[]
+}
+export interface PerpVaultDeposit {
+  amount: Uint128
+  shares: Uint128
+}
+export interface UnlockState {
+  amount: Uint128
+  cooldown_end: number
+  created_at: number
 }
 export interface PerpPosition {
   base_denom: string

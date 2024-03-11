@@ -897,19 +897,23 @@ impl HealthComputer {
         let deposits = self.coins_value(&self.positions.deposits)?;
         let lends = self.coins_value(&self.positions.lends)?;
         let vaults = self.vaults_value()?;
+        let perp_vault = self.perp_vault_value()?;
 
         Ok(CollateralValue {
             total_collateral_value: deposits
                 .total_collateral_value
                 .checked_add(vaults.total_collateral_value)?
+                .checked_add(perp_vault.total_collateral_value)?
                 .checked_add(lends.total_collateral_value)?,
             max_ltv_adjusted_collateral: deposits
                 .max_ltv_adjusted_collateral
                 .checked_add(vaults.max_ltv_adjusted_collateral)?
+                .checked_add(perp_vault.max_ltv_adjusted_collateral)?
                 .checked_add(lends.max_ltv_adjusted_collateral)?,
             liquidation_threshold_adjusted_collateral: deposits
                 .liquidation_threshold_adjusted_collateral
                 .checked_add(vaults.liquidation_threshold_adjusted_collateral)?
+                .checked_add(perp_vault.liquidation_threshold_adjusted_collateral)?
                 .checked_add(lends.liquidation_threshold_adjusted_collateral)?,
         })
     }
@@ -1035,6 +1039,59 @@ impl HealthComputer {
                 liquidation_threshold_adjusted_collateral
                     .checked_add(res.liquidation_threshold_adjusted_collateral)?;
         }
+
+        Ok(CollateralValue {
+            total_collateral_value,
+            max_ltv_adjusted_collateral,
+            liquidation_threshold_adjusted_collateral,
+        })
+    }
+
+    // FIXME: use own risk params for perp vault? To be confirmed with Risk Team
+    fn perp_vault_value(&self) -> HealthResult<CollateralValue> {
+        let Some(perp_vault) = &self.positions.perp_vault else {
+            return Ok(CollateralValue {
+                total_collateral_value: Uint128::zero(),
+                max_ltv_adjusted_collateral: Uint128::zero(),
+                liquidation_threshold_adjusted_collateral: Uint128::zero(),
+            });
+        };
+
+        let perp_vault_denom = &perp_vault.denom;
+        let perp_vault_amount = perp_vault.total_amount();
+
+        let coin_price = self
+            .oracle_prices
+            .get(perp_vault_denom)
+            .ok_or(MissingPrice(perp_vault_denom.clone()))?;
+        let total_collateral_value = perp_vault_amount.checked_mul_floor(*coin_price)?;
+
+        let AssetParams {
+            credit_manager: CmSettings {
+                hls,
+                ..
+            },
+            liquidation_threshold,
+            ..
+        } = self
+            .asset_params
+            .get(perp_vault_denom)
+            .ok_or(MissingAssetParams(perp_vault_denom.clone()))?;
+
+        let checked_max_ltv = self.get_coin_max_ltv(perp_vault_denom)?;
+        let max_ltv_adjusted_collateral =
+            total_collateral_value.checked_mul_floor(checked_max_ltv)?;
+
+        let checked_liquidation_threshold = match self.kind {
+            AccountKind::Default => *liquidation_threshold,
+            AccountKind::HighLeveredStrategy => {
+                hls.as_ref()
+                    .ok_or(MissingHLSParams(perp_vault_denom.clone()))?
+                    .liquidation_threshold
+            }
+        };
+        let liquidation_threshold_adjusted_collateral =
+            total_collateral_value.checked_mul_floor(checked_liquidation_threshold)?;
 
         Ok(CollateralValue {
             total_collateral_value,

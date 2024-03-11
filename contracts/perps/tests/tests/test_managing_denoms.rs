@@ -174,16 +174,17 @@ fn funding_change_accordingly_to_denom_state_modification() {
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
-    let depositor = Addr::unchecked("peter");
+    let depositor = "peter";
 
     // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
-    mock.fund_accounts(&[&credit_manager, &depositor], 1_000_000_000_000u128, &["ueth", "uusdc"]);
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["ueth", "uusdc"]);
 
     mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
     mock.set_price(&owner, "ueth", Decimal::from_str("2000").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&depositor, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
+    mock.deposit_to_vault(&credit_manager, depositor, &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
 
     // prepare denom state
     mock.init_denom(

@@ -7,8 +7,9 @@ use mars_types::{
     oracle::ActionKind,
     perps::{
         Accounting, Config, DenomState, DenomStateResponse, DepositResponse, PerpDenomState,
-        PerpPosition, PnlAmounts, PnlValues, PositionFeesResponse, PositionPnl, PositionResponse,
-        PositionsByAccountResponse, TradingFee, UnlockState, VaultState,
+        PerpPosition, PerpVaultDeposit, PerpVaultPosition, PnlAmounts, PnlValues,
+        PositionFeesResponse, PositionPnl, PositionResponse, PositionsByAccountResponse,
+        TradingFee, UnlockState, VaultState,
     },
 };
 
@@ -93,20 +94,49 @@ pub fn perp_denom_state(
     })
 }
 
+pub fn perp_vault_position(
+    deps: Deps,
+    account_id: String,
+    current_time: u64,
+) -> ContractResult<Option<PerpVaultPosition>> {
+    let cfg = CONFIG.load(deps.storage)?;
+
+    let vs = VAULT_STATE.load(deps.storage)?;
+    let shares = DEPOSIT_SHARES.may_load(deps.storage, &account_id)?;
+    let unlocks = UNLOCKS.may_load(deps.storage, &account_id)?;
+
+    if shares.is_none() && unlocks.is_none() {
+        return Ok(None);
+    }
+
+    let shares = shares.unwrap_or_default();
+    let perp_vault_deposit = PerpVaultDeposit {
+        shares,
+        amount: shares_to_amount(&deps, &vs, &cfg.oracle, current_time, &cfg.base_denom, shares)
+            .unwrap_or_default(),
+    };
+
+    let unlocks = unlocks.unwrap_or_default();
+
+    Ok(Some(PerpVaultPosition {
+        denom: cfg.base_denom.clone(),
+        deposit: perp_vault_deposit,
+        unlocks,
+    }))
+}
+
 pub fn deposit(
     deps: Deps,
-    depositor: String,
+    account_id: String,
     current_time: u64,
 ) -> ContractResult<DepositResponse> {
     let cfg = CONFIG.load(deps.storage)?;
 
-    let depositor_addr = deps.api.addr_validate(&depositor)?;
     let vs = VAULT_STATE.load(deps.storage)?;
-    let shares =
-        DEPOSIT_SHARES.may_load(deps.storage, &depositor_addr)?.unwrap_or_else(Uint128::zero);
+    let shares = DEPOSIT_SHARES.may_load(deps.storage, &account_id)?.unwrap_or_else(Uint128::zero);
 
     Ok(DepositResponse {
-        depositor,
+        account_id,
         shares,
         amount: shares_to_amount(&deps, &vs, &cfg.oracle, current_time, &cfg.base_denom, shares)
             .unwrap_or_default(),
@@ -122,16 +152,16 @@ pub fn deposits(
     let cfg = CONFIG.load(deps.storage)?;
 
     let vs = VAULT_STATE.load(deps.storage)?;
-    let start = start_after.map(|addr| Bound::ExclusiveRaw(addr.into_bytes()));
+    let start = start_after.map(|acc_id| Bound::ExclusiveRaw(acc_id.into_bytes()));
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
 
     DEPOSIT_SHARES
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|item| {
-            let (depositor_addr, shares) = item?;
+            let (account_id, shares) = item?;
             Ok(DepositResponse {
-                depositor: depositor_addr.into(),
+                account_id,
                 shares,
                 amount: shares_to_amount(
                     &deps,
@@ -147,9 +177,8 @@ pub fn deposits(
         .collect()
 }
 
-pub fn unlocks(deps: Deps, depositor: String) -> ContractResult<Vec<UnlockState>> {
-    let depositor_addr = deps.api.addr_validate(&depositor)?;
-    let unlocks = UNLOCKS.may_load(deps.storage, &depositor_addr)?.unwrap_or_default();
+pub fn unlocks(deps: Deps, account_id: String) -> ContractResult<Vec<UnlockState>> {
+    let unlocks = UNLOCKS.may_load(deps.storage, &account_id)?.unwrap_or_default();
     Ok(unlocks)
 }
 

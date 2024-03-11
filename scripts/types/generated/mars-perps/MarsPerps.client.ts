@@ -32,6 +32,10 @@ import {
   OwnerResponse,
   PerpDenomState,
   PnlValues,
+  NullablePerpVaultPosition,
+  PerpVaultPosition,
+  PerpVaultDeposit,
+  UnlockState,
   PnL,
   PositionResponse,
   PerpPosition,
@@ -41,7 +45,6 @@ import {
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
   ArrayOfUnlockState,
-  UnlockState,
   VaultState,
 } from './MarsPerps.types'
 export interface MarsPerpsReadOnlyInterface {
@@ -58,7 +61,8 @@ export interface MarsPerpsReadOnlyInterface {
     limit?: number
     startAfter?: string
   }) => Promise<ArrayOfDenomStateResponse>
-  deposit: ({ depositor }: { depositor: string }) => Promise<DepositResponse>
+  perpVaultPosition: ({ accountId }: { accountId: string }) => Promise<NullablePerpVaultPosition>
+  deposit: ({ accountId }: { accountId: string }) => Promise<DepositResponse>
   deposits: ({
     limit,
     startAfter,
@@ -66,7 +70,7 @@ export interface MarsPerpsReadOnlyInterface {
     limit?: number
     startAfter?: string
   }) => Promise<ArrayOfDepositResponse>
-  unlocks: ({ depositor }: { depositor: string }) => Promise<ArrayOfUnlockState>
+  unlocks: ({ accountId }: { accountId: string }) => Promise<ArrayOfUnlockState>
   position: ({
     accountId,
     denom,
@@ -118,6 +122,7 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
     this.denomState = this.denomState.bind(this)
     this.perpDenomState = this.perpDenomState.bind(this)
     this.denomStates = this.denomStates.bind(this)
+    this.perpVaultPosition = this.perpVaultPosition.bind(this)
     this.deposit = this.deposit.bind(this)
     this.deposits = this.deposits.bind(this)
     this.unlocks = this.unlocks.bind(this)
@@ -175,10 +180,21 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
       },
     })
   }
-  deposit = async ({ depositor }: { depositor: string }): Promise<DepositResponse> => {
+  perpVaultPosition = async ({
+    accountId,
+  }: {
+    accountId: string
+  }): Promise<NullablePerpVaultPosition> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      perp_vault_position: {
+        account_id: accountId,
+      },
+    })
+  }
+  deposit = async ({ accountId }: { accountId: string }): Promise<DepositResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
       deposit: {
-        depositor,
+        account_id: accountId,
       },
     })
   }
@@ -196,10 +212,10 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
       },
     })
   }
-  unlocks = async ({ depositor }: { depositor: string }): Promise<ArrayOfUnlockState> => {
+  unlocks = async ({ accountId }: { accountId: string }): Promise<ArrayOfUnlockState> => {
     return this.client.queryContractSmart(this.contractAddress, {
       unlocks: {
-        depositor,
+        account_id: accountId,
       },
     })
   }
@@ -352,14 +368,21 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
   deposit: (
+    {
+      accountId,
+    }: {
+      accountId: string
+    },
     fee?: number | StdFee | 'auto',
     memo?: string,
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
   unlock: (
     {
+      accountId,
       shares,
     }: {
+      accountId: string
       shares: Uint128
     },
     fee?: number | StdFee | 'auto',
@@ -367,6 +390,11 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
   withdraw: (
+    {
+      accountId,
+    }: {
+      accountId: string
+    },
     fee?: number | StdFee | 'auto',
     memo?: string,
     _funds?: Coin[],
@@ -527,6 +555,11 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     )
   }
   deposit = async (
+    {
+      accountId,
+    }: {
+      accountId: string
+    },
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,
     _funds?: Coin[],
@@ -535,7 +568,9 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       this.sender,
       this.contractAddress,
       {
-        deposit: {},
+        deposit: {
+          account_id: accountId,
+        },
       },
       fee,
       memo,
@@ -544,8 +579,10 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
   }
   unlock = async (
     {
+      accountId,
       shares,
     }: {
+      accountId: string
       shares: Uint128
     },
     fee: number | StdFee | 'auto' = 'auto',
@@ -557,6 +594,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       this.contractAddress,
       {
         unlock: {
+          account_id: accountId,
           shares,
         },
       },
@@ -566,6 +604,11 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     )
   }
   withdraw = async (
+    {
+      accountId,
+    }: {
+      accountId: string
+    },
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,
     _funds?: Coin[],
@@ -574,7 +617,9 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       this.sender,
       this.contractAddress,
       {
-        withdraw: {},
+        withdraw: {
+          account_id: accountId,
+        },
       },
       fee,
       memo,

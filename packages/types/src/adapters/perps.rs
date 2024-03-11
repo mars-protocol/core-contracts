@@ -1,13 +1,13 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    to_json_binary, Addr, Api, Coin, CosmosMsg, QuerierWrapper, StdResult, WasmMsg,
+    to_json_binary, Addr, Api, Coin, CosmosMsg, QuerierWrapper, StdResult, Uint128, WasmMsg,
 };
 
 use crate::{
     math::SignedDecimal,
     perps::{
-        ExecuteMsg, PerpDenomState, PerpPosition, PositionResponse, PositionsByAccountResponse,
-        QueryMsg, TradingFee,
+        Config, ExecuteMsg, PerpDenomState, PerpPosition, PerpVaultPosition, PositionResponse,
+        PositionsByAccountResponse, QueryMsg, TradingFee,
     },
 };
 
@@ -40,6 +40,44 @@ impl PerpsUnchecked {
 }
 
 impl Perps {
+    /// Generate message for deposit to perp vault
+    pub fn deposit_msg(&self, account_id: impl Into<String>, coin: &Coin) -> StdResult<CosmosMsg> {
+        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: self.address().into(),
+            msg: to_json_binary(&ExecuteMsg::Deposit {
+                account_id: account_id.into(),
+            })?,
+            funds: vec![coin.clone()],
+        }))
+    }
+
+    /// Generate message for unlock from perp vault
+    pub fn unlock_msg(
+        &self,
+        account_id: impl Into<String>,
+        shares: Uint128,
+    ) -> StdResult<CosmosMsg> {
+        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: self.address().into(),
+            msg: to_json_binary(&ExecuteMsg::Unlock {
+                account_id: account_id.into(),
+                shares,
+            })?,
+            funds: vec![],
+        }))
+    }
+
+    /// Generate message for withdraw from perp vault
+    pub fn withdraw_msg(&self, account_id: impl Into<String>) -> StdResult<CosmosMsg> {
+        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: self.address().into(),
+            msg: to_json_binary(&ExecuteMsg::Withdraw {
+                account_id: account_id.into(),
+            })?,
+            funds: vec![],
+        }))
+    }
+
     /// Generate message for opening a new perp position
     pub fn open_msg(
         &self,
@@ -152,6 +190,25 @@ impl Perps {
             self.address(),
             &QueryMsg::PerpDenomState {
                 denom: denom.into(),
+            },
+        )?;
+        Ok(res)
+    }
+
+    pub fn query_config(&self, querier: &QuerierWrapper) -> StdResult<Config<String>> {
+        let res: Config<String> = querier.query_wasm_smart(self.address(), &QueryMsg::Config {})?;
+        Ok(res)
+    }
+
+    pub fn query_vault_position(
+        &self,
+        querier: &QuerierWrapper,
+        account_id: impl Into<String>,
+    ) -> StdResult<Option<PerpVaultPosition>> {
+        let res: Option<PerpVaultPosition> = querier.query_wasm_smart(
+            self.address(),
+            &QueryMsg::PerpVaultPosition {
+                account_id: account_id.into(),
             },
         )?;
         Ok(res)
