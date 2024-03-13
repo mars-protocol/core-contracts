@@ -75,6 +75,12 @@ impl HealthComputer {
             if spot_debt_value.is_zero() && self.positions.perps.is_empty() {
                 (None, None)
             } else {
+                // NOTE : The HF calc in the latest doc (0.9) differs slightly from this implementation.
+                // reason being that risk team is still deciding on the correctness of
+                // that formula.
+                // The difference is in how funding is applied.
+                // Currently, we include usdc collateral as part of RWA and apply f+ / f- to each perp position
+                // The document uses C+, C- instead.
                 // HF = (RWA + perp_numerator) / (spot_debt + perp_denominator)
                 // where
                 // RWA = risk weighted assets (i.e ltv * collateral_value)
