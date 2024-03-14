@@ -56,7 +56,11 @@ fn random_user_cannot_modify_position() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uatom"),
+            params: PerpParams {
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params("uatom")
+            },
         },
     );
 
@@ -139,7 +143,11 @@ fn cannot_increase_position_for_disabled_denom() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uatom"),
+            params: PerpParams {
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params("uatom")
+            },
         },
     );
 
@@ -168,7 +176,7 @@ fn cannot_increase_position_for_disabled_denom() {
 
 #[test]
 fn only_one_position_possible_for_denom() {
-    let mut mock = MockEnv::new().opening_fee_rate(Decimal::zero()).build().unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -222,11 +230,7 @@ fn only_one_position_possible_for_denom() {
 #[test]
 fn open_position_cannot_be_too_small() {
     let min_position_value = Uint128::new(1251u128);
-    let mut mock = MockEnv::new()
-        .opening_fee_rate(Decimal::zero())
-        .min_position_value(min_position_value)
-        .build()
-        .unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -246,7 +250,10 @@ fn open_position_cannot_be_too_small() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uatom"),
+            params: PerpParams {
+                min_position_value,
+                ..default_perp_params("uatom")
+            },
         },
     );
 
@@ -271,7 +278,7 @@ fn open_position_cannot_be_too_small() {
 #[test]
 fn reduced_position_cannot_be_too_small() {
     let min_position_value = Uint128::new(1251u128);
-    let mut mock = MockEnv::new().min_position_value(min_position_value).build().unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -298,7 +305,12 @@ fn reduced_position_cannot_be_too_small() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uatom"),
+            params: PerpParams {
+                min_position_value,
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params("uatom")
+            },
         },
     );
 
@@ -328,12 +340,7 @@ fn reduced_position_cannot_be_too_small() {
 #[test]
 fn open_position_cannot_be_too_big() {
     let max_position_value = Uint128::new(1249u128);
-    let mut mock = MockEnv::new()
-        .opening_fee_rate(Decimal::zero())
-        .min_position_value(Uint128::zero())
-        .max_position_value(Some(max_position_value))
-        .build()
-        .unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -353,7 +360,10 @@ fn open_position_cannot_be_too_big() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uatom"),
+            params: PerpParams {
+                max_position_value: Some(max_position_value),
+                ..default_perp_params("uatom")
+            },
         },
     );
 
@@ -378,11 +388,7 @@ fn open_position_cannot_be_too_big() {
 #[test]
 fn increased_position_cannot_be_too_big() {
     let max_position_value = Uint128::new(1249u128);
-    let mut mock = MockEnv::new()
-        .min_position_value(Uint128::zero())
-        .max_position_value(Some(max_position_value))
-        .build()
-        .unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -409,7 +415,12 @@ fn increased_position_cannot_be_too_big() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uatom"),
+            params: PerpParams {
+                max_position_value: Some(max_position_value),
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params("uatom")
+            },
         },
     );
 
@@ -438,12 +449,7 @@ fn increased_position_cannot_be_too_big() {
 
 #[test]
 fn validate_opening_position() {
-    let mut mock = MockEnv::new()
-        .opening_fee_rate(Decimal::zero())
-        .min_position_value(Uint128::zero())
-        .max_position_value(None)
-        .build()
-        .unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -467,16 +473,10 @@ fn validate_opening_position() {
         &owner,
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
-                denom: "uatom".to_string(),
                 max_net_oi_value: max_net_oi,
                 max_long_oi_value: max_long_oi,
                 max_short_oi_value: max_short_oi,
-                closing_fee_rate: Decimal::from_str("0.006").unwrap(),
-                opening_fee_rate: Decimal::from_str("0.004").unwrap(),
-                liquidation_threshold: Decimal::from_str("0.85").unwrap(),
-                max_loan_to_value: Decimal::from_str("0.8").unwrap(),
-                max_position_value: None,
-                min_position_value: Uint128::zero(),
+                ..default_perp_params("uatom")
             },
         },
     );
@@ -560,11 +560,7 @@ fn validate_opening_position() {
 
 #[test]
 fn validate_modify_position() {
-    let mut mock = MockEnv::new()
-        .min_position_value(Uint128::zero())
-        .max_position_value(None)
-        .build()
-        .unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -685,11 +681,7 @@ fn validate_modify_position() {
 
 #[test]
 fn modify_position_realises_pnl() {
-    let mut mock = MockEnv::new()
-        .min_position_value(Uint128::zero())
-        .max_position_value(None)
-        .build()
-        .unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -717,16 +709,9 @@ fn modify_position_realises_pnl() {
         &owner,
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
-                denom: "uatom".to_string(),
-                max_net_oi_value: Uint128::new(400000),
-                max_long_oi_value: Uint128::new(400000),
-                max_short_oi_value: Uint128::new(800000),
-                closing_fee_rate: Decimal::from_str("0.006").unwrap(),
-                opening_fee_rate: Decimal::from_str("0.004").unwrap(),
-                liquidation_threshold: Decimal::from_str("0.85").unwrap(),
-                max_loan_to_value: Decimal::from_str("0.8").unwrap(),
-                max_position_value: None,
-                min_position_value: Uint128::zero(),
+                closing_fee_rate: Decimal::from_str("0.01").unwrap(),
+                opening_fee_rate: Decimal::from_str("0.01").unwrap(),
+                ..default_perp_params("uatom")
             },
         },
     );
@@ -899,11 +884,7 @@ fn query_position_fees(
     new_size: SignedDecimal,
     expected_fees: PositionFeesResponse,
 ) {
-    let mut mock = MockEnv::new()
-        .opening_fee_rate(Decimal::from_str("0.004").unwrap())
-        .closing_fee_rate(Decimal::from_str("0.006").unwrap())
-        .build()
-        .unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -930,7 +911,11 @@ fn query_position_fees(
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uosmo"),
+            params: PerpParams {
+                opening_fee_rate: Decimal::from_str("0.004").unwrap(),
+                closing_fee_rate: Decimal::from_str("0.006").unwrap(),
+                ..default_perp_params("uosmo")
+            },
         },
     );
 

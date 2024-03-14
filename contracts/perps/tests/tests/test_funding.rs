@@ -15,11 +15,7 @@ const ONE_HOUR_SEC: u64 = 3600u64;
 // TODO fix numbers once moved to SignedUint
 #[test]
 fn computing_funding() {
-    let mut mock = MockEnv::new()
-        .opening_fee_rate(Decimal::zero())
-        .closing_fee_rate(Decimal::zero())
-        .build()
-        .unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();

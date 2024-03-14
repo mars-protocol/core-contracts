@@ -1,21 +1,27 @@
-use cosmwasm_std::{Addr, Uint128};
-use mars_types::{math::SignedDecimal, perps::Config};
+use cosmwasm_std::Uint128;
+use mars_types::{math::SignedDecimal, params::PerpParams};
 
 use crate::error::{ContractError, ContractResult};
 
-pub fn ensure_min_position(position_value: Uint128, cfg: &Config<Addr>) -> ContractResult<()> {
-    if position_value < cfg.min_position_value {
+pub fn ensure_min_position(
+    position_value: Uint128,
+    perp_params: &PerpParams,
+) -> ContractResult<()> {
+    if position_value < perp_params.min_position_value {
         return Err(ContractError::PositionTooSmall {
-            min: cfg.min_position_value,
+            min: perp_params.min_position_value,
             found: position_value,
         });
     }
     Ok(())
 }
 
-pub fn ensure_max_position(position_value: Uint128, cfg: &Config<Addr>) -> ContractResult<()> {
+pub fn ensure_max_position(
+    position_value: Uint128,
+    perp_params: &PerpParams,
+) -> ContractResult<()> {
     // could be set to None if not needed
-    if let Some(max_pos_value) = cfg.max_position_value {
+    if let Some(max_pos_value) = perp_params.max_position_value {
         if position_value > max_pos_value {
             return Err(ContractError::PositionTooBig {
                 max: max_pos_value,

@@ -311,8 +311,11 @@ pub fn open_position(
         });
     }
 
+    // Params for the given market
+    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
+
     // find the opening fee amount
-    let opening_fee_amt = if !cfg.opening_fee_rate.is_zero() {
+    let opening_fee_amt = if !perp_params.opening_fee_rate.is_zero() {
         must_pay(&info, &cfg.base_denom)?
     } else {
         Uint128::zero()
@@ -328,13 +331,12 @@ pub fn open_position(
 
     // the position's initial value cannot be too small
     let position_value = size.abs.checked_mul(denom_price)?.to_uint_floor();
-    ensure_min_position(position_value, &cfg)?;
+    ensure_min_position(position_value, &perp_params)?;
 
     // the position's initial value cannot be too big
-    ensure_max_position(position_value, &cfg)?;
+    ensure_max_position(position_value, &perp_params)?;
 
     // validate the position's size against OI limits
-    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
     ds.validate_open_interest(size, denom_price, &perp_params)?;
 
     // skew _before_ modification
@@ -421,13 +423,17 @@ fn update_position_state(
 
     // States
     let cfg = CONFIG.load(deps.storage)?;
+
+    // Only the credit manager contract can adjust positions
+    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+
+    // Params for the given market
+    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
+
     let mut realized_pnl =
         REALIZED_PNL.may_load(deps.storage, (&account_id, &denom))?.unwrap_or_default();
     let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
     let mut tcf = TOTAL_CASH_FLOW.may_load(deps.storage)?.unwrap_or_default();
-
-    // Only the credit manager contract can adjust positions
-    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
 
     let entry_size = position.size;
 
@@ -464,7 +470,7 @@ fn update_position_state(
         // Decrease the position
         Ordering::Less => {
             // Enforce min size when decreasing
-            ensure_min_position(position_value, &cfg)?;
+            ensure_min_position(position_value, &perp_params)?;
 
             // Update the denom's accumulators.
             // Funding rates and index is updated to the current block time (using old size).
@@ -490,7 +496,7 @@ fn update_position_state(
             }
 
             // Enforce position size cannot be too big when increasing
-            ensure_max_position(position_value, &cfg)?;
+            ensure_max_position(position_value, &perp_params)?;
 
             let q_change = new_size.checked_sub(entry_size)?;
 
@@ -527,8 +533,8 @@ fn update_position_state(
         initial_skew,
         denom_price,
         base_denom_price,
-        cfg.opening_fee_rate,
-        cfg.closing_fee_rate,
+        perp_params.opening_fee_rate,
+        perp_params.closing_fee_rate,
         modification,
     )?;
 

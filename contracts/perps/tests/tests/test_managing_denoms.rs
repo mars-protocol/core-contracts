@@ -170,7 +170,7 @@ fn owner_can_disable_denom() {
 
 #[test]
 fn funding_change_accordingly_to_denom_state_modification() {
-    let mut mock = MockEnv::new().opening_fee_rate(Decimal::zero()).build().unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();

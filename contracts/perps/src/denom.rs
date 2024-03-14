@@ -559,13 +559,14 @@ pub fn compute_total_pnl(
         PnlValues::default(),
         |acc, item| -> ContractResult<_> {
             let (denom, ds) = item?;
+            let perp_params = config.params.query_perp_params(&deps.querier, &denom)?;
 
             let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
             let (pnl_values, _) = ds.compute_pnl(
                 current_time,
                 denom_price,
                 base_denom_price,
-                config.closing_fee_rate,
+                perp_params.closing_fee_rate,
             )?;
 
             Ok(PnlValues {

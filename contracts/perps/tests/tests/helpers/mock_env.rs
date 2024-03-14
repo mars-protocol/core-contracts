@@ -1,5 +1,5 @@
 #![allow(dead_code)] // TODO: remove once functions are used
-use std::{mem::take, str::FromStr};
+use std::mem::take;
 
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Empty, Timestamp, Uint128};
@@ -40,11 +40,7 @@ pub struct MockEnvBuilder {
     deployer: Addr,
     oracle_base_denom: String,
     perps_base_denom: String,
-    min_position_value: Uint128,
-    max_position_value: Option<Uint128>,
     cooldown_period: u64,
-    opening_fee_rate: Decimal,
-    closing_fee_rate: Decimal,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -55,11 +51,7 @@ impl MockEnv {
             deployer: Addr::unchecked("deployer"),
             oracle_base_denom: "uusd".to_string(),
             perps_base_denom: "uusdc".to_string(),
-            min_position_value: Uint128::one(),
-            max_position_value: None,
             cooldown_period: 3600,
-            opening_fee_rate: Decimal::from_str("0.01").unwrap(),
-            closing_fee_rate: Decimal::from_str("0.01").unwrap(),
         }
     }
 
@@ -527,11 +519,7 @@ impl MockEnvBuilder {
                 oracle: OracleBase::new(oracle_contract.to_string()),
                 params: ParamsBase::new(params_contract.to_string()),
                 base_denom: self.perps_base_denom.clone(),
-                min_position_value: self.min_position_value,
-                max_position_value: self.max_position_value,
                 cooldown_period: self.cooldown_period,
-                opening_fee_rate: self.opening_fee_rate,
-                closing_fee_rate: self.closing_fee_rate,
             },
             &[],
             "mock-perps",
@@ -636,28 +624,8 @@ impl MockEnvBuilder {
         self
     }
 
-    pub fn min_position_value(&mut self, mp: Uint128) -> &mut Self {
-        self.min_position_value = mp;
-        self
-    }
-
-    pub fn max_position_value(&mut self, mp: Option<Uint128>) -> &mut Self {
-        self.max_position_value = mp;
-        self
-    }
-
     pub fn cooldown_period(&mut self, cp: u64) -> &mut Self {
         self.cooldown_period = cp;
-        self
-    }
-
-    pub fn opening_fee_rate(&mut self, fee_rate: Decimal) -> &mut Self {
-        self.opening_fee_rate = fee_rate;
-        self
-    }
-
-    pub fn closing_fee_rate(&mut self, fee_rate: Decimal) -> &mut Self {
-        self.closing_fee_rate = fee_rate;
         self
     }
 }

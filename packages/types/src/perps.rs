@@ -45,21 +45,9 @@ pub struct Config<T> {
     /// vault. The remaining amount is refunded to the uesr's credit account.
     pub base_denom: String,
 
-    /// The minimum value of a position, in oracle uusd denomination.
-    pub min_position_value: Uint128,
-
-    /// The maximum value of a position, in oracle uusd denomination.
-    pub max_position_value: Option<Uint128>,
-
     /// Stakers need to wait a cooldown period before being able to withdraw USDC from the vault.
     /// Value defined in seconds.
     pub cooldown_period: u64,
-
-    /// The fee rate charged when opening a new position
-    pub opening_fee_rate: Decimal,
-
-    /// The fee rate charged when closing a position
-    pub closing_fee_rate: Decimal,
 }
 
 impl Config<String> {
@@ -69,11 +57,7 @@ impl Config<String> {
             oracle: self.oracle.check(api)?,
             params: self.params.check(api)?,
             base_denom: self.base_denom,
-            min_position_value: self.min_position_value,
-            max_position_value: self.max_position_value,
             cooldown_period: self.cooldown_period,
-            opening_fee_rate: self.opening_fee_rate,
-            closing_fee_rate: self.closing_fee_rate,
         })
     }
 }
@@ -85,11 +69,7 @@ impl From<Config<Addr>> for Config<String> {
             oracle: cfg.oracle.into(),
             params: cfg.params.into(),
             base_denom: cfg.base_denom,
-            min_position_value: cfg.min_position_value,
-            max_position_value: cfg.max_position_value,
             cooldown_period: cfg.cooldown_period,
-            opening_fee_rate: cfg.opening_fee_rate,
-            closing_fee_rate: cfg.closing_fee_rate,
         }
     }
 }

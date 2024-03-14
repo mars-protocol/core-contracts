@@ -5,18 +5,12 @@
  * and run the @cosmwasm/ts-codegen generate command to regenerate this file.
  */
 
-export type Decimal = string
-export type Uint128 = string
 export type OracleBaseForString = string
 export type ParamsBaseForString = string
 export interface InstantiateMsg {
   base_denom: string
-  closing_fee_rate: Decimal
   cooldown_period: number
   credit_manager: string
-  max_position_value?: Uint128 | null
-  min_position_value: Uint128
-  opening_fee_rate: Decimal
   oracle: OracleBaseForString
   params: ParamsBaseForString
 }
@@ -92,6 +86,8 @@ export type OwnerUpdate =
       }
     }
   | 'clear_emergency_owner'
+export type Decimal = string
+export type Uint128 = string
 export interface SignedDecimal {
   abs: Decimal
   negative: boolean
@@ -194,12 +190,8 @@ export type QueryMsg =
     }
 export interface ConfigForString {
   base_denom: string
-  closing_fee_rate: Decimal
   cooldown_period: number
   credit_manager: string
-  max_position_value?: Uint128 | null
-  min_position_value: Uint128
-  opening_fee_rate: Decimal
   oracle: OracleBaseForString
   params: ParamsBaseForString
 }

@@ -8,13 +8,13 @@
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from '@cosmjs/cosmwasm-stargate'
 import { StdFee } from '@cosmjs/amino'
 import {
-  Decimal,
-  Uint128,
   OracleBaseForString,
   ParamsBaseForString,
   InstantiateMsg,
   ExecuteMsg,
   OwnerUpdate,
+  Decimal,
+  Uint128,
   SignedDecimal,
   QueryMsg,
   ConfigForString,

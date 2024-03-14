@@ -497,11 +497,8 @@ export class Deployer {
         base_denom: this.config.perps.baseDenom,
         cooldown_period: this.config.perps.cooldownPeriod,
         credit_manager: this.storage.addresses.creditManager!,
-        min_position_value: this.config.perps.minPositionValue,
         oracle: this.storage.addresses.oracle!,
         params: this.storage.addresses.params!,
-        opening_fee_rate: this.config.perps.openingFeeRate,
-        closing_fee_rate: this.config.perps.closingFeeRate,
       }
       await this.instantiate('perps', this.storage.codeIds.perps!, msg)
     } else {

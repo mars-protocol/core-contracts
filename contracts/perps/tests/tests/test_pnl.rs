@@ -3,7 +3,7 @@ use std::str::FromStr;
 use cosmwasm_std::{coin, Coin, Decimal};
 use mars_types::{
     math::SignedDecimal,
-    params::PerpParamsUpdate,
+    params::{PerpParams, PerpParamsUpdate},
     perps::{PerpPosition, PnL},
 };
 
@@ -13,7 +13,7 @@ use crate::tests::helpers::default_perp_params;
 // TODO fix numbers once moved to SignedUint
 #[test]
 fn computing_total_pnl() {
-    let mut mock = MockEnv::new().opening_fee_rate(Decimal::zero()).build().unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -42,7 +42,10 @@ fn computing_total_pnl() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uosmo"),
+            params: PerpParams {
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params("uosmo")
+            },
         },
     );
     mock.init_denom(
@@ -55,7 +58,10 @@ fn computing_total_pnl() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uatom"),
+            params: PerpParams {
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params("uatom")
+            },
         },
     );
     mock.init_denom(
@@ -68,7 +74,10 @@ fn computing_total_pnl() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("utia"),
+            params: PerpParams {
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params("utia")
+            },
         },
     );
 

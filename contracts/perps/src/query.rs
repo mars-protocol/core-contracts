@@ -77,10 +77,11 @@ pub fn perp_denom_state(
     let ds = DENOM_STATES.load(deps.storage, &denom)?;
     let cfg = CONFIG.load(deps.storage)?;
     let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
     let (pnl_values, curr_funding) =
-        ds.compute_pnl(current_time, denom_price, base_denom_price, cfg.closing_fee_rate)?;
+        ds.compute_pnl(current_time, denom_price, base_denom_price, perp_params.closing_fee_rate)?;
     Ok(PerpDenomState {
         denom,
         enabled: ds.enabled,
@@ -193,7 +194,7 @@ pub fn position(
     let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-
+    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
     let ds = DENOM_STATES.load(deps.storage, &denom)?;
     let curr_funding = ds.current_funding(current_time, denom_price, base_denom_price)?;
     let position = POSITIONS.load(deps.storage, (&account_id, &denom))?;
@@ -216,8 +217,8 @@ pub fn position(
         ds.skew()?,
         denom_price,
         base_denom_price,
-        cfg.opening_fee_rate,
-        cfg.closing_fee_rate,
+        perp_params.opening_fee_rate,
+        perp_params.closing_fee_rate,
         modification,
     )?;
 
@@ -242,7 +243,7 @@ pub fn position(
                 coins: pnl_coins,
             },
             realised_pnl: position.realized_pnl,
-            closing_fee_rate: cfg.closing_fee_rate,
+            closing_fee_rate: perp_params.closing_fee_rate,
         },
     })
 }
@@ -268,6 +269,8 @@ pub fn positions(
 
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+
+    let perp_params = cfg.params.query_perp_params(&deps.querier, &cfg.base_denom)?;
 
     POSITIONS
         .range(deps.storage, start, None, Order::Ascending)
@@ -295,8 +298,8 @@ pub fn positions(
                         curr_ds.skew()?,
                         current_price,
                         base_denom_price,
-                        cfg.opening_fee_rate,
-                        cfg.closing_fee_rate,
+                        perp_params.opening_fee_rate,
+                        perp_params.closing_fee_rate,
                         PositionModification::None,
                     )?;
                     (pnl, pnl_amounts, curr_ds.skew()?, curr_ds.funding.skew_scale)
@@ -309,8 +312,8 @@ pub fn positions(
                         ds.skew()?,
                         current_price,
                         base_denom_price,
-                        cfg.opening_fee_rate,
-                        cfg.closing_fee_rate,
+                        perp_params.opening_fee_rate,
+                        perp_params.closing_fee_rate,
                         PositionModification::None,
                     )?;
                     let skew = ds.skew()?;
@@ -340,7 +343,7 @@ pub fn positions(
                         coins: pnl_coins,
                     },
                     realised_pnl: position.realized_pnl,
-                    closing_fee_rate: cfg.closing_fee_rate,
+                    closing_fee_rate: perp_params.closing_fee_rate,
                 },
             })
         })
@@ -362,7 +365,7 @@ pub fn positions_by_account(
         .range(deps.storage, None, None, Order::Ascending)
         .map(|item| {
             let (denom, position) = item?;
-
+            let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
             let denom_price =
                 cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
 
@@ -374,8 +377,8 @@ pub fn positions_by_account(
                 ds.skew()?,
                 denom_price,
                 base_denom_price,
-                cfg.opening_fee_rate,
-                cfg.closing_fee_rate,
+                perp_params.opening_fee_rate,
+                perp_params.closing_fee_rate,
                 PositionModification::None,
             )?;
 
@@ -401,7 +404,7 @@ pub fn positions_by_account(
                     coins: pnl_coins,
                 },
                 realised_pnl: position.realized_pnl,
-                closing_fee_rate: cfg.closing_fee_rate,
+                closing_fee_rate: perp_params.closing_fee_rate,
             })
         })
         .collect::<ContractResult<Vec<_>>>()?;
@@ -432,28 +435,38 @@ pub fn opening_fee(deps: Deps, denom: &str, size: SignedDecimal) -> ContractResu
         opening_execution_price(ds.skew()?, ds.funding.skew_scale, size, denom_price)?;
     let denom_exec_price = denom_exec_price.abs;
 
+    let perp_params = cfg.params.query_perp_params(&deps.querier, denom)?;
+
     // fee_in_usd = cfg.opening_fee_rate * denom_exec_price * size
     // fee_in_usdc = fee_in_usd / base_denom_price
     //
     // ceil in favor of the contract
     let price = denom_exec_price.checked_div(base_denom_price)?;
-    let fee =
-        size.abs.to_uint_floor().checked_mul_ceil(price.checked_mul(cfg.opening_fee_rate)?)?;
+    let fee = size
+        .abs
+        .to_uint_floor()
+        .checked_mul_ceil(price.checked_mul(perp_params.opening_fee_rate)?)?;
 
     Ok(TradingFee {
-        rate: cfg.opening_fee_rate,
+        rate: perp_params.opening_fee_rate,
         fee: coin(fee.u128(), cfg.base_denom),
     })
 }
 
 pub fn denom_accounting(deps: Deps, denom: &str, current_time: u64) -> ContractResult<Accounting> {
     let cfg = CONFIG.load(deps.storage)?;
+    let perp_params = cfg.params.query_perp_params(&deps.querier, denom)?;
     let denom_price = cfg.oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     let ds = DENOM_STATES.load(deps.storage, denom)?;
-    ds.compute_accounting_data(current_time, denom_price, base_denom_price, cfg.closing_fee_rate)
+    ds.compute_accounting_data(
+        current_time,
+        denom_price,
+        base_denom_price,
+        perp_params.closing_fee_rate,
+    )
 }
 
 pub fn total_accounting(deps: Deps, current_time: u64) -> ContractResult<Accounting> {
@@ -484,7 +497,7 @@ pub fn position_fees(
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
     let denom_price = cfg.oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
-
+    let perp_params = cfg.params.query_perp_params(&deps.querier, denom)?;
     let ds = DENOM_STATES.load(deps.storage, denom)?;
     let skew_scale = ds.funding.skew_scale;
     let skew = ds.skew()?;
@@ -509,7 +522,7 @@ pub fn position_fees(
                     denom_exec_price,
                     base_denom_price,
                     q_change,
-                    cfg.closing_fee_rate,
+                    perp_params.closing_fee_rate,
                 )?;
                 if new_size.is_zero() {
                     closing_exec_price = Some(denom_exec_price);
@@ -530,7 +543,7 @@ pub fn position_fees(
                     denom_exec_price,
                     base_denom_price,
                     q_change,
-                    cfg.opening_fee_rate,
+                    perp_params.opening_fee_rate,
                 )?;
                 opening_exec_price =
                     Some(opening_execution_price(skew, skew_scale, new_size, denom_price)?.abs);
@@ -543,8 +556,12 @@ pub fn position_fees(
             let denom_exec_price =
                 opening_execution_price(skew, skew_scale, new_size, denom_price)?;
             let denom_exec_price = denom_exec_price.abs;
-            opening_fee =
-                calculate_fee(denom_exec_price, base_denom_price, new_size, cfg.opening_fee_rate)?;
+            opening_fee = calculate_fee(
+                denom_exec_price,
+                base_denom_price,
+                new_size,
+                perp_params.opening_fee_rate,
+            )?;
             opening_exec_price = Some(denom_exec_price)
         }
     }

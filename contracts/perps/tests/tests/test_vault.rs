@@ -4,7 +4,7 @@ use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use mars_perps::error::ContractError;
 use mars_types::{
     math::SignedDecimal,
-    params::PerpParamsUpdate,
+    params::{PerpParams, PerpParamsUpdate},
     perps::{PerpVaultDeposit, PerpVaultPosition, UnlockState},
 };
 
@@ -225,11 +225,7 @@ fn withdraw_unlocked_shares() {
 
 #[test]
 fn cannot_unlock_if_zero_withdrawal_balance() {
-    let mut mock = MockEnv::new()
-        .opening_fee_rate(Decimal::percent(2))
-        .closing_fee_rate(Decimal::percent(1))
-        .build()
-        .unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -249,7 +245,11 @@ fn cannot_unlock_if_zero_withdrawal_balance() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uatom"),
+            params: PerpParams {
+                closing_fee_rate: Decimal::percent(1),
+                opening_fee_rate: Decimal::percent(2),
+                ..default_perp_params("uatom")
+            },
         },
     );
 
@@ -275,11 +275,7 @@ fn cannot_unlock_if_zero_withdrawal_balance() {
 
 #[test]
 fn calculate_shares_correctly_after_zero_withdrawal_balance() {
-    let mut mock = MockEnv::new()
-        .opening_fee_rate(Decimal::percent(2))
-        .closing_fee_rate(Decimal::percent(1))
-        .build()
-        .unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -301,7 +297,11 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uatom"),
+            params: PerpParams {
+                closing_fee_rate: Decimal::percent(1),
+                opening_fee_rate: Decimal::percent(2),
+                ..default_perp_params("uatom")
+            },
         },
     );
 

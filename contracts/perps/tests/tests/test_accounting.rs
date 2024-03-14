@@ -3,7 +3,7 @@ use std::str::FromStr;
 use cosmwasm_std::{coin, Coin, Decimal};
 use mars_types::{
     math::SignedDecimal,
-    params::PerpParamsUpdate,
+    params::{PerpParams, PerpParamsUpdate},
     perps::{Accounting, Balance, CashFlow, PerpPosition, PnL},
 };
 
@@ -12,11 +12,7 @@ use crate::tests::helpers::{default_perp_params, ONE_HOUR_SEC};
 
 #[test]
 fn accounting() {
-    let mut mock = MockEnv::new()
-        .opening_fee_rate(Decimal::percent(2))
-        .closing_fee_rate(Decimal::percent(1))
-        .build()
-        .unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -41,7 +37,11 @@ fn accounting() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uosmo"),
+            params: PerpParams {
+                closing_fee_rate: Decimal::percent(1),
+                opening_fee_rate: Decimal::percent(2),
+                ..default_perp_params("uosmo")
+            },
         },
     );
     mock.init_denom(
@@ -54,7 +54,11 @@ fn accounting() {
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uatom"),
+            params: PerpParams {
+                closing_fee_rate: Decimal::percent(1),
+                opening_fee_rate: Decimal::percent(2),
+                ..default_perp_params("uatom")
+            },
         },
     );
 
