@@ -8,6 +8,7 @@ use crate::{
         vault::{Vault, VaultPosition, VaultUnchecked},
     },
     health::AccountKind,
+    oracle::ActionKind,
     perps::{PerpPosition, PerpVaultPosition},
     traits::Coins,
 };
@@ -38,6 +39,7 @@ pub enum QueryMsg {
     #[returns(Positions)]
     Positions {
         account_id: String,
+        action: Option<ActionKind>,
     },
     /// Enumerate coin balances for all token positions; start_after accepts (account_id, denom)
     #[returns(Vec<CoinBalanceResponseItem>)]

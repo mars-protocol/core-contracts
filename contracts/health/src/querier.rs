@@ -3,6 +3,7 @@ use mars_types::{
     adapters::{oracle::Oracle, params::Params, perps::Perps, vault::Vault},
     credit_manager::{ConfigResponse, Positions, QueryMsg as CmQueryMsg},
     health::HealthResult,
+    oracle::ActionKind,
     params::VaultConfig,
 };
 
@@ -35,11 +36,12 @@ impl<'a> HealthQuerier<'a> {
         })
     }
 
-    pub fn query_positions(&self, account_id: &str) -> HealthResult<Positions> {
+    pub fn query_positions(&self, account_id: &str, action: ActionKind) -> HealthResult<Positions> {
         Ok(self.querier.query_wasm_smart(
             self.credit_manager.to_string(),
             &CmQueryMsg::Positions {
                 account_id: account_id.to_string(),
+                action: Some(action),
             },
         )?)
     }

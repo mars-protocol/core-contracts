@@ -5,6 +5,7 @@ use cosmwasm_std::{
 
 use crate::{
     math::SignedDecimal,
+    oracle::ActionKind,
     perps::{
         Config, ExecuteMsg, PerpDenomState, PerpPosition, PerpVaultPosition, PositionResponse,
         PositionsByAccountResponse, QueryMsg, TradingFee,
@@ -114,6 +115,23 @@ impl Perps {
         }))
     }
 
+    /// Generate message for closing all perp positions
+    pub fn close_all_msg(
+        &self,
+        account_id: impl Into<String>,
+        funds: Vec<Coin>,
+        action: ActionKind,
+    ) -> StdResult<CosmosMsg> {
+        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: self.address().into(),
+            msg: to_json_binary(&ExecuteMsg::CloseAllPositions {
+                account_id: account_id.into(),
+                action: Some(action),
+            })?,
+            funds,
+        }))
+    }
+
     /// Generate message for modifying a perp position
     pub fn modify_msg(
         &self,
@@ -155,11 +173,13 @@ impl Perps {
         &self,
         querier: &QuerierWrapper,
         account_id: impl Into<String>,
+        action: ActionKind,
     ) -> StdResult<Vec<PerpPosition>> {
         let res: PositionsByAccountResponse = querier.query_wasm_smart(
             self.address(),
             &QueryMsg::PositionsByAccount {
                 account_id: account_id.into(),
+                action: Some(action),
             },
         )?;
         Ok(res.positions)
@@ -204,11 +224,13 @@ impl Perps {
         &self,
         querier: &QuerierWrapper,
         account_id: impl Into<String>,
+        action: ActionKind,
     ) -> StdResult<Option<PerpVaultPosition>> {
         let res: Option<PerpVaultPosition> = querier.query_wasm_smart(
             self.address(),
             &QueryMsg::PerpVaultPosition {
                 account_id: account_id.into(),
+                action: Some(action),
             },
         )?;
         Ok(res)

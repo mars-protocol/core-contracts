@@ -703,51 +703,10 @@
                 ],
                 "properties": {
                   "debt_coin": {
-                    "description": "The debt coin to be repayed",
+                    "description": "The coin they wish to acquire from the liquidatee (amount returned will include the bonus)",
                     "allOf": [
                       {
                         "$ref": "#/definitions/Coin"
-                      }
-                    ]
-                  },
-                  "liquidatee_account_id": {
-                    "description": "The credit account id of the one with a liquidation threshold health factor 1 or below",
-                    "type": "string"
-                  },
-                  "request": {
-                    "description": "Position details to be liquidated",
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/LiquidateRequest_for_VaultBase_for_String"
-                      }
-                    ]
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "description": "Pay back debt of a liquidatable rover account for a via liquidating a specific type of the position.",
-            "type": "object",
-            "required": [
-              "liquidate_v2"
-            ],
-            "properties": {
-              "liquidate_v2": {
-                "type": "object",
-                "required": [
-                  "debt",
-                  "liquidatee_account_id",
-                  "request"
-                ],
-                "properties": {
-                  "debt": {
-                    "description": "The debt to be repayed",
-                    "allOf": [
-                      {
-                        "$ref": "#/definitions/LiquidateDebt"
                       }
                     ]
                   },
@@ -975,49 +934,6 @@
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
       },
-      "LiquidateDebt": {
-        "oneOf": [
-          {
-            "description": "Pay back debt of a liquidatable credit manager account for a bonus. Requires specifying the debt denom/amount.",
-            "type": "object",
-            "required": [
-              "debt"
-            ],
-            "properties": {
-              "debt": {
-                "$ref": "#/definitions/Coin"
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "description": "Pay back negative PnL of a liquidatable credit manager account for a bonus. Requires specifying the perp denom and unrealized PnL amount.",
-            "type": "object",
-            "required": [
-              "perp"
-            ],
-            "properties": {
-              "perp": {
-                "type": "object",
-                "required": [
-                  "denom",
-                  "pnl_amount"
-                ],
-                "properties": {
-                  "denom": {
-                    "type": "string"
-                  },
-                  "pnl_amount": {
-                    "$ref": "#/definitions/Uint128"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false
-          }
-        ]
-      },
       "LiquidateRequest_for_VaultBase_for_String": {
         "oneOf": [
           {
@@ -1068,19 +984,6 @@
                   }
                 },
                 "additionalProperties": false
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "description": "Pay back debt of a liquidatable credit manager account via liquidating a Perp position. When positive unrealized PnL serves as a collateral for the position: - part of the unrealized PnL is paid by the vault to the liquidator, - liquidation fee is paid by the vault to the protocol, - the rest of the unrealized PnL is paid by the vault to the liquidatee and added as base denom (e.g. USDC) collateral.",
-            "type": "object",
-            "required": [
-              "perp"
-            ],
-            "properties": {
-              "perp": {
-                "type": "string"
               }
             },
             "additionalProperties": false

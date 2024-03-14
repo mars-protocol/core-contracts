@@ -16,6 +16,7 @@ import {
   OwnerUpdate,
   Decimal,
   Uint128,
+  ActionKind,
   SignedDecimal,
   QueryMsg,
   ConfigForString,
@@ -246,6 +247,7 @@ export interface MarsPerpsPositionsByAccountQuery<TData>
   extends MarsPerpsReactQuery<PositionsByAccountResponse, TData> {
   args: {
     accountId: string
+    action?: ActionKind
   }
 }
 export function useMarsPerpsPositionsByAccountQuery<TData = PositionsByAccountResponse>({
@@ -259,6 +261,7 @@ export function useMarsPerpsPositionsByAccountQuery<TData = PositionsByAccountRe
       client
         ? client.positionsByAccount({
             accountId: args.accountId,
+            action: args.action,
           })
         : Promise.reject(new Error('Invalid client')),
     { ...options, enabled: !!client && (options?.enabled != undefined ? options.enabled : true) },
@@ -385,6 +388,7 @@ export interface MarsPerpsPerpVaultPositionQuery<TData>
   extends MarsPerpsReactQuery<NullablePerpVaultPosition, TData> {
   args: {
     accountId: string
+    action?: ActionKind
   }
 }
 export function useMarsPerpsPerpVaultPositionQuery<TData = NullablePerpVaultPosition>({
@@ -398,6 +402,7 @@ export function useMarsPerpsPerpVaultPositionQuery<TData = NullablePerpVaultPosi
       client
         ? client.perpVaultPosition({
             accountId: args.accountId,
+            action: args.action,
           })
         : Promise.reject(new Error('Invalid client')),
     { ...options, enabled: !!client && (options?.enabled != undefined ? options.enabled : true) },
@@ -502,6 +507,30 @@ export function useMarsPerpsOwnerQuery<TData = OwnerResponse>({
     marsPerpsQueryKeys.owner(client?.contractAddress),
     () => (client ? client.owner() : Promise.reject(new Error('Invalid client'))),
     { ...options, enabled: !!client && (options?.enabled != undefined ? options.enabled : true) },
+  )
+}
+export interface MarsPerpsCloseAllPositionsMutation {
+  client: MarsPerpsClient
+  msg: {
+    accountId: string
+    action?: ActionKind
+  }
+  args?: {
+    fee?: number | StdFee | 'auto'
+    memo?: string
+    funds?: Coin[]
+  }
+}
+export function useMarsPerpsCloseAllPositionsMutation(
+  options?: Omit<
+    UseMutationOptions<ExecuteResult, Error, MarsPerpsCloseAllPositionsMutation>,
+    'mutationFn'
+  >,
+) {
+  return useMutation<ExecuteResult, Error, MarsPerpsCloseAllPositionsMutation>(
+    ({ client, msg, args: { fee, memo, funds } = {} }) =>
+      client.closeAllPositions(msg, fee, memo, funds),
+    options,
   )
 }
 export interface MarsPerpsModifyPositionMutation {

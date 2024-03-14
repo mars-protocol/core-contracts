@@ -45,6 +45,7 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Positions {
             account_id,
+            ..
         } => to_json_binary(&query_positions(deps, account_id)?),
         QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
         QueryMsg::AccountKind {

@@ -1,5 +1,5 @@
 use cosmwasm_std::{Deps, Response};
-use mars_types::{health::AccountKind, params::HlsAssetType};
+use mars_types::{health::AccountKind, oracle::ActionKind, params::HlsAssetType};
 
 use crate::{
     error::{ContractError, ContractResult},
@@ -9,7 +9,7 @@ use crate::{
 
 pub fn assert_hls_rules(deps: Deps, account_id: &str) -> ContractResult<Response> {
     // Rule #1 - There can only be 0 or 1 debt denom in the account
-    let positions = query_positions(deps, account_id)?;
+    let positions = query_positions(deps, account_id, ActionKind::Default)?;
 
     if positions.debts.len() > 1 {
         return Err(ContractError::HLS {

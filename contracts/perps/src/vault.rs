@@ -35,12 +35,12 @@ pub fn compute_global_withdrawal_balance(
     oracle: &Oracle,
     current_time: u64,
     base_denom: &str,
+    action: ActionKind,
 ) -> ContractResult<Uint128> {
-    let base_denom_price =
-        oracle.query_price(&deps.querier, base_denom, ActionKind::Default)?.price;
+    let base_denom_price = oracle.query_price(&deps.querier, base_denom, action.clone())?.price;
 
     let global_acc_data =
-        compute_total_accounting_data(deps, oracle, current_time, base_denom_price)?;
+        compute_total_accounting_data(deps, oracle, current_time, base_denom_price, action)?;
 
     let global_withdrawal_balance =
         global_acc_data.withdrawal_balance.total.checked_add(vs.total_liquidity.into())?;
@@ -61,9 +61,10 @@ pub fn amount_to_shares(
     current_time: u64,
     base_denom: &str,
     amount: Uint128,
+    action: ActionKind,
 ) -> ContractResult<Uint128> {
     let available_liquidity =
-        compute_global_withdrawal_balance(deps, vs, oracle, current_time, base_denom)?;
+        compute_global_withdrawal_balance(deps, vs, oracle, current_time, base_denom, action)?;
 
     if vs.total_shares.is_zero() || available_liquidity.is_zero() {
         return amount.checked_mul(Uint128::new(DEFAULT_SHARES_PER_AMOUNT)).map_err(Into::into);
@@ -84,6 +85,7 @@ pub fn shares_to_amount(
     current_time: u64,
     base_denom: &str,
     shares: Uint128,
+    action: ActionKind,
 ) -> ContractResult<Uint128> {
     // We technical don't need to check for this explicitly, because
     // checked_multiply_raio already checks for division-by-zero. However we
@@ -95,7 +97,7 @@ pub fn shares_to_amount(
 
     // We can't continue if there is zero available liquidity in the vault
     let available_liquidity =
-        compute_global_withdrawal_balance(deps, vs, oracle, current_time, base_denom)?;
+        compute_global_withdrawal_balance(deps, vs, oracle, current_time, base_denom, action)?;
     if available_liquidity.is_zero() {
         return Err(ContractError::ZeroWithdrawalBalance);
     }

@@ -550,18 +550,19 @@ pub fn compute_total_pnl(
     deps: &Deps,
     oracle: &Oracle,
     current_time: u64,
+    action: ActionKind,
 ) -> ContractResult<PnlValues> {
     let config = CONFIG.load(deps.storage)?;
 
     let base_denom_price =
-        oracle.query_price(&deps.querier, &config.base_denom, ActionKind::Default)?.price;
+        oracle.query_price(&deps.querier, &config.base_denom, action.clone())?.price;
     let total_pnl = DENOM_STATES.range(deps.storage, None, None, Order::Ascending).try_fold(
         PnlValues::default(),
         |acc, item| -> ContractResult<_> {
             let (denom, ds) = item?;
             let perp_params = config.params.query_perp_params(&deps.querier, &denom)?;
 
-            let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+            let denom_price = oracle.query_price(&deps.querier, &denom, action.clone())?.price;
             let (pnl_values, _) = ds.compute_pnl(
                 current_time,
                 denom_price,
@@ -587,9 +588,10 @@ pub fn compute_total_accounting_data(
     oracle: &Oracle,
     current_time: u64,
     base_denom_price: Decimal,
+    action: ActionKind,
 ) -> ContractResult<Accounting> {
     let gcf = TOTAL_CASH_FLOW.load(deps.storage)?;
-    let unrealized_pnl = compute_total_pnl(deps, oracle, current_time)?;
+    let unrealized_pnl = compute_total_pnl(deps, oracle, current_time, action)?;
     let acc = Accounting::compute(&gcf, &unrealized_pnl, base_denom_price)?;
     Ok(acc)
 }

@@ -5,6 +5,7 @@ use cw2::set_contract_version;
 use mars_types::{
     adapters::vault::VAULT_REQUEST_REPLY_ID,
     credit_manager::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
+    oracle::ActionKind,
 };
 
 use crate::{
@@ -92,7 +93,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         } => to_json_binary(&query_vault_utilization(deps, env, vault)?),
         QueryMsg::Positions {
             account_id,
-        } => to_json_binary(&query_positions(deps, &account_id)?),
+            action,
+        } => to_json_binary(&query_positions(
+            deps,
+            &account_id,
+            action.unwrap_or(ActionKind::Default),
+        )?),
         QueryMsg::AllCoinBalances {
             start_after,
             limit,

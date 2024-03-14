@@ -71,6 +71,12 @@ export type ExecuteMsg =
         new_size: SignedDecimal
       }
     }
+  | {
+      close_all_positions: {
+        account_id: string
+        action?: ActionKind | null
+      }
+    }
 export type OwnerUpdate =
   | {
       propose_new_owner: {
@@ -88,6 +94,7 @@ export type OwnerUpdate =
   | 'clear_emergency_owner'
 export type Decimal = string
 export type Uint128 = string
+export type ActionKind = 'default' | 'liquidation'
 export interface SignedDecimal {
   abs: Decimal
   negative: boolean
@@ -122,6 +129,7 @@ export type QueryMsg =
   | {
       perp_vault_position: {
         account_id: string
+        action?: ActionKind | null
       }
     }
   | {
@@ -156,6 +164,7 @@ export type QueryMsg =
   | {
       positions_by_account: {
         account_id: string
+        action?: ActionKind | null
       }
     }
   | {

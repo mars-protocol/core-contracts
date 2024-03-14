@@ -63,7 +63,7 @@ pub fn liquidate_vault(
 }
 
 fn liquidate_unlocked(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     liquidator_account_id: &str,
     liquidatee_account_id: &str,
@@ -74,7 +74,7 @@ fn liquidate_unlocked(
     let vault_info = request_vault.query_info(&deps.querier)?;
 
     let (debt, liquidator_request, liquidatee_request) = calculate_vault_liquidation(
-        &deps,
+        &mut deps,
         liquidatee_account_id,
         &debt_coin,
         &request_vault,
@@ -125,7 +125,7 @@ fn liquidate_unlocked(
 /// Converts vault coins to their underlying value. This allows for pricing and liquidation
 /// values to be determined. Afterward, the final amount is converted back into vault coins.
 fn calculate_vault_liquidation(
-    deps: &DepsMut,
+    deps: &mut DepsMut,
     liquidatee_account_id: &str,
     debt_coin: &Coin,
     request_vault: &Vault,
@@ -150,7 +150,7 @@ fn calculate_vault_liquidation(
 }
 
 fn liquidate_unlocking(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     liquidator_account_id: &str,
     liquidatee_account_id: &str,
@@ -161,7 +161,7 @@ fn liquidate_unlocking(
     let vault_info = request_vault.query_info(&deps.querier)?;
 
     let (debt, liquidator_request, liquidatee_request) = calculate_liquidation(
-        &deps,
+        &mut deps,
         liquidatee_account_id,
         &debt_coin,
         &vault_info.base_token,
@@ -225,7 +225,7 @@ fn liquidate_unlocking(
 }
 
 fn liquidate_locked(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     liquidator_account_id: &str,
     liquidatee_account_id: &str,
@@ -236,7 +236,7 @@ fn liquidate_locked(
     let vault_info = request_vault.query_info(&deps.querier)?;
 
     let (debt, liquidator_request, liquidatee_request) = calculate_vault_liquidation(
-        &deps,
+        &mut deps,
         liquidatee_account_id,
         &debt_coin,
         &request_vault,

@@ -4,6 +4,7 @@ use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use mars_perps::error::ContractError;
 use mars_types::{
     math::SignedDecimal,
+    oracle::ActionKind,
     params::{PerpParams, PerpParamsUpdate},
     perps::{PerpVaultDeposit, PerpVaultPosition, UnlockState},
 };
@@ -376,7 +377,7 @@ fn query_vault_position() {
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uusdc"]);
 
     // vault position should be empty
-    let vault_position = mock.query_vault_position(account_id);
+    let vault_position = mock.query_vault_position(account_id, ActionKind::Default);
     assert!(vault_position.is_none());
 
     let deposit_amt = Uint128::new(1_200_000_000u128);
@@ -387,7 +388,7 @@ fn query_vault_position() {
 
     // vault position should contain only deposit for account_id
     let deposit_shares = Uint128::new(1_200_000_000_000_000u128);
-    let vault_position = mock.query_vault_position(account_id);
+    let vault_position = mock.query_vault_position(account_id, ActionKind::Default);
     assert_eq!(
         vault_position.unwrap(),
         PerpVaultPosition {
@@ -411,7 +412,7 @@ fn query_vault_position() {
     // vault position should contain deposit and one unlock
     let deposit_shares_after_1_unlock = deposit_shares - shares_to_unlock;
     let deposit_amt_after_1_unlock = deposit_amt - amt_to_unlock;
-    let vault_position = mock.query_vault_position(account_id);
+    let vault_position = mock.query_vault_position(account_id, ActionKind::Default);
     assert_eq!(
         vault_position.unwrap(),
         PerpVaultPosition {
@@ -436,7 +437,7 @@ fn query_vault_position() {
     mock.unlock_from_vault(&credit_manager, account_id, shares_to_unlock).unwrap();
 
     // vault position should have zero deposit and two unlocks
-    let vault_position = mock.query_vault_position(account_id);
+    let vault_position = mock.query_vault_position(account_id, ActionKind::Default);
     assert_eq!(
         vault_position.unwrap(),
         PerpVaultPosition {
@@ -467,6 +468,6 @@ fn query_vault_position() {
     mock.withdraw_from_vault(&credit_manager, account_id).unwrap();
 
     // vault position should be empty after withdraw
-    let vault_position = mock.query_vault_position(account_id);
+    let vault_position = mock.query_vault_position(account_id, ActionKind::Default);
     assert!(vault_position.is_none());
 }

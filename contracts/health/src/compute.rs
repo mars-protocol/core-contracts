@@ -100,7 +100,7 @@ pub fn health_values(
     action: ActionKind,
 ) -> HealthResult<HealthValuesResponse> {
     let q = HealthQuerier::new(&deps)?;
-    let positions = q.query_positions(account_id)?;
+    let positions = q.query_positions(account_id, action.clone())?;
     compute_health(deps, kind, q, positions, action)
 }
 
@@ -111,7 +111,7 @@ pub fn health_state(
     action: ActionKind,
 ) -> HealthResult<HealthState> {
     let q = HealthQuerier::new(&deps)?;
-    let positions = q.query_positions(account_id)?;
+    let positions = q.query_positions(account_id, action.clone())?;
 
     // Helpful to not have to do computations & query the oracle for cases
     // like liquidations where oracle circuit breakers may hinder it.

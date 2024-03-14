@@ -18,7 +18,7 @@ pub fn borrow(mut deps: DepsMut, account_id: &str, coin: Coin) -> ContractResult
         return Err(ContractError::NoAmount);
     }
 
-    let (debt_shares_to_add, borrow_msg) = update_debt(deps.branch(), account_id, &coin)?;
+    let (debt_shares_to_add, borrow_msg) = update_debt(&mut deps, account_id, &coin)?;
 
     increment_coin_balance(deps.storage, account_id, &coin)?;
 
@@ -32,11 +32,11 @@ pub fn borrow(mut deps: DepsMut, account_id: &str, coin: Coin) -> ContractResult
 
 /// Update the debt state and prepare a borrow message
 pub fn update_debt(
-    mut deps: DepsMut,
+    deps: &mut DepsMut,
     account_id: &str,
     coin: &Coin,
 ) -> ContractResult<(Uint128, CosmosMsg)> {
-    assert_coin_is_whitelisted(&mut deps, &coin.denom)?;
+    assert_coin_is_whitelisted(deps, &coin.denom)?;
 
     let red_bank = RED_BANK.load(deps.storage)?;
     let total_debt_amount = red_bank.query_debt(&deps.querier, &coin.denom)?;

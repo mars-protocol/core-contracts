@@ -1,5 +1,9 @@
-use cosmwasm_std::{coin, Addr, Coin, CosmosMsg, DepsMut, Response, Uint128};
-use mars_types::{adapters::perps::PerpsBase, math::SignedDecimal, perps::PnL};
+use cosmwasm_std::{coin, Coin, CosmosMsg, DepsMut, Response, Uint128};
+use mars_types::{
+    math::SignedDecimal,
+    oracle::ActionKind,
+    perps::{PnL, PnlAmounts},
+};
 
 use crate::{
     borrow,
@@ -9,7 +13,7 @@ use crate::{
 };
 
 pub fn open_perp(
-    deps: DepsMut,
+    mut deps: DepsMut,
     account_id: &str,
     denom: &str,
     size: SignedDecimal,
@@ -21,7 +25,7 @@ pub fn open_perp(
 
     let mut response = Response::new();
 
-    let borrow_msg_opt = deduct_payment(deps, account_id, &fee)?;
+    let borrow_msg_opt = deduct_payment(&mut deps, account_id, &fee)?;
     if let Some(borrow_msg) = borrow_msg_opt {
         response = response.add_message(borrow_msg);
     }
@@ -39,7 +43,7 @@ pub fn open_perp(
 
 /// Deduct payment from the user’s account. If the user doesn’t have enough USDC, it is borrowed
 fn deduct_payment(
-    deps: DepsMut,
+    deps: &mut DepsMut,
     account_id: &str,
     payment: &Coin,
 ) -> ContractResult<Option<CosmosMsg>> {
@@ -74,9 +78,49 @@ fn deduct_payment(
     Ok(Some(borrow_msg))
 }
 
-pub fn close_perp(deps: DepsMut, account_id: &str, denom: &str) -> ContractResult<Response> {
+pub fn modify_perp(
+    mut deps: DepsMut,
+    account_id: &str,
+    denom: &str,
+    new_size: SignedDecimal,
+) -> ContractResult<Response> {
     let perps = PERPS.load(deps.storage)?;
-    let (funds, mut msgs) = calculate_payment(deps, perps.clone(), account_id, denom, None)?;
+
+    // query the perp position PnL so that we know whether funds needs to be
+    // sent to the perps contract
+    //
+    // NOTE: This implementation is not gas efficient, because we have to query
+    // the position PnL first here in the credit manager (so that it know how
+    // much funds to send to the perps contract), then in the perps contract it
+    // computes the PnL **again** to assert the amount is correct.
+    let position = perps.query_position(&deps.querier, account_id, denom, Some(new_size))?;
+    let pnl = position.unrealised_pnl.coins.pnl;
+    let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
+
+    msgs.push(perps.modify_msg(account_id, denom, new_size, funds)?);
+
+    Ok(Response::new()
+        .add_messages(msgs)
+        .add_attribute("action", "modify_perp_position")
+        .add_attribute("account_id", account_id)
+        .add_attribute("denom", denom)
+        .add_attribute("new_size", new_size.to_string()))
+}
+
+pub fn close_perp(mut deps: DepsMut, account_id: &str, denom: &str) -> ContractResult<Response> {
+    let perps = PERPS.load(deps.storage)?;
+
+    // query the perp position PnL so that we know whether funds needs to be
+    // sent to the perps contract
+    //
+    // NOTE: This implementation is not gas efficient, because we have to query
+    // the position PnL first here in the credit manager (so that it know how
+    // much funds to send to the perps contract), then in the perps contract it
+    // computes the PnL **again** to assert the amount is correct.
+    let position = perps.query_position(&deps.querier, account_id, denom, None)?;
+    let pnl = position.unrealised_pnl.coins.pnl;
+    let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
+
     let close_msg = perps.close_msg(account_id, denom, funds)?;
     msgs.push(close_msg);
 
@@ -87,28 +131,61 @@ pub fn close_perp(deps: DepsMut, account_id: &str, denom: &str) -> ContractResul
         .add_attribute("denom", denom))
 }
 
-fn calculate_payment(
-    deps: DepsMut,
-    perps: PerpsBase<Addr>,
+/// Check if liquidatee has any perp positions.
+/// If so, close them before liquidating.
+pub fn close_all_perps(
+    mut deps: DepsMut,
     account_id: &str,
-    denom: &str,
-    new_size: Option<SignedDecimal>,
-) -> ContractResult<(Vec<Coin>, Vec<CosmosMsg>)> {
-    // query the perp position PnL so that we know whether funds needs to be
-    // sent to the perps contract
-    //
-    // NOTE: This implementation is not gas efficient, because we have to query
-    // the position PnL first here in the credit manager (so that it know how
-    // much funds to send to the perps contract), then in the perps contract it
-    // computes the PnL **again** to assert the amount is correct. A better
-    // solution is the frontend provides the funds amount. Need to communicate
-    // this with the FE team.
-    let position = perps.query_position(&deps.querier, account_id, denom, new_size)?;
+    action: ActionKind,
+) -> ContractResult<Response> {
+    let perp_positions = PERPS.load(deps.storage)?.query_positions_by_account(
+        &deps.querier,
+        account_id,
+        action.clone(),
+    )?;
+    if perp_positions.is_empty() {
+        return Ok(Response::new()
+            .add_attribute("action", "close_all_perps")
+            .add_attribute("account_id", account_id)
+            .add_attribute("number_of_positions", "0"));
+    }
 
-    // if PnL is negative, we need to send funds to the perps contract, and
-    // decrement the internally tracked user coin balance.
-    // otherwise, no action
-    Ok(match position.unrealised_pnl.coins.pnl {
+    let mut pnl_amounts_accumulator = PnlAmounts::default();
+    for position in &perp_positions {
+        pnl_amounts_accumulator.add(&position.unrealised_pnl.amounts)?;
+    }
+
+    // base denom is the same for all perp positions
+    // safe to unwrap because we checked that perp_positions is not empty
+    let base_denom = perp_positions.first().unwrap().base_denom.clone();
+
+    let pnl = pnl_amounts_accumulator.to_coins(&base_denom).pnl;
+    let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
+
+    // Close all perp positions at once
+    let perps = PERPS.load(deps.storage)?;
+    let close_msg = perps.close_all_msg(account_id, funds, action)?;
+    msgs.push(close_msg);
+
+    Ok(Response::new()
+        .add_messages(msgs)
+        .add_attribute("action", "close_all_perps")
+        .add_attribute("account_id", account_id)
+        .add_attribute("number_of_positions", perp_positions.len().to_string()))
+}
+
+/// Prepare the necessary messages and funds to be sent to the perps contract based on the PnL.
+/// - If PnL is negative, we need to send funds to the perps contract, and
+/// decrement the internally tracked user coin balance. If no enough usdc in the user's account,
+/// we need to borrow from the Red Bank.
+/// - If PnL is positive, we need to increment the internally tracked user coin.
+/// - Otherwise, no action is needed.
+fn update_state_based_on_pnl(
+    deps: &mut DepsMut,
+    account_id: &str,
+    pnl: PnL,
+) -> ContractResult<(Vec<Coin>, Vec<CosmosMsg>)> {
+    let res = match pnl {
         PnL::Loss(coin) => {
             let borrow_msg_opt = deduct_payment(deps, account_id, &coin)?;
             let mut cosmos_msgs = vec![];
@@ -124,25 +201,6 @@ fn calculate_payment(
             (vec![], vec![])
         }
         _ => (vec![], vec![]),
-    })
-}
-
-pub fn modify_perp(
-    deps: DepsMut,
-    account_id: &str,
-    denom: &str,
-    new_size: SignedDecimal,
-) -> ContractResult<Response> {
-    let perps = PERPS.load(deps.storage)?;
-    let (funds, mut msgs) =
-        calculate_payment(deps, perps.clone(), account_id, denom, Some(new_size))?;
-
-    msgs.push(perps.modify_msg(account_id, denom, new_size, funds)?);
-
-    Ok(Response::new()
-        .add_messages(msgs)
-        .add_attribute("action", "modify_perp_position")
-        .add_attribute("account_id", account_id)
-        .add_attribute("denom", denom)
-        .add_attribute("new_size", new_size.to_string()))
+    };
+    Ok(res)
 }

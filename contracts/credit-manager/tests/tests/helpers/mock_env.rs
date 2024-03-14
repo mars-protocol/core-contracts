@@ -418,6 +418,7 @@ impl MockEnv {
                 self.rover.clone(),
                 &QueryMsg::Positions {
                     account_id: account_id.to_string(),
+                    action: None,
                 },
             )
             .unwrap()
@@ -1085,11 +1086,16 @@ impl MockEnvBuilder {
                 price: item.price,
             })
             .collect();
-        prices.push(CoinPrice {
-            pricing: ActionKind::Default,
-            denom: "uusdc".to_string(),
-            price: Decimal::from_atomics(12345u128, 4).unwrap(),
-        });
+
+        // Don't override uusdc price if it's already set
+        let usdc_price_set = prices.iter().any(|p| p.denom == "uusdc");
+        if !usdc_price_set {
+            prices.push(CoinPrice {
+                pricing: ActionKind::Default,
+                denom: "uusdc".to_string(),
+                price: Decimal::from_atomics(12345u128, 4).unwrap(),
+            });
+        }
 
         // Ensures vault base token denoms are pricable in the oracle
         // even if they are not whitelisted in Rover

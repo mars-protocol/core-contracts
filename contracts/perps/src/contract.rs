@@ -2,7 +2,10 @@ use cosmwasm_std::{
     entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
 use mars_owner::OwnerInit;
-use mars_types::perps::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use mars_types::{
+    oracle::ActionKind,
+    perps::{ExecuteMsg, InstantiateMsg, QueryMsg},
+};
 
 use crate::{error::ContractResult, execute, query, state::OWNER};
 
@@ -83,6 +86,16 @@ pub fn execute(
             denom,
             new_size,
         } => execute::modify_position(deps, env, info, account_id, denom, new_size),
+        ExecuteMsg::CloseAllPositions {
+            account_id,
+            action,
+        } => execute::close_all_positions(
+            deps,
+            env,
+            info,
+            account_id,
+            action.unwrap_or(ActionKind::Default),
+        ),
     }
 }
 
@@ -104,9 +117,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         } => to_json_binary(&query::perp_denom_state(deps, env.block.time.seconds(), denom)?),
         QueryMsg::PerpVaultPosition {
             account_id,
-        } => {
-            to_json_binary(&query::perp_vault_position(deps, account_id, env.block.time.seconds())?)
-        }
+            action,
+        } => to_json_binary(&query::perp_vault_position(
+            deps,
+            account_id,
+            env.block.time.seconds(),
+            action.unwrap_or(ActionKind::Default),
+        )?),
         QueryMsg::Deposit {
             account_id,
         } => to_json_binary(&query::deposit(deps, account_id, env.block.time.seconds())?),
@@ -134,10 +151,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         } => to_json_binary(&query::positions(deps, env.block.time.seconds(), start_after, limit)?),
         QueryMsg::PositionsByAccount {
             account_id,
+            action,
         } => to_json_binary(&query::positions_by_account(
             deps,
             env.block.time.seconds(),
             account_id,
+            action.unwrap_or(ActionKind::Default),
         )?),
         QueryMsg::TotalPnl {} => to_json_binary(&query::total_pnl(deps, env.block.time.seconds())?),
         QueryMsg::OpeningFee {

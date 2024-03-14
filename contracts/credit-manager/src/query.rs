@@ -9,7 +9,6 @@ use mars_types::{
     },
     health::AccountKind,
     oracle::ActionKind,
-    perps::PerpPosition,
 };
 
 use crate::{
@@ -64,15 +63,27 @@ pub fn query_config(deps: Deps) -> ContractResult<ConfigResponse> {
     })
 }
 
-pub fn query_positions(deps: Deps, account_id: &str) -> ContractResult<Positions> {
+pub fn query_positions(
+    deps: Deps,
+    account_id: &str,
+    action: ActionKind,
+) -> ContractResult<Positions> {
     Ok(Positions {
         account_id: account_id.to_string(),
         deposits: query_coin_balances(deps, account_id)?,
         debts: query_debt_amounts(deps, account_id)?,
         lends: RED_BANK.load(deps.storage)?.query_all_lent(&deps.querier, account_id)?,
         vaults: query_vault_positions(deps, account_id)?,
-        perps: query_perp_positions(deps, account_id)?,
-        perp_vault: PERPS.load(deps.storage)?.query_vault_position(&deps.querier, account_id)?,
+        perps: PERPS.load(deps.storage)?.query_positions_by_account(
+            &deps.querier,
+            account_id,
+            action.clone(),
+        )?,
+        perp_vault: PERPS.load(deps.storage)?.query_vault_position(
+            &deps.querier,
+            account_id,
+            action,
+        )?,
     })
 }
 
@@ -217,9 +228,4 @@ pub fn query_vault_position_value(
 ) -> StdResult<VaultPositionValue> {
     let oracle = ORACLE.load(deps.storage)?;
     vault_position.query_values(&deps.querier, &oracle, ActionKind::Default)
-}
-
-pub fn query_perp_positions(deps: Deps, account_id: &str) -> StdResult<Vec<PerpPosition>> {
-    let perps = PERPS.load(deps.storage)?;
-    perps.query_positions_by_account(&deps.querier, account_id)
 }

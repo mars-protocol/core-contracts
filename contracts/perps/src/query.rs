@@ -99,6 +99,7 @@ pub fn perp_vault_position(
     deps: Deps,
     account_id: String,
     current_time: u64,
+    action: ActionKind,
 ) -> ContractResult<Option<PerpVaultPosition>> {
     let cfg = CONFIG.load(deps.storage)?;
 
@@ -113,8 +114,16 @@ pub fn perp_vault_position(
     let shares = shares.unwrap_or_default();
     let perp_vault_deposit = PerpVaultDeposit {
         shares,
-        amount: shares_to_amount(&deps, &vs, &cfg.oracle, current_time, &cfg.base_denom, shares)
-            .unwrap_or_default(),
+        amount: shares_to_amount(
+            &deps,
+            &vs,
+            &cfg.oracle,
+            current_time,
+            &cfg.base_denom,
+            shares,
+            action,
+        )
+        .unwrap_or_default(),
     };
 
     let unlocks = unlocks.unwrap_or_default();
@@ -139,8 +148,16 @@ pub fn deposit(
     Ok(DepositResponse {
         account_id,
         shares,
-        amount: shares_to_amount(&deps, &vs, &cfg.oracle, current_time, &cfg.base_denom, shares)
-            .unwrap_or_default(),
+        amount: shares_to_amount(
+            &deps,
+            &vs,
+            &cfg.oracle,
+            current_time,
+            &cfg.base_denom,
+            shares,
+            ActionKind::Default,
+        )
+        .unwrap_or_default(),
     })
 }
 
@@ -171,6 +188,7 @@ pub fn deposits(
                     current_time,
                     &cfg.base_denom,
                     shares,
+                    ActionKind::Default,
                 )
                 .unwrap_or_default(),
             })
@@ -354,11 +372,13 @@ pub fn positions_by_account(
     deps: Deps,
     current_time: u64,
     account_id: String,
+    action: ActionKind,
 ) -> ContractResult<PositionsByAccountResponse> {
     let cfg = CONFIG.load(deps.storage)?;
 
-    let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+    // Don't query the price if there are no positions. This is important during liquidation as
+    // the price query might fail (if Default pricing is pased in).
+    let mut base_denom_price: Option<Decimal> = None;
 
     let positions = POSITIONS
         .prefix(&account_id)
@@ -366,8 +386,17 @@ pub fn positions_by_account(
         .map(|item| {
             let (denom, position) = item?;
             let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
-            let denom_price =
-                cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+
+            let base_denom_price = if let Some(price) = base_denom_price {
+                price
+            } else {
+                let price =
+                    cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
+                base_denom_price = Some(price);
+                price
+            };
+
+            let denom_price = cfg.oracle.query_price(&deps.querier, &denom, action.clone())?.price;
 
             let ds = DENOM_STATES.load(deps.storage, &denom)?;
             let curr_funding = ds.current_funding(current_time, denom_price, base_denom_price)?;
@@ -417,7 +446,7 @@ pub fn positions_by_account(
 
 pub fn total_pnl(deps: Deps, current_time: u64) -> ContractResult<PnlValues> {
     let cfg = CONFIG.load(deps.storage)?;
-    compute_total_pnl(&deps, &cfg.oracle, current_time)
+    compute_total_pnl(&deps, &cfg.oracle, current_time, ActionKind::Default)
 }
 
 // FIXME: remove this function when frontend is updated (they should use position_fees instead)
@@ -474,7 +503,13 @@ pub fn total_accounting(deps: Deps, current_time: u64) -> ContractResult<Account
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
-    compute_total_accounting_data(&deps, &cfg.oracle, current_time, base_denom_price)
+    compute_total_accounting_data(
+        &deps,
+        &cfg.oracle,
+        current_time,
+        base_denom_price,
+        ActionKind::Default,
+    )
 }
 
 pub fn denom_realized_pnl_for_account(

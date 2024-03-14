@@ -17,7 +17,7 @@ use crate::{
 /// Returns -> (Debt Coin, Liquidator Request Coin, Liquidatee Request Coin)
 /// Difference between Liquidator Request Coin and Liquidatee Request Coin goes to rewards-collector account as protocol fee.
 pub fn calculate_liquidation(
-    deps: &DepsMut,
+    deps: &mut DepsMut,
     liquidatee_account_id: &str,
     debt_coin: &Coin,
     request_coin: &str,

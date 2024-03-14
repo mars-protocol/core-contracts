@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub fn liquidate_deposit(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     liquidator_account_id: &str,
     liquidatee_account_id: &str,
@@ -21,7 +21,7 @@ pub fn liquidate_deposit(
         .map_err(|_| ContractError::CoinNotAvailable(request_coin_denom.to_string()))?;
 
     let (debt, liquidator_request, liquidatee_request) = calculate_liquidation(
-        &deps,
+        &mut deps,
         liquidatee_account_id,
         &debt_coin,
         request_coin_denom,

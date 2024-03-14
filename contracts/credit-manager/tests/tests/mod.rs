@@ -18,6 +18,7 @@ mod test_instantiate;
 mod test_lend;
 mod test_liquidate_deposit;
 mod test_liquidate_guard;
+mod test_liquidate_if_perps_open;
 mod test_liquidate_lend;
 mod test_liquidate_vault;
 mod test_liquidation_pricing;

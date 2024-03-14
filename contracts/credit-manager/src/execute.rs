@@ -21,7 +21,7 @@ use crate::{
     liquidate::assert_not_self_liquidation,
     liquidate_deposit::liquidate_deposit,
     liquidate_lend::liquidate_lend,
-    perp::{close_perp, modify_perp, open_perp},
+    perp::{close_all_perps, close_perp, modify_perp, open_perp},
     perp_vault::{deposit_to_perp_vault, unlock_from_perp_vault, withdraw_from_perp_vault},
     reclaim::reclaim,
     refund::refund_coin_balances,
@@ -213,41 +213,39 @@ pub fn dispatch_actions(
                 liquidatee_account_id,
                 debt_coin,
                 request,
-            } => match request {
-                LiquidateRequest::Deposit(denom) => callbacks.push(CallbackMsg::Liquidate {
-                    liquidator_account_id: account_id.to_string(),
-                    liquidatee_account_id: liquidatee_account_id.to_string(),
-                    debt_coin,
-                    request: LiquidateRequest::Deposit(denom),
-                }),
-                LiquidateRequest::Lend(denom) => callbacks.push(CallbackMsg::Liquidate {
-                    liquidator_account_id: account_id.to_string(),
-                    liquidatee_account_id: liquidatee_account_id.to_string(),
-                    debt_coin,
-                    request: LiquidateRequest::Lend(denom),
-                }),
-                LiquidateRequest::Vault {
-                    request_vault,
-                    position_type,
-                } => callbacks.push(CallbackMsg::Liquidate {
-                    liquidator_account_id: account_id.to_string(),
-                    liquidatee_account_id: liquidatee_account_id.to_string(),
-                    debt_coin,
-                    request: LiquidateRequest::Vault {
-                        request_vault: request_vault.check(deps.api)?,
-                        position_type,
-                    },
-                }),
-                LiquidateRequest::Perp(_) => {
-                    // We keep Liquidate msg for backward compatibility. Use new LiquidateV2 for perp liquidation.
-                    unimplemented!("Use LiquidateV2 for perp liquidation")
-                }
-            },
-            Action::LiquidateV2 {
-                ..
             } => {
-                // TODO: Implement liquidate_v2
-                unimplemented!("LiquidateV2 is not implemented yet")
+                // Close all perp positions before liquidating.
+                // This creates correct state for further liquidation. Health check uses correct position state.
+                callbacks.push(CallbackMsg::CloseAllPerps {
+                    account_id: liquidatee_account_id.to_string(),
+                });
+
+                match request {
+                    LiquidateRequest::Deposit(denom) => callbacks.push(CallbackMsg::Liquidate {
+                        liquidator_account_id: account_id.to_string(),
+                        liquidatee_account_id: liquidatee_account_id.to_string(),
+                        debt_coin,
+                        request: LiquidateRequest::Deposit(denom),
+                    }),
+                    LiquidateRequest::Lend(denom) => callbacks.push(CallbackMsg::Liquidate {
+                        liquidator_account_id: account_id.to_string(),
+                        liquidatee_account_id: liquidatee_account_id.to_string(),
+                        debt_coin,
+                        request: LiquidateRequest::Lend(denom),
+                    }),
+                    LiquidateRequest::Vault {
+                        request_vault,
+                        position_type,
+                    } => callbacks.push(CallbackMsg::Liquidate {
+                        liquidator_account_id: account_id.to_string(),
+                        liquidatee_account_id: liquidatee_account_id.to_string(),
+                        debt_coin,
+                        request: LiquidateRequest::Vault {
+                            request_vault: request_vault.check(deps.api)?,
+                            position_type,
+                        },
+                    }),
+                }
             }
             Action::SwapExactIn {
                 coin_in,
@@ -433,6 +431,9 @@ pub fn execute_callback(
             denom,
             new_size,
         } => modify_perp(deps, &account_id, &denom, new_size),
+        CallbackMsg::CloseAllPerps {
+            account_id,
+        } => close_all_perps(deps, &account_id, ActionKind::Liquidation),
         CallbackMsg::EnterVault {
             account_id,
             vault,
@@ -485,17 +486,7 @@ pub fn execute_callback(
                     request_vault,
                     position_type,
                 ),
-                LiquidateRequest::Perp(_) => {
-                    // We keep Liquidate msg for backward compatibility. Use new LiquidateV2 for perp liquidation.
-                    unimplemented!("Use LiquidateV2 for perp liquidation")
-                }
             }
-        }
-        CallbackMsg::LiquidateV2 {
-            ..
-        } => {
-            // TODO: Implement liquidate_v2
-            unimplemented!("LiquidateV2 is not implemented yet")
         }
         CallbackMsg::SwapExactIn {
             account_id,

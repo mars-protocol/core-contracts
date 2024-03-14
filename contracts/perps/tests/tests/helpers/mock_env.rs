@@ -10,7 +10,7 @@ use mars_types::{
     adapters::{oracle::OracleBase, params::ParamsBase},
     address_provider,
     math::SignedDecimal,
-    oracle,
+    oracle::{self, ActionKind},
     params::{self, ExecuteMsg::UpdatePerpParams, PerpParamsUpdate},
     perps::{
         self, Accounting, Config, DenomStateResponse, DepositResponse, PerpDenomState,
@@ -261,6 +261,23 @@ impl MockEnv {
         )
     }
 
+    pub fn close_all_positions(
+        &mut self,
+        sender: &Addr,
+        account_id: &str,
+        funds: &[Coin],
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.perps.clone(),
+            &perps::ExecuteMsg::CloseAllPositions {
+                account_id: account_id.to_string(),
+                action: None,
+            },
+            funds,
+        )
+    }
+
     pub fn set_price(
         &mut self,
         sender: &Addr,
@@ -375,13 +392,18 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_vault_position(&self, account_id: &str) -> Option<PerpVaultPosition> {
+    pub fn query_vault_position(
+        &self,
+        account_id: &str,
+        action: ActionKind,
+    ) -> Option<PerpVaultPosition> {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.perps.clone(),
                 &perps::QueryMsg::PerpVaultPosition {
                     account_id: account_id.to_string(),
+                    action: Some(action),
                 },
             )
             .unwrap()
@@ -418,13 +440,18 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_positions_by_account_id(&self, account_id: &str) -> PositionsByAccountResponse {
+    pub fn query_positions_by_account_id(
+        &self,
+        account_id: &str,
+        action: ActionKind,
+    ) -> PositionsByAccountResponse {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.perps.clone(),
                 &perps::QueryMsg::PositionsByAccount {
                     account_id: account_id.to_string(),
+                    action: Some(action),
                 },
             )
             .unwrap()

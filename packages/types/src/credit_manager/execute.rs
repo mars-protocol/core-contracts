@@ -86,18 +86,6 @@ pub enum ChangeExpected {
 }
 
 #[cw_serde]
-pub enum LiquidateDebt {
-    /// Pay back debt of a liquidatable credit manager account for a bonus. Requires specifying the debt denom/amount.
-    Debt(Coin),
-
-    /// Pay back negative PnL of a liquidatable credit manager account for a bonus. Requires specifying the perp denom and unrealized PnL amount.
-    Perp {
-        denom: String,
-        pnl_amount: Uint128,
-    },
-}
-
-#[cw_serde]
 pub enum LiquidateRequest<T> {
     /// Pay back debt of a liquidatable rover account for a bonus. Requires specifying 1) the debt
     /// denom/amount of what the liquidator wants to payoff and 2) the request coin denom which the
@@ -123,12 +111,6 @@ pub enum LiquidateRequest<T> {
         request_vault: T,
         position_type: VaultPositionType,
     },
-    /// Pay back debt of a liquidatable credit manager account via liquidating a Perp position.
-    /// When positive unrealized PnL serves as a collateral for the position:
-    /// - part of the unrealized PnL is paid by the vault to the liquidator,
-    /// - liquidation fee is paid by the vault to the protocol,
-    /// - the rest of the unrealized PnL is paid by the vault to the liquidatee and added as base denom (e.g. USDC) collateral.
-    Perp(String),
 }
 
 /// The list of actions that users can perform on their positions
@@ -211,17 +193,8 @@ pub enum Action {
     Liquidate {
         /// The credit account id of the one with a liquidation threshold health factor 1 or below
         liquidatee_account_id: String,
-        /// The debt coin to be repayed
+        /// The coin they wish to acquire from the liquidatee (amount returned will include the bonus)
         debt_coin: Coin,
-        /// Position details to be liquidated
-        request: LiquidateRequest<VaultUnchecked>,
-    },
-    /// Pay back debt of a liquidatable rover account for a via liquidating a specific type of the position.
-    LiquidateV2 {
-        /// The credit account id of the one with a liquidation threshold health factor 1 or below
-        liquidatee_account_id: String,
-        /// The debt to be repayed
-        debt: LiquidateDebt,
         /// Position details to be liquidated
         request: LiquidateRequest<VaultUnchecked>,
     },
@@ -377,18 +350,15 @@ pub enum CallbackMsg {
         vault: Vault,
         position_id: u64,
     },
+    /// Close all perp positions before liquidation
+    CloseAllPerps {
+        account_id: String,
+    },
     /// Pay back debts of a liquidatable rover account for a bonus
     Liquidate {
         liquidator_account_id: String,
         liquidatee_account_id: String,
         debt_coin: Coin,
-        request: LiquidateRequest<Vault>,
-    },
-    /// Pay back debts of a liquidatable rover account for a bonus
-    LiquidateV2 {
-        liquidator_account_id: String,
-        liquidatee_account_id: String,
-        debt: LiquidateDebt,
         request: LiquidateRequest<Vault>,
     },
     /// Perform a swapper with an exact-in amount. Requires slippage allowance %.

@@ -1,11 +1,12 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
-use mars_perps::error::ContractError;
+use mars_perps::{accounting::BalanceExt, error::ContractError};
 use mars_types::{
     math::SignedDecimal,
+    oracle::ActionKind,
     params::{PerpParams, PerpParamsUpdate},
-    perps::{PnlAmounts, PositionFeesResponse},
+    perps::{Accounting, Balance, CashFlow, PnL, PnlAmounts, PnlValues, PositionFeesResponse},
 };
 use test_case::test_case;
 
@@ -592,16 +593,12 @@ fn validate_modify_position() {
         &owner,
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
-                denom: "uatom".to_string(),
                 max_net_oi_value: max_net_oi,
                 max_long_oi_value: max_long_oi,
                 max_short_oi_value: max_short_oi,
-                closing_fee_rate: Decimal::from_str("0.006").unwrap(),
-                opening_fee_rate: Decimal::from_str("0.004").unwrap(),
-                liquidation_threshold: Decimal::from_str("0.85").unwrap(),
-                max_loan_to_value: Decimal::from_str("0.8").unwrap(),
-                max_position_value: None,
-                min_position_value: Uint128::zero(),
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params("uatom")
             },
         },
     );
@@ -933,4 +930,222 @@ fn query_position_fees(
     // check expected fees
     let position_fees = mock.query_position_fees("1", "uosmo", new_size);
     assert_eq!(position_fees, expected_fees);
+}
+
+#[test]
+fn random_user_cannot_close_all_positions() {
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let res = mock.close_all_positions(&Addr::unchecked("random-user-123"), "2", &[]);
+    assert_err(res, ContractError::SenderIsNotCreditManager);
+}
+
+#[test_case(
+    Decimal::from_str("14").unwrap(),
+    Decimal::from_str("1").unwrap(),
+    Decimal::from_str("4").unwrap(),
+    SignedDecimal::from_str("1").unwrap();
+    "close all positions with profit"
+)]
+#[test_case(
+    Decimal::from_str("8").unwrap(),
+    Decimal::from_str("1").unwrap(),
+    Decimal::from_str("1").unwrap(),
+    SignedDecimal::from_str("-1").unwrap();
+    "close all positions with loss"
+)]
+#[test_case(
+    Decimal::from_str("10").unwrap(),
+    Decimal::from_str("2").unwrap(),
+    Decimal::from_str("2.5").unwrap(),
+    SignedDecimal::zero();
+    "close all positions with break even"
+)]
+fn close_all_positions(
+    new_atom_price: Decimal,
+    new_ntrn_price: Decimal,
+    new_osmo_price: Decimal,
+    pnl_direction_expected: SignedDecimal, // 1 - profit, -1 - loss, 0 - break even
+) {
+    // 0 closing fee if we want to simulate break even pnl
+    let closing_fee_rate = if pnl_direction_expected.is_zero() {
+        Decimal::zero()
+    } else {
+        Decimal::from_str("0.006").unwrap()
+    };
+
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let perps = mock.perps.clone();
+    let user = "jake";
+
+    let denoms = vec!["uosmo", "untrn", "uatom", "uusdc"];
+
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &denoms);
+
+    // set prices
+    let usdc_price = Decimal::from_str("0.9").unwrap();
+    mock.set_price(&owner, "uusdc", usdc_price).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+    mock.set_price(&owner, "untrn", Decimal::from_str("2").unwrap()).unwrap();
+    mock.set_price(&owner, "uosmo", Decimal::from_str("2.5").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&credit_manager, user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
+
+    // init perps
+    for denom in denoms {
+        if denom == "uusdc" {
+            continue;
+        }
+        // init denoms
+        mock.init_denom(
+            &owner,
+            denom,
+            Decimal::from_str("3").unwrap(),
+            Decimal::from_str("1000000").unwrap(),
+        )
+        .unwrap();
+        mock.update_perp_params(
+            &owner,
+            PerpParamsUpdate::AddOrUpdate {
+                params: PerpParams {
+                    opening_fee_rate: Decimal::percent(1),
+                    closing_fee_rate,
+                    ..default_perp_params(denom)
+                },
+            },
+        );
+    }
+
+    // open few positions
+    let size = SignedDecimal::from_str("300").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee.clone()]).unwrap();
+
+    let size = SignedDecimal::from_str("-500").unwrap();
+    let ntrn_opening_fee = mock.query_opening_fee("untrn", size).fee;
+    mock.open_position(&credit_manager, "1", "untrn", size, &[ntrn_opening_fee.clone()]).unwrap();
+
+    let size = SignedDecimal::from_str("100").unwrap();
+    let osmo_opening_fee = mock.query_opening_fee("uosmo", size).fee;
+    mock.open_position(&credit_manager, "1", "uosmo", size, &[osmo_opening_fee.clone()]).unwrap();
+
+    // update prices
+    mock.set_price(&owner, "uatom", new_atom_price).unwrap();
+    mock.set_price(&owner, "untrn", new_ntrn_price).unwrap();
+    mock.set_price(&owner, "uosmo", new_osmo_price).unwrap();
+
+    // move few blocks for profit/loss pnl
+    if !pnl_direction_expected.is_zero() {
+        let current_time = mock.query_block_time();
+        mock.set_block_time(current_time + 115_200); // move by 32h
+    }
+
+    // check balances before closing perp positions
+    let cm_usdc_balance = mock.query_balance(&credit_manager, "uusdc");
+    let perps_usdc_balance = mock.query_balance(&perps, "uusdc");
+
+    // query positions
+    let atom_pos_before_close = mock.query_position("1", "uatom").position;
+    let ntrn_pos_before_close = mock.query_position("1", "untrn").position;
+    let osmo_pos_before_close = mock.query_position("1", "uosmo").position;
+
+    // compute funds to be sent to close all positions
+    let mut pnl_amounts_acc = PnlAmounts::default();
+    pnl_amounts_acc.add(&atom_pos_before_close.unrealised_pnl.amounts).unwrap();
+    pnl_amounts_acc.add(&ntrn_pos_before_close.unrealised_pnl.amounts).unwrap();
+    pnl_amounts_acc.add(&osmo_pos_before_close.unrealised_pnl.amounts).unwrap();
+
+    let pnl = pnl_amounts_acc.to_coins("uusdc").pnl;
+    let funds = match pnl.clone() {
+        PnL::Profit(_) if pnl_direction_expected == SignedDecimal::one() => vec![],
+        PnL::Loss(coin) if pnl_direction_expected == SignedDecimal::from_str("-1").unwrap() => {
+            vec![coin]
+        }
+        PnL::BreakEven if pnl_direction_expected == SignedDecimal::zero() => vec![],
+        _ => panic!("unexpected pnl"),
+    };
+    mock.close_all_positions(&credit_manager, "1", &funds).unwrap();
+
+    // no open positions after closing
+    let acc_positions = mock.query_positions_by_account_id("1", ActionKind::Default);
+    assert!(acc_positions.positions.is_empty());
+
+    // realized pnl after closing position is equal to opening fee paid (included in realized pnl before closing position) + unrealized pnl
+    let atom_realized_pnl = mock.query_denom_realized_pnl_for_account("1", "uatom");
+    let mut atom_pnl = PnlAmounts::default();
+    atom_pnl.add(&atom_pos_before_close.unrealised_pnl.amounts).unwrap();
+    atom_pnl.add(&atom_pos_before_close.realised_pnl).unwrap();
+    assert_eq!(atom_realized_pnl, atom_pnl);
+
+    let ntrn_realized_pnl = mock.query_denom_realized_pnl_for_account("1", "untrn");
+    let mut ntrn_pnl = PnlAmounts::default();
+    ntrn_pnl.add(&ntrn_pos_before_close.unrealised_pnl.amounts).unwrap();
+    ntrn_pnl.add(&ntrn_pos_before_close.realised_pnl).unwrap();
+    assert_eq!(ntrn_realized_pnl, ntrn_pnl);
+
+    let osmo_realized_pnl = mock.query_denom_realized_pnl_for_account("1", "uosmo");
+    let mut osmo_pnl = PnlAmounts::default();
+    osmo_pnl.add(&osmo_pos_before_close.unrealised_pnl.amounts).unwrap();
+    osmo_pnl.add(&osmo_pos_before_close.realised_pnl).unwrap();
+    assert_eq!(osmo_realized_pnl, osmo_pnl);
+
+    // calculate user total realized pnl
+    let mut user_realized_pnl = PnlAmounts::default();
+    user_realized_pnl.add(&atom_realized_pnl).unwrap();
+    user_realized_pnl.add(&ntrn_realized_pnl).unwrap();
+    user_realized_pnl.add(&osmo_realized_pnl).unwrap();
+
+    let accounting = mock.query_total_accounting();
+
+    // profit for a user is a loss for the contract and vice versa
+    let expected_cash_flow = CashFlow {
+        price_pnl: SignedDecimal::zero().checked_sub(user_realized_pnl.price_pnl).unwrap(),
+        opening_fee: SignedDecimal::zero().checked_sub(user_realized_pnl.opening_fee).unwrap(),
+        closing_fee: SignedDecimal::zero().checked_sub(user_realized_pnl.closing_fee).unwrap(),
+        accrued_funding: SignedDecimal::zero()
+            .checked_sub(user_realized_pnl.accrued_funding)
+            .unwrap(),
+    };
+    assert_eq!(
+        accounting,
+        Accounting {
+            cash_flow: expected_cash_flow.clone(),
+            balance: Balance::compute_balance(
+                &expected_cash_flow,
+                &PnlValues::default(),
+                usdc_price
+            )
+            .unwrap(),
+            withdrawal_balance: Balance::compute_withdrawal_balance(
+                &expected_cash_flow,
+                &PnlValues::default(),
+                usdc_price
+            )
+            .unwrap()
+        }
+    );
+
+    // check balances after closing perp positions
+    let cm_usdc_balance_after_close = mock.query_balance(&credit_manager, "uusdc");
+    let perps_usdc_balance_after_close = mock.query_balance(&perps, "uusdc");
+    let (expected_cm_usdc_balance, expected_perps_usdc_balance) = match pnl {
+        PnL::Profit(coin) => {
+            (cm_usdc_balance.amount + coin.amount, perps_usdc_balance.amount - coin.amount)
+        }
+        PnL::Loss(coin) => {
+            (cm_usdc_balance.amount - coin.amount, perps_usdc_balance.amount + coin.amount)
+        }
+        PnL::BreakEven => (cm_usdc_balance.amount, perps_usdc_balance.amount),
+    };
+    assert_eq!(cm_usdc_balance_after_close.amount, expected_cm_usdc_balance);
+    assert_eq!(perps_usdc_balance_after_close.amount, expected_perps_usdc_balance);
+
+    // no unrealized pnl after updating denom states
+    let total_pnl = mock.query_total_pnl();
+    assert_eq!(total_pnl, PnlValues::default());
 }

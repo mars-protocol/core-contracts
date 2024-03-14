@@ -7,6 +7,7 @@ use mars_owner::OwnerUpdate;
 use crate::{
     adapters::{oracle::OracleBase, params::ParamsBase},
     math::SignedDecimal,
+    oracle::ActionKind,
 };
 
 // ------------------------------- message types -------------------------------
@@ -483,6 +484,15 @@ pub enum ExecuteMsg {
         /// To decrease a long or increase a short, this will be negative
         new_size: SignedDecimal,
     },
+
+    /// Close all perp positions. Use this to liquidate a user's credit account.
+    ///
+    ///
+    /// Only callable by Rover credit manager.
+    CloseAllPositions {
+        account_id: String,
+        action: Option<ActionKind>,
+    },
 }
 
 #[cw_serde]
@@ -520,6 +530,7 @@ pub enum QueryMsg {
     #[returns(Option<PerpVaultPosition>)]
     PerpVaultPosition {
         account_id: String,
+        action: Option<ActionKind>,
     },
 
     /// Query the amount of deposit made to the vault by a single user
@@ -565,6 +576,7 @@ pub enum QueryMsg {
     #[returns(PositionsByAccountResponse)]
     PositionsByAccount {
         account_id: String,
+        action: Option<ActionKind>,
     },
 
     /// Compute the total PnL of all perp positions, denominated in uusd (USD = 1e6 uusd, configured in Oracle)
