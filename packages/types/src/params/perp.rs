@@ -1,5 +1,12 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Decimal, Uint128};
+use mars_utils::helpers::{decimal_param_le_one, decimal_param_lt_one};
+
+use super::assertions::{
+    assert_lqt_gt_max_ltv, assert_max_net_oi_le_max_oi_long, assert_max_net_oi_le_max_oi_short,
+    assert_max_size_gt_min,
+};
+use crate::error::MarsError;
 
 #[cw_serde]
 pub struct PerpParams {
@@ -23,4 +30,29 @@ pub struct PerpParams {
     pub max_loan_to_value: Decimal,
     /// LTV at which a position becomes liquidatable
     pub liquidation_threshold: Decimal,
+}
+
+impl PerpParams {
+    pub fn check(&self) -> Result<PerpParams, MarsError> {
+        decimal_param_le_one(self.liquidation_threshold, "liquidation_threshold")?;
+        assert_lqt_gt_max_ltv(self.max_loan_to_value, self.liquidation_threshold)?;
+        decimal_param_lt_one(self.opening_fee_rate, "opening_fee_rate")?;
+        decimal_param_lt_one(self.closing_fee_rate, "closing_fee_rate")?;
+        assert_max_net_oi_le_max_oi_long(self.max_long_oi_value, self.max_net_oi_value)?;
+        assert_max_net_oi_le_max_oi_short(self.max_short_oi_value, self.max_net_oi_value)?;
+        assert_max_size_gt_min(self.max_position_value, self.min_position_value)?;
+
+        Ok(PerpParams {
+            denom: self.denom.clone(),
+            max_net_oi_value: self.max_net_oi_value,
+            max_long_oi_value: self.max_long_oi_value,
+            max_short_oi_value: self.max_short_oi_value,
+            closing_fee_rate: self.closing_fee_rate,
+            opening_fee_rate: self.opening_fee_rate,
+            min_position_value: self.min_position_value,
+            max_position_value: self.max_position_value,
+            max_loan_to_value: self.max_loan_to_value,
+            liquidation_threshold: self.liquidation_threshold,
+        })
+    }
 }

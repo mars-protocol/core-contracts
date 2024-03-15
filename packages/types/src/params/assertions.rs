@@ -1,4 +1,4 @@
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Decimal, Uint128};
 use mars_utils::error::ValidationError;
 
 pub(super) fn assert_lqt_gt_max_ltv(
@@ -26,6 +26,52 @@ pub(super) fn assert_hls_lqt_gt_max_ltv(
             predicate: format!("> {} (hls max LTV)", max_ltv),
         });
     }
+    Ok(())
+}
+
+pub(super) fn assert_max_net_oi_le_max_oi_long(
+    max_long_oi_value: Uint128,
+    max_net_oi_value: Uint128,
+) -> Result<(), ValidationError> {
+    if max_net_oi_value > max_long_oi_value {
+        return Err(ValidationError::InvalidParam {
+            param_name: "max_long_oi_value".to_string(),
+            invalid_value: max_long_oi_value.to_string(),
+            predicate: format!(">= {} (max_net_oi_value)", max_net_oi_value),
+        });
+    }
+    Ok(())
+}
+
+pub(super) fn assert_max_net_oi_le_max_oi_short(
+    max_short_oi_value: Uint128,
+    max_net_oi_value: Uint128,
+) -> Result<(), ValidationError> {
+    if max_net_oi_value > max_short_oi_value {
+        return Err(ValidationError::InvalidParam {
+            param_name: "max_short_oi_value".to_string(),
+            invalid_value: max_short_oi_value.to_string(),
+            predicate: format!(">= {} (max_net_oi_value)", max_net_oi_value),
+        });
+    }
+    Ok(())
+}
+
+pub(super) fn assert_max_size_gt_min(
+    max_position_value: Option<Uint128>,
+    min_position_value: Uint128,
+) -> Result<(), ValidationError> {
+    // if we have a max position value, ensure it is greater than the min position value
+    if let Some(max_value_unwrapped) = max_position_value {
+        if max_value_unwrapped <= min_position_value {
+            return Err(ValidationError::InvalidParam {
+                param_name: "max_position_value".to_string(),
+                invalid_value: max_value_unwrapped.to_string(),
+                predicate: format!(">= {} (min position value)", min_position_value),
+            });
+        }
+    };
+
     Ok(())
 }
 

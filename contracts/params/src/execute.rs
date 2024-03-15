@@ -88,7 +88,9 @@ pub fn update_perp_params(
         PerpParamsUpdate::AddOrUpdate {
             params,
         } => {
-            PERP_PARAMS.save(deps.storage, &params.denom, &params)?;
+            let checked = params.check()?;
+
+            PERP_PARAMS.save(deps.storage, &checked.denom, &checked)?;
             response = response
                 .add_attribute("action_type", "add_or_update")
                 .add_attribute("denom", params.denom);

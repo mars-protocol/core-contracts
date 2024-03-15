@@ -107,7 +107,7 @@ fn update_existing_perp_params() {
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
                 denom: denom0.clone(),
-                max_net_oi_value: Uint128::new(1_888_999_000),
+                max_net_oi_value: Uint128::new(888_999_000),
                 max_long_oi_value: Uint128::new(1_123_000_000),
                 max_short_oi_value: Uint128::new(1_321_000_000),
                 closing_fee_rate: Decimal::from_str("0.006").unwrap(),
@@ -128,7 +128,7 @@ fn update_existing_perp_params() {
     assert_ne!(perp_params.max_net_oi_value, old_perp_params.max_net_oi_value);
     assert_ne!(perp_params.max_long_oi_value, old_perp_params.max_long_oi_value);
     assert_ne!(perp_params.max_short_oi_value, old_perp_params.max_short_oi_value);
-    assert_eq!(perp_params.max_net_oi_value, Uint128::new(1_888_999_000));
+    assert_eq!(perp_params.max_net_oi_value, Uint128::new(888_999_000));
     assert_eq!(perp_params.max_long_oi_value, Uint128::new(1_123_000_000));
     assert_eq!(perp_params.max_short_oi_value, Uint128::new(1_321_000_000));
 }

@@ -1078,9 +1078,13 @@ impl HealthComputer {
     fn get_perp_max_ltv(&self, denom: &str) -> HealthResult<Decimal> {
         let params =
             self.perps_data.params.get(denom).ok_or(MissingPerpParams(denom.to_string()))?;
+        let denom_state =
+            self.perps_data.denom_states.get(denom).ok_or(MissingDenomState(denom.to_string()))?;
 
-        // TODO: If the coin has been de-listed, drop MaxLTV to zero
-        //
+        if !denom_state.enabled {
+            return Ok(Decimal::zero());
+        }
+
         Ok(params.max_loan_to_value)
     }
 
@@ -1088,7 +1092,12 @@ impl HealthComputer {
         let params =
             self.perps_data.params.get(denom).ok_or(MissingPerpParams(denom.to_string()))?;
 
-        // TODO check if we are enabled, if not return 0
+        let denom_state =
+            self.perps_data.denom_states.get(denom).ok_or(MissingDenomState(denom.to_string()))?;
+
+        if !denom_state.enabled {
+            return Ok(Decimal::zero());
+        }
 
         Ok(params.liquidation_threshold)
     }

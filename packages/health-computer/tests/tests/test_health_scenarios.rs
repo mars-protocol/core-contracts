@@ -11,7 +11,7 @@ use mars_types::{
     health::AccountKind,
     math::SignedDecimal,
     params::VaultConfig,
-    perps::{PerpPosition, PnlAmounts, PnlCoins, PnlValues, PositionPnl},
+    perps::{PerpDenomState, PerpPosition, PnlAmounts, PnlCoins, PnlValues, PositionPnl},
 };
 
 use super::helpers::{
@@ -1337,7 +1337,13 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
     let unrealised_funding_accrued = SignedDecimal::from_str("-25210000").unwrap();
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
+        denom_states: HashMap::from([(
+            btcperp.denom.clone(),
+            PerpDenomState {
+                enabled: true,
+                ..PerpDenomState::default()
+            },
+        )]),
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
     let h = HealthComputer {
@@ -1417,7 +1423,13 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
         HashMap::from([(uusd.denom.clone(), uusd.price), (btcperp.denom.clone(), btcperp.price)]);
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
+        denom_states: HashMap::from([(
+            btcperp.denom.clone(),
+            PerpDenomState {
+                enabled: true,
+                ..PerpDenomState::default()
+            },
+        )]),
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
     let vaults_data = Default::default();
@@ -1496,7 +1508,13 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
     let vaults_data = Default::default();
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
+        denom_states: HashMap::from([(
+            btcperp.denom.clone(),
+            PerpDenomState {
+                enabled: true,
+                ..PerpDenomState::default()
+            },
+        )]),
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
@@ -1609,7 +1627,13 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
+        denom_states: HashMap::from([(
+            btcperp.denom.clone(),
+            PerpDenomState {
+                enabled: true,
+                ..PerpDenomState::default()
+            },
+        )]),
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
 
@@ -1700,7 +1724,13 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
     let vaults_data = Default::default();
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
+        denom_states: HashMap::from([(
+            btcperp.denom.clone(),
+            PerpDenomState {
+                enabled: true,
+                ..PerpDenomState::default()
+            },
+        )]),
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
@@ -1801,9 +1831,15 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
     let asset_params = HashMap::from([(uusd.denom.clone(), uusd.params.clone())]);
 
     let vaults_data = Default::default();
-
+    let default_perp_denom_state = PerpDenomState {
+        enabled: true,
+        ..PerpDenomState::default()
+    };
     let perps_data = PerpsData {
-        denom_states: Default::default(),
+        denom_states: HashMap::from([
+            (btcperp.denom.clone(), default_perp_denom_state.clone()),
+            (ethperp.denom.clone(), default_perp_denom_state),
+        ]),
         params: HashMap::from([
             (btcperp.denom.clone(), btcperp.perp_params.clone()),
             (ethperp.denom.clone(), ethperp.perp_params.clone()),
@@ -1938,8 +1974,15 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
 
     let vaults_data = Default::default();
 
+    let default_perp_denom_state = PerpDenomState {
+        enabled: true,
+        ..PerpDenomState::default()
+    };
     let perps_data = PerpsData {
-        denom_states: Default::default(),
+        denom_states: HashMap::from([
+            (btcperp.denom.clone(), default_perp_denom_state.clone()),
+            (ethperp.denom.clone(), default_perp_denom_state),
+        ]),
         params: HashMap::from([
             (btcperp.denom.clone(), btcperp.perp_params.clone()),
             (ethperp.denom.clone(), ethperp.perp_params.clone()),
@@ -2066,9 +2109,12 @@ fn perp_short_delta_neutral_with_btc_collateral() {
     ]);
 
     let vaults_data = Default::default();
-
+    let default_perp_denom_state = PerpDenomState {
+        enabled: true,
+        ..PerpDenomState::default()
+    };
     let perps_data = PerpsData {
-        denom_states: Default::default(),
+        denom_states: HashMap::from([(btcperp.denom.clone(), default_perp_denom_state)]),
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
@@ -2162,9 +2208,12 @@ fn spot_short_delta_neutral_with_leverage() {
     ]);
 
     let vaults_data = Default::default();
-
+    let default_perp_denom_state = PerpDenomState {
+        enabled: true,
+        ..PerpDenomState::default()
+    };
     let perps_data = PerpsData {
-        denom_states: Default::default(),
+        denom_states: HashMap::from([(btcperp.denom.clone(), default_perp_denom_state)]),
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
 
@@ -2291,9 +2340,16 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
         (uluna.denom.clone(), Decimal::from_str(price_luna.to_string().as_str()).unwrap()),
     ]);
     let vaults_data = Default::default();
-
+    let default_perp_denom_state = PerpDenomState {
+        enabled: true,
+        ..PerpDenomState::default()
+    };
     let perps_data = PerpsData {
-        denom_states: Default::default(),
+        denom_states: HashMap::from([
+            (btcperp.denom.clone(), default_perp_denom_state.clone()),
+            (ethperp.denom.clone(), default_perp_denom_state.clone()),
+            (atomperp.denom.clone(), default_perp_denom_state.clone()),
+        ]),
         params: HashMap::from([
             (btcperp.denom.clone(), btcperp.perp_params.clone()),
             (ethperp.denom.clone(), ethperp.perp_params.clone()),
@@ -2435,9 +2491,12 @@ fn single_perp_funding_greater_than_pnl() {
 
     let oracle_prices =
         HashMap::from([(uusd.denom.clone(), uusd.price), (btcperp.denom.clone(), btcperp.price)]);
-
+    let default_perp_denom_state = PerpDenomState {
+        enabled: true,
+        ..PerpDenomState::default()
+    };
     let perps_data = PerpsData {
-        denom_states: Default::default(),
+        denom_states: HashMap::from([(btcperp.denom.clone(), default_perp_denom_state.clone())]),
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
 
