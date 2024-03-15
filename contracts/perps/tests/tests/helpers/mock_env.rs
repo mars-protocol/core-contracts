@@ -1,4 +1,4 @@
-#![allow(dead_code)] // TODO: remove once functions are used
+#![allow(dead_code)]
 use std::mem::take;
 
 use anyhow::Result as AnyResult;

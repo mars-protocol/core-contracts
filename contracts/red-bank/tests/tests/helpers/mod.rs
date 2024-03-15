@@ -124,7 +124,7 @@ pub fn th_init_market(deps: DepsMut, denom: &str, market: &Market) -> Market {
 
 pub fn th_default_asset_params() -> AssetParams {
     AssetParams {
-        denom: "todo".to_string(),
+        denom: "udenom".to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
             hls: None,

@@ -373,7 +373,7 @@ pub fn open_position(
     }
 
     let entry_exec_price =
-        opening_execution_price(initial_skew, ds.funding.skew_scale, size, denom_price)?.abs;
+        opening_execution_price(initial_skew, ds.funding.skew_scale, size, denom_price)?;
 
     DENOM_STATES.save(deps.storage, &denom, &ds)?;
 
@@ -580,8 +580,7 @@ fn update_position_state(
         realized_pnl.add(&pnl_amounts)?;
 
         let entry_exec_price =
-            opening_execution_price(initial_skew, ds.funding.skew_scale, new_size, denom_price)?
-                .abs;
+            opening_execution_price(initial_skew, ds.funding.skew_scale, new_size, denom_price)?;
 
         POSITIONS.save(
             deps.storage,

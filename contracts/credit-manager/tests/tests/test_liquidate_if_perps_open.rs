@@ -99,13 +99,16 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
     )
     .unwrap();
 
+    // Change the price for Default and Liquidation pricing.
+    // Liquidation pricing is used during liquidation.
+    // Default pricing is used before and after liquidation to validate perp positions in the test.
     mock.price_change(CoinPrice {
         pricing: ActionKind::Liquidation,
         denom: uatom_info.denom.clone(),
         price: Decimal::from_atomics(26u128, 1).unwrap(),
     });
     mock.price_change(CoinPrice {
-        pricing: ActionKind::Default, // FIXME: remove once Liquidation price is correctly queried
+        pricing: ActionKind::Default,
         denom: uatom_info.denom.clone(),
         price: Decimal::from_atomics(26u128, 1).unwrap(),
     });
@@ -280,13 +283,16 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
     )
     .unwrap();
 
+    // Change the price for Default and Liquidation pricing.
+    // Liquidation pricing is used during liquidation.
+    // Default pricing is used before and after liquidation to validate perp positions in the test.
     mock.price_change(CoinPrice {
         pricing: ActionKind::Liquidation,
         denom: uatom_info.denom.clone(),
         price: Decimal::from_atomics(26u128, 1).unwrap(),
     });
     mock.price_change(CoinPrice {
-        pricing: ActionKind::Default, // FIXME: remove once Liquidation price is correctly queried
+        pricing: ActionKind::Default,
         denom: uatom_info.denom.clone(),
         price: Decimal::from_atomics(26u128, 1).unwrap(),
     });
@@ -467,24 +473,26 @@ fn close_perps_with_profit() {
     )
     .unwrap();
 
+    // Change the price for Default and Liquidation pricing.
+    // Liquidation pricing is used during liquidation.
+    // Default pricing is used before and after liquidation to validate perp positions in the test.
     mock.price_change(CoinPrice {
         pricing: ActionKind::Liquidation,
         denom: uosmo_info.denom.clone(),
         price: Decimal::from_atomics(5u128, 2).unwrap(),
     });
     mock.price_change(CoinPrice {
-        pricing: ActionKind::Default, // FIXME: remove once Liquidation price is correctly queried
+        pricing: ActionKind::Default,
         denom: uosmo_info.denom.clone(),
         price: Decimal::from_atomics(5u128, 2).unwrap(),
     });
-
     mock.price_change(CoinPrice {
         pricing: ActionKind::Liquidation,
         denom: utia_info.denom.clone(),
         price: Decimal::from_atomics(25u128, 3).unwrap(),
     });
     mock.price_change(CoinPrice {
-        pricing: ActionKind::Default, // FIXME: remove once Liquidation price is correctly queried
+        pricing: ActionKind::Default,
         denom: utia_info.denom.clone(),
         price: Decimal::from_atomics(25u128, 3).unwrap(),
     });

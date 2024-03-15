@@ -1357,12 +1357,9 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
                 current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
-                    // TODO fix numbers
                     values: PnlValues {
-                        price_pnl: SignedDecimal::zero(),
                         accrued_funding: unrealised_funding_accrued,
-                        closing_fee: SignedDecimal::zero(),
-                        pnl: SignedDecimal::zero(),
+                        ..Default::default()
                     },
                     amounts: PnlAmounts::default(),
                     coins: PnlCoins {
@@ -1443,12 +1440,9 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
                 current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
-                    // TODO fix numbers
                     values: PnlValues {
-                        price_pnl: SignedDecimal::zero(),
                         accrued_funding: unrealised_funding_accrued,
-                        closing_fee: SignedDecimal::zero(),
-                        pnl: SignedDecimal::zero(),
+                        ..Default::default()
                     },
                     amounts: PnlAmounts::default(),
                     coins: PnlCoins {
@@ -1524,12 +1518,9 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
                 current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
-                    // TODO fix numbers
                     values: PnlValues {
-                        price_pnl: SignedDecimal::zero(),
                         accrued_funding: unrealised_funding_accrued,
-                        closing_fee: SignedDecimal::zero(),
-                        pnl: SignedDecimal::zero(),
+                        ..Default::default()
                     },
                     amounts: PnlAmounts::default(),
                     coins: PnlCoins {
@@ -1646,12 +1637,9 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
                 current_exec_price: current_price,
                 size: SignedDecimal::from_str("-10000000").unwrap(),
                 unrealised_pnl: PositionPnl {
-                    // TODO fix numbers
                     values: PnlValues {
-                        price_pnl: SignedDecimal::zero(),
                         accrued_funding: unrealised_funding_accrued,
-                        closing_fee: SignedDecimal::zero(),
-                        pnl: SignedDecimal::zero(),
+                        ..Default::default()
                     },
                     amounts: PnlAmounts::default(),
                     coins: PnlCoins {
@@ -1734,12 +1722,9 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
                 current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
-                    // TODO fix numbers
                     values: PnlValues {
-                        price_pnl: SignedDecimal::zero(),
                         accrued_funding: unrealised_funding_accrued,
-                        closing_fee: SignedDecimal::zero(),
-                        pnl: SignedDecimal::zero(),
+                        ..Default::default()
                     },
                     amounts: PnlAmounts::default(),
                     coins: PnlCoins {
@@ -1846,12 +1831,9 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                     size: size_btc,
                     // pnl is not used for calculating
                     unrealised_pnl: PositionPnl {
-                        // TODO fix numbers
                         values: PnlValues {
-                            price_pnl: SignedDecimal::zero(),
                             accrued_funding: unrealised_funding_accrued_btc,
-                            closing_fee: SignedDecimal::zero(),
-                            pnl: SignedDecimal::zero(),
+                            ..Default::default()
                         },
                         amounts: PnlAmounts::default(),
                         coins: PnlCoins {
@@ -1875,12 +1857,9 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                     size: size_eth,
                     // pnl is not used for calculating
                     unrealised_pnl: PositionPnl {
-                        // TODO fix numbers
                         values: PnlValues {
-                            price_pnl: SignedDecimal::zero(),
                             accrued_funding: unrealised_funding_accrued_eth,
-                            closing_fee: SignedDecimal::zero(),
-                            pnl: SignedDecimal::zero(),
+                            ..Default::default()
                         },
                         amounts: PnlAmounts::default(),
                         coins: PnlCoins {
@@ -1988,12 +1967,9 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                     size: size_btc,
                     // pnl is not used for calculating
                     unrealised_pnl: PositionPnl {
-                        // TODO fix numbers
                         values: PnlValues {
-                            price_pnl: SignedDecimal::zero(),
                             accrued_funding: unrealised_funding_accrued_btc,
-                            closing_fee: SignedDecimal::zero(),
-                            pnl: SignedDecimal::zero(),
+                            ..Default::default()
                         },
                         amounts: PnlAmounts::default(),
                         coins: PnlCoins {
@@ -2017,12 +1993,9 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                     size: size_eth,
                     // pnl is not used for calculating
                     unrealised_pnl: PositionPnl {
-                        // TODO fix numbers
                         values: PnlValues {
-                            price_pnl: SignedDecimal::zero(),
                             accrued_funding: unrealised_funding_accrued_eth,
-                            closing_fee: SignedDecimal::zero(),
-                            pnl: SignedDecimal::zero(),
+                            ..Default::default()
                         },
                         amounts: PnlAmounts::default(),
                         coins: PnlCoins {
@@ -2117,12 +2090,9 @@ fn perp_short_delta_neutral_with_btc_collateral() {
                 current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
-                    // TODO fix numbers
                     values: PnlValues {
-                        price_pnl: SignedDecimal::zero(),
                         accrued_funding: unrealised_funding_accrued,
-                        closing_fee: SignedDecimal::zero(),
-                        pnl: SignedDecimal::zero(),
+                        ..Default::default()
                     },
                     amounts: PnlAmounts::default(),
                     coins: PnlCoins {
@@ -2221,12 +2191,9 @@ fn spot_short_delta_neutral_with_leverage() {
                 current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
-                    // TODO fix numbers
                     values: PnlValues {
-                        price_pnl: SignedDecimal::zero(),
                         accrued_funding: unrealised_funding_accrued,
-                        closing_fee: SignedDecimal::zero(),
-                        pnl: SignedDecimal::zero(),
+                        ..Default::default()
                     },
                     amounts: PnlAmounts::default(),
                     coins: PnlCoins {
@@ -2358,12 +2325,9 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                     current_exec_price: current_price_btc.abs,
                     size: btc_size,
                     unrealised_pnl: PositionPnl {
-                        // TODO fix numbers
                         values: PnlValues {
-                            price_pnl: SignedDecimal::zero(),
                             accrued_funding: unrealised_funding_accrued,
-                            closing_fee: SignedDecimal::zero(),
-                            pnl: SignedDecimal::zero(),
+                            ..Default::default()
                         },
                         amounts: PnlAmounts::default(),
                         coins: PnlCoins {
@@ -2386,12 +2350,9 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                     current_exec_price: current_price_eth.abs,
                     size: eth_size,
                     unrealised_pnl: PositionPnl {
-                        // TODO fix numbers
                         values: PnlValues {
-                            price_pnl: SignedDecimal::zero(),
                             accrued_funding: unrealised_funding_accrued,
-                            closing_fee: SignedDecimal::zero(),
-                            pnl: SignedDecimal::zero(),
+                            ..Default::default()
                         },
                         amounts: PnlAmounts::default(),
                         coins: PnlCoins {
@@ -2414,12 +2375,9 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                     current_exec_price: current_price_atom.abs,
                     size: atom_size,
                     unrealised_pnl: PositionPnl {
-                        // TODO fix numbers
                         values: PnlValues {
-                            price_pnl: SignedDecimal::zero(),
                             accrued_funding: unrealised_funding_accrued,
-                            closing_fee: SignedDecimal::zero(),
-                            pnl: SignedDecimal::zero(),
+                            ..Default::default()
                         },
                         amounts: PnlAmounts::default(),
                         coins: PnlCoins {
@@ -2503,12 +2461,9 @@ fn single_perp_funding_greater_than_pnl() {
                 current_exec_price: current_price,
                 size,
                 unrealised_pnl: PositionPnl {
-                    // TODO fix numbers
                     values: PnlValues {
-                        price_pnl: SignedDecimal::zero(),
                         accrued_funding: unrealised_funding_accrued,
-                        closing_fee: SignedDecimal::zero(),
-                        pnl: SignedDecimal::zero(),
+                        ..Default::default()
                     },
                     amounts: PnlAmounts::default(),
                     coins: PnlCoins {

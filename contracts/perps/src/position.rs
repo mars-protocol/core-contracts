@@ -38,7 +38,8 @@ impl PositionExt for Position {
             closing_execution_price(skew, funding.skew_scale, self.size, denom_price)?;
 
         // size * (exit_exec_price - entry_exec_price)
-        let price_diff = exit_exec_price.checked_sub(self.entry_exec_price.into())?;
+        let price_diff =
+            SignedDecimal::from(exit_exec_price).checked_sub(self.entry_exec_price.into())?;
         let price_pnl_value = self.size.checked_mul(price_diff)?;
         let price_pnl_in_base_denom = price_pnl_value.checked_div(base_denom_price.into())?;
 
@@ -117,7 +118,7 @@ impl PositionModification {
             // - if increasing it is q change
             PositionModification::Increase(size) => {
                 let denom_exec_price =
-                    opening_execution_price(skew, skew_scale, *size, denom_price)?.abs;
+                    opening_execution_price(skew, skew_scale, *size, denom_price)?;
                 let opening_fee =
                     compute_fee(opening_fee_rate, *size, denom_exec_price, base_denom_price)?;
                 let closing_fee = (SignedDecimal::zero(), SignedDecimal::zero());
@@ -129,7 +130,7 @@ impl PositionModification {
             // - if reducing it is q change
             PositionModification::Decrease(size) => {
                 let denom_exec_price =
-                    closing_execution_price(skew, skew_scale, *size, denom_price)?.abs;
+                    closing_execution_price(skew, skew_scale, *size, denom_price)?;
                 let opening_fee = (SignedDecimal::zero(), SignedDecimal::zero());
                 let closing_fee =
                     compute_fee(closing_fee_rate, *size, denom_exec_price, base_denom_price)?;
@@ -140,7 +141,7 @@ impl PositionModification {
             // This can be used when querying the current PnL without affecting the position
             PositionModification::None => {
                 let denom_exec_price =
-                    closing_execution_price(skew, skew_scale, size, denom_price)?.abs;
+                    closing_execution_price(skew, skew_scale, size, denom_price)?;
                 let opening_fee = (SignedDecimal::zero(), SignedDecimal::zero());
                 let closing_fee =
                     compute_fee(closing_fee_rate, size, denom_exec_price, base_denom_price)?;

@@ -159,12 +159,11 @@ fn cannot_increase_position_for_disabled_denom() {
     mock.disable_denom(&owner, "uatom").unwrap();
 
     let res = mock.modify_position(
-        // FIXME: provide fees
         &credit_manager,
         "2",
         "uatom",
         SignedDecimal::from_str("-175").unwrap(),
-        &[],
+        &[], // fees are not important for this test
     );
 
     assert_err(
@@ -432,12 +431,11 @@ fn increased_position_cannot_be_too_big() {
     mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
 
     let res = mock.modify_position(
-        // FIXME: provide fees
         &credit_manager,
         "2",
         "uatom",
         SignedDecimal::from_str("100").unwrap(),
-        &[],
+        &[], // fees are not important for this test
     );
     assert_err(
         res,
@@ -747,7 +745,7 @@ fn modify_position_realises_pnl() {
             accrued_funding: SignedDecimal::zero(),
             price_pnl: SignedDecimal::from_str("300.045").unwrap(),
             // opening_fee: atom_opening_fee_total,
-            opening_fee: SignedDecimal::from_str("-42.00385").unwrap(), // FIXME: rounding error
+            opening_fee: SignedDecimal::from_str("-42.00385").unwrap(), // rounding error
             closing_fee: SignedDecimal::zero(), // increased position does not have closing fee
             pnl: SignedDecimal::from_str("258.04115").unwrap(),
         }
@@ -773,7 +771,7 @@ fn modify_position_realises_pnl() {
             accrued_funding: SignedDecimal::zero(),
             price_pnl: SignedDecimal::from_str("98.685").unwrap(),
             // opening_fee: atom_opening_fee_total, // we are not paying opening fee for decrease
-            opening_fee: SignedDecimal::from_str("-42.00385").unwrap(), // FIXME: rounding error
+            opening_fee: SignedDecimal::from_str("-42.00385").unwrap(), // rounding error
             closing_fee: SignedDecimal::from_str("-10.503675").unwrap(),
             pnl: SignedDecimal::from_str("46.177475").unwrap(),
         }

@@ -507,8 +507,6 @@ pub enum QueryMsg {
     #[returns(VaultState)]
     VaultState {},
 
-    // TODO: in case a denom is not found, should we throw an error (the current
-    // behavior) or return a None?
     #[returns(DenomStateResponse)]
     DenomState {
         denom: String,
@@ -534,9 +532,6 @@ pub enum QueryMsg {
     },
 
     /// Query the amount of deposit made to the vault by a single user
-    //
-    // TODO: in case a deposit is not found, should we return zero (the current
-    // behavior) or throw an error?
     #[returns(DepositResponse)]
     Deposit {
         account_id: String,

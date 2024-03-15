@@ -524,7 +524,7 @@ fn increase_accumulators(
         size,
         denom_price,
     )?;
-    let value = size.checked_mul(entry_exec_price)?;
+    let value = size.checked_mul(entry_exec_price.into())?;
     denom_state.total_entry_cost = denom_state.total_entry_cost.checked_add(value)?;
 
     // increase the total_entry_funding accumulator with recalculated funding
@@ -907,7 +907,7 @@ mod tests {
         let skew = ds_1.skew().unwrap();
         let entry_price = Decimal::from_str("4200").unwrap();
         let entry_exec_price =
-            opening_execution_price(skew, ds_1.funding.skew_scale, size, entry_price).unwrap().abs;
+            opening_execution_price(skew, ds_1.funding.skew_scale, size, entry_price).unwrap();
         let mut pos = Position {
             size,
             entry_price,
@@ -931,8 +931,7 @@ mod tests {
         pos.entry_price = new_denom_price;
         pos.entry_exec_price =
             opening_execution_price(new_skew, ds_1.funding.skew_scale, new_size, new_denom_price)
-                .unwrap()
-                .abs;
+                .unwrap();
         pos.entry_accrued_funding_per_unit_in_base_denom =
             ds_1.funding.last_funding_accrued_per_unit_in_base_denom;
         pos.initial_skew = new_skew;

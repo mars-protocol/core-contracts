@@ -1,3 +1,5 @@
+use std::{cmp::max, str::FromStr};
+
 use cosmwasm_std::Decimal;
 use mars_types::math::SignedDecimal;
 
@@ -9,7 +11,7 @@ pub fn opening_execution_price(
     skew_scale: Decimal,
     size: SignedDecimal,
     oracle_price: Decimal,
-) -> ContractResult<SignedDecimal> {
+) -> ContractResult<Decimal> {
     let initial_premium = initial_premium(skew, skew_scale)?;
     let final_premium_opening = final_premium_opening(skew, skew_scale, size)?;
     let res = execution_price(initial_premium, final_premium_opening, oracle_price)?;
@@ -22,7 +24,7 @@ pub fn closing_execution_price(
     skew_scale: Decimal,
     size: SignedDecimal,
     oracle_price: Decimal,
-) -> ContractResult<SignedDecimal> {
+) -> ContractResult<Decimal> {
     let initial_premium = initial_premium(skew, skew_scale)?;
     let final_premium_closing = final_premium_closing(skew, skew_scale, size)?;
     let res = execution_price(initial_premium, final_premium_closing, oracle_price)?;
@@ -71,10 +73,18 @@ fn execution_price(
     initial_premium: SignedDecimal,
     final_premium: SignedDecimal,
     oracle_price: Decimal,
-) -> ContractResult<SignedDecimal> {
+) -> ContractResult<Decimal> {
     let avg_premium = initial_premium
         .checked_add(final_premium)?
         .checked_div(Decimal::from_atomics(2u128, 0)?.into())?;
-    let res = SignedDecimal::one().checked_add(avg_premium)?.checked_mul(oracle_price.into())?;
-    Ok(res)
+
+    // Price being negative is very unlikely scenario as we're using quite large skewScale compared to the maxSkew (risk team methodology),
+    // but we add hard restriction on the market impact, just in case.
+    let avg_premium_bounded = max(avg_premium, SignedDecimal::from_str("-1").unwrap());
+
+    let res =
+        SignedDecimal::one().checked_add(avg_premium_bounded)?.checked_mul(oracle_price.into())?;
+
+    // Price won't be negative so it is safe to return Decimal
+    Ok(res.abs)
 }

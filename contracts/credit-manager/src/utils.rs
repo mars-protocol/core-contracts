@@ -32,7 +32,6 @@ pub fn assert_is_authorized(deps: &DepsMut, user: &Addr, account_id: &str) -> Co
     if user != &owner {
         let perps = PERPS.load(deps.storage)?;
         if user != perps.address() {
-            // TODO: update error message text?
             return Err(ContractError::NotTokenOwner {
                 user: user.to_string(),
                 account_id: account_id.to_string(),

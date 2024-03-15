@@ -1267,7 +1267,6 @@ index ce69309a..149490eb 100644
 -    pub denom_out: String,
 -    pub route: Route,
 -}
-+// TODO: rover is private repo for now so can't use it as a dependency. Use rover types once repo is public.
 +pub mod credit_manager {
 +    use cosmwasm_schema::cw_serde;
 +    use cosmwasm_std::{Coin, Uint128};
