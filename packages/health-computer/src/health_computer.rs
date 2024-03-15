@@ -806,7 +806,7 @@ impl HealthComputer {
                 .ok_or(MissingPrice(base_denom.to_string()))?)
             .into();
 
-            let (funding_min, funding_max) = self.get_min_and_max_funding(position)?;
+            let (funding_min, funding_max) = self.get_min_and_max_funding_amounts(position)?;
 
             let funding_min_value = funding_min.checked_mul(base_denom_price)?;
             let funding_max_value = funding_max.checked_mul(base_denom_price)?;
@@ -1135,21 +1135,21 @@ impl HealthComputer {
     }
 
     // TODO - use comparison function
-    fn get_min_and_max_funding(
+    fn get_min_and_max_funding_amounts(
         &self,
         position: &PerpPosition,
     ) -> HealthResult<(SignedDecimal, SignedDecimal)> {
-        let accrued_funding_value = position.unrealised_pnl.values.accrued_funding;
+        let accrued_funding_amount = position.unrealised_pnl.amounts.accrued_funding;
         // funding_max = max(0, unrealised_funding_accrued)
-        let funding_max = if accrued_funding_value.is_positive() {
-            accrued_funding_value
+        let funding_max = if accrued_funding_amount.is_positive() {
+            accrued_funding_amount
         } else {
             SignedDecimal::zero()
         };
 
         // funding min = -min(0, unrealised_funding_accrued)
-        let funding_min = if accrued_funding_value.is_negative() {
-            accrued_funding_value.abs.into()
+        let funding_min = if accrued_funding_amount.is_negative() {
+            accrued_funding_amount.abs.into()
         } else {
             SignedDecimal::zero()
         };

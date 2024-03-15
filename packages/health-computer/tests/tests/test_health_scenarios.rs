@@ -1367,7 +1367,10 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
                         accrued_funding: unrealised_funding_accrued,
                         ..Default::default()
                     },
-                    amounts: PnlAmounts::default(),
+                    amounts: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued,
+                        ..Default::default()
+                    },
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1456,7 +1459,10 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
                         accrued_funding: unrealised_funding_accrued,
                         ..Default::default()
                     },
-                    amounts: PnlAmounts::default(),
+                    amounts: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued,
+                        ..Default::default()
+                    },
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1540,7 +1546,10 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
                         accrued_funding: unrealised_funding_accrued,
                         ..Default::default()
                     },
-                    amounts: PnlAmounts::default(),
+                    amounts: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued,
+                        ..Default::default()
+                    },
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1756,7 +1765,10 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
                         accrued_funding: unrealised_funding_accrued,
                         ..Default::default()
                     },
-                    amounts: PnlAmounts::default(),
+                    amounts: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued,
+                        ..Default::default()
+                    },
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1871,7 +1883,10 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                             accrued_funding: unrealised_funding_accrued_btc,
                             ..Default::default()
                         },
-                        amounts: PnlAmounts::default(),
+                        amounts: PnlAmounts {
+                            accrued_funding: unrealised_funding_accrued_btc,
+                            ..Default::default()
+                        },
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Loss(Coin {
@@ -1897,7 +1912,10 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                             accrued_funding: unrealised_funding_accrued_eth,
                             ..Default::default()
                         },
-                        amounts: PnlAmounts::default(),
+                        amounts: PnlAmounts {
+                            accrued_funding: unrealised_funding_accrued_eth,
+                            ..Default::default()
+                        },
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Loss(Coin {
@@ -2014,7 +2032,10 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                             accrued_funding: unrealised_funding_accrued_btc,
                             ..Default::default()
                         },
-                        amounts: PnlAmounts::default(),
+                        amounts: PnlAmounts {
+                            accrued_funding: unrealised_funding_accrued_btc,
+                            ..Default::default()
+                        },
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Loss(Coin {
@@ -2040,7 +2061,10 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                             accrued_funding: unrealised_funding_accrued_eth,
                             ..Default::default()
                         },
-                        amounts: PnlAmounts::default(),
+                        amounts: PnlAmounts {
+                            accrued_funding: unrealised_funding_accrued_eth,
+                            ..Default::default()
+                        },
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Loss(Coin {
@@ -2140,7 +2164,10 @@ fn perp_short_delta_neutral_with_btc_collateral() {
                         accrued_funding: unrealised_funding_accrued,
                         ..Default::default()
                     },
-                    amounts: PnlAmounts::default(),
+                    amounts: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued,
+                        ..Default::default()
+                    },
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -2244,7 +2271,10 @@ fn spot_short_delta_neutral_with_leverage() {
                         accrued_funding: unrealised_funding_accrued,
                         ..Default::default()
                     },
-                    amounts: PnlAmounts::default(),
+                    amounts: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued,
+                        ..Default::default()
+                    },
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
@@ -2385,7 +2415,10 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                             accrued_funding: unrealised_funding_accrued,
                             ..Default::default()
                         },
-                        amounts: PnlAmounts::default(),
+                        amounts: PnlAmounts {
+                            accrued_funding: unrealised_funding_accrued,
+                            ..Default::default()
+                        },
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Profit(Coin {
@@ -2410,7 +2443,10 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                             accrued_funding: unrealised_funding_accrued,
                             ..Default::default()
                         },
-                        amounts: PnlAmounts::default(),
+                        amounts: PnlAmounts {
+                            accrued_funding: unrealised_funding_accrued,
+                            ..Default::default()
+                        },
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Loss(Coin {
@@ -2435,7 +2471,10 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                             accrued_funding: unrealised_funding_accrued,
                             ..Default::default()
                         },
-                        amounts: PnlAmounts::default(),
+                        amounts: PnlAmounts {
+                            accrued_funding: unrealised_funding_accrued,
+                            ..Default::default()
+                        },
                         coins: PnlCoins {
                             closing_fee: coin(0, "usdc".to_string()),
                             pnl: mars_types::perps::PnL::Profit(Coin {
@@ -2524,7 +2563,10 @@ fn single_perp_funding_greater_than_pnl() {
                         accrued_funding: unrealised_funding_accrued,
                         ..Default::default()
                     },
-                    amounts: PnlAmounts::default(),
+                    amounts: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued,
+                        ..Default::default()
+                    },
                     coins: PnlCoins {
                         closing_fee: coin(0, "usdc".to_string()),
                         pnl: mars_types::perps::PnL::Loss(Coin {
