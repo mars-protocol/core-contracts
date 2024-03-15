@@ -1,16 +1,165 @@
 use std::cmp::max;
 
-use cosmwasm_std::{Deps, Uint128};
+use cosmwasm_std::{
+    coins, ensure_eq, BankMsg, Deps, DepsMut, MessageInfo, Response, StdError, Storage, Uint128,
+};
+use cw_utils::must_pay;
 use mars_types::{
-    adapters::oracle::Oracle, math::SignedDecimal, oracle::ActionKind, perps::VaultState,
+    adapters::oracle::Oracle,
+    math::SignedDecimal,
+    oracle::ActionKind,
+    perps::{UnlockState, VaultState},
 };
 
 use crate::{
     denom::compute_total_accounting_data,
     error::{ContractError, ContractResult},
+    state::{decrease_deposit_shares, increase_deposit_shares, CONFIG, UNLOCKS, VAULT_STATE},
 };
 
 const DEFAULT_SHARES_PER_AMOUNT: u128 = 1_000_000;
+
+pub fn deposit(
+    deps: DepsMut,
+    info: MessageInfo,
+    current_time: u64,
+    account_id: &str,
+) -> ContractResult<Response> {
+    let cfg = CONFIG.load(deps.storage)?;
+
+    // only the credit manager contract can open positions
+    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+
+    let mut vs = VAULT_STATE.load(deps.storage)?;
+
+    // find the deposit amount
+    let amount = must_pay(&info, &cfg.base_denom)?;
+
+    // compute the new shares to be minted to the depositor
+    let shares = amount_to_shares(
+        &deps.as_ref(),
+        &vs,
+        &cfg.oracle,
+        current_time,
+        &cfg.base_denom,
+        amount,
+        ActionKind::Default,
+    )?;
+
+    // increment total liquidity and deposit shares
+    vs.total_liquidity = vs.total_liquidity.checked_add(amount)?;
+    vs.total_shares = vs.total_shares.checked_add(shares)?;
+    VAULT_STATE.save(deps.storage, &vs)?;
+
+    // increment the user's deposit shares
+    increase_deposit_shares(deps.storage, account_id, shares)?;
+
+    Ok(Response::new()
+        .add_attribute("method", "deposit")
+        .add_attribute("amount", amount)
+        .add_attribute("shares", shares))
+}
+
+pub fn unlock(
+    deps: DepsMut,
+    info: MessageInfo,
+    current_time: u64,
+    account_id: &str,
+    shares: Uint128,
+) -> ContractResult<Response> {
+    let cfg = CONFIG.load(deps.storage)?;
+
+    // only the credit manager contract can open positions
+    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+
+    let mut vs = VAULT_STATE.load(deps.storage)?;
+
+    // convert the shares to amount
+    let amount = shares_to_amount(
+        &deps.as_ref(),
+        &vs,
+        &cfg.oracle,
+        current_time,
+        &cfg.base_denom,
+        shares,
+        ActionKind::Default,
+    )?;
+
+    // cannot unlock when there is zero shares
+    if amount.is_zero() {
+        return Err(ContractError::ZeroShares);
+    }
+
+    // decrement total liquidity and deposit shares
+    vs.total_liquidity = vs.total_liquidity.checked_sub(amount)?;
+    vs.total_shares = vs.total_shares.checked_sub(shares)?;
+    VAULT_STATE.save(deps.storage, &vs)?;
+
+    // decrement the user's deposit shares
+    decrease_deposit_shares(deps.storage, account_id, shares)?;
+
+    // add new unlock position
+    let cooldown_end = current_time + cfg.cooldown_period;
+    UNLOCKS.update(deps.storage, account_id, |maybe_unlocks| {
+        let mut unlocks = maybe_unlocks.unwrap_or_default();
+
+        unlocks.push(UnlockState {
+            created_at: current_time,
+            cooldown_end,
+            amount,
+        });
+
+        Ok::<Vec<UnlockState>, StdError>(unlocks)
+    })?;
+
+    Ok(Response::new()
+        .add_attribute("method", "unlock")
+        .add_attribute("amount", amount)
+        .add_attribute("shares", shares)
+        .add_attribute("created_at", current_time.to_string())
+        .add_attribute("cooldown_end", cooldown_end.to_string()))
+}
+
+pub fn withdraw(
+    store: &mut dyn Storage,
+    info: MessageInfo,
+    current_time: u64,
+    account_id: &str,
+) -> ContractResult<Response> {
+    let cfg = CONFIG.load(store)?;
+
+    // only the credit manager contract can open positions
+    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+
+    let unlocks = UNLOCKS.load(store, account_id)?;
+
+    // find all unlocked positions
+    let (unlocked, unlocking): (Vec<_>, Vec<_>) =
+        unlocks.into_iter().partition(|us| us.cooldown_end <= current_time);
+
+    // cannot withdraw when there is zero unlocked positions
+    if unlocked.is_empty() {
+        return Err(ContractError::UnlockedPositionsNotFound {});
+    }
+
+    // clear state if no more unlocking positions
+    if unlocking.is_empty() {
+        UNLOCKS.remove(store, account_id);
+    } else {
+        UNLOCKS.save(store, account_id, &unlocking)?;
+    }
+
+    // compute the total amount to be withdrawn
+    let unlocked_amt = unlocked.into_iter().map(|us| us.amount).sum::<Uint128>();
+
+    Ok(Response::new()
+        .add_attribute("method", "withdraw")
+        .add_attribute("amount", unlocked_amt)
+        .add_message(BankMsg::Send {
+            to_address: info.sender.into(),
+            amount: coins(unlocked_amt.u128(), cfg.base_denom),
+        }))
+}
 
 /// Compute the counterparty vault's net asset value (NAV), denominated in the
 /// base asset (i.e. USDC).

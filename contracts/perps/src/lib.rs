@@ -2,9 +2,11 @@
 pub mod accounting;
 pub mod contract;
 pub mod denom;
+pub mod denom_management;
 pub mod error;
-pub mod execute;
+pub mod initialize;
 pub mod position;
+pub mod position_management;
 pub mod pricing;
 pub mod query;
 pub mod state;

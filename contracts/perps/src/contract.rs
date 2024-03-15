@@ -7,7 +7,10 @@ use mars_types::{
     perps::{ExecuteMsg, InstantiateMsg, QueryMsg},
 };
 
-use crate::{error::ContractResult, execute, query, state::OWNER};
+use crate::{
+    denom_management, error::ContractResult, initialize, position_management, query, state::OWNER,
+    vault,
+};
 
 pub const CONTRACT_NAME: &str = "mars-perps";
 pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -32,7 +35,7 @@ pub fn instantiate(
     )?;
 
     // initialize contract config and global state
-    execute::initialize(deps.storage, msg.check(deps.api)?)
+    initialize::initialize(deps.storage, msg.check(deps.api)?)
 }
 
 #[entry_point]
@@ -48,7 +51,7 @@ pub fn execute(
             denom,
             max_funding_velocity,
             skew_scale,
-        } => execute::init_denom(
+        } => denom_management::init_denom(
             deps.storage,
             env,
             &info.sender,
@@ -58,38 +61,38 @@ pub fn execute(
         ),
         ExecuteMsg::EnableDenom {
             denom,
-        } => execute::enable_denom(deps.storage, env, &info.sender, &denom),
+        } => denom_management::enable_denom(deps.storage, env, &info.sender, &denom),
         ExecuteMsg::DisableDenom {
             denom,
-        } => execute::disable_denom(deps, env, &info.sender, &denom),
+        } => denom_management::disable_denom(deps, env, &info.sender, &denom),
         ExecuteMsg::Deposit {
             account_id,
-        } => execute::deposit(deps, info, env.block.time.seconds(), &account_id),
+        } => vault::deposit(deps, info, env.block.time.seconds(), &account_id),
         ExecuteMsg::Unlock {
             account_id,
             shares,
-        } => execute::unlock(deps, info, env.block.time.seconds(), &account_id, shares),
+        } => vault::unlock(deps, info, env.block.time.seconds(), &account_id, shares),
         ExecuteMsg::Withdraw {
             account_id,
-        } => execute::withdraw(deps.storage, info, env.block.time.seconds(), &account_id),
+        } => vault::withdraw(deps.storage, info, env.block.time.seconds(), &account_id),
         ExecuteMsg::OpenPosition {
             account_id,
             denom,
             size,
-        } => execute::open_position(deps, env, info, account_id, denom, size),
+        } => position_management::open_position(deps, env, info, account_id, denom, size),
         ExecuteMsg::ClosePosition {
             account_id,
             denom,
-        } => execute::close_position(deps, env, info, account_id, denom),
+        } => position_management::close_position(deps, env, info, account_id, denom),
         ExecuteMsg::ModifyPosition {
             account_id,
             denom,
             new_size,
-        } => execute::modify_position(deps, env, info, account_id, denom, new_size),
+        } => position_management::modify_position(deps, env, info, account_id, denom, new_size),
         ExecuteMsg::CloseAllPositions {
             account_id,
             action,
-        } => execute::close_all_positions(
+        } => position_management::close_all_positions(
             deps,
             env,
             info,
