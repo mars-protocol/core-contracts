@@ -335,8 +335,8 @@ export const nobleUSDCAsset: AssetConfig = {
 // Perps configurations
 export const atomPerpDenom: PerpDenom = {
   denom: atomDenom,
-  maxFundingVelocity: '3',
-  skewScale: '1000000',
+  maxFundingVelocity: '36',
+  skewScale: '7227323000000',
   maxNetOiValue: '100000000000000',
   maxLongOiValue: '100000000000000',
   maxShortOiValue: '100000000000000',
@@ -350,8 +350,8 @@ export const atomPerpDenom: PerpDenom = {
 
 export const ntrnPerpDenom: PerpDenom = {
   denom: 'untrn',
-  maxFundingVelocity: '3',
-  skewScale: '1000000',
+  maxFundingVelocity: '36',
+  skewScale: '7227323000000',
   maxNetOiValue: '100000000000000',
   maxLongOiValue: '100000000000000',
   maxShortOiValue: '100000000000000',

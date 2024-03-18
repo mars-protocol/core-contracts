@@ -1,14 +1,14 @@
 {
-  "addressProvider": "neutron17lp26pa53zey9xnektssn02gm237p3rzyunywujdk7nnh6r84casy5m2up",
-  "redBank": "neutron1yzazm4e697mgjjsuepl8gr6yyuuxff2nwzfgg3nlxctavvt7f8pqr424cz",
-  "incentives": "neutron1cywvc60yylwkjzh3zm5ftfmuxra5hcq4xe7q00see04an7udvddsy2xl37",
-  "oracle": "neutron1j5mz5scmx2ezmch3qzxx0xpvsyw2alxv5k7xs0v20m64p5qmvtqsn00rz5",
-  "rewardsCollector": "neutron1dt3t9l8d2n6y3n9tc5ugzc4har4q6uh2r7s22hl6w39vdnqaz5ks57gesn",
-  "swapper": "neutron1383ytqh0l39vmml2a8m6etwueet4d8fs5h9h48mkjkftn7wtyrhsjya838",
-  "params": "neutron1gwplf5cxzkug5jufl228m8tqtd3tc089ds9zptpl4y7y623lr3zst8wpg0",
-  "zapper": "neutron1w7q36q7tep00mzwqg96mcxq8rejzgkyp0kfpvkd4p6fyq4vghp4q6uwta6",
-  "health": "neutron1x0qwacjejumcezd8rqf7gsumfrf9tg9wg9zrw8wl05kz55tv3ays23mj5z",
-  "creditManager": "neutron1v4qz5w6n09la2f9uutkvyklutas9g3cd9rqhdcappajavrv4d6xqzuvnrv",
-  "accountNft": "neutron10ps7kpw7x78fx2t3uy58henttna8t750tp2s6tjn4tuk0jadp7csytk9yx",
-  "perps": "neutron1he5f7ch3e9mze39pl95fl4ljszk7wd8lg3ungay5lq4hpj8lq4yqp4y3xj"
+  "addressProvider": "neutron1augg5snp7l9u6rufhqectatk096ja0gk3plgkeges4zn8hp88sxsn65duy",
+  "redBank": "neutron1v3kslntkhqlumu70wzru0ryg4j2atxv7wlqn2jah9r3e6vyhqzks5xytvf",
+  "incentives": "neutron1kn8mcnzx29w36n692e7dk3w2yv4q09rlx0wz4gkly3kj92p3d65s68rv2c",
+  "oracle": "neutron14v283q54e2c7r3jxpxw3nxc2pt8zmsfz0se03f3fxuxxeen2shlsxdq2zv",
+  "rewardsCollector": "neutron1p4kw04mzup2yyf5zg8mjsvflg2dlry260f2x23rnuzk77waj6rtqndh5en",
+  "swapper": "neutron1g9nun5h0fw8lwa0h62mcr7tm059yqxe8n66x6mrf4snpt874hp7qrrsrqa",
+  "params": "neutron1m4pd2nmsqz37xngrn2ns6er9cv46xz8thesfkt64agx3t6nh408sk8feat",
+  "zapper": "neutron1g8405s9mj6dxcws3lttqz5uerehg8jz8e8jlugxk6a53k0sf07ws6xxa5m",
+  "health": "neutron1mkfshxjtkszrdc9yvnexngf45xa7xpvg9suxk93n466w2h4cv7jq7sghws",
+  "creditManager": "neutron1m74ywvt3rfetj8m3u0yz275usfkwwngm33c53093kj3n7c8klrpqmqtxru",
+  "accountNft": "neutron1t7xusf8t6n2nvn2ye6rxdrcle7zu65qf5dmpjcdvge8cqgch3j3qnnuvlg",
+  "perps": "neutron16kg666yz026wvuk2crtz99wszqzc7t4aqxldx3nshlm8wtn6y28stpp6du"
 }
