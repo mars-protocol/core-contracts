@@ -38,7 +38,9 @@ pub struct HealthComputer {
     pub oracle_prices: HashMap<String, Decimal>,
 }
 
-#[derive(PartialEq)]
+#[cw_serde]
+#[cfg_attr(feature = "javascript", derive(Tsify))]
+#[cfg_attr(feature = "javascript", tsify(into_wasm_abi, from_wasm_abi))]
 pub enum Direction {
     Long,
     Short,
