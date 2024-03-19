@@ -1,9 +1,9 @@
 use mars_types::health::{
-    BorrowTarget, HealthValuesResponse, LiquidationPriceKind, Slippage, SwapKind,
+    BorrowTarget, HealthValuesResponse, LiquidationPriceKind, Number, SwapKind,
 };
 use wasm_bindgen::prelude::*;
 
-use crate::HealthComputer;
+use crate::{Direction, HealthComputer};
 
 // Note: Arguments and return values must use:
 //          #[derive(Tsify)]
@@ -35,7 +35,7 @@ pub fn max_swap_estimate_js(
     from_denom: String,
     to_denom: String,
     kind: SwapKind,
-    slippage: Slippage,
+    slippage: Number,
 ) -> String {
     c.max_swap_amount_estimate(&from_denom, &to_denom, &kind, slippage.as_decimal())
         .unwrap()
@@ -49,4 +49,24 @@ pub fn liquidation_price_js(
     kind: LiquidationPriceKind,
 ) -> String {
     c.liquidation_price(&denom, &kind).unwrap().to_string()
+}
+
+#[wasm_bindgen]
+pub fn max_perp_size_estimate_js(
+    c: HealthComputer,
+    denom: String,
+    base_denom: String,
+    long_oi_amount: Number,
+    short_oi_amount: Number,
+    direction: Direction,
+) -> String {
+    c.max_perp_size_estimate(
+        &denom,
+        &base_denom,
+        long_oi_amount.as_decimal(),
+        short_oi_amount.as_decimal(),
+        &direction,
+    )
+    .unwrap()
+    .to_string()
 }

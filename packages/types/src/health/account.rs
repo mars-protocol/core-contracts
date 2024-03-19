@@ -43,9 +43,9 @@ pub enum SwapKind {
 #[cw_serde]
 #[cfg_attr(feature = "javascript", derive(Tsify))]
 #[cfg_attr(feature = "javascript", tsify(into_wasm_abi, from_wasm_abi))]
-pub struct Slippage(Decimal);
+pub struct Number(Decimal);
 
-impl Slippage {
+impl Number {
     pub fn as_decimal(&self) -> Decimal {
         self.0
     }
