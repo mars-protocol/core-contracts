@@ -424,15 +424,17 @@ pub enum ExecuteMsg {
     /// providers win if traders have negative PnLs, or loss if traders have
     /// positive PnLs.
     Deposit {
-        /// The user's credit account token ID
-        account_id: String,
+        /// The user's credit account token ID.
+        /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
+        account_id: Option<String>,
     },
 
     /// Unlock liquidity from the vault. The unlocked tokens will have to wait
     /// a cooldown period before they can be withdrawn.
     Unlock {
-        /// The user's credit account token ID
-        account_id: String,
+        /// The user's credit account token ID.
+        /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
+        account_id: Option<String>,
 
         /// The amount of shares to unlock
         shares: Uint128,
@@ -440,8 +442,9 @@ pub enum ExecuteMsg {
 
     /// Withdraw liquidity from the vault.
     Withdraw {
-        /// The user's credit account token ID
-        account_id: String,
+        /// The user's credit account token ID.
+        /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
+        account_id: Option<String>,
     },
 
     /// Open a new perp position.
@@ -527,26 +530,35 @@ pub enum QueryMsg {
 
     #[returns(Option<PerpVaultPosition>)]
     PerpVaultPosition {
-        account_id: String,
+        /// User address calling the contract.
+        /// It can be a Credit Manager contract or a wallet.
+        user_address: String,
+        /// The user's credit account token ID.
+        /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
+        account_id: Option<String>,
+
         action: Option<ActionKind>,
     },
 
     /// Query the amount of deposit made to the vault by a single user
     #[returns(DepositResponse)]
     Deposit {
-        account_id: String,
-    },
-
-    /// List all deposits to the vault
-    #[returns(Vec<DepositResponse>)]
-    Deposits {
-        start_after: Option<String>,
-        limit: Option<u32>,
+        /// User address calling the contract.
+        /// It can be a Credit Manager contract or a wallet.
+        user_address: String,
+        /// The user's credit account token ID.
+        /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
+        account_id: Option<String>,
     },
 
     #[returns(Vec<UnlockState>)]
     Unlocks {
-        account_id: String,
+        /// User address calling the contract.
+        /// It can be a Credit Manager contract or a wallet.
+        user_address: String,
+        /// The user's credit account token ID.
+        /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
+        account_id: Option<String>,
     },
 
     /// Query a single perp position by ID
@@ -618,7 +630,6 @@ pub struct DenomStateResponse {
 
 #[cw_serde]
 pub struct DepositResponse {
-    pub account_id: String,
     pub shares: Uint128,
     pub amount: Uint128,
 }

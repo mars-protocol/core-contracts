@@ -65,6 +65,7 @@ pub fn query_config(deps: Deps) -> ContractResult<ConfigResponse> {
 
 pub fn query_positions(
     deps: Deps,
+    env: Env,
     account_id: &str,
     action: ActionKind,
 ) -> ContractResult<Positions> {
@@ -81,6 +82,7 @@ pub fn query_positions(
         )?,
         perp_vault: PERPS.load(deps.storage)?.query_vault_position(
             &deps.querier,
+            env.contract.address.to_string(),
             account_id,
             action,
         )?,

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use cosmwasm_std::{coin, Decimal, Deps, Order, StdResult, Storage, Uint128};
+use cosmwasm_std::{coin, Addr, Decimal, Deps, Order, StdResult, Storage, Uint128};
 use cw_storage_plus::Bound;
 use mars_types::{
     math::SignedDecimal,
@@ -19,7 +19,7 @@ use crate::{
     position::{PositionExt, PositionModification},
     pricing::{closing_execution_price, opening_execution_price},
     state::{CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, REALIZED_PNL, UNLOCKS, VAULT_STATE},
-    utils::ensure_position_not_flipped,
+    utils::{create_user_id_key, ensure_position_not_flipped},
     vault::shares_to_amount,
 };
 
@@ -97,15 +97,18 @@ pub fn perp_denom_state(
 
 pub fn perp_vault_position(
     deps: Deps,
-    account_id: String,
+    user_addr: Addr,
+    account_id: Option<String>,
     current_time: u64,
     action: ActionKind,
 ) -> ContractResult<Option<PerpVaultPosition>> {
     let cfg = CONFIG.load(deps.storage)?;
 
+    let user_id_key = create_user_id_key(&user_addr, account_id)?;
+
     let vs = VAULT_STATE.load(deps.storage)?;
-    let shares = DEPOSIT_SHARES.may_load(deps.storage, &account_id)?;
-    let unlocks = UNLOCKS.may_load(deps.storage, &account_id)?;
+    let shares = DEPOSIT_SHARES.may_load(deps.storage, &user_id_key)?;
+    let unlocks = UNLOCKS.may_load(deps.storage, &user_id_key)?;
 
     if shares.is_none() && unlocks.is_none() {
         return Ok(None);
@@ -137,16 +140,18 @@ pub fn perp_vault_position(
 
 pub fn deposit(
     deps: Deps,
-    account_id: String,
+    user_addr: Addr,
+    account_id: Option<String>,
     current_time: u64,
 ) -> ContractResult<DepositResponse> {
     let cfg = CONFIG.load(deps.storage)?;
 
+    let user_id_key = create_user_id_key(&user_addr, account_id)?;
+
     let vs = VAULT_STATE.load(deps.storage)?;
-    let shares = DEPOSIT_SHARES.may_load(deps.storage, &account_id)?.unwrap_or_else(Uint128::zero);
+    let shares = DEPOSIT_SHARES.may_load(deps.storage, &user_id_key)?.unwrap_or_else(Uint128::zero);
 
     Ok(DepositResponse {
-        account_id,
         shares,
         amount: shares_to_amount(
             &deps,
@@ -161,43 +166,14 @@ pub fn deposit(
     })
 }
 
-pub fn deposits(
+pub fn unlocks(
     deps: Deps,
-    start_after: Option<String>,
-    limit: Option<u32>,
-    current_time: u64,
-) -> ContractResult<Vec<DepositResponse>> {
-    let cfg = CONFIG.load(deps.storage)?;
+    user_addr: Addr,
+    account_id: Option<String>,
+) -> ContractResult<Vec<UnlockState>> {
+    let user_id_key = create_user_id_key(&user_addr, account_id)?;
 
-    let vs = VAULT_STATE.load(deps.storage)?;
-    let start = start_after.map(|acc_id| Bound::ExclusiveRaw(acc_id.into_bytes()));
-    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-
-    DEPOSIT_SHARES
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .map(|item| {
-            let (account_id, shares) = item?;
-            Ok(DepositResponse {
-                account_id,
-                shares,
-                amount: shares_to_amount(
-                    &deps,
-                    &vs,
-                    &cfg.oracle,
-                    current_time,
-                    &cfg.base_denom,
-                    shares,
-                    ActionKind::Default,
-                )
-                .unwrap_or_default(),
-            })
-        })
-        .collect()
-}
-
-pub fn unlocks(deps: Deps, account_id: String) -> ContractResult<Vec<UnlockState>> {
-    let unlocks = UNLOCKS.may_load(deps.storage, &account_id)?.unwrap_or_default();
+    let unlocks = UNLOCKS.may_load(deps.storage, &user_id_key)?.unwrap_or_default();
     Ok(unlocks)
 }
 

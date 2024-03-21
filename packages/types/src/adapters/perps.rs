@@ -46,7 +46,7 @@ impl Perps {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
             msg: to_json_binary(&ExecuteMsg::Deposit {
-                account_id: account_id.into(),
+                account_id: Some(account_id.into()),
             })?,
             funds: vec![coin.clone()],
         }))
@@ -61,7 +61,7 @@ impl Perps {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
             msg: to_json_binary(&ExecuteMsg::Unlock {
-                account_id: account_id.into(),
+                account_id: Some(account_id.into()),
                 shares,
             })?,
             funds: vec![],
@@ -73,7 +73,7 @@ impl Perps {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
             msg: to_json_binary(&ExecuteMsg::Withdraw {
-                account_id: account_id.into(),
+                account_id: Some(account_id.into()),
             })?,
             funds: vec![],
         }))
@@ -223,13 +223,15 @@ impl Perps {
     pub fn query_vault_position(
         &self,
         querier: &QuerierWrapper,
+        credit_manager: impl Into<String>,
         account_id: impl Into<String>,
         action: ActionKind,
     ) -> StdResult<Option<PerpVaultPosition>> {
         let res: Option<PerpVaultPosition> = querier.query_wasm_smart(
             self.address(),
             &QueryMsg::PerpVaultPosition {
-                account_id: account_id.into(),
+                user_address: credit_manager.into(),
+                account_id: Some(account_id.into()),
                 action: Some(action),
             },
         )?;

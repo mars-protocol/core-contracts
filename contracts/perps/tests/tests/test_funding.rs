@@ -28,8 +28,12 @@ fn computing_funding() {
     mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, depositor, &[coin(1_000_000_000_000u128, "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor),
+        &[coin(1_000_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
 
     // init denoms
     mock.init_denom(

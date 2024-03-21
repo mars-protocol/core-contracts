@@ -1,7 +1,7 @@
 use std::cmp::max;
 
 use cosmwasm_std::{
-    coins, ensure_eq, BankMsg, Deps, DepsMut, MessageInfo, Response, StdError, Storage, Uint128,
+    coins, BankMsg, Deps, DepsMut, MessageInfo, Response, StdError, Storage, Uint128,
 };
 use cw_utils::must_pay;
 use mars_types::{
@@ -15,20 +15,27 @@ use crate::{
     denom::compute_total_accounting_data,
     error::{ContractError, ContractResult},
     state::{decrease_deposit_shares, increase_deposit_shares, CONFIG, UNLOCKS, VAULT_STATE},
+    utils::create_user_id_key,
 };
 
-const DEFAULT_SHARES_PER_AMOUNT: u128 = 1_000_000;
+pub const DEFAULT_SHARES_PER_AMOUNT: u128 = 1_000_000;
 
 pub fn deposit(
     deps: DepsMut,
     info: MessageInfo,
     current_time: u64,
-    account_id: &str,
+    account_id: Option<String>,
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
-    // only the credit manager contract can open positions
-    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+    // Don't allow users to create alternative account ids.
+    // Only allow credit manager contract to create them.
+    // Even if account_id contains empty string we won't allow it.
+    if account_id.is_some() && info.sender != cfg.credit_manager {
+        return Err(ContractError::SenderIsNotCreditManager);
+    }
+
+    let user_id_key = create_user_id_key(&info.sender, account_id)?;
 
     let mut vs = VAULT_STATE.load(deps.storage)?;
 
@@ -52,7 +59,7 @@ pub fn deposit(
     VAULT_STATE.save(deps.storage, &vs)?;
 
     // increment the user's deposit shares
-    increase_deposit_shares(deps.storage, account_id, shares)?;
+    increase_deposit_shares(deps.storage, &user_id_key, shares)?;
 
     Ok(Response::new()
         .add_attribute("method", "deposit")
@@ -64,13 +71,19 @@ pub fn unlock(
     deps: DepsMut,
     info: MessageInfo,
     current_time: u64,
-    account_id: &str,
+    account_id: Option<String>,
     shares: Uint128,
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
-    // only the credit manager contract can open positions
-    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+    // Don't allow users to create alternative account ids.
+    // Only allow credit manager contract to create them.
+    // Even if account_id contains empty string we won't allow it.
+    if account_id.is_some() && info.sender != cfg.credit_manager {
+        return Err(ContractError::SenderIsNotCreditManager);
+    }
+
+    let user_id_key = create_user_id_key(&info.sender, account_id)?;
 
     let mut vs = VAULT_STATE.load(deps.storage)?;
 
@@ -96,11 +109,11 @@ pub fn unlock(
     VAULT_STATE.save(deps.storage, &vs)?;
 
     // decrement the user's deposit shares
-    decrease_deposit_shares(deps.storage, account_id, shares)?;
+    decrease_deposit_shares(deps.storage, &user_id_key, shares)?;
 
     // add new unlock position
     let cooldown_end = current_time + cfg.cooldown_period;
-    UNLOCKS.update(deps.storage, account_id, |maybe_unlocks| {
+    UNLOCKS.update(deps.storage, &user_id_key, |maybe_unlocks| {
         let mut unlocks = maybe_unlocks.unwrap_or_default();
 
         unlocks.push(UnlockState {
@@ -124,14 +137,20 @@ pub fn withdraw(
     store: &mut dyn Storage,
     info: MessageInfo,
     current_time: u64,
-    account_id: &str,
+    account_id: Option<String>,
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(store)?;
 
-    // only the credit manager contract can open positions
-    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+    // Don't allow users to create alternative account ids.
+    // Only allow credit manager contract to create them.
+    // Even if account_id contains empty string we won't allow it.
+    if account_id.is_some() && info.sender != cfg.credit_manager {
+        return Err(ContractError::SenderIsNotCreditManager);
+    }
 
-    let unlocks = UNLOCKS.load(store, account_id)?;
+    let user_id_key = create_user_id_key(&info.sender, account_id)?;
+
+    let unlocks = UNLOCKS.load(store, &user_id_key)?;
 
     // find all unlocked positions
     let (unlocked, unlocking): (Vec<_>, Vec<_>) =
@@ -144,9 +163,9 @@ pub fn withdraw(
 
     // clear state if no more unlocking positions
     if unlocking.is_empty() {
-        UNLOCKS.remove(store, account_id);
+        UNLOCKS.remove(store, &user_id_key);
     } else {
-        UNLOCKS.save(store, account_id, &unlocking)?;
+        UNLOCKS.save(store, &user_id_key, &unlocking)?;
     }
 
     // compute the total amount to be withdrawn

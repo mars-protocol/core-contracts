@@ -183,8 +183,12 @@ fn funding_change_accordingly_to_denom_state_modification() {
     mock.set_price(&owner, "ueth", Decimal::from_str("2000").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, depositor, &[coin(1_000_000_000_000u128, "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor),
+        &[coin(1_000_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
 
     // prepare denom state
     mock.init_denom(

@@ -43,7 +43,8 @@ fn random_user_cannot_modify_position() {
     mock.set_price(&owner, "uatom", Decimal::from_str("7.2").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
 
     // init denoms
     mock.init_denom(
@@ -130,7 +131,8 @@ fn cannot_increase_position_for_disabled_denom() {
     mock.set_price(&owner, "uatom", Decimal::from_str("7.2").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
 
     // init denoms
     mock.init_denom(
@@ -292,7 +294,8 @@ fn reduced_position_cannot_be_too_small() {
     mock.set_price(&owner, "uatom", Decimal::from_str("12.5").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
 
     // init denoms
     mock.init_denom(
@@ -402,7 +405,8 @@ fn increased_position_cannot_be_too_big() {
     mock.set_price(&owner, "uatom", Decimal::from_str("12.5").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
 
     // init denoms
     mock.init_denom(
@@ -573,7 +577,8 @@ fn validate_modify_position() {
     mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
 
     // init denoms
     mock.init_denom(
@@ -690,7 +695,8 @@ fn modify_position_realises_pnl() {
     mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
 
     // init denoms
     mock.init_denom(
@@ -893,7 +899,8 @@ fn query_position_fees(
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uusdc"]);
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
 
     // init denoms
     mock.init_denom(
@@ -992,7 +999,8 @@ fn close_all_positions(
     mock.set_price(&owner, "uosmo", Decimal::from_str("2.5").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, user, &[coin(1_000_000_000_000u128, "uusdc")]).unwrap();
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
 
     // init perps
     for denom in denoms {

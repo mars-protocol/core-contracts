@@ -391,7 +391,7 @@ impl MockEnv {
             self.rover.clone(),
             self.perps.address().clone(),
             &perps::ExecuteMsg::Deposit {
-                account_id: account_id.to_string(),
+                account_id: Some(account_id.to_string()),
             },
             &[coin.clone()],
         )

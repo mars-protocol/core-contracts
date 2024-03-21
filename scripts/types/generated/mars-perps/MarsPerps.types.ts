@@ -37,18 +37,18 @@ export type ExecuteMsg =
     }
   | {
       deposit: {
-        account_id: string
+        account_id?: string | null
       }
     }
   | {
       unlock: {
-        account_id: string
+        account_id?: string | null
         shares: Uint128
       }
     }
   | {
       withdraw: {
-        account_id: string
+        account_id?: string | null
       }
     }
   | {
@@ -128,24 +128,21 @@ export type QueryMsg =
     }
   | {
       perp_vault_position: {
-        account_id: string
+        account_id?: string | null
         action?: ActionKind | null
+        user_address: string
       }
     }
   | {
       deposit: {
-        account_id: string
-      }
-    }
-  | {
-      deposits: {
-        limit?: number | null
-        start_after?: string | null
+        account_id?: string | null
+        user_address: string
       }
     }
   | {
       unlocks: {
-        account_id: string
+        account_id?: string | null
+        user_address: string
       }
     }
   | {
@@ -244,11 +241,9 @@ export interface Funding {
 }
 export type ArrayOfDenomStateResponse = DenomStateResponse[]
 export interface DepositResponse {
-  account_id: string
   amount: Uint128
   shares: Uint128
 }
-export type ArrayOfDepositResponse = DepositResponse[]
 export interface TradingFee {
   fee: Coin
   rate: Decimal

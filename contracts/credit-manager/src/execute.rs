@@ -542,7 +542,7 @@ pub fn execute_callback(
         } => refund_coin_balances(deps, env, &account_id),
         CallbackMsg::AssertHlsRules {
             account_id,
-        } => assert_hls_rules(deps.as_ref(), &account_id),
+        } => assert_hls_rules(deps.as_ref(), env, &account_id),
         CallbackMsg::RemoveReentrancyGuard {} => {
             REENTRANCY_GUARD.try_unlock(deps.storage)?;
             Ok(Response::new().add_attribute("action", "remove_reentrancy_guard"))

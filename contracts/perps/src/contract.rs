@@ -67,14 +67,14 @@ pub fn execute(
         } => denom_management::disable_denom(deps, env, &info.sender, &denom),
         ExecuteMsg::Deposit {
             account_id,
-        } => vault::deposit(deps, info, env.block.time.seconds(), &account_id),
+        } => vault::deposit(deps, info, env.block.time.seconds(), account_id),
         ExecuteMsg::Unlock {
             account_id,
             shares,
-        } => vault::unlock(deps, info, env.block.time.seconds(), &account_id, shares),
+        } => vault::unlock(deps, info, env.block.time.seconds(), account_id, shares),
         ExecuteMsg::Withdraw {
             account_id,
-        } => vault::withdraw(deps.storage, info, env.block.time.seconds(), &account_id),
+        } => vault::withdraw(deps.storage, info, env.block.time.seconds(), account_id),
         ExecuteMsg::OpenPosition {
             account_id,
             denom,
@@ -119,24 +119,33 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             denom,
         } => to_json_binary(&query::perp_denom_state(deps, env.block.time.seconds(), denom)?),
         QueryMsg::PerpVaultPosition {
+            user_address,
             account_id,
             action,
-        } => to_json_binary(&query::perp_vault_position(
-            deps,
-            account_id,
-            env.block.time.seconds(),
-            action.unwrap_or(ActionKind::Default),
-        )?),
+        } => {
+            let user_addr = deps.api.addr_validate(&user_address)?;
+            to_json_binary(&query::perp_vault_position(
+                deps,
+                user_addr,
+                account_id,
+                env.block.time.seconds(),
+                action.unwrap_or(ActionKind::Default),
+            )?)
+        }
         QueryMsg::Deposit {
+            user_address,
             account_id,
-        } => to_json_binary(&query::deposit(deps, account_id, env.block.time.seconds())?),
-        QueryMsg::Deposits {
-            start_after,
-            limit,
-        } => to_json_binary(&query::deposits(deps, start_after, limit, env.block.time.seconds())?),
+        } => {
+            let user_addr = deps.api.addr_validate(&user_address)?;
+            to_json_binary(&query::deposit(deps, user_addr, account_id, env.block.time.seconds())?)
+        }
         QueryMsg::Unlocks {
+            user_address,
             account_id,
-        } => to_json_binary(&query::unlocks(deps, account_id)?),
+        } => {
+            let user_addr = deps.api.addr_validate(&user_address)?;
+            to_json_binary(&query::unlocks(deps, user_addr, account_id)?)
+        }
         QueryMsg::Position {
             account_id,
             denom,

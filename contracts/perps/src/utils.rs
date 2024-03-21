@@ -1,5 +1,9 @@
-use cosmwasm_std::Uint128;
-use mars_types::{math::SignedDecimal, params::PerpParams};
+use cosmwasm_std::{Addr, Uint128};
+use mars_types::{
+    keys::{UserId, UserIdKey},
+    math::SignedDecimal,
+    params::PerpParams,
+};
 
 use crate::error::{ContractError, ContractResult};
 
@@ -43,4 +47,14 @@ pub fn ensure_position_not_flipped(
         });
     }
     Ok(())
+}
+
+pub fn create_user_id_key(
+    user_addr: &Addr,
+    account_id: Option<String>,
+) -> ContractResult<UserIdKey> {
+    let acc_id = account_id.unwrap_or("".to_string());
+    let user_id = UserId::credit_manager(user_addr.clone(), acc_id);
+    let user_id_key: UserIdKey = user_id.try_into()?;
+    Ok(user_id_key)
 }

@@ -158,14 +158,14 @@ impl MockEnv {
     pub fn deposit_to_vault(
         &mut self,
         sender: &Addr,
-        account_id: &str,
+        account_id: Option<&str>,
         funds: &[Coin],
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
             self.perps.clone(),
             &perps::ExecuteMsg::Deposit {
-                account_id: account_id.to_string(),
+                account_id: account_id.map(|s| s.to_string()),
             },
             funds,
         )
@@ -174,14 +174,14 @@ impl MockEnv {
     pub fn unlock_from_vault(
         &mut self,
         sender: &Addr,
-        account_id: &str,
+        account_id: Option<&str>,
         shares: Uint128,
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
             self.perps.clone(),
             &perps::ExecuteMsg::Unlock {
-                account_id: account_id.to_string(),
+                account_id: account_id.map(|s| s.to_string()),
                 shares,
             },
             &[],
@@ -191,13 +191,13 @@ impl MockEnv {
     pub fn withdraw_from_vault(
         &mut self,
         sender: &Addr,
-        account_id: &str,
+        account_id: Option<&str>,
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
             self.perps.clone(),
             &perps::ExecuteMsg::Withdraw {
-                account_id: account_id.to_string(),
+                account_id: account_id.map(|s| s.to_string()),
             },
             &[],
         )
@@ -368,33 +368,52 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_deposit(&self, depositor: &str) -> DepositResponse {
+    pub fn query_cm_deposit(&self, account_id: &str) -> DepositResponse {
+        self.query_deposit(self.credit_manager.as_str(), Some(account_id))
+    }
+
+    pub fn query_deposit(&self, user_address: &str, account_id: Option<&str>) -> DepositResponse {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.perps.clone(),
                 &perps::QueryMsg::Deposit {
-                    account_id: depositor.to_string(),
+                    user_address: user_address.to_string(),
+                    account_id: account_id.map(|s| s.to_string()),
                 },
             )
             .unwrap()
     }
 
-    pub fn query_unlocks(&self, depositor: &str) -> Vec<UnlockState> {
+    pub fn query_cm_unlocks(&self, account_id: &str) -> Vec<UnlockState> {
+        self.query_unlocks(self.credit_manager.as_str(), Some(account_id))
+    }
+
+    pub fn query_unlocks(&self, user_address: &str, account_id: Option<&str>) -> Vec<UnlockState> {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.perps.clone(),
                 &perps::QueryMsg::Unlocks {
-                    account_id: depositor.to_string(),
+                    user_address: user_address.to_string(),
+                    account_id: account_id.map(|s| s.to_string()),
                 },
             )
             .unwrap()
     }
 
-    pub fn query_vault_position(
+    pub fn query_cm_vault_position(
         &self,
         account_id: &str,
+        action: ActionKind,
+    ) -> Option<PerpVaultPosition> {
+        self.query_vault_position(self.credit_manager.as_str(), Some(account_id), action)
+    }
+
+    pub fn query_vault_position(
+        &self,
+        user_address: &str,
+        account_id: Option<&str>,
         action: ActionKind,
     ) -> Option<PerpVaultPosition> {
         self.app
@@ -402,7 +421,8 @@ impl MockEnv {
             .query_wasm_smart(
                 self.perps.clone(),
                 &perps::QueryMsg::PerpVaultPosition {
-                    account_id: account_id.to_string(),
+                    user_address: user_address.to_string(),
+                    account_id: account_id.map(|s| s.to_string()),
                     action: Some(action),
                 },
             )
