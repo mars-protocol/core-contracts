@@ -152,13 +152,12 @@ impl HealthComputer {
             self.total_collateral_value()?.max_ltv_adjusted_collateral.into();
         let debt_value: SignedDecimal = self.spot_debt_value()?.into();
 
-        let withdraw_denom_price: SignedDecimal = (*self
+        let withdraw_denom_price = *self
             .oracle_prices
             .get(withdraw_denom)
-            .ok_or(MissingPrice(withdraw_denom.to_string()))?)
-        .into();
+            .ok_or(MissingPrice(withdraw_denom.to_string()))?;
 
-        let withdraw_denom_max_ltv: SignedDecimal = match self.kind {
+        let withdraw_denom_max_ltv = match self.kind {
             AccountKind::Default => params.max_loan_to_value,
             AccountKind::HighLeveredStrategy => {
                 params
@@ -168,8 +167,7 @@ impl HealthComputer {
                     .ok_or(MissingHLSParams(withdraw_denom.to_string()))?
                     .max_loan_to_value
             }
-        }
-        .into();
+        };
 
         let PerpHealthFactorValues {
             max_ltv_denominator: perp_denominator,
@@ -198,13 +196,15 @@ impl HealthComputer {
             .checked_sub(debt_value)?
             .checked_sub(perp_denominator)?
             .checked_add(perp_numerator)?
-            .checked_sub(one)?;
+            .checked_sub(one)?
+            .abs
+            .to_uint_floor();
 
         // The above is the raw value, now we need to factor in price and LTV impact
         let max_withdraw_amount = max_withdraw_value
-            .checked_div(withdraw_denom_price.checked_mul(withdraw_denom_max_ltv)?)?;
+            .checked_div_floor(withdraw_denom_price.checked_mul(withdraw_denom_max_ltv)?)?;
 
-        Ok(min(max_withdraw_amount.abs.to_uint_floor(), withdraw_coin.amount))
+        Ok(min(max_withdraw_amount, withdraw_coin.amount))
     }
 
     pub fn max_swap_amount_estimate(
@@ -291,12 +291,12 @@ impl HealthComputer {
                 .checked_sub(perp_denominator)?
                 .checked_add(perp_numerator)?
                 .checked_sub(one)?
-                .checked_div(
-                    from_price.checked_mul(from_ltv - to_ltv_slippage_corrected)?.into(),
-                )?;
+                .abs
+                .to_uint_floor() // Uint128 is used to avoid overflows in the division with Decimals
+                .checked_div_floor(from_price.checked_mul(from_ltv - to_ltv_slippage_corrected)?)?;
 
             // Cap the swappable amount at the current balance of the coin
-            min(amount.abs.to_uint_floor(), from_coin.amount)
+            min(amount, from_coin.amount)
         };
 
         match kind {
@@ -338,16 +338,17 @@ impl HealthComputer {
                     .checked_sub(perp_denominator)?
                     .checked_add(perp_numerator)?
                     .checked_sub(one)?
-                    .checked_div(
+                    .abs
+                    .to_uint_floor() // Uint128 is used to avoid overflows in the division with Decimals
+                    .checked_div_floor(
                         Decimal::one()
                             .checked_sub(to_ltv_slippage_corrected)?
-                            .checked_mul(*from_price)?
-                            .into(),
+                            .checked_mul(*from_price)?,
                     )?;
 
                 // The total amount that can be swapped is then the balance of the coin + the additional amount
                 // that can be borrowed.
-                Ok(borrow_amount.abs.to_uint_floor().checked_add(from_coin.amount)?)
+                Ok(borrow_amount.checked_add(from_coin.amount)?)
             }
         }
     }
@@ -406,15 +407,13 @@ impl HealthComputer {
                     .ok_or(MissingHLSParams(borrow_denom.to_string()))?
                     .max_loan_to_value
             }
-        }
-        .into();
+        };
 
-        let borrow_denom_price: SignedDecimal = self
+        let borrow_denom_price = self
             .oracle_prices
             .get(borrow_denom)
             .cloned()
-            .ok_or(MissingPrice(borrow_denom.to_string()))?
-            .into();
+            .ok_or(MissingPrice(borrow_denom.to_string()))?;
 
         // The formulas look like this in practice:
         //      hf = rounddown(roundown(amount * price) * perp_numerator) / (spot_debt value + perp_denominator)
@@ -427,31 +426,43 @@ impl HealthComputer {
             //      1 = (max ltv adjusted value + (borrow denom amount * borrow denom price * borrow denom max ltv) + perpn) / (debt value + (borrow denom amount * borrow denom price) + perpd)
             // Re-arranging this to isolate borrow denom amount renders:
             //      max_borrow_denom_amount = max ltv adjusted value - debt value - perpd + perpn / (borrow_denom_price * (1 - borrow_denom_max_ltv)))
-            BorrowTarget::Deposit => total_max_ltv_adjusted_value
-                .checked_sub(debt_value)?
-                .checked_sub(perp_denominator)?
-                .checked_add(perp_numerator)?
-                .checked_sub(one)?
-                .checked_div(
-                    borrow_denom_price.checked_mul(one.checked_sub(borrow_denom_max_ltv)?)?,
-                )?
-                .abs
-                .to_uint_floor(),
+            BorrowTarget::Deposit => {
+                let numerator = total_max_ltv_adjusted_value
+                    .checked_sub(debt_value)?
+                    .checked_sub(perp_denominator)?
+                    .checked_add(perp_numerator)?
+                    .checked_sub(one)?
+                    .abs
+                    .to_uint_floor();
+
+                let denominator =
+                    borrow_denom_price.checked_mul(one.abs.checked_sub(borrow_denom_max_ltv)?)?;
+
+                // It is important to use Uint128 and Decimal types to avoid overflows. This way we can ensure that
+                // after the division we get the correct value as a Uint128 (we are rounding down and removing extra numbers after comma).
+                // If we use Decimals for numerator and denominator directly, we can get an overflow and the result will be incorrect.
+                numerator.checked_div_floor(denominator)?
+            }
 
             // Borrowing assets to wallet does not count towards collateral. It only adds to debts.
             // Hence, the max borrow to wallet can be calculated as:
             //      1 = (max ltv adjusted value) + perpn / (debt value + (borrow denom amount * borrow denom price)) + perpd
             // Re-arranging this to isolate borrow denom amount renders:
             //      borrow denom amount = (max ltv adjusted value - debt_value - perpd + perpn) / denom_price
-            // TODO : tidy this variable creation
-            BorrowTarget::Wallet => total_max_ltv_adjusted_value
-                .checked_sub(debt_value)?
-                .checked_sub(perp_denominator)?
-                .checked_add(perp_numerator)?
-                .checked_sub(one)?
-                .checked_div(borrow_denom_price)?
-                .abs
-                .to_uint_floor(),
+            BorrowTarget::Wallet => {
+                let numerator = total_max_ltv_adjusted_value
+                    .checked_sub(debt_value)?
+                    .checked_sub(perp_denominator)?
+                    .checked_add(perp_numerator)?
+                    .checked_sub(one)?
+                    .abs
+                    .to_uint_floor();
+
+                // It is important to use Uint128 and Decimal types to avoid overflows. This way we can ensure that
+                // after the division we get the correct value as a Uint128 (we are rounding down and removing extra numbers after comma).
+                // If we use Decimals for numerator and denominator directly, we can get an overflow and the result will be incorrect.
+                numerator.checked_div_floor(borrow_denom_price)?
+            }
 
             // When borrowing assets to add to a vault, the amount deposited into the vault counts towards collateral.
             // The health factor can be calculated as:
@@ -485,8 +496,7 @@ impl HealthComputer {
                     }
                 } else {
                     Decimal::zero()
-                }
-                .into();
+                };
 
                 // The max borrow for deposit can be calculated as:
                 //      1 = (total_max_ltv_adjusted_value + (max_borrow_denom_amount * borrow_denom_price * checked_vault_max_ltv) + perpn) / (debt_value + (max_borrow_denom_amount * borrow_denom_price)) + perpd
@@ -495,16 +505,21 @@ impl HealthComputer {
                 // Which means re-arranging this to isolate borrow amount is an estimate,
                 // quite close, but never precisely right. For this reason, the - 1 of the formulas
                 // below are meant to err on the side of being more conservative vs aggressive.
-                total_max_ltv_adjusted_value
+                let numerator = total_max_ltv_adjusted_value
                     .checked_sub(debt_value)?
                     .checked_sub(perp_denominator)?
                     .checked_add(perp_numerator)?
                     .checked_sub(one)?
-                    .checked_div(
-                        borrow_denom_price.checked_mul(one.checked_sub(checked_vault_max_ltv)?)?,
-                    )?
                     .abs
-                    .to_uint_floor()
+                    .to_uint_floor();
+
+                let denominator =
+                    borrow_denom_price.checked_mul(one.abs.checked_sub(checked_vault_max_ltv)?)?;
+
+                // It is important to use Uint128 and Decimal types to avoid overflows. This way we can ensure that
+                // after the division we get the correct value as a Uint128 (we are rounding down and removing extra numbers after comma).
+                // If we use Decimals for numerator and denominator directly, we can get an overflow and the result will be incorrect.
+                numerator.checked_div_floor(denominator)?
             }
 
             BorrowTarget::Swap {
@@ -523,19 +538,24 @@ impl HealthComputer {
                 //      max_borrow_denom_amount = (total_max_ltv_adjusted_value - debt_value) / (borrow_denom_price * (1 - slippage * denom_out_ltv))
                 // Re-arranging to include perp values:
                 //      max_borrow_denom_amount = (total_max_ltv_adjusted_value - debt_value - perpd + perpn) / (borrow_denom_price * (1 - slippage * denom_out_ltv))
-                let out_ltv_slippage_corrected: SignedDecimal =
-                    (denom_out_ltv.checked_mul(Decimal::one() - slippage)?).into();
-                total_max_ltv_adjusted_value
+                let out_ltv_slippage_corrected =
+                    denom_out_ltv.checked_mul(Decimal::one() - slippage)?;
+
+                let numerator = total_max_ltv_adjusted_value
                     .checked_sub(debt_value)?
                     .checked_sub(perp_denominator)?
                     .checked_add(perp_numerator)?
                     .checked_sub(one)?
-                    .checked_div(
-                        borrow_denom_price
-                            .checked_mul(one.checked_sub(out_ltv_slippage_corrected)?)?,
-                    )?
                     .abs
-                    .to_uint_floor()
+                    .to_uint_floor();
+
+                let denominator = borrow_denom_price
+                    .checked_mul(one.abs.checked_sub(out_ltv_slippage_corrected)?)?;
+
+                // It is important to use Uint128 and Decimal types to avoid overflows. This way we can ensure that
+                // after the division we get the correct value as a Uint128 (we are rounding down and removing extra numbers after comma).
+                // If we use Decimals for numerator and denominator directly, we can get an overflow and the result will be incorrect.
+                numerator.checked_div_floor(denominator)?
             }
         };
 
