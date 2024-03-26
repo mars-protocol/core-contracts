@@ -86,9 +86,6 @@ export interface DeploymentConfig {
   perps?: {
     baseDenom: string
     cooldownPeriod: number
-    minPositionValue: string
-    openingFeeRate: string
-    closingFeeRate: string
     denoms: PerpDenom[]
   }
 }
@@ -176,6 +173,6 @@ export interface PerpDenom {
   openingFeeRate: string
   liquidationThreshold: string
   maxLoanToValue: string
-  maxPositionValue: string
+  maxPositionValue?: string
   minPositionValue: string
 }

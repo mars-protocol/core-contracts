@@ -5,6 +5,14 @@ const nobleUsdcDenom = 'ibc/4C19E7EC06C1AB2EC2D70C6855FEB6D48E9CE174913991DA0A51
 const atomDenom = 'ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9'
 const marsDenom = 'ibc/584A4A23736884E0C198FD1EE932455A9357A492A7B94324E4A02B5628687831'
 
+// dummy denoms for testing
+const btcDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/ubtc'
+const ethDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/ueth'
+const injDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/uinj'
+const dydxDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/udydx'
+const tiaDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/utia'
+const solDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/usol'
+
 const protocolAdminAddr = 'neutron1ke0vqqzyymlp5esr8gjwuzh94ysnpvj8er5hm7'
 
 const marsNeutronChannelId = 'channel-97'
@@ -25,6 +33,12 @@ const pythAddr = 'neutron15ldst8t80982akgr8w8ekcytejzkmfpgdkeq4xgtge48qs7435jqp8
 const pythAtomID = 'b00b60f88b03a6a625a8d1c048c3f66653edf217439983d037e7222c4e612819'
 const pythUsdcID = 'eaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a'
 const pythNtrnID = 'a8e6517966a52cb1df864b2764f3629fde3f21d2b640b5c572fcd654cbccd65e'
+const pythBtcID = 'e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
+const pythEthID = 'ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
+const pythInjID = '7a5bc1d2b56ad029048cd63964b3ad2776eadf812edc1a43a31406cb54bff592'
+const pythDydxID = '6489800bb8974169adfe35937bf6736507097d13c190d760c557108c7e93a81b'
+const pythTiaID = '09f7c1d7dfbb7df2b8fe3d3d87ee94a2259d212da4f30c1f0540d066dfa44723'
+const pythSolID = 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d'
 
 const defaultCreditLine = '100000000000000'
 
@@ -55,20 +69,10 @@ export const ntrnOracle: OracleConfig = {
       denom_decimals: 6,
       max_staleness: 300, // 5 minutes
       max_confidence: '0.1',
-      max_deviation: '0.1',
+      max_deviation: '0.15',
     },
   },
 }
-// export const ntrnOracle: OracleConfig = {
-//   denom: 'untrn',
-//   price_source: {
-//     astroport_twap: {
-//       window_size: 1800, // 30 minutes
-//       tolerance: 120, // 2 minutes
-//       pair_address: astroportNtrnAtomPair,
-//     },
-//   },
-// }
 
 export const atomOracle: OracleConfig = {
   denom: atomDenom,
@@ -79,7 +83,7 @@ export const atomOracle: OracleConfig = {
       denom_decimals: 6,
       max_staleness: 300, // 5 minutes
       max_confidence: '0.1',
-      max_deviation: '0.1',
+      max_deviation: '0.15',
     },
   },
 }
@@ -93,7 +97,91 @@ export const nobleUSDCOracle: OracleConfig = {
       denom_decimals: 6,
       max_staleness: 300, // 5 minutes
       max_confidence: '0.1',
-      max_deviation: '0.1',
+      max_deviation: '0.15',
+    },
+  },
+}
+
+export const btcOracle: OracleConfig = {
+  denom: btcDenom,
+  price_source: {
+    pyth: {
+      contract_addr: pythAddr,
+      price_feed_id: pythBtcID,
+      denom_decimals: 8,
+      max_staleness: 300, // 5 minutes
+      max_confidence: '0.1',
+      max_deviation: '0.15',
+    },
+  },
+}
+
+export const ethOracle: OracleConfig = {
+  denom: ethDenom,
+  price_source: {
+    pyth: {
+      contract_addr: pythAddr,
+      price_feed_id: pythEthID,
+      denom_decimals: 18,
+      max_staleness: 300, // 5 minutes
+      max_confidence: '0.1',
+      max_deviation: '0.15',
+    },
+  },
+}
+
+export const injOracle: OracleConfig = {
+  denom: injDenom,
+  price_source: {
+    pyth: {
+      contract_addr: pythAddr,
+      price_feed_id: pythInjID,
+      denom_decimals: 18,
+      max_staleness: 300, // 5 minutes
+      max_confidence: '0.1',
+      max_deviation: '0.15',
+    },
+  },
+}
+
+export const dydxOracle: OracleConfig = {
+  denom: dydxDenom,
+  price_source: {
+    pyth: {
+      contract_addr: pythAddr,
+      price_feed_id: pythDydxID,
+      denom_decimals: 18,
+      max_staleness: 300, // 5 minutes
+      max_confidence: '0.1',
+      max_deviation: '0.15',
+    },
+  },
+}
+
+export const tiaOracle: OracleConfig = {
+  denom: tiaDenom,
+  price_source: {
+    pyth: {
+      contract_addr: pythAddr,
+      price_feed_id: pythTiaID,
+      denom_decimals: 6,
+      max_staleness: 300, // 5 minutes
+      max_confidence: '0.1',
+      max_deviation: '0.15',
+    },
+  },
+}
+
+export const solOracle: OracleConfig = {
+  denom: solDenom,
+  price_source: {
+    pyth: {
+      contract_addr: pythAddr,
+      price_feed_id: pythSolID,
+      denom_decimals: 9,
+      max_staleness: 300, // 5 minutes
+      max_confidence: '0.1',
+      max_deviation: '0.15',
     },
   },
 }
@@ -250,7 +338,6 @@ export const ntrnAsset: AssetConfig = {
     starting_lb: '0',
   },
   protocol_liquidation_fee: '0.5',
-  // liquidation_bonus: '0.15',
   symbol: 'NTRN',
   credit_manager: {
     whitelisted: true,
@@ -281,7 +368,6 @@ export const atomAsset: AssetConfig = {
     starting_lb: '0',
   },
   protocol_liquidation_fee: '0.5',
-  // liquidation_bonus: '0.1',
   symbol: 'ATOM',
   credit_manager: {
     whitelisted: true,
@@ -312,7 +398,6 @@ export const nobleUSDCAsset: AssetConfig = {
     starting_lb: '0',
   },
   protocol_liquidation_fee: '0.5',
-  // liquidation_bonus: '0.1',
   symbol: 'axlUSDC',
   credit_manager: {
     whitelisted: true,
@@ -337,36 +422,117 @@ export const atomPerpDenom: PerpDenom = {
   denom: atomDenom,
   maxFundingVelocity: '36',
   skewScale: '7227323000000',
-  maxNetOiValue: '100000000000000',
-  maxLongOiValue: '100000000000000',
-  maxShortOiValue: '100000000000000',
-  closingFeeRate: '0.0006',
-  openingFeeRate: '0.0005',
-  minPositionValue: '0',
-  maxPositionValue: '100000000000000',
-  liquidationThreshold: '0.7',
-  maxLoanToValue: '0.68',
+  maxNetOiValue: '45591000000',
+  maxLongOiValue: '490402700000',
+  maxShortOiValue: '490402700000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.86',
+  maxLoanToValue: '0.85',
 }
 
 export const ntrnPerpDenom: PerpDenom = {
   denom: 'untrn',
   maxFundingVelocity: '36',
   skewScale: '7227323000000',
-  maxNetOiValue: '100000000000000',
-  maxLongOiValue: '100000000000000',
-  maxShortOiValue: '100000000000000',
-  closingFeeRate: '0.0006',
-  openingFeeRate: '0.0005',
-  minPositionValue: '0',
-  maxPositionValue: '100000000000000',
-  liquidationThreshold: '0.7',
-  maxLoanToValue: '0.68',
+  maxNetOiValue: '45591000000',
+  maxLongOiValue: '490402700000',
+  maxShortOiValue: '490402700000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.86',
+  maxLoanToValue: '0.85',
+}
+
+export const btcPerpDenom: PerpDenom = {
+  denom: btcDenom,
+  maxFundingVelocity: '36',
+  skewScale: '8892400000000',
+  maxNetOiValue: '88882000000',
+  maxLongOiValue: '28135198400000',
+  maxShortOiValue: '28135198400000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.91',
+  maxLoanToValue: '0.90',
+}
+
+export const ethPerpDenom: PerpDenom = {
+  denom: ethDenom,
+  maxFundingVelocity: '36',
+  skewScale: '1186268000000000000000000',
+  maxNetOiValue: '86049000000',
+  maxLongOiValue: '19093576000000',
+  maxShortOiValue: '19093576000000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.91',
+  maxLoanToValue: '0.90',
+}
+
+export const injPerpDenom: PerpDenom = {
+  denom: injDenom,
+  maxFundingVelocity: '36',
+  skewScale: '1805314000000000000000000',
+  maxNetOiValue: '33496000000',
+  maxLongOiValue: '400314200000',
+  maxShortOiValue: '400314200000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.88',
+  maxLoanToValue: '0.83',
+}
+
+export const dydxPerpDenom: PerpDenom = {
+  denom: dydxDenom,
+  maxFundingVelocity: '36',
+  skewScale: '1462272000000000000000000',
+  maxNetOiValue: '32529000000',
+  maxLongOiValue: '221088700000',
+  maxShortOiValue: '221088700000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.82',
+  maxLoanToValue: '0.80',
+}
+
+export const tiaPerpDenom: PerpDenom = {
+  denom: tiaDenom,
+  maxFundingVelocity: '36',
+  skewScale: '4504227000000',
+  maxNetOiValue: '22081000000',
+  maxLongOiValue: '316093400000',
+  maxShortOiValue: '316093400000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.76',
+  maxLoanToValue: '0.71',
+}
+
+export const solPerpDenom: PerpDenom = {
+  denom: solDenom,
+  maxFundingVelocity: '36',
+  skewScale: '3954627000000000',
+  maxNetOiValue: '36869000000',
+  maxLongOiValue: '3396453000000',
+  maxShortOiValue: '3396453000000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.88',
+  maxLoanToValue: '0.85',
 }
 
 export const neutronTestnetConfig: DeploymentConfig = {
   mainnet: false,
-  deployerMnemonic:
-    'client walk tiger carpet video era zero siren effort illness shed huge memory hint genius pumpkin drill act tower ladder joke surprise kitchen target',
+  deployerMnemonic: 'TODO',
   marsDenom: marsDenom,
   atomDenom: atomDenom,
   safetyFundAddr: safetyFundAddr,
@@ -416,13 +582,30 @@ export const neutronTestnetConfig: DeploymentConfig = {
   runTests: false,
   assets: [ntrnAsset, atomAsset, nobleUSDCAsset],
   vaults: [],
-  oracleConfigs: [usdOracle, nobleUSDCOracle, atomOracle, ntrnOracle],
+  oracleConfigs: [
+    usdOracle,
+    nobleUSDCOracle,
+    atomOracle,
+    ntrnOracle,
+    btcOracle,
+    ethOracle,
+    injOracle,
+    dydxOracle,
+    tiaOracle,
+    solOracle,
+  ],
   perps: {
     baseDenom: nobleUsdcDenom,
     cooldownPeriod: 300, // 5 min
-    minPositionValue: '0',
-    openingFeeRate: '0.0005',
-    closingFeeRate: '0.0006',
-    denoms: [atomPerpDenom, ntrnPerpDenom],
+    denoms: [
+      atomPerpDenom,
+      ntrnPerpDenom,
+      btcPerpDenom,
+      ethPerpDenom,
+      injPerpDenom,
+      dydxPerpDenom,
+      tiaPerpDenom,
+      solPerpDenom,
+    ],
   },
 }

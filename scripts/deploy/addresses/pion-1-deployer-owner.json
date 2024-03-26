@@ -1,14 +1,14 @@
 {
-  "addressProvider": "neutron1augg5snp7l9u6rufhqectatk096ja0gk3plgkeges4zn8hp88sxsn65duy",
-  "redBank": "neutron1v3kslntkhqlumu70wzru0ryg4j2atxv7wlqn2jah9r3e6vyhqzks5xytvf",
-  "incentives": "neutron1kn8mcnzx29w36n692e7dk3w2yv4q09rlx0wz4gkly3kj92p3d65s68rv2c",
-  "oracle": "neutron14v283q54e2c7r3jxpxw3nxc2pt8zmsfz0se03f3fxuxxeen2shlsxdq2zv",
-  "rewardsCollector": "neutron1p4kw04mzup2yyf5zg8mjsvflg2dlry260f2x23rnuzk77waj6rtqndh5en",
-  "swapper": "neutron1g9nun5h0fw8lwa0h62mcr7tm059yqxe8n66x6mrf4snpt874hp7qrrsrqa",
-  "params": "neutron1m4pd2nmsqz37xngrn2ns6er9cv46xz8thesfkt64agx3t6nh408sk8feat",
-  "zapper": "neutron1g8405s9mj6dxcws3lttqz5uerehg8jz8e8jlugxk6a53k0sf07ws6xxa5m",
-  "health": "neutron1mkfshxjtkszrdc9yvnexngf45xa7xpvg9suxk93n466w2h4cv7jq7sghws",
-  "creditManager": "neutron1m74ywvt3rfetj8m3u0yz275usfkwwngm33c53093kj3n7c8klrpqmqtxru",
-  "accountNft": "neutron1t7xusf8t6n2nvn2ye6rxdrcle7zu65qf5dmpjcdvge8cqgch3j3qnnuvlg",
-  "perps": "neutron16kg666yz026wvuk2crtz99wszqzc7t4aqxldx3nshlm8wtn6y28stpp6du"
+  "addressProvider": "neutron1wjpva409yfnlmxpkdtv8gk4uf5r8ug2ekq0kvae0t7ts2k42us2sdlaj8c",
+  "redBank": "neutron15vjs4p8au43hhrsnkl5ztgdcfqx2a3dta2pxxpdqeglqgd0lk3lqqclcqj",
+  "incentives": "neutron1sxeapk269eyyulg56re5dn87mewcmuq63gvm4wh0ahwmw20mmdmq0e7fgf",
+  "oracle": "neutron1qtn3p2hecaakjavg9s29trrl77gax55w5msalwheef2489xz3yxsxvx2rw",
+  "rewardsCollector": "neutron1svxxf5flm93mar5qxm5udrgwpt52dc5u4p2k7s8ux4q8gn6lmcsql4qjzg",
+  "swapper": "neutron1gx7qn86skkpj7l5yan2prae2ewzfg5qxnhp2lmdur63tck3g76lqp835a6",
+  "params": "neutron1craugg9dcwqm2e7w2qrrwdjlt7uztzqa6ma0uy926ek3fj0dm4jqqpx2y6",
+  "zapper": "neutron15xap0sf687ecds0xlj4kc9v5eulu9ez74qshtcpexcl888zpr3gs3ppwhd",
+  "health": "neutron1wrc5zfuc7uqfwmcfn3fag3tuzqcd4cktxk6d58fk0j939wnq0yzq0v9cem",
+  "creditManager": "neutron12vkvu0ay6jmfvxxfcgegxspxr2erlqdrfvzqmwhx6063fyeqj6lspg9mvd",
+  "accountNft": "neutron1tw6gf5tnjzkk3aupn95r3zwsrju4x7dmw3g6vugswmnl0pny4spstrr8eu",
+  "perps": "neutron1m78gywul6v5kuzt5u7p7e36gwgtlww6lmcrly88amwttj595d44q058lnl"
 }
