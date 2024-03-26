@@ -8,6 +8,7 @@ use crate::{
     adapters::{oracle::OracleBase, params::ParamsBase},
     math::SignedDecimal,
     oracle::ActionKind,
+    signed_uint::SignedUint,
 };
 
 // ------------------------------- message types -------------------------------
@@ -100,36 +101,36 @@ pub struct DenomState {
     pub enabled: bool,
 
     /// Total LONG open interest
-    pub long_oi: Decimal,
+    pub long_oi: Uint128,
 
     /// Total SHORT open interest
-    pub short_oi: Decimal,
+    pub short_oi: Uint128,
 
     /// The accumulated entry cost, calculated for open positions as:
     /// pos_1_size * pos_1_entry_exec_price + pos_2_size * pos_2_entry_exec_price + ...
     /// if a position is closed, the accumulated entry cost is removed from the accumulator:
     /// pos_1_size * pos_1_entry_exec_price + pos_2_size * pos_2_entry_exec_price + ... - pos_1_size * pos_1_entry_exec_price
     /// pos_2_size * pos_2_entry_exec_price + ...
-    pub total_entry_cost: SignedDecimal,
+    pub total_entry_cost: SignedUint,
 
     /// The accumulated entry funding, calculated for open positions as:
     /// pos_1_size * pos_1_entry_funding + pos_2_size * pos_2_entry_funding + ...
     /// if a position is closed, the accumulated entry funding is removed from the accumulator:
     /// pos_1_size * pos_1_entry_funding + pos_2_size * pos_2_entry_funding + ... - pos_1_size * pos_1_entry_funding
     /// pos_2_size * pos_2_entry_funding + ...
-    pub total_entry_funding: SignedDecimal,
+    pub total_entry_funding: SignedUint,
 
     /// The accumulated squared positions, calculated for open positions as:
     /// pos_1_size^2 + pos_2_size^2 + ...
     /// if a position is closed, the accumulated squared position is removed from the accumulator:
     /// pos_1_size^2 + pos_2_size^2 + ... - pos_1_size^2
-    pub total_squared_positions: SignedDecimal,
+    pub total_squared_positions: SignedUint, // TODO consider Uint256
 
     /// The accumulated absolute multiplied positions, calculated for open positions as:
     /// pos_1_size * |pos_1_size| + pos_2_size * |pos_2_size| + ...
     /// if a position is closed, the accumulated absolute multiplied position is removed from the accumulator:
     /// pos_1_size * |pos_1_size| + pos_2_size * |pos_2_size| + ... - pos_1_size * |pos_1_size|
-    pub total_abs_multiplied_positions: SignedDecimal,
+    pub total_abs_multiplied_positions: SignedUint,
 
     /// The actual amount of money, includes only realized payments
     pub cash_flow: CashFlow,
@@ -153,22 +154,22 @@ pub struct Funding {
 
     /// Determines the funding rate for a given level of skew.
     /// The lower the skew_scale the higher the funding rate.
-    pub skew_scale: Decimal,
+    pub skew_scale: Uint128,
 
     /// The current funding rate calculated as an 24-hour rate
     pub last_funding_rate: SignedDecimal,
 
     /// Last funding accrued per unit
-    pub last_funding_accrued_per_unit_in_base_denom: SignedDecimal,
+    pub last_funding_accrued_per_unit_in_base_denom: SignedUint,
 }
 
 impl Default for Funding {
     fn default() -> Self {
         Funding {
             max_funding_velocity: Decimal::zero(),
-            skew_scale: Decimal::one(),
+            skew_scale: Uint128::one(),
             last_funding_rate: SignedDecimal::zero(),
-            last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero(),
+            last_funding_accrued_per_unit_in_base_denom: SignedUint::zero(),
         }
     }
 }
@@ -177,21 +178,21 @@ impl Default for Funding {
 #[cw_serde]
 #[derive(Default)]
 pub struct CashFlow {
-    pub price_pnl: SignedDecimal,
-    pub opening_fee: SignedDecimal,
-    pub closing_fee: SignedDecimal,
-    pub accrued_funding: SignedDecimal,
+    pub price_pnl: SignedUint,
+    pub opening_fee: SignedUint,
+    pub closing_fee: SignedUint,
+    pub accrued_funding: SignedUint,
 }
 
 /// Amount of money denominated in the base denom (e.g. UUSDC) used for accounting
 #[cw_serde]
 #[derive(Default)]
 pub struct Balance {
-    pub price_pnl: SignedDecimal,
-    pub opening_fee: SignedDecimal,
-    pub closing_fee: SignedDecimal,
-    pub accrued_funding: SignedDecimal,
-    pub total: SignedDecimal,
+    pub price_pnl: SignedUint,
+    pub opening_fee: SignedUint,
+    pub closing_fee: SignedUint,
+    pub accrued_funding: SignedUint,
+    pub total: SignedUint,
 }
 
 /// Accounting in the base denom (e.g. UUSDC)
@@ -215,10 +216,10 @@ pub struct Accounting {
 pub struct PerpDenomState {
     pub denom: String,
     pub enabled: bool,
-    pub long_oi: Decimal,
-    pub short_oi: Decimal,
-    pub total_entry_cost: SignedDecimal,
-    pub total_entry_funding: SignedDecimal,
+    pub long_oi: Uint128,
+    pub short_oi: Uint128,
+    pub total_entry_cost: SignedUint,
+    pub total_entry_funding: SignedUint,
     pub rate: SignedDecimal,
     pub pnl_values: PnlValues,
     pub funding: Funding,
@@ -230,11 +231,11 @@ pub struct PerpDenomState {
 #[cw_serde]
 #[derive(Default)]
 pub struct Position {
-    pub size: SignedDecimal,
+    pub size: SignedUint,
     pub entry_price: Decimal,
     pub entry_exec_price: Decimal,
-    pub entry_accrued_funding_per_unit_in_base_denom: SignedDecimal,
-    pub initial_skew: SignedDecimal,
+    pub entry_accrued_funding_per_unit_in_base_denom: SignedUint,
+    pub initial_skew: SignedUint,
     pub realized_pnl: PnlAmounts,
 }
 
@@ -244,12 +245,12 @@ pub struct Position {
 pub struct PerpPosition {
     pub denom: String,
     pub base_denom: String,
-    pub size: SignedDecimal,
+    pub size: SignedUint,
     pub entry_price: Decimal,
     pub current_price: Decimal,
     pub entry_exec_price: Decimal,
     pub current_exec_price: Decimal,
-    pub unrealised_pnl: PositionPnl,
+    pub unrealised_pnl: PnlAmounts,
     pub realised_pnl: PnlAmounts,
     pub closing_fee_rate: Decimal,
 }
@@ -263,16 +264,16 @@ pub enum PnL {
 }
 
 impl PnL {
-    pub fn from_signed_decimal(denom: impl Into<String>, amount: SignedDecimal) -> Self {
+    pub fn from_signed_uint(denom: impl Into<String>, amount: SignedUint) -> Self {
         if amount.is_positive() {
             PnL::Profit(Coin {
                 denom: denom.into(),
-                amount: amount.abs.to_uint_floor(),
+                amount: amount.abs,
             })
         } else if amount.is_negative() {
             PnL::Loss(Coin {
                 denom: denom.into(),
-                amount: amount.abs.to_uint_floor(),
+                amount: amount.abs,
             })
         } else {
             PnL::BreakEven
@@ -291,12 +292,12 @@ pub struct PositionPnl {
 #[cw_serde]
 #[derive(Default)]
 pub struct PnlValues {
-    pub price_pnl: SignedDecimal,
-    pub accrued_funding: SignedDecimal,
-    pub closing_fee: SignedDecimal,
+    pub price_pnl: SignedUint,
+    pub accrued_funding: SignedUint,
+    pub closing_fee: SignedUint,
 
     /// PnL: price PnL + accrued funding + closing fee
-    pub pnl: SignedDecimal,
+    pub pnl: SignedUint,
 }
 
 /// Coins with Perp Vault base denom (uusdc) as a denom
@@ -310,13 +311,13 @@ pub struct PnlCoins {
 #[cw_serde]
 #[derive(Default)]
 pub struct PnlAmounts {
-    pub price_pnl: SignedDecimal,
-    pub accrued_funding: SignedDecimal,
-    pub opening_fee: SignedDecimal,
-    pub closing_fee: SignedDecimal,
+    pub price_pnl: SignedUint,
+    pub accrued_funding: SignedUint,
+    pub opening_fee: SignedUint,
+    pub closing_fee: SignedUint,
 
     /// PnL: price PnL + accrued funding + opening fee + closing fee
-    pub pnl: SignedDecimal,
+    pub pnl: SignedUint,
 }
 
 impl PnlAmounts {
@@ -324,7 +325,7 @@ impl PnlAmounts {
     /// It can be used when opening a new position.
     pub fn from_opening_fee(opening_fee: Uint128) -> StdResult<Self> {
         // make opening fee negative to show that it's a cost for the user
-        let opening_fee = SignedDecimal::zero().checked_sub(opening_fee.into())?;
+        let opening_fee = SignedUint::zero().checked_sub(opening_fee.into())?;
         Ok(PnlAmounts {
             opening_fee,
             pnl: opening_fee,
@@ -334,7 +335,7 @@ impl PnlAmounts {
 
     pub fn add_opening_fee(&mut self, opening_fee: Uint128) -> StdResult<()> {
         // make opening fee negative to show that it's a cost for the user
-        let opening_fee = SignedDecimal::zero().checked_sub(opening_fee.into())?;
+        let opening_fee = SignedUint::zero().checked_sub(opening_fee.into())?;
         self.opening_fee = self.opening_fee.checked_add(opening_fee)?;
         self.pnl = self.pnl.checked_add(opening_fee)?;
         Ok(())
@@ -351,8 +352,8 @@ impl PnlAmounts {
 
     pub fn to_coins(&self, base_denom: &str) -> PnlCoins {
         PnlCoins {
-            closing_fee: coin(self.closing_fee.abs.to_uint_floor().u128(), base_denom),
-            pnl: PnL::from_signed_decimal(base_denom, self.pnl),
+            closing_fee: coin(self.closing_fee.abs.u128(), base_denom),
+            pnl: PnL::from_signed_uint(base_denom, self.pnl),
         }
     }
 }
@@ -397,7 +398,7 @@ pub enum ExecuteMsg {
     InitDenom {
         denom: String,
         max_funding_velocity: Decimal,
-        skew_scale: Decimal,
+        skew_scale: Uint128,
     },
 
     /// Enable a denom to be traded.
@@ -466,7 +467,7 @@ pub enum ExecuteMsg {
         ///
         /// Must be greater than the minimum position size set at the protocol
         /// level.
-        size: SignedDecimal,
+        size: SignedUint,
     },
 
     /// Close a perp position. Return collateral + unrealized PnL to the user's
@@ -485,7 +486,7 @@ pub enum ExecuteMsg {
 
         /// To increase a long or reduce a short, this will be positive
         /// To decrease a long or increase a short, this will be negative
-        new_size: SignedDecimal,
+        new_size: SignedUint,
     },
 
     /// Close all perp positions. Use this to liquidate a user's credit account.
@@ -566,7 +567,7 @@ pub enum QueryMsg {
     Position {
         account_id: String,
         denom: String,
-        new_size: Option<SignedDecimal>,
+        new_size: Option<SignedUint>,
     },
 
     /// List positions of all accounts and denoms
@@ -593,7 +594,7 @@ pub enum QueryMsg {
     #[returns(TradingFee)]
     OpeningFee {
         denom: String,
-        size: SignedDecimal,
+        size: SignedUint,
     },
 
     #[returns(Accounting)]
@@ -614,7 +615,7 @@ pub enum QueryMsg {
     PositionFees {
         account_id: String,
         denom: String,
-        new_size: SignedDecimal,
+        new_size: SignedUint,
     },
 }
 
@@ -623,7 +624,7 @@ pub enum QueryMsg {
 pub struct DenomStateResponse {
     pub denom: String,
     pub enabled: bool,
-    pub total_cost_base: SignedDecimal,
+    pub total_cost_base: SignedUint,
     pub funding: Funding,
     pub last_updated: u64,
 }

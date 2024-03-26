@@ -1,7 +1,7 @@
 use std::fmt;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::{Addr, Decimal, Uint128};
 #[cfg(feature = "javascript")]
 use tsify::Tsify;
 
@@ -47,6 +47,17 @@ pub struct Number(Decimal);
 
 impl Number {
     pub fn as_decimal(&self) -> Decimal {
+        self.0
+    }
+}
+
+#[cw_serde]
+#[cfg_attr(feature = "javascript", derive(Tsify))]
+#[cfg_attr(feature = "javascript", tsify(into_wasm_abi, from_wasm_abi))]
+pub struct Uint(Uint128);
+
+impl Uint {
+    pub fn as_unit_128(&self) -> Uint128 {
         self.0
     }
 }

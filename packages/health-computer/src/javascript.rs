@@ -1,5 +1,5 @@
 use mars_types::health::{
-    BorrowTarget, HealthValuesResponse, LiquidationPriceKind, Number, SwapKind,
+    BorrowTarget, HealthValuesResponse, LiquidationPriceKind, Number, SwapKind, Uint,
 };
 use wasm_bindgen::prelude::*;
 
@@ -56,15 +56,15 @@ pub fn max_perp_size_estimate_js(
     c: HealthComputer,
     denom: String,
     base_denom: String,
-    long_oi_amount: Number,
-    short_oi_amount: Number,
+    long_oi_amount: Uint,
+    short_oi_amount: Uint,
     direction: Direction,
 ) -> String {
     c.max_perp_size_estimate(
         &denom,
         &base_denom,
-        long_oi_amount.as_decimal(),
-        short_oi_amount.as_decimal(),
+        long_oi_amount.as_unit_128(),
+        short_oi_amount.as_unit_128(),
         &direction,
     )
     .unwrap()

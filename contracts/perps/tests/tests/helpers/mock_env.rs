@@ -9,7 +9,6 @@ use mars_owner::{OwnerResponse, OwnerUpdate};
 use mars_types::{
     adapters::{oracle::OracleBase, params::ParamsBase},
     address_provider,
-    math::SignedDecimal,
     oracle::{self, ActionKind},
     params::{self, ExecuteMsg::UpdatePerpParams, PerpParamsUpdate},
     perps::{
@@ -17,6 +16,7 @@ use mars_types::{
         PerpVaultPosition, PnlAmounts, PnlValues, PositionFeesResponse, PositionResponse,
         PositionsByAccountResponse, TradingFee, UnlockState, VaultState,
     },
+    signed_uint::SignedUint,
 };
 
 use super::{
@@ -119,7 +119,7 @@ impl MockEnv {
         sender: &Addr,
         denom: &str,
         max_funding_velocity: Decimal,
-        skew_scale: Decimal,
+        skew_scale: Uint128,
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
@@ -208,7 +208,7 @@ impl MockEnv {
         sender: &Addr,
         account_id: &str,
         denom: &str,
-        size: SignedDecimal,
+        size: SignedUint,
         send_funds: &[Coin],
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
@@ -228,7 +228,7 @@ impl MockEnv {
         sender: &Addr,
         account_id: &str,
         denom: &str,
-        new_size: SignedDecimal,
+        new_size: SignedUint,
         funds: &[Coin],
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
@@ -517,7 +517,7 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_opening_fee(&self, denom: &str, size: SignedDecimal) -> TradingFee {
+    pub fn query_opening_fee(&self, denom: &str, size: SignedUint) -> TradingFee {
         self.app
             .wrap()
             .query_wasm_smart(
@@ -534,7 +534,7 @@ impl MockEnv {
         &self,
         account_id: &str,
         denom: &str,
-        new_size: SignedDecimal,
+        new_size: SignedUint,
     ) -> PositionFeesResponse {
         self.app
             .wrap()

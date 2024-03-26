@@ -8,6 +8,8 @@ use cosmwasm_std::{CheckedFromRatioError, Decimal, OverflowError, StdError, Uint
 use schemars::JsonSchema;
 use serde::{de, ser, Deserialize, Serialize};
 
+use crate::signed_uint::SignedUint;
+
 /// Inspired by Margined protocol's implementation:
 /// https://github.com/margined-protocol/perpetuals/blob/main/packages/margined_common/src/integer.rs
 ///
@@ -25,13 +27,6 @@ impl SignedDecimal {
         Self {
             negative: false,
             abs: Decimal::zero(),
-        }
-    }
-
-    pub fn floor(&self) -> Self {
-        Self {
-            negative: self.negative,
-            abs: self.abs.floor(),
         }
     }
 
@@ -175,6 +170,37 @@ impl SignedDecimal {
             negative,
             abs,
         })
+    }
+
+    pub fn checked_from_ratio(
+        numerator: SignedUint,
+        denominator: SignedUint,
+    ) -> Result<SignedDecimal, CheckedFromRatioError> {
+        let abs = Decimal::checked_from_ratio(numerator.abs, denominator.abs)?;
+        let negative = if abs.is_zero() {
+            false
+        } else {
+            // use the XOR bitwise operator
+            numerator.negative ^ denominator.negative
+        };
+        Ok(SignedDecimal {
+            negative,
+            abs,
+        })
+    }
+
+    pub fn to_signed_uint_floor(self) -> SignedUint {
+        if self.is_negative() {
+            SignedUint {
+                negative: true,
+                abs: self.abs.to_uint_ceil(),
+            }
+        } else {
+            SignedUint {
+                negative: false,
+                abs: self.abs.to_uint_floor(),
+            }
+        }
     }
 }
 

@@ -11,7 +11,8 @@ use mars_types::{
     health::AccountKind,
     math::SignedDecimal,
     params::VaultConfig,
-    perps::{PerpDenomState, PerpPosition, PnlAmounts, PnlCoins, PnlValues, PositionPnl},
+    perps::{PerpDenomState, PerpPosition, PnlAmounts},
+    signed_uint::SignedUint,
 };
 
 use super::helpers::{
@@ -1323,7 +1324,7 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
     let current_price = Decimal::from_str("92").unwrap();
     let max_ltv = Decimal::from_str("0.9").unwrap();
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
-    let size = SignedDecimal::from_str("10000000").unwrap();
+    let size = SignedUint::from_str("10000000").unwrap();
     let btcperp =
         create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
 
@@ -1334,7 +1335,7 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
 
     let vaults_data = Default::default();
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
-    let unrealised_funding_accrued = SignedDecimal::from_str("-25210000").unwrap();
+    let unrealised_funding_accrued = SignedUint::from_str("-25210000").unwrap();
 
     let perps_data = PerpsData {
         denom_states: HashMap::from([(
@@ -1362,22 +1363,10 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PositionPnl {
-                    values: PnlValues {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    amounts: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    coins: PnlCoins {
-                        closing_fee: coin(0, "usdc".to_string()),
-                        pnl: mars_types::perps::PnL::Loss(Coin {
-                            denom: "usdc".to_string(),
-                            amount: Uint128::new(24790000),
-                        }),
-                    },
+                unrealised_pnl: PnlAmounts {
+                    accrued_funding: unrealised_funding_accrued,
+                    pnl: SignedUint::from_str("-24790000").unwrap(),
+                    ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
@@ -1416,7 +1405,7 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
     let current_price = Decimal::from_str("104").unwrap();
     let max_ltv = Decimal::from_str("0.9").unwrap();
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
-    let size = SignedDecimal::from_str("10000000").unwrap();
+    let size = SignedUint::from_str("10000000").unwrap();
     let btcperp =
         create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
 
@@ -1437,7 +1426,7 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
     };
     let vaults_data = Default::default();
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
-    let unrealised_funding_accrued = SignedDecimal::from_str("15210000").unwrap();
+    let unrealised_funding_accrued = SignedUint::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -1454,22 +1443,10 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PositionPnl {
-                    values: PnlValues {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    amounts: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    coins: PnlCoins {
-                        closing_fee: coin(0, "usdc".to_string()),
-                        pnl: mars_types::perps::PnL::Loss(Coin {
-                            denom: "usdc".to_string(),
-                            amount: Uint128::new(24790000),
-                        }),
-                    },
+                unrealised_pnl: PnlAmounts {
+                    accrued_funding: unrealised_funding_accrued,
+                    pnl: SignedUint::from_str("-24790000").unwrap(),
+                    ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
@@ -1502,7 +1479,7 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
     let current_price = Decimal::from_str("105").unwrap();
     let max_ltv = Decimal::from_str("0.9").unwrap();
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
-    let size = SignedDecimal::from_str("-10000000").unwrap();
+    let size = SignedUint::from_str("-10000000").unwrap();
     let btcperp =
         create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
 
@@ -1524,7 +1501,7 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
-    let unrealised_funding_accrued = SignedDecimal::from_str("15210000").unwrap();
+    let unrealised_funding_accrued = SignedUint::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -1541,24 +1518,11 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PositionPnl {
-                    values: PnlValues {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    amounts: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    coins: PnlCoins {
-                        closing_fee: coin(0, "usdc".to_string()),
-                        pnl: mars_types::perps::PnL::Loss(Coin {
-                            denom: "usdc".to_string(),
-                            amount: Uint128::new(55000000),
-                        }),
-                    },
+                unrealised_pnl: PnlAmounts {
+                    accrued_funding: unrealised_funding_accrued,
+                    pnl: SignedUint::from_str("-55000000").unwrap(),
+                    ..Default::default()
                 },
-
                 closing_fee_rate,
                 realised_pnl: PnlAmounts::default(),
             }],
@@ -1647,7 +1611,7 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
     };
 
     let closing_fee_rate = Decimal::from_str("0.000").unwrap();
-    let unrealised_funding_accrued = Decimal::from_str("0").unwrap().into();
+    let unrealised_funding_accrued = SignedUint::zero();
 
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -1668,20 +1632,11 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
                 entry_price,
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
-                size: SignedDecimal::from_str("-10000000").unwrap(),
-                unrealised_pnl: PositionPnl {
-                    values: PnlValues {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    amounts: PnlAmounts::default(),
-                    coins: PnlCoins {
-                        closing_fee: coin(0, "usdc".to_string()),
-                        pnl: mars_types::perps::PnL::Loss(Coin {
-                            denom: "usdc".to_string(),
-                            amount: Uint128::new(55000000),
-                        }),
-                    },
+                size: SignedUint::from_str("-10000000").unwrap(),
+                unrealised_pnl: PnlAmounts {
+                    accrued_funding: unrealised_funding_accrued,
+                    pnl: SignedUint::from_str("-55000000").unwrap(),
+                    ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
@@ -1721,7 +1676,7 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
     let current_price = Decimal::from_str("95").unwrap();
     let max_ltv = Decimal::from_str("0.9").unwrap();
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
-    let size = SignedDecimal::from_str("-10000000").unwrap();
+    let size = SignedUint::from_str("-10000000").unwrap();
     let btcperp =
         create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
 
@@ -1743,7 +1698,7 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
-    let unrealised_funding_accrued = SignedDecimal::from_str("15210000").unwrap();
+    let unrealised_funding_accrued = SignedUint::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -1760,22 +1715,10 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PositionPnl {
-                    values: PnlValues {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    amounts: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    coins: PnlCoins {
-                        closing_fee: coin(0, "usdc".to_string()),
-                        pnl: mars_types::perps::PnL::Loss(Coin {
-                            denom: "usdc".to_string(),
-                            amount: Uint128::new(55000000),
-                        }),
-                    },
+                unrealised_pnl: PnlAmounts {
+                    accrued_funding: unrealised_funding_accrued,
+                    pnl: SignedUint::from_str("-55000000").unwrap(),
+                    ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
@@ -1814,7 +1757,7 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
     let current_price_btc = Decimal::from_str("95").unwrap();
     let max_ltv_btc = Decimal::from_str("0.9").unwrap();
     let liquidation_threshold_btc = Decimal::from_str("0.95").unwrap();
-    let size_btc = SignedDecimal::from_str("10000000").unwrap();
+    let size_btc = SignedUint::from_str("10000000").unwrap();
     let btcperp = create_perp_info(
         "btc/usd/perp".to_string(),
         current_price_btc,
@@ -1826,7 +1769,7 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
     let current_price_eth = Decimal::from_str("10.72").unwrap();
     let max_ltv_eth = Decimal::from_str("0.85").unwrap();
     let liquidation_threshold_eth = Decimal::from_str("0.9").unwrap();
-    let size_eth = SignedDecimal::from_str("-80000000").unwrap();
+    let size_eth = SignedUint::from_str("-80000000").unwrap();
     let ethperp = create_perp_info(
         "eth/usd/perp".to_string(),
         current_price_eth,
@@ -1858,8 +1801,8 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
         ]),
     };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
-    let unrealised_funding_accrued_btc = SignedDecimal::from_str("15210000").unwrap();
-    let unrealised_funding_accrued_eth = SignedDecimal::from_str("-12650000").unwrap();
+    let unrealised_funding_accrued_btc = SignedUint::from_str("15210000").unwrap();
+    let unrealised_funding_accrued_eth = SignedUint::from_str("-12650000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -1878,22 +1821,10 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                     current_exec_price: current_price_btc,
                     size: size_btc,
                     // pnl is not used for calculating
-                    unrealised_pnl: PositionPnl {
-                        values: PnlValues {
-                            accrued_funding: unrealised_funding_accrued_btc,
-                            ..Default::default()
-                        },
-                        amounts: PnlAmounts {
-                            accrued_funding: unrealised_funding_accrued_btc,
-                            ..Default::default()
-                        },
-                        coins: PnlCoins {
-                            closing_fee: coin(0, "usdc".to_string()),
-                            pnl: mars_types::perps::PnL::Loss(Coin {
-                                denom: "usdc".to_string(),
-                                amount: Uint128::new(0),
-                            }),
-                        },
+                    unrealised_pnl: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued_btc,
+                        pnl: SignedUint::zero(),
+                        ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
                     closing_fee_rate,
@@ -1907,22 +1838,10 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                     current_exec_price: current_price_eth,
                     size: size_eth,
                     // pnl is not used for calculating
-                    unrealised_pnl: PositionPnl {
-                        values: PnlValues {
-                            accrued_funding: unrealised_funding_accrued_eth,
-                            ..Default::default()
-                        },
-                        amounts: PnlAmounts {
-                            accrued_funding: unrealised_funding_accrued_eth,
-                            ..Default::default()
-                        },
-                        coins: PnlCoins {
-                            closing_fee: coin(0, "usdc".to_string()),
-                            pnl: mars_types::perps::PnL::Loss(Coin {
-                                denom: "usdc".to_string(),
-                                amount: Uint128::new(0),
-                            }),
-                        },
+                    unrealised_pnl: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued_eth,
+                        pnl: SignedUint::zero(),
+                        ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
                     closing_fee_rate,
@@ -1962,7 +1881,7 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
     let current_price_btc = Decimal::from_str("115").unwrap();
     let max_ltv_btc = Decimal::from_str("0.9").unwrap();
     let liquidation_threshold_btc = Decimal::from_str("0.95").unwrap();
-    let size_btc = SignedDecimal::from_str("10000000").unwrap();
+    let size_btc = SignedUint::from_str("10000000").unwrap();
     let btcperp = create_perp_info(
         "btc/usd/perp".to_string(),
         current_price_btc,
@@ -1974,7 +1893,7 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
     let current_price_eth = Decimal::from_str("10.72").unwrap();
     let max_ltv_eth = Decimal::from_str("0.85").unwrap();
     let liquidation_threshold_eth = Decimal::from_str("0.9").unwrap();
-    let size_eth = SignedDecimal::from_str("-80000000").unwrap();
+    let size_eth = SignedUint::from_str("-80000000").unwrap();
     let ethperp = create_perp_info(
         "eth/usd/perp".to_string(),
         current_price_eth,
@@ -2007,8 +1926,8 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
         ]),
     };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
-    let unrealised_funding_accrued_btc = SignedDecimal::from_str("15210000").unwrap();
-    let unrealised_funding_accrued_eth = SignedDecimal::from_str("-12650000").unwrap();
+    let unrealised_funding_accrued_btc = SignedUint::from_str("15210000").unwrap();
+    let unrealised_funding_accrued_eth = SignedUint::from_str("-12650000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -2027,22 +1946,10 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                     current_exec_price: current_price_btc,
                     size: size_btc,
                     // pnl is not used for calculating
-                    unrealised_pnl: PositionPnl {
-                        values: PnlValues {
-                            accrued_funding: unrealised_funding_accrued_btc,
-                            ..Default::default()
-                        },
-                        amounts: PnlAmounts {
-                            accrued_funding: unrealised_funding_accrued_btc,
-                            ..Default::default()
-                        },
-                        coins: PnlCoins {
-                            closing_fee: coin(0, "usdc".to_string()),
-                            pnl: mars_types::perps::PnL::Loss(Coin {
-                                denom: "usdc".to_string(),
-                                amount: Uint128::new(0),
-                            }),
-                        },
+                    unrealised_pnl: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued_btc,
+                        pnl: SignedUint::zero(),
+                        ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
                     closing_fee_rate,
@@ -2056,22 +1963,10 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                     current_exec_price: current_price_eth,
                     size: size_eth,
                     // pnl is not used for calculating
-                    unrealised_pnl: PositionPnl {
-                        values: PnlValues {
-                            accrued_funding: unrealised_funding_accrued_eth,
-                            ..Default::default()
-                        },
-                        amounts: PnlAmounts {
-                            accrued_funding: unrealised_funding_accrued_eth,
-                            ..Default::default()
-                        },
-                        coins: PnlCoins {
-                            closing_fee: coin(0, "usdc".to_string()),
-                            pnl: mars_types::perps::PnL::Loss(Coin {
-                                denom: "usdc".to_string(),
-                                amount: Uint128::new(0),
-                            }),
-                        },
+                    unrealised_pnl: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued_eth,
+                        pnl: SignedUint::zero(),
+                        ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
                     closing_fee_rate,
@@ -2111,7 +2006,7 @@ fn perp_short_delta_neutral_with_btc_collateral() {
     let current_price = Decimal::from_str("95").unwrap();
     let max_ltv = Decimal::from_str("0.8").unwrap();
     let liquidation_threshold = Decimal::from_str("0.85").unwrap();
-    let size = SignedDecimal::from_str("-10000000").unwrap();
+    let size = SignedUint::from_str("-10000000").unwrap();
     let btcperp =
         create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
     let btc_coin = create_coin_info(
@@ -2142,12 +2037,12 @@ fn perp_short_delta_neutral_with_btc_collateral() {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
-    let unrealised_funding_accrued = SignedDecimal::from_str("15210000").unwrap();
+    let unrealised_funding_accrued = SignedUint::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
-            deposits: vec![coin(size.abs.to_uint_floor().into(), &btc_coin.denom)],
+            deposits: vec![coin(size.abs.into(), &btc_coin.denom)],
             debts: vec![],
             lends: vec![],
             vaults: vec![],
@@ -2159,22 +2054,10 @@ fn perp_short_delta_neutral_with_btc_collateral() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PositionPnl {
-                    values: PnlValues {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    amounts: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    coins: PnlCoins {
-                        closing_fee: coin(0, "usdc".to_string()),
-                        pnl: mars_types::perps::PnL::Loss(Coin {
-                            denom: "usdc".to_string(),
-                            amount: Uint128::new(0),
-                        }),
-                    },
+                unrealised_pnl: PnlAmounts {
+                    accrued_funding: unrealised_funding_accrued,
+                    pnl: SignedUint::zero(),
+                    ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
@@ -2213,7 +2096,7 @@ fn spot_short_delta_neutral_with_leverage() {
     let current_price = Decimal::from_str("104").unwrap();
     let max_ltv = Decimal::from_str("0.9").unwrap();
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
-    let size = SignedDecimal::from_str("10000000").unwrap();
+    let size = SignedUint::from_str("10000000").unwrap();
     let btcperp =
         create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
     let btc_coin = create_coin_info(
@@ -2245,7 +2128,7 @@ fn spot_short_delta_neutral_with_leverage() {
     };
 
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
-    let unrealised_funding_accrued = SignedDecimal::from_str("15210000").unwrap();
+    let unrealised_funding_accrued = SignedUint::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -2266,22 +2149,10 @@ fn spot_short_delta_neutral_with_leverage() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PositionPnl {
-                    values: PnlValues {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    amounts: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    coins: PnlCoins {
-                        closing_fee: coin(0, "usdc".to_string()),
-                        pnl: mars_types::perps::PnL::Loss(Coin {
-                            denom: "usdc".to_string(),
-                            amount: Uint128::new(0),
-                        }),
-                    },
+                unrealised_pnl: PnlAmounts {
+                    accrued_funding: unrealised_funding_accrued,
+                    pnl: SignedUint::zero(),
+                    ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,
@@ -2338,17 +2209,17 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
         .unwrap();
     let price_luna = SignedDecimal::from_str("1").unwrap();
 
-    let btc_size = SignedDecimal::from_str("-5000000").unwrap();
-    let eth_size = SignedDecimal::from_str("50000000").unwrap();
-    let atom_size = SignedDecimal::from_str("-100000000").unwrap();
+    let btc_size = SignedUint::from_str("-5000000").unwrap();
+    let eth_size = SignedUint::from_str("50000000").unwrap();
+    let atom_size = SignedUint::from_str("-100000000").unwrap();
 
-    let notional_eth_entry = eth_size.checked_mul(entry_price_eth).unwrap();
-    let notional_btc_entry = btc_size.checked_mul(entry_price_btc).unwrap();
-    let notional_atom_entry = atom_size.checked_mul(entry_price_atom).unwrap();
+    let notional_eth_entry = eth_size.checked_mul_floor(entry_price_eth).unwrap();
+    let notional_btc_entry = btc_size.checked_mul_floor(entry_price_btc).unwrap();
+    let notional_atom_entry = atom_size.checked_mul_floor(entry_price_atom).unwrap();
 
-    let notional_eth_current = eth_size.checked_mul(current_price_eth).unwrap();
-    let notional_btc_current = btc_size.checked_mul(current_price_btc).unwrap();
-    let notional_atom_current = atom_size.checked_mul(current_price_atom).unwrap();
+    let notional_eth_current = eth_size.checked_mul_floor(current_price_eth).unwrap();
+    let notional_btc_current = btc_size.checked_mul_floor(current_price_btc).unwrap();
+    let notional_atom_current = atom_size.checked_mul_floor(current_price_atom).unwrap();
 
     let raw_pnl_eth = notional_eth_current.checked_sub(notional_eth_entry).unwrap();
     let raw_pnl_btc = notional_btc_current.checked_sub(notional_btc_entry).unwrap();
@@ -2387,7 +2258,7 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
         ]),
     };
 
-    let unrealised_funding_accrued = Decimal::from_str("1234").unwrap().into();
+    let unrealised_funding_accrued = SignedUint::from_str("1234").unwrap();
     let base_denom = uusd.denom.clone();
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -2410,22 +2281,10 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                     entry_exec_price: entry_price_btc.abs,
                     current_exec_price: current_price_btc.abs,
                     size: btc_size,
-                    unrealised_pnl: PositionPnl {
-                        values: PnlValues {
-                            accrued_funding: unrealised_funding_accrued,
-                            ..Default::default()
-                        },
-                        amounts: PnlAmounts {
-                            accrued_funding: unrealised_funding_accrued,
-                            ..Default::default()
-                        },
-                        coins: PnlCoins {
-                            closing_fee: coin(0, "usdc".to_string()),
-                            pnl: mars_types::perps::PnL::Profit(Coin {
-                                denom: base_denom.clone(),
-                                amount: raw_pnl_btc.abs.to_uint_floor(),
-                            }),
-                        },
+                    unrealised_pnl: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued,
+                        pnl: raw_pnl_btc,
+                        ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
                     closing_fee_rate: Decimal::from_str("0.000").unwrap(),
@@ -2438,22 +2297,10 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                     entry_exec_price: entry_price_eth.abs,
                     current_exec_price: current_price_eth.abs,
                     size: eth_size,
-                    unrealised_pnl: PositionPnl {
-                        values: PnlValues {
-                            accrued_funding: unrealised_funding_accrued,
-                            ..Default::default()
-                        },
-                        amounts: PnlAmounts {
-                            accrued_funding: unrealised_funding_accrued,
-                            ..Default::default()
-                        },
-                        coins: PnlCoins {
-                            closing_fee: coin(0, "usdc".to_string()),
-                            pnl: mars_types::perps::PnL::Loss(Coin {
-                                denom: base_denom,
-                                amount: raw_pnl_eth.abs.to_uint_floor(),
-                            }),
-                        },
+                    unrealised_pnl: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued,
+                        pnl: raw_pnl_eth,
+                        ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
                     closing_fee_rate: Decimal::from_str("0.0002").unwrap(),
@@ -2466,22 +2313,10 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                     entry_exec_price: entry_price_atom.abs,
                     current_exec_price: current_price_atom.abs,
                     size: atom_size,
-                    unrealised_pnl: PositionPnl {
-                        values: PnlValues {
-                            accrued_funding: unrealised_funding_accrued,
-                            ..Default::default()
-                        },
-                        amounts: PnlAmounts {
-                            accrued_funding: unrealised_funding_accrued,
-                            ..Default::default()
-                        },
-                        coins: PnlCoins {
-                            closing_fee: coin(0, "usdc".to_string()),
-                            pnl: mars_types::perps::PnL::Profit(Coin {
-                                denom: uusd.denom,
-                                amount: raw_pnl_atom.abs.to_uint_floor(),
-                            }),
-                        },
+                    unrealised_pnl: PnlAmounts {
+                        accrued_funding: unrealised_funding_accrued,
+                        pnl: raw_pnl_atom,
+                        ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
                     closing_fee_rate: Decimal::from_str("0.0002").unwrap(),
@@ -2504,7 +2339,7 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
 
     assert_eq!(
         health.max_ltv_health_factor,
-        Some(Decimal::from_str("0.99345974731120483").unwrap())
+        Some(Decimal::from_str("0.993459746719870947").unwrap())
     );
     assert_eq!(
         health.liquidation_health_factor,
@@ -2522,7 +2357,7 @@ fn single_perp_funding_greater_than_pnl() {
     let current_price = Decimal::from_str("92").unwrap();
     let max_ltv = Decimal::from_str("0.9").unwrap();
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
-    let size = SignedDecimal::from_str("10000000").unwrap();
+    let size = SignedUint::from_str("10000000").unwrap();
     let btcperp =
         create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
 
@@ -2541,7 +2376,7 @@ fn single_perp_funding_greater_than_pnl() {
 
     let vaults_data = Default::default();
     let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
-    let unrealised_funding_accrued = SignedDecimal::from_str("1225210000").unwrap();
+    let unrealised_funding_accrued = SignedUint::from_str("1225210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -2558,22 +2393,10 @@ fn single_perp_funding_greater_than_pnl() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PositionPnl {
-                    values: PnlValues {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    amounts: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued,
-                        ..Default::default()
-                    },
-                    coins: PnlCoins {
-                        closing_fee: coin(0, "usdc".to_string()),
-                        pnl: mars_types::perps::PnL::Loss(Coin {
-                            denom: "usdc".to_string(),
-                            amount: Uint128::new(24790000),
-                        }),
-                    },
+                unrealised_pnl: PnlAmounts {
+                    accrued_funding: unrealised_funding_accrued,
+                    pnl: SignedUint::from_str("-24790000").unwrap(),
+                    ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
                 closing_fee_rate,

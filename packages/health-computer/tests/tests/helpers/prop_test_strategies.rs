@@ -9,12 +9,12 @@ use mars_types::{
     },
     credit_manager::{DebtAmount, Positions},
     health::AccountKind,
-    math::SignedDecimal,
     params::{
         AssetParams, CmSettings, HlsParams, LiquidationBonus, PerpParams, RedBankSettings,
         VaultConfig,
     },
     perps::PerpDenomState,
+    signed_uint::SignedUint,
 };
 use proptest::{
     collection::vec,
@@ -42,16 +42,15 @@ fn random_price() -> impl Strategy<Value = Decimal> {
         .prop_map(|(price, offset)| Decimal::from_atomics(price as u128, offset as u32).unwrap())
 }
 
-fn random_signed_decimal(range: RangeInclusive<u128>) -> impl Strategy<Value = SignedDecimal> {
-    (range, 1..6, random_bool()).prop_map(|(price, offset, negative)| SignedDecimal {
-        abs: Decimal::from_atomics(price, offset as u32).unwrap(),
+fn random_signed_uint(range: RangeInclusive<u128>) -> impl Strategy<Value = SignedUint> {
+    (range, random_bool()).prop_map(|(num, negative)| SignedUint {
+        abs: Uint128::new(num),
         negative,
     })
 }
 
-fn random_decimal(range: RangeInclusive<i32>) -> impl Strategy<Value = Decimal> {
-    (range, 1..6)
-        .prop_map(|(price, offset)| Decimal::from_atomics(price as u128, offset as u32).unwrap())
+fn random_uint(range: RangeInclusive<u128>) -> impl Strategy<Value = Uint128> {
+    (range).prop_map(Uint128::new)
 }
 
 fn random_coin_info() -> impl Strategy<Value = AssetParams> {
@@ -201,10 +200,10 @@ fn random_perp_info() -> impl Strategy<Value = PerpParams> {
 fn random_denom_state() -> impl Strategy<Value = PerpDenomState> {
     (
         random_bool(),
-        random_decimal(0..=1000000),
-        random_decimal(0..=1000000),
-        random_signed_decimal(0..=100000),
-        random_signed_decimal(0..=100000),
+        random_uint(0..=1000000),
+        random_uint(0..=1000000),
+        random_signed_uint(0..=100000),
+        random_signed_uint(0..=100000),
     )
         .prop_map(|(enabled, long_oi, short_oi, total_entry_cost, total_entry_funding)| {
             PerpDenomState {

@@ -5,6 +5,7 @@ use mars_types::{
     math::SignedDecimal,
     params::PerpParams,
     perps::{Funding, PerpDenomState},
+    signed_uint::SignedUint,
 };
 
 pub struct PerpInfo {
@@ -29,8 +30,8 @@ pub fn create_default_perp_info() -> PerpParams {
 }
 
 pub fn create_perp_denom_state(
-    long_oi: Decimal,
-    short_oi: Decimal,
+    long_oi: Uint128,
+    short_oi: Uint128,
     funding: Funding,
 ) -> PerpDenomState {
     PerpDenomState {
@@ -95,9 +96,9 @@ pub fn atomperp_info() -> PerpInfo {
 
 pub fn create_default_funding() -> Funding {
     Funding {
-        skew_scale: Decimal::from_str("1000").unwrap(),
+        skew_scale: Uint128::new(1000000000u128),
         last_funding_rate: SignedDecimal::from_str("1.0").unwrap(),
         max_funding_velocity: Decimal::percent(0),
-        last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("300").unwrap(),
+        last_funding_accrued_per_unit_in_base_denom: SignedUint::from_str("300").unwrap(),
     }
 }

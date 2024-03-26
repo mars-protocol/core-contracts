@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, Coin, Decimal};
+use cosmwasm_std::{coin, Coin, Decimal, Uint128};
 use mars_types::{
-    math::SignedDecimal,
     params::{PerpParams, PerpParamsUpdate},
     perps::{Accounting, Balance, CashFlow, PerpPosition, PnL},
+    signed_uint::SignedUint,
 };
 
 use super::helpers::MockEnv;
@@ -28,13 +28,8 @@ fn accounting() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(
-        &owner,
-        "uosmo",
-        Decimal::from_str("3").unwrap(),
-        Decimal::from_str("1000000").unwrap(),
-    )
-    .unwrap();
+    mock.init_denom(&owner, "uosmo", Decimal::from_str("32").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -45,13 +40,8 @@ fn accounting() {
             },
         },
     );
-    mock.init_denom(
-        &owner,
-        "uatom",
-        Decimal::from_str("3").unwrap(),
-        Decimal::from_str("1000000").unwrap(),
-    )
-    .unwrap();
+    mock.init_denom(&owner, "uatom", Decimal::from_str("30").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -78,10 +68,10 @@ fn accounting() {
     let vault_state_before_opening = mock.query_vault_state();
 
     // open few positions for account 1
-    let size = SignedDecimal::from_str("1000").unwrap();
+    let size = SignedUint::from_str("10000000").unwrap();
     let osmo_opening_fee = mock.query_opening_fee("uosmo", size).fee;
     mock.open_position(&credit_manager, "1", "uosmo", size, &[osmo_opening_fee.clone()]).unwrap();
-    let size = SignedDecimal::from_str("-2500").unwrap();
+    let size = SignedUint::from_str("-260000").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee.clone()]).unwrap();
 
@@ -94,7 +84,7 @@ fn accounting() {
     assert_eq!(
         osmo_accounting.cash_flow,
         CashFlow {
-            opening_fee: SignedDecimal::from(osmo_opening_fee.amount),
+            opening_fee: SignedUint::from(osmo_opening_fee.amount),
             ..Default::default()
         }
     );
@@ -102,7 +92,7 @@ fn accounting() {
     assert_eq!(
         atom_accounting.cash_flow,
         CashFlow {
-            opening_fee: SignedDecimal::from(atom_opening_fee.amount),
+            opening_fee: SignedUint::from(atom_opening_fee.amount),
             ..Default::default()
         }
     );
@@ -110,7 +100,7 @@ fn accounting() {
     assert_eq!(
         total_accounting.cash_flow,
         CashFlow {
-            opening_fee: SignedDecimal::from(osmo_opening_fee.amount + atom_opening_fee.amount),
+            opening_fee: SignedUint::from(osmo_opening_fee.amount + atom_opening_fee.amount),
             ..Default::default()
         }
     );
@@ -218,7 +208,7 @@ fn accounting() {
 }
 
 fn from_position_to_coin(pos: PerpPosition) -> Vec<Coin> {
-    if let PnL::Loss(coin) = pos.unrealised_pnl.coins.pnl {
+    if let PnL::Loss(coin) = pos.unrealised_pnl.to_coins(&pos.base_denom).pnl {
         vec![coin]
     } else {
         vec![]

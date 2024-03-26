@@ -124,7 +124,7 @@ export type Action =
   | {
       open_perp: {
         denom: string
-        size: SignedDecimal
+        size: SignedUint
       }
     }
   | {
@@ -135,7 +135,7 @@ export type Action =
   | {
       modify_perp: {
         denom: string
-        new_size: SignedDecimal
+        new_size: SignedUint
       }
     }
   | {
@@ -233,8 +233,8 @@ export interface ActionCoin {
   amount: ActionAmount
   denom: string
 }
-export interface SignedDecimal {
-  abs: Decimal
+export interface SignedUint {
+  abs: Uint128
   negative: boolean
   [k: string]: unknown
 }

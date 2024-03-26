@@ -4,12 +4,12 @@ use cosmwasm_std::{
 };
 
 use crate::{
-    math::SignedDecimal,
     oracle::ActionKind,
     perps::{
         Config, ExecuteMsg, PerpDenomState, PerpPosition, PerpVaultPosition, PositionResponse,
         PositionsByAccountResponse, QueryMsg, TradingFee,
     },
+    signed_uint::SignedUint,
 };
 
 #[cw_serde]
@@ -84,7 +84,7 @@ impl Perps {
         &self,
         account_id: impl Into<String>,
         denom: impl Into<String>,
-        size: SignedDecimal,
+        size: SignedUint,
         funds: Vec<Coin>,
     ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -137,7 +137,7 @@ impl Perps {
         &self,
         account_id: impl Into<String>,
         denom: impl Into<String>,
-        new_size: impl Into<SignedDecimal>,
+        new_size: SignedUint,
         funds: Vec<Coin>,
     ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
@@ -145,7 +145,7 @@ impl Perps {
             msg: to_json_binary(&ExecuteMsg::ModifyPosition {
                 account_id: account_id.into(),
                 denom: denom.into(),
-                new_size: new_size.into(),
+                new_size,
             })?,
             funds,
         }))
@@ -156,7 +156,7 @@ impl Perps {
         querier: &QuerierWrapper,
         account_id: impl Into<String>,
         denom: impl Into<String>,
-        new_size: Option<SignedDecimal>,
+        new_size: Option<SignedUint>,
     ) -> StdResult<PerpPosition> {
         let res: PositionResponse = querier.query_wasm_smart(
             self.address(),
@@ -189,7 +189,7 @@ impl Perps {
         &self,
         querier: &QuerierWrapper,
         denom: impl Into<String>,
-        size: SignedDecimal,
+        size: SignedUint,
     ) -> StdResult<TradingFee> {
         let res: TradingFee = querier.query_wasm_smart(
             self.address(),

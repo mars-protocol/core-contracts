@@ -470,7 +470,7 @@
                     "type": "string"
                   },
                   "size": {
-                    "$ref": "#/definitions/SignedDecimal"
+                    "$ref": "#/definitions/SignedUint"
                   }
                 },
                 "additionalProperties": false
@@ -517,7 +517,7 @@
                     "type": "string"
                   },
                   "new_size": {
-                    "$ref": "#/definitions/SignedDecimal"
+                    "$ref": "#/definitions/SignedUint"
                   }
                 },
                 "additionalProperties": false
@@ -1255,7 +1255,7 @@
                     "type": "string"
                   },
                   "size": {
-                    "$ref": "#/definitions/SignedDecimal"
+                    "$ref": "#/definitions/SignedUint"
                   }
                 },
                 "additionalProperties": false
@@ -1311,7 +1311,7 @@
                     "type": "string"
                   },
                   "new_size": {
-                    "$ref": "#/definitions/SignedDecimal"
+                    "$ref": "#/definitions/SignedUint"
                   }
                 },
                 "additionalProperties": false
@@ -2317,8 +2317,7 @@
       "RedBankUnchecked": {
         "type": "string"
       },
-      "SignedDecimal": {
-        "description": "Inspired by Margined protocol's implementation: https://github.com/margined-protocol/perpetuals/blob/main/packages/margined_common/src/integer.rs\n\nThis type is specifically adapted to our need (only methods that are actually used by the contract are implemented) hence not suited for general use.",
+      "SignedUint": {
         "type": "object",
         "required": [
           "abs",
@@ -2326,7 +2325,7 @@
         ],
         "properties": {
           "abs": {
-            "$ref": "#/definitions/Decimal"
+            "$ref": "#/definitions/Uint128"
           },
           "negative": {
             "type": "boolean"
@@ -3565,10 +3564,10 @@
               "$ref": "#/definitions/PnlAmounts"
             },
             "size": {
-              "$ref": "#/definitions/SignedDecimal"
+              "$ref": "#/definitions/SignedUint"
             },
             "unrealised_pnl": {
-              "$ref": "#/definitions/PositionPnl"
+              "$ref": "#/definitions/PnlAmounts"
             }
           },
           "additionalProperties": false
@@ -3612,41 +3611,6 @@
           },
           "additionalProperties": false
         },
-        "PnL": {
-          "description": "The profit-and-loss of a perp position, denominated in the base currency.",
-          "oneOf": [
-            {
-              "type": "string",
-              "enum": [
-                "break_even"
-              ]
-            },
-            {
-              "type": "object",
-              "required": [
-                "profit"
-              ],
-              "properties": {
-                "profit": {
-                  "$ref": "#/definitions/Coin"
-                }
-              },
-              "additionalProperties": false
-            },
-            {
-              "type": "object",
-              "required": [
-                "loss"
-              ],
-              "properties": {
-                "loss": {
-                  "$ref": "#/definitions/Coin"
-                }
-              },
-              "additionalProperties": false
-            }
-          ]
-        },
         "PnlAmounts": {
           "description": "Amounts denominated in the Perp Vault base denom (uusdc)",
           "type": "object",
@@ -3659,97 +3623,29 @@
           ],
           "properties": {
             "accrued_funding": {
-              "$ref": "#/definitions/SignedDecimal"
+              "$ref": "#/definitions/SignedUint"
             },
             "closing_fee": {
-              "$ref": "#/definitions/SignedDecimal"
+              "$ref": "#/definitions/SignedUint"
             },
             "opening_fee": {
-              "$ref": "#/definitions/SignedDecimal"
+              "$ref": "#/definitions/SignedUint"
             },
             "pnl": {
               "description": "PnL: price PnL + accrued funding + opening fee + closing fee",
               "allOf": [
                 {
-                  "$ref": "#/definitions/SignedDecimal"
+                  "$ref": "#/definitions/SignedUint"
                 }
               ]
             },
             "price_pnl": {
-              "$ref": "#/definitions/SignedDecimal"
+              "$ref": "#/definitions/SignedUint"
             }
           },
           "additionalProperties": false
         },
-        "PnlCoins": {
-          "description": "Coins with Perp Vault base denom (uusdc) as a denom",
-          "type": "object",
-          "required": [
-            "closing_fee",
-            "pnl"
-          ],
-          "properties": {
-            "closing_fee": {
-              "$ref": "#/definitions/Coin"
-            },
-            "pnl": {
-              "$ref": "#/definitions/PnL"
-            }
-          },
-          "additionalProperties": false
-        },
-        "PnlValues": {
-          "description": "Values denominated in the Oracle base currency (uusd)",
-          "type": "object",
-          "required": [
-            "accrued_funding",
-            "closing_fee",
-            "pnl",
-            "price_pnl"
-          ],
-          "properties": {
-            "accrued_funding": {
-              "$ref": "#/definitions/SignedDecimal"
-            },
-            "closing_fee": {
-              "$ref": "#/definitions/SignedDecimal"
-            },
-            "pnl": {
-              "description": "PnL: price PnL + accrued funding + closing fee",
-              "allOf": [
-                {
-                  "$ref": "#/definitions/SignedDecimal"
-                }
-              ]
-            },
-            "price_pnl": {
-              "$ref": "#/definitions/SignedDecimal"
-            }
-          },
-          "additionalProperties": false
-        },
-        "PositionPnl": {
-          "type": "object",
-          "required": [
-            "amounts",
-            "coins",
-            "values"
-          ],
-          "properties": {
-            "amounts": {
-              "$ref": "#/definitions/PnlAmounts"
-            },
-            "coins": {
-              "$ref": "#/definitions/PnlCoins"
-            },
-            "values": {
-              "$ref": "#/definitions/PnlValues"
-            }
-          },
-          "additionalProperties": false
-        },
-        "SignedDecimal": {
-          "description": "Inspired by Margined protocol's implementation: https://github.com/margined-protocol/perpetuals/blob/main/packages/margined_common/src/integer.rs\n\nThis type is specifically adapted to our need (only methods that are actually used by the contract are implemented) hence not suited for general use.",
+        "SignedUint": {
           "type": "object",
           "required": [
             "abs",
@@ -3757,7 +3653,7 @@
           ],
           "properties": {
             "abs": {
-              "$ref": "#/definitions/Decimal"
+              "$ref": "#/definitions/Uint128"
             },
             "negative": {
               "type": "boolean"

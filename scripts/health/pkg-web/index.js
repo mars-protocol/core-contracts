@@ -260,8 +260,8 @@ export function liquidation_price_js(c, denom, kind) {
  * @param {HealthComputer} c
  * @param {string} denom
  * @param {string} base_denom
- * @param {Number} long_oi_amount
- * @param {Number} short_oi_amount
+ * @param {Uint} long_oi_amount
+ * @param {Uint} short_oi_amount
  * @param {Direction} direction
  * @returns {string}
  */

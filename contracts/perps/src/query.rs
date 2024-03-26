@@ -3,14 +3,14 @@ use std::collections::HashMap;
 use cosmwasm_std::{coin, Addr, Decimal, Deps, Order, StdResult, Storage, Uint128};
 use cw_storage_plus::Bound;
 use mars_types::{
-    math::SignedDecimal,
     oracle::ActionKind,
     perps::{
         Accounting, Config, DenomState, DenomStateResponse, DepositResponse, PerpDenomState,
         PerpPosition, PerpVaultDeposit, PerpVaultPosition, PnlAmounts, PnlValues,
-        PositionFeesResponse, PositionPnl, PositionResponse, PositionsByAccountResponse,
-        TradingFee, UnlockState, VaultState,
+        PositionFeesResponse, PositionResponse, PositionsByAccountResponse, TradingFee,
+        UnlockState, VaultState,
     },
+    signed_uint::SignedUint,
 };
 
 use crate::{
@@ -182,7 +182,7 @@ pub fn position(
     current_time: u64,
     account_id: String,
     denom: String,
-    new_size: Option<SignedDecimal>,
+    new_size: Option<SignedUint>,
 ) -> ContractResult<PositionResponse> {
     let cfg = CONFIG.load(deps.storage)?;
     let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
@@ -206,7 +206,7 @@ pub fn position(
         _ => PositionModification::None,
     };
 
-    let (pnl_values, pnl_amounts) = position.compute_pnl(
+    let pnl_amounts = position.compute_pnl(
         &curr_funding,
         ds.skew()?,
         denom_price,
@@ -215,8 +215,6 @@ pub fn position(
         perp_params.closing_fee_rate,
         modification,
     )?;
-
-    let pnl_coins = pnl_amounts.to_coins(&cfg.base_denom);
 
     let exit_exec_price =
         closing_execution_price(ds.skew()?, curr_funding.skew_scale, position.size, denom_price)?;
@@ -231,11 +229,7 @@ pub fn position(
             current_price: denom_price,
             entry_exec_price: position.entry_exec_price,
             current_exec_price: exit_exec_price,
-            unrealised_pnl: PositionPnl {
-                values: pnl_values,
-                amounts: pnl_amounts,
-                coins: pnl_coins,
-            },
+            unrealised_pnl: pnl_amounts,
             realised_pnl: position.realized_pnl,
             closing_fee_rate: perp_params.closing_fee_rate,
         },
@@ -285,42 +279,40 @@ pub fn positions(
 
             // if denom state is already in the cache, simply read it
             // otherwise, recalculate it, and insert into the cache
-            let (pnl_values, pnl_amounts, skew, skew_scale) =
-                if let Some(curr_ds) = denoms.get(&denom) {
-                    let (pnl, pnl_amounts) = position.compute_pnl(
-                        &curr_ds.funding,
-                        curr_ds.skew()?,
-                        current_price,
-                        base_denom_price,
-                        perp_params.opening_fee_rate,
-                        perp_params.closing_fee_rate,
-                        PositionModification::None,
-                    )?;
-                    (pnl, pnl_amounts, curr_ds.skew()?, curr_ds.funding.skew_scale)
-                } else {
-                    let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
-                    let curr_funding =
-                        ds.current_funding(current_time, current_price, base_denom_price)?;
-                    let (pnl, pnl_amounts) = position.compute_pnl(
-                        &curr_funding,
-                        ds.skew()?,
-                        current_price,
-                        base_denom_price,
-                        perp_params.opening_fee_rate,
-                        perp_params.closing_fee_rate,
-                        PositionModification::None,
-                    )?;
-                    let skew = ds.skew()?;
-                    let skew_scale = curr_funding.skew_scale;
-                    ds.funding = curr_funding;
-                    denoms.insert(denom.clone(), ds);
-                    (pnl, pnl_amounts, skew, skew_scale)
-                };
+            let (pnl_amounts, skew, skew_scale) = if let Some(curr_ds) = denoms.get(&denom) {
+                let pnl_amounts = position.compute_pnl(
+                    &curr_ds.funding,
+                    curr_ds.skew()?,
+                    current_price,
+                    base_denom_price,
+                    perp_params.opening_fee_rate,
+                    perp_params.closing_fee_rate,
+                    PositionModification::None,
+                )?;
+                (pnl_amounts, curr_ds.skew()?, curr_ds.funding.skew_scale)
+            } else {
+                let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
+                let curr_funding =
+                    ds.current_funding(current_time, current_price, base_denom_price)?;
+                let pnl_amounts = position.compute_pnl(
+                    &curr_funding,
+                    ds.skew()?,
+                    current_price,
+                    base_denom_price,
+                    perp_params.opening_fee_rate,
+                    perp_params.closing_fee_rate,
+                    PositionModification::None,
+                )?;
+                let skew = ds.skew()?;
+                let skew_scale = curr_funding.skew_scale;
+                ds.funding = curr_funding;
+                denoms.insert(denom.clone(), ds);
+                (pnl_amounts, skew, skew_scale)
+            };
 
             let exit_exec_price =
                 closing_execution_price(skew, skew_scale, position.size, current_price)?;
 
-            let pnl_coins = pnl_amounts.to_coins(&cfg.base_denom);
             Ok(PositionResponse {
                 account_id,
                 position: PerpPosition {
@@ -331,11 +323,7 @@ pub fn positions(
                     current_price: position.entry_exec_price,
                     entry_exec_price: position.entry_exec_price,
                     current_exec_price: exit_exec_price,
-                    unrealised_pnl: PositionPnl {
-                        values: pnl_values,
-                        amounts: pnl_amounts,
-                        coins: pnl_coins,
-                    },
+                    unrealised_pnl: pnl_amounts,
                     realised_pnl: position.realized_pnl,
                     closing_fee_rate: perp_params.closing_fee_rate,
                 },
@@ -377,7 +365,7 @@ pub fn positions_by_account(
             let ds = DENOM_STATES.load(deps.storage, &denom)?;
             let curr_funding = ds.current_funding(current_time, denom_price, base_denom_price)?;
 
-            let (pnl_values, pnl_amounts) = position.compute_pnl(
+            let pnl_amounts = position.compute_pnl(
                 &curr_funding,
                 ds.skew()?,
                 denom_price,
@@ -394,7 +382,6 @@ pub fn positions_by_account(
                 denom_price,
             )?;
 
-            let pnl_coins = pnl_amounts.to_coins(&cfg.base_denom);
             Ok(PerpPosition {
                 denom,
                 base_denom: cfg.base_denom.clone(),
@@ -403,11 +390,7 @@ pub fn positions_by_account(
                 current_price: denom_price,
                 entry_exec_price: position.entry_exec_price,
                 current_exec_price: exit_exec_price,
-                unrealised_pnl: PositionPnl {
-                    values: pnl_values,
-                    amounts: pnl_amounts,
-                    coins: pnl_coins,
-                },
+                unrealised_pnl: pnl_amounts,
                 realised_pnl: position.realized_pnl,
                 closing_fee_rate: perp_params.closing_fee_rate,
             })
@@ -426,7 +409,7 @@ pub fn total_pnl(deps: Deps, current_time: u64) -> ContractResult<PnlValues> {
 }
 
 // TODO: remove this function when frontend is updated (they should use position_fees instead)
-pub fn opening_fee(deps: Deps, denom: &str, size: SignedDecimal) -> ContractResult<TradingFee> {
+pub fn opening_fee(deps: Deps, denom: &str, size: SignedUint) -> ContractResult<TradingFee> {
     let cfg = CONFIG.load(deps.storage)?;
 
     let base_denom_price =
@@ -445,10 +428,7 @@ pub fn opening_fee(deps: Deps, denom: &str, size: SignedDecimal) -> ContractResu
     //
     // ceil in favor of the contract
     let price = denom_exec_price.checked_div(base_denom_price)?;
-    let fee = size
-        .abs
-        .to_uint_floor()
-        .checked_mul_ceil(price.checked_mul(perp_params.opening_fee_rate)?)?;
+    let fee = size.abs.checked_mul_ceil(price.checked_mul(perp_params.opening_fee_rate)?)?;
 
     Ok(TradingFee {
         rate: perp_params.opening_fee_rate,
@@ -499,7 +479,7 @@ pub fn position_fees(
     deps: Deps,
     account_id: &str,
     denom: &str,
-    new_size: SignedDecimal,
+    new_size: SignedUint,
 ) -> ContractResult<PositionFeesResponse> {
     let cfg = CONFIG.load(deps.storage)?;
 
@@ -586,7 +566,7 @@ pub fn position_fees(
 fn calculate_fee(
     denom_exec_price: Decimal,
     base_denom_price: Decimal,
-    size: SignedDecimal,
+    size: SignedUint,
     rate: Decimal,
 ) -> ContractResult<Uint128> {
     // fee_in_usd = rate * denom_exec_price * size
@@ -594,5 +574,5 @@ fn calculate_fee(
     //
     // ceil in favor of the contract
     let price = denom_exec_price.checked_div(base_denom_price)?;
-    Ok(size.abs.to_uint_floor().checked_mul_ceil(price.checked_mul(rate)?)?)
+    Ok(size.abs.checked_mul_ceil(price.checked_mul(rate)?)?)
 }

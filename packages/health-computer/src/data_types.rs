@@ -4,7 +4,6 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Uint128};
 use mars_types::{
     adapters::vault::VaultPositionValue,
-    math::SignedDecimal,
     params::{PerpParams, VaultConfig},
     perps::PerpDenomState,
 };
@@ -19,10 +18,10 @@ pub struct CollateralValue {
 
 #[cw_serde]
 pub struct PerpHealthFactorValues {
-    pub max_ltv_numerator: SignedDecimal,
-    pub max_ltv_denominator: SignedDecimal,
-    pub liq_ltv_numerator: SignedDecimal,
-    pub liq_ltv_denominator: SignedDecimal,
+    pub max_ltv_numerator: Uint128,
+    pub max_ltv_denominator: Uint128,
+    pub liq_ltv_numerator: Uint128,
+    pub liq_ltv_denominator: Uint128,
     pub pnl_values: PerpPnlValues,
 }
 

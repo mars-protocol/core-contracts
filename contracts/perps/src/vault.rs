@@ -6,9 +6,9 @@ use cosmwasm_std::{
 use cw_utils::must_pay;
 use mars_types::{
     adapters::oracle::Oracle,
-    math::SignedDecimal,
     oracle::ActionKind,
     perps::{UnlockState, VaultState},
+    signed_uint::SignedUint,
 };
 
 use crate::{
@@ -212,9 +212,9 @@ pub fn compute_global_withdrawal_balance(
 
     let global_withdrawal_balance =
         global_acc_data.withdrawal_balance.total.checked_add(vs.total_liquidity.into())?;
-    let global_withdrawal_balance = max(global_withdrawal_balance, SignedDecimal::zero());
+    let global_withdrawal_balance = max(global_withdrawal_balance, SignedUint::zero());
 
-    Ok(global_withdrawal_balance.abs.to_uint_floor())
+    Ok(global_withdrawal_balance.abs)
 }
 
 /// Convert a deposit amount to shares, given the current total amount and

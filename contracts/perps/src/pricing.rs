@@ -1,15 +1,15 @@
 use std::{cmp::max, str::FromStr};
 
-use cosmwasm_std::Decimal;
-use mars_types::math::SignedDecimal;
+use cosmwasm_std::{Decimal, Uint128};
+use mars_types::{math::SignedDecimal, signed_uint::SignedUint};
 
 use crate::error::ContractResult;
 
 /// Price with market impact applied for opening a position
 pub fn opening_execution_price(
-    skew: SignedDecimal,
-    skew_scale: Decimal,
-    size: SignedDecimal,
+    skew: SignedUint,
+    skew_scale: Uint128,
+    size: SignedUint,
     oracle_price: Decimal,
 ) -> ContractResult<Decimal> {
     let initial_premium = initial_premium(skew, skew_scale)?;
@@ -20,9 +20,9 @@ pub fn opening_execution_price(
 
 /// Price with market impact applied for closing a position
 pub fn closing_execution_price(
-    skew: SignedDecimal,
-    skew_scale: Decimal,
-    size: SignedDecimal,
+    skew: SignedUint,
+    skew_scale: Uint128,
+    size: SignedUint,
     oracle_price: Decimal,
 ) -> ContractResult<Decimal> {
     let initial_premium = initial_premium(skew, skew_scale)?;
@@ -36,8 +36,8 @@ pub fn closing_execution_price(
 /// InitialPremium(i) = Skew(i) / SkewScale
 /// where:
 /// i = t0, t
-fn initial_premium(skew: SignedDecimal, skew_scale: Decimal) -> ContractResult<SignedDecimal> {
-    Ok(skew.checked_div(skew_scale.into())?)
+fn initial_premium(skew: SignedUint, skew_scale: Uint128) -> ContractResult<SignedDecimal> {
+    Ok(SignedDecimal::checked_from_ratio(skew, skew_scale.into())?)
 }
 
 /// Calculate the final premium for a given skew before modification by opening size.
@@ -46,12 +46,12 @@ fn initial_premium(skew: SignedDecimal, skew_scale: Decimal) -> ContractResult<S
 /// where:
 /// FinalSkew(t0) = Skew(t0) + Size
 fn final_premium_opening(
-    skew: SignedDecimal,
-    skew_scale: Decimal,
-    size: SignedDecimal,
+    skew: SignedUint,
+    skew_scale: Uint128,
+    size: SignedUint,
 ) -> ContractResult<SignedDecimal> {
     let final_skew = skew.checked_add(size)?;
-    Ok(final_skew.checked_div(skew_scale.into())?)
+    Ok(SignedDecimal::checked_from_ratio(final_skew, skew_scale.into())?)
 }
 
 /// Calculate the final premium for a given skew before modification by closing size.
@@ -60,12 +60,12 @@ fn final_premium_opening(
 /// where:
 /// FinalSkew(t) = Skew(t) - Size
 fn final_premium_closing(
-    skew: SignedDecimal,
-    skew_scale: Decimal,
-    size: SignedDecimal,
+    skew: SignedUint,
+    skew_scale: Uint128,
+    size: SignedUint,
 ) -> ContractResult<SignedDecimal> {
     let final_skew = skew.checked_sub(size)?;
-    Ok(final_skew.checked_div(skew_scale.into())?)
+    Ok(SignedDecimal::checked_from_ratio(final_skew, skew_scale.into())?)
 }
 
 /// Price with market impact applied

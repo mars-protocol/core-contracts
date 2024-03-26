@@ -5,9 +5,9 @@ use cosmwasm_std::{
 };
 use cw_utils::{may_pay, must_pay};
 use mars_types::{
-    math::SignedDecimal,
     oracle::ActionKind,
     perps::{CashFlow, DenomState, PnL, PnlAmounts, Position},
+    signed_uint::SignedUint,
 };
 
 use crate::{
@@ -26,7 +26,7 @@ pub fn open_position(
     info: MessageInfo,
     account_id: String,
     denom: String,
-    size: SignedDecimal,
+    size: SignedUint,
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
@@ -68,7 +68,7 @@ pub fn open_position(
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     // the position's initial value cannot be too small
-    let position_value = size.abs.checked_mul(denom_price)?.to_uint_floor();
+    let position_value = size.abs.checked_mul_floor(denom_price)?;
     ensure_min_position(position_value, &perp_params)?;
 
     // the position's initial value cannot be too big
@@ -133,7 +133,7 @@ pub fn close_position(
     denom: String,
 ) -> ContractResult<Response> {
     let position = POSITIONS.load(deps.storage, (&account_id, &denom))?;
-    update_position_state(deps, env, info, position, account_id, denom, SignedDecimal::zero())
+    update_position_state(deps, env, info, position, account_id, denom, SignedUint::zero())
 }
 
 pub fn modify_position(
@@ -142,7 +142,7 @@ pub fn modify_position(
     info: MessageInfo,
     account_id: String,
     denom: String,
-    new_size: SignedDecimal,
+    new_size: SignedUint,
 ) -> ContractResult<Response> {
     let position = POSITIONS.load(deps.storage, (&account_id, &denom))?;
     update_position_state(deps, env, info, position, account_id, denom, new_size)
@@ -155,7 +155,7 @@ fn update_position_state(
     position: Position,
     account_id: String,
     denom: String,
-    new_size: SignedDecimal,
+    new_size: SignedUint,
 ) -> ContractResult<Response> {
     let mut msgs = vec![];
 
@@ -185,7 +185,7 @@ fn update_position_state(
     let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-    let position_value = new_size.abs.checked_mul(denom_price)?.to_uint_floor();
+    let position_value = new_size.abs.checked_mul_floor(denom_price)?;
 
     // When modifying a position, we must realise all PnL. The credit manager
     // may send no coin (in case the position is winning or breaking even) or
@@ -266,7 +266,7 @@ fn update_position_state(
     // REALISE PNL
     // ===========
     // compute the position's unrealized PnL
-    let (_, pnl_amounts) = position.compute_pnl(
+    let pnl_amounts = position.compute_pnl(
         &ds.funding,
         initial_skew,
         denom_price,
@@ -477,7 +477,7 @@ pub fn close_all_positions(
         ds.close_position(env.block.time.seconds(), denom_price, base_denom_price, &position)?;
 
         // Compute the position's unrealized PnL
-        let (_, pnl_amounts) = position.compute_pnl(
+        let pnl_amounts = position.compute_pnl(
             &ds.funding,
             initial_skew,
             denom_price,

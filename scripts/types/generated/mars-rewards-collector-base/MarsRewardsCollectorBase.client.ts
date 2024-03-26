@@ -22,7 +22,7 @@ import {
   SwapperRoute,
   UpdateConfig,
   ActionCoin,
-  SignedDecimal,
+  SignedUint,
   VaultBaseForString,
   AstroRoute,
   AstroSwap,

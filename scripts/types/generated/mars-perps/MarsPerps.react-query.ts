@@ -17,7 +17,7 @@ import {
   Decimal,
   Uint128,
   ActionKind,
-  SignedDecimal,
+  SignedUint,
   QueryMsg,
   ConfigForString,
   Accounting,
@@ -26,6 +26,7 @@ import {
   PnlAmounts,
   DenomStateResponse,
   Funding,
+  SignedDecimal,
   ArrayOfDenomStateResponse,
   DepositResponse,
   TradingFee,
@@ -37,11 +38,8 @@ import {
   PerpVaultPosition,
   PerpVaultDeposit,
   UnlockState,
-  PnL,
   PositionResponse,
   PerpPosition,
-  PositionPnl,
-  PnlCoins,
   PositionFeesResponse,
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
@@ -127,7 +125,7 @@ export interface MarsPerpsPositionFeesQuery<TData>
   args: {
     accountId: string
     denom: string
-    newSize: SignedDecimal
+    newSize: SignedUint
   }
 }
 export function useMarsPerpsPositionFeesQuery<TData = PositionFeesResponse>({
@@ -209,7 +207,7 @@ export function useMarsPerpsDenomAccountingQuery<TData = Accounting>({
 export interface MarsPerpsOpeningFeeQuery<TData> extends MarsPerpsReactQuery<TradingFee, TData> {
   args: {
     denom: string
-    size: SignedDecimal
+    size: SignedUint
   }
 }
 export function useMarsPerpsOpeningFeeQuery<TData = TradingFee>({
@@ -293,7 +291,7 @@ export interface MarsPerpsPositionQuery<TData>
   args: {
     accountId: string
     denom: string
-    newSize?: SignedDecimal
+    newSize?: SignedUint
   }
 }
 export function useMarsPerpsPositionQuery<TData = PositionResponse>({
@@ -517,7 +515,7 @@ export interface MarsPerpsModifyPositionMutation {
   msg: {
     accountId: string
     denom: string
-    newSize: SignedDecimal
+    newSize: SignedUint
   }
   args?: {
     fee?: number | StdFee | 'auto'
@@ -566,7 +564,7 @@ export interface MarsPerpsOpenPositionMutation {
   msg: {
     accountId: string
     denom: string
-    size: SignedDecimal
+    size: SignedUint
   }
   args?: {
     fee?: number | StdFee | 'auto'
@@ -694,7 +692,7 @@ export interface MarsPerpsInitDenomMutation {
   msg: {
     denom: string
     maxFundingVelocity: Decimal
-    skewScale: Decimal
+    skewScale: Uint128
   }
   args?: {
     fee?: number | StdFee | 'auto'

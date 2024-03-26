@@ -9,7 +9,7 @@ use crate::{
     account_nft::NftConfigUpdates,
     adapters::vault::{Vault, VaultPositionType, VaultUnchecked},
     health::{AccountKind, HealthState},
-    math::SignedDecimal,
+    signed_uint::SignedUint,
     swapper::SwapperRoute,
 };
 
@@ -150,7 +150,7 @@ pub enum Action {
     OpenPerp {
         denom: String,
         // positive means long, negative means short
-        size: SignedDecimal,
+        size: SignedUint,
     },
     /// Close a perpetual futures position.
     ///
@@ -166,7 +166,7 @@ pub enum Action {
     // Reduce, increase or flip a positions size.
     ModifyPerp {
         denom: String,
-        new_size: SignedDecimal,
+        new_size: SignedUint,
     },
     /// Deposit coins into vault strategy
     /// If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault
@@ -305,7 +305,7 @@ pub enum CallbackMsg {
     OpenPerp {
         account_id: String,
         denom: String,
-        size: SignedDecimal,
+        size: SignedUint,
     },
     /// Corresponding to the ClosePerp action
     ClosePerp {
@@ -316,7 +316,7 @@ pub enum CallbackMsg {
     ModifyPerp {
         account_id: String,
         denom: String,
-        new_size: SignedDecimal,
+        new_size: SignedUint,
     },
     /// Adds coin to a vault strategy
     EnterVault {

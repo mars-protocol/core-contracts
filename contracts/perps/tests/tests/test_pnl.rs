@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, Coin, Decimal};
+use cosmwasm_std::{coin, Coin, Decimal, Uint128};
 use mars_types::{
-    math::SignedDecimal,
     params::{PerpParams, PerpParamsUpdate},
     perps::{PerpPosition, PnL},
+    signed_uint::SignedUint,
 };
 
 use super::helpers::MockEnv;
@@ -33,13 +33,8 @@ fn computing_total_pnl() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(
-        &owner,
-        "uosmo",
-        Decimal::from_str("3").unwrap(),
-        Decimal::from_str("1000000").unwrap(),
-    )
-    .unwrap();
+    mock.init_denom(&owner, "uosmo", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -49,13 +44,8 @@ fn computing_total_pnl() {
             },
         },
     );
-    mock.init_denom(
-        &owner,
-        "uatom",
-        Decimal::from_str("3").unwrap(),
-        Decimal::from_str("1000000").unwrap(),
-    )
-    .unwrap();
+    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -65,13 +55,8 @@ fn computing_total_pnl() {
             },
         },
     );
-    mock.init_denom(
-        &owner,
-        "utia",
-        Decimal::from_str("3").unwrap(),
-        Decimal::from_str("1000000").unwrap(),
-    )
-    .unwrap();
+    mock.init_denom(&owner, "utia", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -88,35 +73,29 @@ fn computing_total_pnl() {
     mock.set_price(&owner, "utia", Decimal::from_str("2.65").unwrap()).unwrap();
 
     // open few positions for account 1
-    mock.open_position(&credit_manager, "1", "uosmo", SignedDecimal::from_str("100").unwrap(), &[])
+    mock.open_position(&credit_manager, "1", "uosmo", SignedUint::from_str("100").unwrap(), &[])
         .unwrap();
-    mock.open_position(&credit_manager, "1", "utia", SignedDecimal::from_str("-250").unwrap(), &[])
+    mock.open_position(&credit_manager, "1", "utia", SignedUint::from_str("-250").unwrap(), &[])
         .unwrap();
 
     // open few positions for account 2
-    mock.open_position(&credit_manager, "2", "uosmo", SignedDecimal::from_str("500").unwrap(), &[])
+    mock.open_position(&credit_manager, "2", "uosmo", SignedUint::from_str("500").unwrap(), &[])
         .unwrap();
-    mock.open_position(
-        &credit_manager,
-        "2",
-        "uatom",
-        SignedDecimal::from_str("-125").unwrap(),
-        &[],
-    )
-    .unwrap();
-    mock.open_position(&credit_manager, "2", "utia", SignedDecimal::from_str("1245").unwrap(), &[])
+    mock.open_position(&credit_manager, "2", "uatom", SignedUint::from_str("-125").unwrap(), &[])
+        .unwrap();
+    mock.open_position(&credit_manager, "2", "utia", SignedUint::from_str("1245").unwrap(), &[])
         .unwrap();
 
     // calculate total PnL if no price change
     let total_pnl = mock.query_total_pnl();
-    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("-50.94953470625").unwrap());
+    assert_eq!(total_pnl.pnl, SignedUint::from_str("-52").unwrap());
 
     // change only uatom price
     mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
 
     // calculate total PnL after uatom price change
     let total_pnl = mock.query_total_pnl();
-    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("-404.42744095625").unwrap());
+    assert_eq!(total_pnl.pnl, SignedUint::from_str("-406").unwrap());
 
     // change the rest of the prices
     mock.set_price(&owner, "uosmo", Decimal::from_str("0.1").unwrap()).unwrap();
@@ -124,7 +103,7 @@ fn computing_total_pnl() {
 
     // calculate total PnL
     let total_pnl = mock.query_total_pnl();
-    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("-52.4597497625").unwrap());
+    assert_eq!(total_pnl.pnl, SignedUint::from_str("-54").unwrap());
 
     // close all positions except uatom
     let pos = mock.query_position("1", "uosmo");
@@ -142,7 +121,7 @@ fn computing_total_pnl() {
 
     // only uatom position is left
     let total_pnl = mock.query_total_pnl();
-    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("-362.47734375").unwrap());
+    assert_eq!(total_pnl.pnl, SignedUint::from_str("-363").unwrap());
 
     // close uatom position
     let pos = mock.query_position("2", "uatom");
@@ -151,11 +130,11 @@ fn computing_total_pnl() {
 
     // after closing all positions, total PnL should be 0
     let total_pnl = mock.query_total_pnl();
-    assert_eq!(total_pnl.pnl, SignedDecimal::from_str("0").unwrap());
+    assert_eq!(total_pnl.pnl, SignedUint::from_str("0").unwrap());
 }
 
 fn from_position_to_coin(pos: PerpPosition) -> Vec<Coin> {
-    if let PnL::Loss(coin) = pos.unrealised_pnl.coins.pnl {
+    if let PnL::Loss(coin) = pos.unrealised_pnl.to_coins(&pos.base_denom).pnl {
         vec![coin]
     } else {
         vec![]

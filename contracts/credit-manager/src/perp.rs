@@ -1,8 +1,8 @@
 use cosmwasm_std::{coin, Coin, CosmosMsg, DepsMut, Response, Uint128};
 use mars_types::{
-    math::SignedDecimal,
     oracle::ActionKind,
     perps::{PnL, PnlAmounts},
+    signed_uint::SignedUint,
 };
 
 use crate::{
@@ -16,7 +16,7 @@ pub fn open_perp(
     mut deps: DepsMut,
     account_id: &str,
     denom: &str,
-    size: SignedDecimal,
+    size: SignedUint,
 ) -> ContractResult<Response> {
     let perps = PERPS.load(deps.storage)?;
 
@@ -82,7 +82,7 @@ pub fn modify_perp(
     mut deps: DepsMut,
     account_id: &str,
     denom: &str,
-    new_size: SignedDecimal,
+    new_size: SignedUint,
 ) -> ContractResult<Response> {
     let perps = PERPS.load(deps.storage)?;
 
@@ -94,7 +94,7 @@ pub fn modify_perp(
     // much funds to send to the perps contract), then in the perps contract it
     // computes the PnL **again** to assert the amount is correct.
     let position = perps.query_position(&deps.querier, account_id, denom, Some(new_size))?;
-    let pnl = position.unrealised_pnl.coins.pnl;
+    let pnl = position.unrealised_pnl.to_coins(&position.base_denom).pnl;
     let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
 
     msgs.push(perps.modify_msg(account_id, denom, new_size, funds)?);
@@ -118,7 +118,7 @@ pub fn close_perp(mut deps: DepsMut, account_id: &str, denom: &str) -> ContractR
     // much funds to send to the perps contract), then in the perps contract it
     // computes the PnL **again** to assert the amount is correct.
     let position = perps.query_position(&deps.querier, account_id, denom, None)?;
-    let pnl = position.unrealised_pnl.coins.pnl;
+    let pnl = position.unrealised_pnl.to_coins(&position.base_denom).pnl;
     let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
 
     let close_msg = perps.close_msg(account_id, denom, funds)?;
@@ -152,7 +152,7 @@ pub fn close_all_perps(
 
     let mut pnl_amounts_accumulator = PnlAmounts::default();
     for position in &perp_positions {
-        pnl_amounts_accumulator.add(&position.unrealised_pnl.amounts)?;
+        pnl_amounts_accumulator.add(&position.unrealised_pnl)?;
     }
 
     // base denom is the same for all perp positions

@@ -9,10 +9,10 @@ use mars_types::{
         Positions,
     },
     health::AccountKind,
-    math::SignedDecimal,
     oracle::ActionKind,
     params::PerpParamsUpdate,
     perps::PnL,
+    signed_uint::SignedUint,
 };
 
 use super::helpers::{coin_info, uatom_info, uosmo_info, AccountToFund, CoinInfo, MockEnv};
@@ -38,7 +38,7 @@ fn perp_position_when_usdc_in_account() {
         &cm_user,
     );
 
-    let perp_size = SignedDecimal::from_str("200").unwrap();
+    let perp_size = SignedUint::from_str("200").unwrap();
 
     // check perp data before any action
     let perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
@@ -85,7 +85,7 @@ fn perp_position_when_usdc_in_account() {
 
     // check perp position pnl
     let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
-    let loss_amt = pnl_loss(perp_position.unrealised_pnl.coins.pnl);
+    let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // close perp position
     mock.update_credit_account(
@@ -164,7 +164,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
         &contract_owner,
         &atom_info.denom,
         Decimal::from_str("3").unwrap(),
-        Decimal::from_str("1000000").unwrap(),
+        Uint128::new(1000000u128),
     )
     .unwrap();
     mock.update_credit_account(
@@ -176,7 +176,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
     .unwrap();
     mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
 
-    let perp_size = SignedDecimal::from_str("400").unwrap();
+    let perp_size = SignedUint::from_str("400").unwrap();
 
     // check perp data before any action
     let perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
@@ -238,7 +238,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
 
     // check perp position pnl
     let perp_position = mock.query_perp_position(&trader_account_id, &atom_info.denom).position;
-    let loss_amt = pnl_loss(perp_position.unrealised_pnl.coins.pnl);
+    let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // close perp position
     mock.update_credit_account(
@@ -312,7 +312,7 @@ fn perp_position_when_no_usdc_in_account() {
         &contract_owner,
         &atom_info.denom,
         Decimal::from_str("3").unwrap(),
-        Decimal::from_str("1000000").unwrap(),
+        Uint128::new(1000000u128),
     )
     .unwrap();
     mock.update_credit_account(
@@ -324,7 +324,7 @@ fn perp_position_when_no_usdc_in_account() {
     .unwrap();
     mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
 
-    let perp_size = SignedDecimal::from_str("400").unwrap();
+    let perp_size = SignedUint::from_str("400").unwrap();
 
     // check perp data before any action
     let perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
@@ -375,7 +375,7 @@ fn perp_position_when_no_usdc_in_account() {
 
     // check perp position pnl
     let perp_position = mock.query_perp_position(&trader_account_id, &atom_info.denom).position;
-    let loss_amt = pnl_loss(perp_position.unrealised_pnl.coins.pnl);
+    let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // close perp position
     mock.update_credit_account(
@@ -427,7 +427,7 @@ fn close_perp_position_with_profit() {
         &cm_user,
     );
 
-    let perp_size = SignedDecimal::from_str("200").unwrap();
+    let perp_size = SignedUint::from_str("200").unwrap();
 
     // check perp data before any action
     let perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
@@ -474,7 +474,8 @@ fn close_perp_position_with_profit() {
 
     // check perp position pnl
     let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
-    let profit_amt = pnl_profit(perp_position.unrealised_pnl.coins.pnl);
+    let profit_amt =
+        pnl_profit(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // close perp position
     mock.update_credit_account(
@@ -528,7 +529,7 @@ fn increase_position_with_realized_pnl() {
         &cm_user,
     );
 
-    let perp_size = SignedDecimal::from_str("200").unwrap();
+    let perp_size = SignedUint::from_str("200").unwrap();
 
     // open perp position
     mock.update_credit_account(
@@ -557,13 +558,14 @@ fn increase_position_with_realized_pnl() {
     });
 
     // increase perp position size
-    let new_size = SignedDecimal::from_str("350").unwrap();
+    let new_size = SignedUint::from_str("350").unwrap();
 
     // check perp position pnl
     let perp_position = mock
         .query_perp_position_with_new_size(&account_id, &atom_info.denom, Some(new_size))
         .position;
-    let profit_amt = pnl_profit(perp_position.unrealised_pnl.coins.pnl);
+    let profit_amt =
+        pnl_profit(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(
@@ -607,13 +609,13 @@ fn increase_position_with_realized_pnl() {
     });
 
     // increase perp position size
-    let new_size = SignedDecimal::from_str("460").unwrap();
+    let new_size = SignedUint::from_str("460").unwrap();
 
     // check perp position pnl
     let perp_position = mock
         .query_perp_position_with_new_size(&account_id, &atom_info.denom, Some(new_size))
         .position;
-    let loss_amt = pnl_loss(perp_position.unrealised_pnl.coins.pnl);
+    let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(
@@ -665,7 +667,7 @@ fn decrease_position_with_realized_pnl() {
         &cm_user,
     );
 
-    let perp_size = SignedDecimal::from_str("-400").unwrap();
+    let perp_size = SignedUint::from_str("-400").unwrap();
 
     // open perp position
     mock.update_credit_account(
@@ -694,13 +696,14 @@ fn decrease_position_with_realized_pnl() {
     });
 
     // decrease perp position size
-    let new_size = SignedDecimal::from_str("-320").unwrap();
+    let new_size = SignedUint::from_str("-320").unwrap();
 
     // check perp position pnl
     let perp_position = mock
         .query_perp_position_with_new_size(&account_id, &atom_info.denom, Some(new_size))
         .position;
-    let profit_amt = pnl_profit(perp_position.unrealised_pnl.coins.pnl);
+    let profit_amt =
+        pnl_profit(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(
@@ -744,13 +747,13 @@ fn decrease_position_with_realized_pnl() {
     });
 
     // increase perp position size
-    let new_size = SignedDecimal::from_str("-250").unwrap();
+    let new_size = SignedUint::from_str("-250").unwrap();
 
     // check perp position pnl
     let perp_position = mock
         .query_perp_position_with_new_size(&account_id, &atom_info.denom, Some(new_size))
         .position;
-    let loss_amt = pnl_loss(perp_position.unrealised_pnl.coins.pnl);
+    let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(
@@ -802,7 +805,7 @@ fn cannot_open_perp_above_max_ltv() {
         &cm_user,
     );
 
-    let perp_size = SignedDecimal::from_str("100000").unwrap();
+    let perp_size = SignedUint::from_str("100000").unwrap();
 
     let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
     assert!(!health.above_max_ltv);
@@ -867,7 +870,7 @@ fn setup(
         &contract_owner,
         &atom_info.denom,
         Decimal::from_str("3").unwrap(),
-        Decimal::from_str("1000000").unwrap(),
+        Uint128::new(1000000u128),
     )
     .unwrap();
 

@@ -47,7 +47,6 @@ use mars_types::{
         InstantiateMsg as HealthInstantiateMsg, QueryMsg::HealthValues,
     },
     incentives::{ExecuteMsg::BalanceChange, QueryMsg::UserUnclaimedRewards},
-    math::SignedDecimal,
     oracle::ActionKind,
     params::{
         AssetParams,
@@ -62,6 +61,7 @@ use mars_types::{
         QueryMsg::{UserCollateral, UserDebt},
         UserCollateralResponse, UserDebtResponse,
     },
+    signed_uint::SignedUint,
     swapper::{
         EstimateExactInSwapResponse, InstantiateMsg as SwapperInstantiateMsg,
         QueryMsg::EstimateExactInSwap, SwapperRoute,
@@ -368,7 +368,7 @@ impl MockEnv {
         sender: &Addr,
         denom: &str,
         max_funding_velocity: Decimal,
-        skew_scale: Decimal,
+        skew_scale: Uint128,
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
@@ -795,7 +795,7 @@ impl MockEnv {
         &self,
         account_id: &str,
         denom: &str,
-        new_size: Option<SignedDecimal>,
+        new_size: Option<SignedUint>,
     ) -> PositionResponse {
         self.app
             .wrap()
@@ -810,7 +810,7 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_perp_opening_fee(&self, denom: &str, size: SignedDecimal) -> TradingFee {
+    pub fn query_perp_opening_fee(&self, denom: &str, size: SignedUint) -> TradingFee {
         self.app
             .wrap()
             .query_wasm_smart(

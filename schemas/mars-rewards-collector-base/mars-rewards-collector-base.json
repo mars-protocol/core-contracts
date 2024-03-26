@@ -526,7 +526,7 @@
                     "type": "string"
                   },
                   "size": {
-                    "$ref": "#/definitions/SignedDecimal"
+                    "$ref": "#/definitions/SignedUint"
                   }
                 },
                 "additionalProperties": false
@@ -573,7 +573,7 @@
                     "type": "string"
                   },
                   "new_size": {
-                    "$ref": "#/definitions/SignedDecimal"
+                    "$ref": "#/definitions/SignedUint"
                   }
                 },
                 "additionalProperties": false
@@ -1128,8 +1128,7 @@
           }
         ]
       },
-      "SignedDecimal": {
-        "description": "Inspired by Margined protocol's implementation: https://github.com/margined-protocol/perpetuals/blob/main/packages/margined_common/src/integer.rs\n\nThis type is specifically adapted to our need (only methods that are actually used by the contract are implemented) hence not suited for general use.",
+      "SignedUint": {
         "type": "object",
         "required": [
           "abs",
@@ -1137,7 +1136,7 @@
         ],
         "properties": {
           "abs": {
-            "$ref": "#/definitions/Decimal"
+            "$ref": "#/definitions/Uint128"
           },
           "negative": {
             "type": "boolean"

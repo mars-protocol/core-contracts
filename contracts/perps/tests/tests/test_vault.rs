@@ -3,10 +3,10 @@ use std::str::FromStr;
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use mars_perps::{error::ContractError, vault::DEFAULT_SHARES_PER_AMOUNT};
 use mars_types::{
-    math::SignedDecimal,
     oracle::ActionKind,
     params::{PerpParams, PerpParamsUpdate},
     perps::{PerpVaultDeposit, PerpVaultPosition, UnlockState},
+    signed_uint::SignedUint,
 };
 
 use super::helpers::MockEnv;
@@ -248,13 +248,8 @@ fn cannot_unlock_if_zero_withdrawal_balance() {
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
 
     // init denoms
-    mock.init_denom(
-        &owner,
-        "uatom",
-        Decimal::from_str("3").unwrap(),
-        Decimal::from_str("1000000").unwrap(),
-    )
-    .unwrap();
+    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -274,7 +269,7 @@ fn cannot_unlock_if_zero_withdrawal_balance() {
     mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1000u128, "uusdc")]).unwrap();
 
     // open a position
-    let size = SignedDecimal::from_str("50").unwrap();
+    let size = SignedUint::from_str("50").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee]).unwrap();
 
@@ -300,13 +295,8 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
 
     // init denoms
-    mock.init_denom(
-        &owner,
-        "uatom",
-        Decimal::from_str("3").unwrap(),
-        Decimal::from_str("1000000").unwrap(),
-    )
-    .unwrap();
+    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -334,7 +324,7 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
     assert_eq!(deposit_2_before.shares, deposit_1_before.shares.multiply_ratio(4u128, 1u128)); // 4 times more than depositor_1
 
     // open a position
-    let size = SignedDecimal::from_str("100").unwrap();
+    let size = SignedUint::from_str("100").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee]).unwrap();
 

@@ -16,7 +16,7 @@ import {
   Decimal,
   Uint128,
   ActionKind,
-  SignedDecimal,
+  SignedUint,
   QueryMsg,
   ConfigForString,
   Accounting,
@@ -25,6 +25,7 @@ import {
   PnlAmounts,
   DenomStateResponse,
   Funding,
+  SignedDecimal,
   ArrayOfDenomStateResponse,
   DepositResponse,
   TradingFee,
@@ -36,11 +37,8 @@ import {
   PerpVaultPosition,
   PerpVaultDeposit,
   UnlockState,
-  PnL,
   PositionResponse,
   PerpPosition,
-  PositionPnl,
-  PnlCoins,
   PositionFeesResponse,
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
@@ -91,7 +89,7 @@ export interface MarsPerpsReadOnlyInterface {
   }: {
     accountId: string
     denom: string
-    newSize?: SignedDecimal
+    newSize?: SignedUint
   }) => Promise<PositionResponse>
   positions: ({
     limit,
@@ -108,7 +106,7 @@ export interface MarsPerpsReadOnlyInterface {
     action?: ActionKind
   }) => Promise<PositionsByAccountResponse>
   totalPnl: () => Promise<SignedDecimal>
-  openingFee: ({ denom, size }: { denom: string; size: SignedDecimal }) => Promise<TradingFee>
+  openingFee: ({ denom, size }: { denom: string; size: SignedUint }) => Promise<TradingFee>
   denomAccounting: ({ denom }: { denom: string }) => Promise<Accounting>
   totalAccounting: () => Promise<Accounting>
   denomRealizedPnlForAccount: ({
@@ -125,7 +123,7 @@ export interface MarsPerpsReadOnlyInterface {
   }: {
     accountId: string
     denom: string
-    newSize: SignedDecimal
+    newSize: SignedUint
   }) => Promise<PositionFeesResponse>
 }
 export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
@@ -250,7 +248,7 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
   }: {
     accountId: string
     denom: string
-    newSize?: SignedDecimal
+    newSize?: SignedUint
   }): Promise<PositionResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
       position: {
@@ -298,7 +296,7 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
     size,
   }: {
     denom: string
-    size: SignedDecimal
+    size: SignedUint
   }): Promise<TradingFee> => {
     return this.client.queryContractSmart(this.contractAddress, {
       opening_fee: {
@@ -340,7 +338,7 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
   }: {
     accountId: string
     denom: string
-    newSize: SignedDecimal
+    newSize: SignedUint
   }): Promise<PositionFeesResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
       position_fees: {
@@ -368,7 +366,7 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     }: {
       denom: string
       maxFundingVelocity: Decimal
-      skewScale: Decimal
+      skewScale: Uint128
     },
     fee?: number | StdFee | 'auto',
     memo?: string,
@@ -434,7 +432,7 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     }: {
       accountId: string
       denom: string
-      size: SignedDecimal
+      size: SignedUint
     },
     fee?: number | StdFee | 'auto',
     memo?: string,
@@ -460,7 +458,7 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     }: {
       accountId: string
       denom: string
-      newSize: SignedDecimal
+      newSize: SignedUint
     },
     fee?: number | StdFee | 'auto',
     memo?: string,
@@ -527,7 +525,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     }: {
       denom: string
       maxFundingVelocity: Decimal
-      skewScale: Decimal
+      skewScale: Uint128
     },
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,
@@ -674,7 +672,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     }: {
       accountId: string
       denom: string
-      size: SignedDecimal
+      size: SignedUint
     },
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,
@@ -729,7 +727,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     }: {
       accountId: string
       denom: string
-      newSize: SignedDecimal
+      newSize: SignedUint
     },
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,

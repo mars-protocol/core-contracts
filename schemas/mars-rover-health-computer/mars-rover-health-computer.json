@@ -199,7 +199,7 @@
           "description": "Last funding accrued per unit",
           "allOf": [
             {
-              "$ref": "#/definitions/SignedDecimal"
+              "$ref": "#/definitions/SignedUint"
             }
           ]
         },
@@ -223,7 +223,7 @@
           "description": "Determines the funding rate for a given level of skew. The lower the skew_scale the higher the funding rate.",
           "allOf": [
             {
-              "$ref": "#/definitions/Decimal"
+              "$ref": "#/definitions/Uint128"
             }
           ]
         }
@@ -386,7 +386,7 @@
           "$ref": "#/definitions/Funding"
         },
         "long_oi": {
-          "$ref": "#/definitions/Decimal"
+          "$ref": "#/definitions/Uint128"
         },
         "pnl_values": {
           "$ref": "#/definitions/PnlValues"
@@ -395,13 +395,13 @@
           "$ref": "#/definitions/SignedDecimal"
         },
         "short_oi": {
-          "$ref": "#/definitions/Decimal"
+          "$ref": "#/definitions/Uint128"
         },
         "total_entry_cost": {
-          "$ref": "#/definitions/SignedDecimal"
+          "$ref": "#/definitions/SignedUint"
         },
         "total_entry_funding": {
-          "$ref": "#/definitions/SignedDecimal"
+          "$ref": "#/definitions/SignedUint"
         }
       },
       "additionalProperties": false
@@ -543,10 +543,10 @@
           "$ref": "#/definitions/PnlAmounts"
         },
         "size": {
-          "$ref": "#/definitions/SignedDecimal"
+          "$ref": "#/definitions/SignedUint"
         },
         "unrealised_pnl": {
-          "$ref": "#/definitions/PositionPnl"
+          "$ref": "#/definitions/PnlAmounts"
         }
       },
       "additionalProperties": false
@@ -612,41 +612,6 @@
       },
       "additionalProperties": false
     },
-    "PnL": {
-      "description": "The profit-and-loss of a perp position, denominated in the base currency.",
-      "oneOf": [
-        {
-          "type": "string",
-          "enum": [
-            "break_even"
-          ]
-        },
-        {
-          "type": "object",
-          "required": [
-            "profit"
-          ],
-          "properties": {
-            "profit": {
-              "$ref": "#/definitions/Coin"
-            }
-          },
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "required": [
-            "loss"
-          ],
-          "properties": {
-            "loss": {
-              "$ref": "#/definitions/Coin"
-            }
-          },
-          "additionalProperties": false
-        }
-      ]
-    },
     "PnlAmounts": {
       "description": "Amounts denominated in the Perp Vault base denom (uusdc)",
       "type": "object",
@@ -659,41 +624,24 @@
       ],
       "properties": {
         "accrued_funding": {
-          "$ref": "#/definitions/SignedDecimal"
+          "$ref": "#/definitions/SignedUint"
         },
         "closing_fee": {
-          "$ref": "#/definitions/SignedDecimal"
+          "$ref": "#/definitions/SignedUint"
         },
         "opening_fee": {
-          "$ref": "#/definitions/SignedDecimal"
+          "$ref": "#/definitions/SignedUint"
         },
         "pnl": {
           "description": "PnL: price PnL + accrued funding + opening fee + closing fee",
           "allOf": [
             {
-              "$ref": "#/definitions/SignedDecimal"
+              "$ref": "#/definitions/SignedUint"
             }
           ]
         },
         "price_pnl": {
-          "$ref": "#/definitions/SignedDecimal"
-        }
-      },
-      "additionalProperties": false
-    },
-    "PnlCoins": {
-      "description": "Coins with Perp Vault base denom (uusdc) as a denom",
-      "type": "object",
-      "required": [
-        "closing_fee",
-        "pnl"
-      ],
-      "properties": {
-        "closing_fee": {
-          "$ref": "#/definitions/Coin"
-        },
-        "pnl": {
-          "$ref": "#/definitions/PnL"
+          "$ref": "#/definitions/SignedUint"
         }
       },
       "additionalProperties": false
@@ -709,41 +657,21 @@
       ],
       "properties": {
         "accrued_funding": {
-          "$ref": "#/definitions/SignedDecimal"
+          "$ref": "#/definitions/SignedUint"
         },
         "closing_fee": {
-          "$ref": "#/definitions/SignedDecimal"
+          "$ref": "#/definitions/SignedUint"
         },
         "pnl": {
           "description": "PnL: price PnL + accrued funding + closing fee",
           "allOf": [
             {
-              "$ref": "#/definitions/SignedDecimal"
+              "$ref": "#/definitions/SignedUint"
             }
           ]
         },
         "price_pnl": {
-          "$ref": "#/definitions/SignedDecimal"
-        }
-      },
-      "additionalProperties": false
-    },
-    "PositionPnl": {
-      "type": "object",
-      "required": [
-        "amounts",
-        "coins",
-        "values"
-      ],
-      "properties": {
-        "amounts": {
-          "$ref": "#/definitions/PnlAmounts"
-        },
-        "coins": {
-          "$ref": "#/definitions/PnlCoins"
-        },
-        "values": {
-          "$ref": "#/definitions/PnlValues"
+          "$ref": "#/definitions/SignedUint"
         }
       },
       "additionalProperties": false
@@ -831,6 +759,21 @@
       "properties": {
         "abs": {
           "$ref": "#/definitions/Decimal"
+        },
+        "negative": {
+          "type": "boolean"
+        }
+      }
+    },
+    "SignedUint": {
+      "type": "object",
+      "required": [
+        "abs",
+        "negative"
+      ],
+      "properties": {
+        "abs": {
+          "$ref": "#/definitions/Uint128"
         },
         "negative": {
           "type": "boolean"

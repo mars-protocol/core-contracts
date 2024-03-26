@@ -7,10 +7,10 @@ use mars_types::{
         Action::{Borrow, Deposit, Liquidate, OpenPerp},
         LiquidateRequest,
     },
-    math::SignedDecimal,
     oracle::ActionKind,
     params::PerpParamsUpdate,
     perps::{PnL, PnlAmounts},
+    signed_uint::SignedUint,
 };
 
 use super::helpers::{get_coin, get_debt, uatom_info, uosmo_info, AccountToFund, MockEnv};
@@ -62,7 +62,7 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
         params: default_perp_params(&uatom_info.denom),
     });
     let max_funding_velocity = Decimal::from_str("3").unwrap();
-    let skew_scale = Decimal::from_str("1000000").unwrap();
+    let skew_scale = Uint128::new(1000000u128);
     mock.init_perp_denom(&contract_owner, &uosmo_info.denom, max_funding_velocity, skew_scale)
         .unwrap();
     mock.init_perp_denom(&contract_owner, &uatom_info.denom, max_funding_velocity, skew_scale)
@@ -88,11 +88,11 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
             Borrow(uatom_info.to_coin(2400)),
             OpenPerp {
                 denom: uosmo_info.denom.clone(),
-                size: SignedDecimal::from_str("200").unwrap(),
+                size: SignedUint::from_str("200").unwrap(),
             },
             OpenPerp {
                 denom: uatom_info.denom.clone(),
-                size: SignedDecimal::from_str("-400").unwrap(),
+                size: SignedUint::from_str("-400").unwrap(),
             },
         ],
         &[uosmo_coin_deposited.clone(), uusdc_coin_deposited.clone()],
@@ -131,8 +131,8 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
     let uatom_perp_position =
         mock.query_perp_position(&liquidatee_account_id, &uatom_info.denom).position;
     let mut pnl_amounts_acc = PnlAmounts::default();
-    pnl_amounts_acc.add(&uosmo_perp_position.unrealised_pnl.amounts).unwrap();
-    pnl_amounts_acc.add(&uatom_perp_position.unrealised_pnl.amounts).unwrap();
+    pnl_amounts_acc.add(&uosmo_perp_position.unrealised_pnl).unwrap();
+    pnl_amounts_acc.add(&uatom_perp_position.unrealised_pnl).unwrap();
     let pnl_before_liq = pnl_amounts_acc.to_coins(&uusdc_info.denom).pnl;
     let loss_amt = pnl_loss(pnl_before_liq);
 
@@ -161,7 +161,7 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
     let position = mock.query_positions(&liquidatee_account_id);
     assert_eq!(position.deposits.len(), 3);
     let usdc_balance = get_coin("uusdc", &position.deposits);
-    assert_eq!(usdc_balance.amount, Uint128::new(23)); // initial usdc deposit - perps opening fees - perps loss
+    assert_eq!(usdc_balance.amount, Uint128::new(21)); // initial usdc deposit - perps opening fees - perps loss
     assert_eq!(usdc_balance.amount, usdc_deposit_before_liq.amount - loss_amt);
     let osmo_balance = get_coin("uosmo", &position.deposits);
     assert_eq!(osmo_balance.amount, Uint128::new(1944));
@@ -246,7 +246,7 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
         params: default_perp_params(&uatom_info.denom),
     });
     let max_funding_velocity = Decimal::from_str("3").unwrap();
-    let skew_scale = Decimal::from_str("1000000").unwrap();
+    let skew_scale = Uint128::new(1000000u128);
     mock.init_perp_denom(&contract_owner, &uosmo_info.denom, max_funding_velocity, skew_scale)
         .unwrap();
     mock.init_perp_denom(&contract_owner, &uatom_info.denom, max_funding_velocity, skew_scale)
@@ -272,11 +272,11 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
             Borrow(uatom_info.to_coin(2400)),
             OpenPerp {
                 denom: uosmo_info.denom.clone(),
-                size: SignedDecimal::from_str("200").unwrap(),
+                size: SignedUint::from_str("200").unwrap(),
             },
             OpenPerp {
                 denom: uatom_info.denom.clone(),
-                size: SignedDecimal::from_str("-400").unwrap(),
+                size: SignedUint::from_str("-400").unwrap(),
             },
         ],
         &[uosmo_coin_deposited.clone(), uusdc_coin_deposited.clone()],
@@ -317,8 +317,8 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
     let uatom_perp_position =
         mock.query_perp_position(&liquidatee_account_id, &uatom_info.denom).position;
     let mut pnl_amounts_acc = PnlAmounts::default();
-    pnl_amounts_acc.add(&uosmo_perp_position.unrealised_pnl.amounts).unwrap();
-    pnl_amounts_acc.add(&uatom_perp_position.unrealised_pnl.amounts).unwrap();
+    pnl_amounts_acc.add(&uosmo_perp_position.unrealised_pnl).unwrap();
+    pnl_amounts_acc.add(&uatom_perp_position.unrealised_pnl).unwrap();
     let pnl_before_liq = pnl_amounts_acc.to_coins(&uusdc_info.denom).pnl;
     let loss_amt = pnl_loss(pnl_before_liq);
 
@@ -347,13 +347,13 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
     let position = mock.query_positions(&liquidatee_account_id);
     assert_eq!(position.debts.len(), 2);
     let usdc_debt = get_debt("uusdc", &position.debts);
-    assert_eq!(usdc_debt.amount, Uint128::new(128));
+    assert_eq!(usdc_debt.amount, Uint128::new(130));
     let atom_debt = get_debt("uatom", &position.debts);
     assert_eq!(atom_debt.amount, Uint128::new(2301));
 
     assert_eq!(position.deposits.len(), 2);
     let osmo_balance = get_coin("uosmo", &position.deposits);
-    assert_eq!(osmo_balance.amount, Uint128::new(1896));
+    assert_eq!(osmo_balance.amount, Uint128::new(1892));
     let atom_balance = get_coin("uatom", &position.deposits);
     assert_eq!(atom_balance.amount, Uint128::new(2400));
 
@@ -364,7 +364,7 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
     assert_eq!(position.deposits.len(), 2);
     assert_eq!(position.debts.len(), 0);
     let osmo_balance = get_coin("uosmo", &position.deposits);
-    assert_eq!(osmo_balance.amount, Uint128::new(1100));
+    assert_eq!(osmo_balance.amount, Uint128::new(1104));
     let atom_balance = get_coin("uatom", &position.deposits);
     assert_eq!(atom_balance.amount, Uint128::new(900));
 
@@ -436,7 +436,7 @@ fn close_perps_with_profit() {
         params: default_perp_params(&utia_info.denom),
     });
     let max_funding_velocity = Decimal::from_str("3").unwrap();
-    let skew_scale = Decimal::from_str("1000000").unwrap();
+    let skew_scale = Uint128::new(1000000u128);
     mock.init_perp_denom(&contract_owner, &uosmo_info.denom, max_funding_velocity, skew_scale)
         .unwrap();
     mock.init_perp_denom(&contract_owner, &utia_info.denom, max_funding_velocity, skew_scale)
@@ -462,11 +462,11 @@ fn close_perps_with_profit() {
             Borrow(uatom_info.to_coin(2400)),
             OpenPerp {
                 denom: uosmo_info.denom.clone(),
-                size: SignedDecimal::from_str("200").unwrap(),
+                size: SignedUint::from_str("200").unwrap(),
             },
             OpenPerp {
                 denom: utia_info.denom.clone(),
-                size: SignedDecimal::from_str("-400").unwrap(),
+                size: SignedUint::from_str("-400").unwrap(),
             },
         ],
         &[uosmo_coin_deposited.clone(), uusdc_coin_deposited.clone()],
@@ -515,8 +515,8 @@ fn close_perps_with_profit() {
     let utia_perp_position =
         mock.query_perp_position(&liquidatee_account_id, &utia_info.denom).position;
     let mut pnl_amounts_acc = PnlAmounts::default();
-    pnl_amounts_acc.add(&uosmo_perp_position.unrealised_pnl.amounts).unwrap();
-    pnl_amounts_acc.add(&utia_perp_position.unrealised_pnl.amounts).unwrap();
+    pnl_amounts_acc.add(&uosmo_perp_position.unrealised_pnl).unwrap();
+    pnl_amounts_acc.add(&utia_perp_position.unrealised_pnl).unwrap();
     let pnl_before_liq = pnl_amounts_acc.to_coins(&uusdc_info.denom).pnl;
     let profit_amt = pnl_profit(pnl_before_liq);
 
@@ -545,7 +545,7 @@ fn close_perps_with_profit() {
     let position = mock.query_positions(&liquidatee_account_id);
     assert_eq!(position.deposits.len(), 3);
     let usdc_balance = get_coin("uusdc", &position.deposits);
-    assert_eq!(usdc_balance.amount, Uint128::new(95)); // initial usdc deposit - perps opening fees + perps profit
+    assert_eq!(usdc_balance.amount, Uint128::new(93)); // initial usdc deposit - perps opening fees + perps profit
     assert_eq!(usdc_balance.amount, usdc_deposit_before_liq.amount + profit_amt);
     let osmo_balance = get_coin("uosmo", &position.deposits);
     assert_eq!(osmo_balance.amount, Uint128::new(940));
@@ -630,7 +630,7 @@ fn liquidation_uses_correct_price_kind_if_perps_open() {
         params: default_perp_params(&utia_info.denom),
     });
     let max_funding_velocity = Decimal::from_str("3").unwrap();
-    let skew_scale = Decimal::from_str("1000000").unwrap();
+    let skew_scale = Uint128::new(1000000u128);
     mock.init_perp_denom(&contract_owner, &utia_info.denom, max_funding_velocity, skew_scale)
         .unwrap();
 
@@ -653,7 +653,7 @@ fn liquidation_uses_correct_price_kind_if_perps_open() {
             Borrow(uatom_info.to_coin(2650)),
             OpenPerp {
                 denom: utia_info.denom.clone(),
-                size: SignedDecimal::from_str("-400").unwrap(),
+                size: SignedUint::from_str("-400").unwrap(),
             },
         ],
         &[uosmo_coin_deposited.clone()],

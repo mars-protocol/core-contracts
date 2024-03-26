@@ -6,9 +6,9 @@ use mars_rover_health_computer::{HealthComputer, PerpsData};
 use mars_types::{
     credit_manager::{DebtAmount, Positions},
     health::AccountKind,
-    math::SignedDecimal,
     params::{AssetParams, PerpParams},
-    perps::{PerpPosition, PnlCoins, Position, PositionPnl},
+    perps::{PerpPosition, Position},
+    signed_uint::SignedUint,
 };
 
 use super::helpers::CoinInfo;
@@ -23,8 +23,8 @@ fn currently_long_max_q_change() {
     let eth_perp_denom = "eth/usd/perp".to_string();
 
     // market state
-    let long_oi: SignedDecimal = Decimal::from_atomics(100u128, 0).unwrap().into();
-    let short_oi: SignedDecimal = Decimal::from_atomics(500u128, 0).unwrap().into();
+    let long_oi = SignedUint::from_str("100000000").unwrap();
+    let short_oi = SignedUint::from_str("500000000").unwrap();
     let skew = long_oi.checked_sub(short_oi).unwrap();
 
     // perp state
@@ -33,9 +33,9 @@ fn currently_long_max_q_change() {
     let eth_perp_params = PerpParams {
         opening_fee_rate: Decimal::from_str("0.2").unwrap(),
         closing_fee_rate: Decimal::from_str("0.003").unwrap(),
-        max_long_oi_value: Uint128::new(6000000),
-        max_short_oi_value: Uint128::new(6000000),
-        max_net_oi_value: Uint128::new(100000000),
+        max_long_oi_value: Uint128::new(6000000000000),
+        max_short_oi_value: Uint128::new(6000000000000),
+        max_net_oi_value: Uint128::new(100000000000000),
         ..produce_eth_perp_params()
     };
 
@@ -57,20 +57,21 @@ fn currently_long_max_q_change() {
     let asset_params = produce_default_asset_params();
 
     // position state
-    let size: SignedDecimal = Decimal::from_str("0.5").unwrap().into();
+    // let size: SignedDecimal = Decimal::from_str("0.5").unwrap().into();
+    let size = SignedUint::from_str("500000").unwrap();
 
-    let entry_accrued_funding_per_unit_in_base_denom = SignedDecimal::from_str("100").unwrap();
+    let entry_accrued_funding_per_unit_in_base_denom = SignedUint::from_str("100").unwrap();
     let entry_exec_price = Decimal::from_str("1999").unwrap();
     let position = Position {
         size,
         entry_price: entry_eth_perp_price,
         entry_exec_price,
         entry_accrued_funding_per_unit_in_base_denom,
-        initial_skew: SignedDecimal::zero(),
+        initial_skew: long_oi.checked_sub(short_oi).unwrap(),
         realized_pnl: Default::default(),
     };
 
-    let (pnl_values, pnl_amounts) = position
+    let pnl_amounts = position
         .compute_pnl(
             &funding,
             skew,
@@ -82,22 +83,19 @@ fn currently_long_max_q_change() {
         )
         .unwrap();
 
-    // Produce our pnl
-    let pnl = pnl_amounts.to_coins(&base_denom).pnl;
-
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
-            deposits: vec![coin(50, base_denom.clone()), coin(1000, "uosmo")],
+            deposits: vec![coin(50000000, base_denom.clone()), coin(1000000000, "uosmo")],
             debts: vec![
                 DebtAmount {
-                    amount: Uint128::new(1),
+                    amount: Uint128::new(1000000),
                     denom: base_denom.clone(),
                     shares: Uint128::new(100),
                 },
                 DebtAmount {
-                    amount: Uint128::new(1),
+                    amount: Uint128::new(1000000),
                     denom: "uatom".to_string(),
                     shares: Uint128::new(100),
                 },
@@ -114,14 +112,7 @@ fn currently_long_max_q_change() {
                 size,
                 entry_price: Decimal::from_str("2000").unwrap(),
                 realised_pnl: Default::default(),
-                unrealised_pnl: PositionPnl {
-                    amounts: pnl_amounts,
-                    coins: PnlCoins {
-                        closing_fee: coin(0, base_denom.clone()),
-                        pnl,
-                    },
-                    values: pnl_values,
-                },
+                unrealised_pnl: pnl_amounts,
             }],
             perp_vault: None,
         },
@@ -141,7 +132,7 @@ fn currently_long_max_q_change() {
         )
         .unwrap();
 
-    assert_eq!(max_long, SignedDecimal::from_str("1.908937245373741404").unwrap());
+    assert_eq!(max_long, SignedUint::from_str("1908937").unwrap());
 
     // Flip position test
     let max_short = h
@@ -154,7 +145,7 @@ fn currently_long_max_q_change() {
         )
         .unwrap();
 
-    assert_eq!(max_short, SignedDecimal::from_str("-1.537400226962538603").unwrap());
+    assert_eq!(max_short, SignedUint::from_str("-1537400").unwrap());
 }
 
 #[test]
@@ -169,8 +160,8 @@ fn max_position_size_zero_if_net_oi_exceeded() {
     let entry_eth_perp_price = Decimal::from_str("2000").unwrap();
 
     // market state
-    let long_oi: SignedDecimal = SignedDecimal::from_str("100").unwrap();
-    let short_oi: SignedDecimal = SignedDecimal::from_str("500").unwrap();
+    let long_oi = SignedUint::from_str("100000000").unwrap();
+    let short_oi = SignedUint::from_str("500000000").unwrap();
     let skew = long_oi.checked_sub(short_oi).unwrap();
 
     // perp state
@@ -178,9 +169,9 @@ fn max_position_size_zero_if_net_oi_exceeded() {
     let eth_perp_params = PerpParams {
         opening_fee_rate: Decimal::from_str("0.2").unwrap(),
         closing_fee_rate: Decimal::from_str("0.003").unwrap(),
-        max_long_oi_value: Uint128::new(60),
-        max_short_oi_value: Uint128::new(60),
-        max_net_oi_value: Uint128::new(100),
+        max_long_oi_value: Uint128::new(60000000),
+        max_short_oi_value: Uint128::new(60000000),
+        max_net_oi_value: Uint128::new(400000000),
         ..produce_eth_perp_params()
     };
 
@@ -197,9 +188,9 @@ fn max_position_size_zero_if_net_oi_exceeded() {
     let asset_params = produce_default_asset_params();
 
     // position state
-    let size: SignedDecimal = Decimal::from_str("0.5").unwrap().into();
+    let size = SignedUint::from_str("500000").unwrap();
 
-    let entry_accrued_funding_per_unit_in_base_denom = SignedDecimal::from_str("100").unwrap();
+    let entry_accrued_funding_per_unit_in_base_denom = SignedUint::from_str("100").unwrap();
     let entry_exec_price = Decimal::from_str("1999").unwrap();
     let current_exec_price = Decimal::from_str("1199.5").unwrap();
     let position = Position {
@@ -207,11 +198,11 @@ fn max_position_size_zero_if_net_oi_exceeded() {
         entry_price: entry_eth_perp_price,
         entry_exec_price,
         entry_accrued_funding_per_unit_in_base_denom,
-        initial_skew: SignedDecimal::zero(),
+        initial_skew: SignedUint::zero(),
         realized_pnl: Default::default(),
     };
 
-    let (pnl_values, pnl_amounts) = position
+    let pnl_amounts = position
         .compute_pnl(
             &funding,
             skew,
@@ -222,9 +213,6 @@ fn max_position_size_zero_if_net_oi_exceeded() {
             position::PositionModification::Decrease(size),
         )
         .unwrap();
-
-    // Produce our pnl
-    let pnl = pnl_amounts.to_coins(&base_denom).pnl;
 
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -255,14 +243,7 @@ fn max_position_size_zero_if_net_oi_exceeded() {
                 size,
                 entry_price: Decimal::from_str("2000").unwrap(),
                 realised_pnl: Default::default(),
-                unrealised_pnl: PositionPnl {
-                    amounts: pnl_amounts,
-                    coins: PnlCoins {
-                        closing_fee: coin(0, base_denom.clone()),
-                        pnl,
-                    },
-                    values: pnl_values,
-                },
+                unrealised_pnl: pnl_amounts,
             }],
             perp_vault: None,
         },
@@ -282,7 +263,7 @@ fn max_position_size_zero_if_net_oi_exceeded() {
         )
         .unwrap();
 
-    assert_eq!(result, SignedDecimal::zero());
+    assert_eq!(result, SignedUint::zero());
 }
 
 #[test]
@@ -297,8 +278,8 @@ fn max_position_size_zero_if_long_oi_exceeded() {
     let entry_eth_perp_price = Decimal::from_str("2000").unwrap();
 
     // market state
-    let long_oi: SignedDecimal = Decimal::from_atomics(100u128, 0).unwrap().into();
-    let short_oi: SignedDecimal = Decimal::from_atomics(500u128, 0).unwrap().into();
+    let long_oi = SignedUint::from_str("100000000").unwrap();
+    let short_oi = SignedUint::from_str("500000000").unwrap();
     let skew = long_oi.checked_sub(short_oi).unwrap();
 
     // perp state
@@ -308,8 +289,8 @@ fn max_position_size_zero_if_long_oi_exceeded() {
         closing_fee_rate: Decimal::from_str("0.003").unwrap(),
         // Only selling :)
         max_long_oi_value: Uint128::new(0),
-        max_short_oi_value: Uint128::new(6000),
-        max_net_oi_value: Uint128::new(100000),
+        max_short_oi_value: Uint128::new(60000000000),
+        max_net_oi_value: Uint128::new(10000000000),
         ..produce_eth_perp_params()
     };
 
@@ -326,9 +307,9 @@ fn max_position_size_zero_if_long_oi_exceeded() {
     let asset_params = produce_default_asset_params();
 
     // position state
-    let size: SignedDecimal = Decimal::from_str("0.5").unwrap().into();
+    let size = SignedUint::from_str("500000").unwrap();
 
-    let entry_accrued_funding_per_unit_in_base_denom = SignedDecimal::from_str("100").unwrap();
+    let entry_accrued_funding_per_unit_in_base_denom = SignedUint::from_str("100").unwrap();
     let entry_exec_price = Decimal::from_str("1999").unwrap();
     let current_exec_price = Decimal::from_str("1199.5").unwrap();
     let position = Position {
@@ -336,11 +317,11 @@ fn max_position_size_zero_if_long_oi_exceeded() {
         entry_price: entry_eth_perp_price,
         entry_exec_price,
         entry_accrued_funding_per_unit_in_base_denom,
-        initial_skew: SignedDecimal::zero(),
+        initial_skew: SignedUint::zero(),
         realized_pnl: Default::default(),
     };
 
-    let (pnl_values, pnl_amounts) = position
+    let pnl_amounts = position
         .compute_pnl(
             &funding,
             skew,
@@ -351,18 +332,6 @@ fn max_position_size_zero_if_long_oi_exceeded() {
             position::PositionModification::Decrease(size),
         )
         .unwrap();
-
-    // Produce our pnl
-    let pnl = match pnl_values.pnl.is_negative() {
-        true => mars_types::perps::PnL::Loss(coin(
-            pnl_values.price_pnl.abs.to_uint_floor().u128(),
-            base_denom.clone(),
-        )),
-        false => mars_types::perps::PnL::Profit(coin(
-            pnl_values.price_pnl.abs.to_uint_floor().u128(),
-            base_denom.clone(),
-        )),
-    };
 
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -393,14 +362,7 @@ fn max_position_size_zero_if_long_oi_exceeded() {
                 size,
                 entry_price: Decimal::from_str("2000").unwrap(),
                 realised_pnl: Default::default(),
-                unrealised_pnl: PositionPnl {
-                    amounts: pnl_amounts,
-                    coins: PnlCoins {
-                        closing_fee: coin(0, base_denom.clone()),
-                        pnl,
-                    },
-                    values: pnl_values,
-                },
+                unrealised_pnl: pnl_amounts,
             }],
             perp_vault: None,
         },
@@ -420,7 +382,7 @@ fn max_position_size_zero_if_long_oi_exceeded() {
         )
         .unwrap();
 
-    assert_eq!(result, SignedDecimal::zero());
+    assert_eq!(result, SignedUint::zero());
 }
 
 #[test]
@@ -435,19 +397,19 @@ fn existing_short_max_q_change() {
     let entry_eth_perp_price = Decimal::from_str("2000").unwrap();
 
     // market state
-    let long_oi: SignedDecimal = Decimal::from_atomics(100u128, 0).unwrap().into();
-    let short_oi: SignedDecimal = Decimal::from_atomics(500u128, 0).unwrap().into();
+    let long_oi = SignedUint::from_str("100000000").unwrap();
+    let short_oi = SignedUint::from_str("500000000").unwrap();
     let skew = long_oi.checked_sub(short_oi).unwrap();
 
     // perp state
     let mut funding = create_default_funding();
-    funding.last_funding_accrued_per_unit_in_base_denom = SignedDecimal::from_str("200").unwrap();
+    funding.last_funding_accrued_per_unit_in_base_denom = SignedUint::from_str("200").unwrap();
     let eth_perp_params = PerpParams {
         opening_fee_rate: Decimal::from_str("0.2").unwrap(),
         closing_fee_rate: Decimal::from_str("0.003").unwrap(),
-        max_long_oi_value: Uint128::new(6000000),
-        max_short_oi_value: Uint128::new(6000000),
-        max_net_oi_value: Uint128::new(100000000),
+        max_long_oi_value: Uint128::new(6000000000000),
+        max_short_oi_value: Uint128::new(6000000000000),
+        max_net_oi_value: Uint128::new(50000000000000),
         ..produce_eth_perp_params()
     };
 
@@ -464,12 +426,9 @@ fn existing_short_max_q_change() {
     let asset_params = produce_default_asset_params();
 
     // position state
-    let size: SignedDecimal = SignedDecimal {
-        abs: Decimal::from_str("1.0").unwrap(),
-        negative: true,
-    };
+    let size = SignedUint::from_str("-1000000").unwrap();
 
-    let entry_accrued_funding_per_unit_in_base_denom = SignedDecimal::from_str("300").unwrap();
+    let entry_accrued_funding_per_unit_in_base_denom = SignedUint::from_str("300").unwrap();
     let entry_exec_price = Decimal::from_str("1999").unwrap();
     let current_exec_price = Decimal::from_str("1201").unwrap();
 
@@ -478,11 +437,11 @@ fn existing_short_max_q_change() {
         entry_price: entry_eth_perp_price,
         entry_exec_price,
         entry_accrued_funding_per_unit_in_base_denom,
-        initial_skew: SignedDecimal::zero(),
+        initial_skew: SignedUint::zero(),
         realized_pnl: Default::default(),
     };
 
-    let (pnl_values, pnl_amounts) = position
+    let pnl_amounts = position
         .compute_pnl(
             &funding,
             skew,
@@ -494,31 +453,19 @@ fn existing_short_max_q_change() {
         )
         .unwrap();
 
-    // Produce our pnl
-    let pnl = match pnl_values.pnl.is_negative() {
-        true => mars_types::perps::PnL::Loss(coin(
-            pnl_values.price_pnl.abs.to_uint_floor().u128(),
-            base_denom.clone(),
-        )),
-        false => mars_types::perps::PnL::Profit(coin(
-            pnl_values.price_pnl.abs.to_uint_floor().u128(),
-            base_denom.clone(),
-        )),
-    };
-
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
-            deposits: vec![coin(50, base_denom.clone()), coin(1000, "uosmo")],
+            deposits: vec![coin(50000000, base_denom.clone()), coin(1000000000, "uosmo")],
             debts: vec![
                 DebtAmount {
-                    amount: Uint128::new(1),
+                    amount: Uint128::new(1000000),
                     denom: base_denom.clone(),
                     shares: Uint128::new(100),
                 },
                 DebtAmount {
-                    amount: Uint128::new(1),
+                    amount: Uint128::new(1000000),
                     denom: "uatom".to_string(),
                     shares: Uint128::new(100),
                 },
@@ -535,14 +482,7 @@ fn existing_short_max_q_change() {
                 size,
                 entry_price: Decimal::from_str("2000").unwrap(),
                 realised_pnl: Default::default(),
-                unrealised_pnl: PositionPnl {
-                    amounts: pnl_amounts,
-                    coins: PnlCoins {
-                        closing_fee: coin(0, base_denom.clone()),
-                        pnl,
-                    },
-                    values: pnl_values,
-                },
+                unrealised_pnl: pnl_amounts,
             }],
             perp_vault: None,
         },
@@ -562,13 +502,7 @@ fn existing_short_max_q_change() {
         )
         .unwrap();
 
-    assert_eq!(
-        max_short,
-        SignedDecimal {
-            abs: Decimal::from_str("5.560378812212945337").unwrap(),
-            negative: true
-        }
-    );
+    assert_eq!(max_short, SignedUint::from_str("-5560378").unwrap(),);
 
     let max_long = h
         .max_perp_size_estimate(
@@ -580,13 +514,7 @@ fn existing_short_max_q_change() {
         )
         .unwrap();
 
-    assert_eq!(
-        max_long,
-        SignedDecimal {
-            abs: Decimal::from_str("4.76527751015256205").unwrap(),
-            negative: false
-        }
-    );
+    assert_eq!(max_long, SignedUint::from_str("4765277").unwrap(),);
 }
 
 #[test]
@@ -599,18 +527,18 @@ fn no_existing_perp_position() {
     let current_eth_perp_price = Decimal::from_str("2000").unwrap();
 
     // market state
-    let long_oi: SignedDecimal = SignedDecimal::from_str("100").unwrap();
-    let short_oi: SignedDecimal = SignedDecimal::from_str("500").unwrap();
+    let long_oi: SignedUint = SignedUint::from_str("100000000").unwrap();
+    let short_oi: SignedUint = SignedUint::from_str("500000000").unwrap();
 
     // perp state
     let mut funding = create_default_funding();
-    funding.last_funding_accrued_per_unit_in_base_denom = SignedDecimal::from_str("200").unwrap();
+    funding.last_funding_accrued_per_unit_in_base_denom = SignedUint::from_str("200").unwrap();
     let eth_perp_params = PerpParams {
         opening_fee_rate: Decimal::from_str("0.2").unwrap(),
         closing_fee_rate: Decimal::from_str("0.003").unwrap(),
-        max_long_oi_value: Uint128::new(6000000),
-        max_short_oi_value: Uint128::new(6000000),
-        max_net_oi_value: Uint128::new(100000000),
+        max_long_oi_value: Uint128::new(6000000000000),
+        max_short_oi_value: Uint128::new(6000000000000),
+        max_net_oi_value: Uint128::new(40000000000000),
         ..produce_eth_perp_params()
     };
 
@@ -629,15 +557,18 @@ fn no_existing_perp_position() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
-            deposits: vec![coin(50, base_denom.clone()), coin(1000, "uosmo".to_string())],
+            deposits: vec![
+                coin(50000000, base_denom.clone()),
+                coin(1000000000, "uosmo".to_string()),
+            ],
             debts: vec![
                 DebtAmount {
-                    amount: Uint128::new(1),
+                    amount: Uint128::new(1000000),
                     denom: base_denom.clone(),
                     shares: Uint128::new(100),
                 },
                 DebtAmount {
-                    amount: Uint128::new(1),
+                    amount: Uint128::new(1000000),
                     denom: "uatom".to_string(),
                     shares: Uint128::new(100),
                 },
@@ -663,7 +594,7 @@ fn no_existing_perp_position() {
         )
         .unwrap();
 
-    assert_eq!(result, SignedDecimal::from_str("2.437877917649638533").unwrap());
+    assert_eq!(result, SignedUint::from_str("2437877").unwrap());
 }
 
 // TODO add test setup function to generate and manage state for tests to reduce repition.
