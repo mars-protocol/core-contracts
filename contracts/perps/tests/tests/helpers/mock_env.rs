@@ -12,9 +12,9 @@ use mars_types::{
     oracle::{self, ActionKind},
     params::{self, ExecuteMsg::UpdatePerpParams, PerpParamsUpdate},
     perps::{
-        self, Accounting, Config, DenomStateResponse, DepositResponse, PerpDenomState,
-        PerpVaultPosition, PnlAmounts, PnlValues, PositionFeesResponse, PositionResponse,
-        PositionsByAccountResponse, TradingFee, UnlockState, VaultState,
+        self, Accounting, Config, DenomStateResponse, PerpDenomState, PerpVaultDeposit,
+        PerpVaultPosition, PerpVaultUnlock, PnlAmounts, PnlValues, PositionFeesResponse,
+        PositionResponse, PositionsByAccountResponse, TradingFee, VaultState,
     },
     signed_uint::SignedUint,
 };
@@ -368,11 +368,11 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_cm_deposit(&self, account_id: &str) -> DepositResponse {
+    pub fn query_cm_deposit(&self, account_id: &str) -> PerpVaultDeposit {
         self.query_deposit(self.credit_manager.as_str(), Some(account_id))
     }
 
-    pub fn query_deposit(&self, user_address: &str, account_id: Option<&str>) -> DepositResponse {
+    pub fn query_deposit(&self, user_address: &str, account_id: Option<&str>) -> PerpVaultDeposit {
         self.app
             .wrap()
             .query_wasm_smart(
@@ -385,11 +385,15 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_cm_unlocks(&self, account_id: &str) -> Vec<UnlockState> {
+    pub fn query_cm_unlocks(&self, account_id: &str) -> Vec<PerpVaultUnlock> {
         self.query_unlocks(self.credit_manager.as_str(), Some(account_id))
     }
 
-    pub fn query_unlocks(&self, user_address: &str, account_id: Option<&str>) -> Vec<UnlockState> {
+    pub fn query_unlocks(
+        &self,
+        user_address: &str,
+        account_id: Option<&str>,
+    ) -> Vec<PerpVaultUnlock> {
         self.app
             .wrap()
             .query_wasm_smart(

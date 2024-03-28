@@ -245,7 +245,7 @@ export interface SignedDecimal {
   [k: string]: unknown
 }
 export type ArrayOfDenomStateResponse = DenomStateResponse[]
-export interface DepositResponse {
+export interface PerpVaultDeposit {
   amount: Uint128
   shares: Uint128
 }
@@ -286,16 +286,13 @@ export type NullablePerpVaultPosition = PerpVaultPosition | null
 export interface PerpVaultPosition {
   denom: string
   deposit: PerpVaultDeposit
-  unlocks: UnlockState[]
+  unlocks: PerpVaultUnlock[]
 }
-export interface PerpVaultDeposit {
-  amount: Uint128
-  shares: Uint128
-}
-export interface UnlockState {
+export interface PerpVaultUnlock {
   amount: Uint128
   cooldown_end: number
   created_at: number
+  shares: Uint128
 }
 export interface PositionResponse {
   account_id: string
@@ -325,7 +322,7 @@ export interface PositionsByAccountResponse {
   account_id: string
   positions: PerpPosition[]
 }
-export type ArrayOfUnlockState = UnlockState[]
+export type ArrayOfPerpVaultUnlock = PerpVaultUnlock[]
 export interface VaultState {
   total_liquidity: Uint128
   total_shares: Uint128

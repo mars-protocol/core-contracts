@@ -27,7 +27,7 @@ import {
   Funding,
   SignedDecimal,
   ArrayOfDenomStateResponse,
-  DepositResponse,
+  PerpVaultDeposit,
   TradingFee,
   Coin,
   OwnerResponse,
@@ -35,14 +35,13 @@ import {
   PnlValues,
   NullablePerpVaultPosition,
   PerpVaultPosition,
-  PerpVaultDeposit,
-  UnlockState,
+  PerpVaultUnlock,
   PositionResponse,
   PerpPosition,
   PositionFeesResponse,
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
-  ArrayOfUnlockState,
+  ArrayOfPerpVaultUnlock,
   VaultState,
 } from './MarsPerps.types'
 export interface MarsPerpsReadOnlyInterface {
@@ -74,14 +73,14 @@ export interface MarsPerpsReadOnlyInterface {
   }: {
     accountId?: string
     userAddress: string
-  }) => Promise<DepositResponse>
+  }) => Promise<PerpVaultDeposit>
   unlocks: ({
     accountId,
     userAddress,
   }: {
     accountId?: string
     userAddress: string
-  }) => Promise<ArrayOfUnlockState>
+  }) => Promise<ArrayOfPerpVaultUnlock>
   position: ({
     accountId,
     denom,
@@ -219,7 +218,7 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
   }: {
     accountId?: string
     userAddress: string
-  }): Promise<DepositResponse> => {
+  }): Promise<PerpVaultDeposit> => {
     return this.client.queryContractSmart(this.contractAddress, {
       deposit: {
         account_id: accountId,
@@ -233,7 +232,7 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
   }: {
     accountId?: string
     userAddress: string
-  }): Promise<ArrayOfUnlockState> => {
+  }): Promise<ArrayOfPerpVaultUnlock> => {
     return this.client.queryContractSmart(this.contractAddress, {
       unlocks: {
         account_id: accountId,

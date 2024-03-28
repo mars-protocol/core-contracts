@@ -1,8 +1,6 @@
 use std::cmp::max;
 
-use cosmwasm_std::{
-    coins, BankMsg, Deps, DepsMut, MessageInfo, Response, StdError, Storage, Uint128,
-};
+use cosmwasm_std::{coins, BankMsg, Deps, DepsMut, MessageInfo, Response, StdError, Uint128};
 use cw_utils::must_pay;
 use mars_types::{
     adapters::oracle::Oracle,
@@ -85,28 +83,10 @@ pub fn unlock(
 
     let user_id_key = create_user_id_key(&info.sender, account_id)?;
 
-    let mut vs = VAULT_STATE.load(deps.storage)?;
-
-    // convert the shares to amount
-    let amount = shares_to_amount(
-        &deps.as_ref(),
-        &vs,
-        &cfg.oracle,
-        current_time,
-        &cfg.base_denom,
-        shares,
-        ActionKind::Default,
-    )?;
-
-    // cannot unlock when there is zero shares
-    if amount.is_zero() {
+    // cannot unlock zero shares
+    if shares.is_zero() {
         return Err(ContractError::ZeroShares);
     }
-
-    // decrement total liquidity and deposit shares
-    vs.total_liquidity = vs.total_liquidity.checked_sub(amount)?;
-    vs.total_shares = vs.total_shares.checked_sub(shares)?;
-    VAULT_STATE.save(deps.storage, &vs)?;
 
     // decrement the user's deposit shares
     decrease_deposit_shares(deps.storage, &user_id_key, shares)?;
@@ -119,7 +99,7 @@ pub fn unlock(
         unlocks.push(UnlockState {
             created_at: current_time,
             cooldown_end,
-            amount,
+            shares,
         });
 
         Ok::<Vec<UnlockState>, StdError>(unlocks)
@@ -127,19 +107,18 @@ pub fn unlock(
 
     Ok(Response::new()
         .add_attribute("method", "unlock")
-        .add_attribute("amount", amount)
         .add_attribute("shares", shares)
         .add_attribute("created_at", current_time.to_string())
         .add_attribute("cooldown_end", cooldown_end.to_string()))
 }
 
 pub fn withdraw(
-    store: &mut dyn Storage,
+    deps: DepsMut,
     info: MessageInfo,
     current_time: u64,
     account_id: Option<String>,
 ) -> ContractResult<Response> {
-    let cfg = CONFIG.load(store)?;
+    let cfg = CONFIG.load(deps.storage)?;
 
     // Don't allow users to create alternative account ids.
     // Only allow credit manager contract to create them.
@@ -150,7 +129,7 @@ pub fn withdraw(
 
     let user_id_key = create_user_id_key(&info.sender, account_id)?;
 
-    let unlocks = UNLOCKS.load(store, &user_id_key)?;
+    let unlocks = UNLOCKS.load(deps.storage, &user_id_key)?;
 
     // find all unlocked positions
     let (unlocked, unlocking): (Vec<_>, Vec<_>) =
@@ -163,20 +142,39 @@ pub fn withdraw(
 
     // clear state if no more unlocking positions
     if unlocking.is_empty() {
-        UNLOCKS.remove(store, &user_id_key);
+        UNLOCKS.remove(deps.storage, &user_id_key);
     } else {
-        UNLOCKS.save(store, &user_id_key, &unlocking)?;
+        UNLOCKS.save(deps.storage, &user_id_key, &unlocking)?;
     }
 
-    // compute the total amount to be withdrawn
-    let unlocked_amt = unlocked.into_iter().map(|us| us.amount).sum::<Uint128>();
+    let mut vs = VAULT_STATE.load(deps.storage)?;
+
+    // compute the total shares to be withdrawn
+    let total_unlocked_shares = unlocked.into_iter().map(|us| us.shares).sum::<Uint128>();
+
+    // convert the shares to amount
+    let total_unlocked_amount = shares_to_amount(
+        &deps.as_ref(),
+        &vs,
+        &cfg.oracle,
+        current_time,
+        &cfg.base_denom,
+        total_unlocked_shares,
+        ActionKind::Default,
+    )?;
+
+    // decrement total liquidity and deposit shares
+    vs.total_liquidity = vs.total_liquidity.checked_sub(total_unlocked_amount)?;
+    vs.total_shares = vs.total_shares.checked_sub(total_unlocked_shares)?;
+    VAULT_STATE.save(deps.storage, &vs)?;
 
     Ok(Response::new()
         .add_attribute("method", "withdraw")
-        .add_attribute("amount", unlocked_amt)
+        .add_attribute("shares", total_unlocked_shares)
+        .add_attribute("amount", total_unlocked_amount)
         .add_message(BankMsg::Send {
             to_address: info.sender.into(),
-            amount: coins(unlocked_amt.u128(), cfg.base_denom),
+            amount: coins(total_unlocked_amount.u128(), cfg.base_denom),
         }))
 }
 

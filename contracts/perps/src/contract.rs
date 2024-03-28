@@ -74,7 +74,7 @@ pub fn execute(
         } => vault::unlock(deps, info, env.block.time.seconds(), account_id, shares),
         ExecuteMsg::Withdraw {
             account_id,
-        } => vault::withdraw(deps.storage, info, env.block.time.seconds(), account_id),
+        } => vault::withdraw(deps, info, env.block.time.seconds(), account_id),
         ExecuteMsg::OpenPosition {
             account_id,
             denom,
@@ -144,7 +144,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             account_id,
         } => {
             let user_addr = deps.api.addr_validate(&user_address)?;
-            to_json_binary(&query::unlocks(deps, user_addr, account_id)?)
+            to_json_binary(&query::unlocks(deps, user_addr, account_id, env.block.time.seconds())?)
         }
         QueryMsg::Position {
             account_id,

@@ -5,7 +5,7 @@ use mars_types::{
         Action::{Deposit, DepositToPerpVault, UnlockFromPerpVault, WithdrawFromPerpVault},
         ActionAmount, ActionCoin,
     },
-    perps::{PerpVaultDeposit, PerpVaultPosition, UnlockState},
+    perps::{PerpVaultDeposit, PerpVaultPosition, PerpVaultUnlock},
 };
 
 use super::helpers::{assert_err, blacklisted_coin, coin_info, AccountToFund, MockEnv};
@@ -360,9 +360,10 @@ fn successful_unlock_and_withdraw_from_perp_vault() {
                 shares: Uint128::new(40_000_000),
                 amount: Uint128::new(40),
             },
-            unlocks: vec![UnlockState {
+            unlocks: vec![PerpVaultUnlock {
                 created_at: unlock_current_time,
                 cooldown_end: unlock_current_time + perp_config.cooldown_period,
+                shares: unlock_shares,
                 amount: expected_unlock_amt
             }]
         }

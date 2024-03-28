@@ -90,7 +90,7 @@ pub struct VaultState {
 pub struct UnlockState {
     pub created_at: u64,
     pub cooldown_end: u64,
-    pub amount: Uint128,
+    pub shares: Uint128,
 }
 
 /// Global state of a single denom
@@ -532,7 +532,7 @@ pub enum QueryMsg {
     #[returns(Option<PerpVaultPosition>)]
     PerpVaultPosition {
         /// User address calling the contract.
-        /// It can be a Credit Manager contract or a wallet.
+        /// It can be the Credit Manager contract or a wallet.
         user_address: String,
         /// The user's credit account token ID.
         /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
@@ -542,20 +542,20 @@ pub enum QueryMsg {
     },
 
     /// Query the amount of deposit made to the vault by a single user
-    #[returns(DepositResponse)]
+    #[returns(PerpVaultDeposit)]
     Deposit {
         /// User address calling the contract.
-        /// It can be a Credit Manager contract or a wallet.
+        /// It can be the Credit Manager contract or a wallet.
         user_address: String,
         /// The user's credit account token ID.
         /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
         account_id: Option<String>,
     },
 
-    #[returns(Vec<UnlockState>)]
+    #[returns(Vec<PerpVaultUnlock>)]
     Unlocks {
         /// User address calling the contract.
-        /// It can be a Credit Manager contract or a wallet.
+        /// It can be the Credit Manager contract or a wallet.
         user_address: String,
         /// The user's credit account token ID.
         /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
@@ -630,28 +630,24 @@ pub struct DenomStateResponse {
 }
 
 #[cw_serde]
-pub struct DepositResponse {
-    pub shares: Uint128,
-    pub amount: Uint128,
-}
-
-#[cw_serde]
 pub struct PerpVaultPosition {
     pub denom: String,
     pub deposit: PerpVaultDeposit,
-    pub unlocks: Vec<UnlockState>,
-}
-
-impl PerpVaultPosition {
-    /// The total amount of the deposit and all unlocks
-    pub fn total_amount(&self) -> Uint128 {
-        self.deposit.amount + self.unlocks.iter().map(|u| u.amount).sum::<Uint128>()
-    }
+    pub unlocks: Vec<PerpVaultUnlock>,
 }
 
 #[cw_serde]
 #[derive(Default)]
 pub struct PerpVaultDeposit {
+    pub shares: Uint128,
+    pub amount: Uint128,
+}
+
+#[cw_serde]
+#[derive(Default)]
+pub struct PerpVaultUnlock {
+    pub created_at: u64,
+    pub cooldown_end: u64,
     pub shares: Uint128,
     pub amount: Uint128,
 }

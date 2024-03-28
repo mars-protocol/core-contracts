@@ -28,7 +28,7 @@ import {
   Funding,
   SignedDecimal,
   ArrayOfDenomStateResponse,
-  DepositResponse,
+  PerpVaultDeposit,
   TradingFee,
   Coin,
   OwnerResponse,
@@ -36,14 +36,13 @@ import {
   PnlValues,
   NullablePerpVaultPosition,
   PerpVaultPosition,
-  PerpVaultDeposit,
-  UnlockState,
+  PerpVaultUnlock,
   PositionResponse,
   PerpPosition,
   PositionFeesResponse,
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
-  ArrayOfUnlockState,
+  ArrayOfPerpVaultUnlock,
   VaultState,
 } from './MarsPerps.types'
 import { MarsPerpsQueryClient, MarsPerpsClient } from './MarsPerps.client'
@@ -313,18 +312,18 @@ export function useMarsPerpsPositionQuery<TData = PositionResponse>({
   )
 }
 export interface MarsPerpsUnlocksQuery<TData>
-  extends MarsPerpsReactQuery<ArrayOfUnlockState, TData> {
+  extends MarsPerpsReactQuery<ArrayOfPerpVaultUnlock, TData> {
   args: {
     accountId?: string
     userAddress: string
   }
 }
-export function useMarsPerpsUnlocksQuery<TData = ArrayOfUnlockState>({
+export function useMarsPerpsUnlocksQuery<TData = ArrayOfPerpVaultUnlock>({
   client,
   args,
   options,
 }: MarsPerpsUnlocksQuery<TData>) {
-  return useQuery<ArrayOfUnlockState, Error, TData>(
+  return useQuery<ArrayOfPerpVaultUnlock, Error, TData>(
     marsPerpsQueryKeys.unlocks(client?.contractAddress, args),
     () =>
       client
@@ -336,18 +335,18 @@ export function useMarsPerpsUnlocksQuery<TData = ArrayOfUnlockState>({
     { ...options, enabled: !!client && (options?.enabled != undefined ? options.enabled : true) },
   )
 }
-export interface MarsPerpsDepositQuery<TData> extends MarsPerpsReactQuery<DepositResponse, TData> {
+export interface MarsPerpsDepositQuery<TData> extends MarsPerpsReactQuery<PerpVaultDeposit, TData> {
   args: {
     accountId?: string
     userAddress: string
   }
 }
-export function useMarsPerpsDepositQuery<TData = DepositResponse>({
+export function useMarsPerpsDepositQuery<TData = PerpVaultDeposit>({
   client,
   args,
   options,
 }: MarsPerpsDepositQuery<TData>) {
-  return useQuery<DepositResponse, Error, TData>(
+  return useQuery<PerpVaultDeposit, Error, TData>(
     marsPerpsQueryKeys.deposit(client?.contractAddress, args),
     () =>
       client

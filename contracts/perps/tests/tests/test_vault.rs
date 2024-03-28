@@ -5,7 +5,7 @@ use mars_perps::{error::ContractError, vault::DEFAULT_SHARES_PER_AMOUNT};
 use mars_types::{
     oracle::ActionKind,
     params::{PerpParams, PerpParamsUpdate},
-    perps::{PerpVaultDeposit, PerpVaultPosition, UnlockState},
+    perps::{PerpVaultDeposit, PerpVaultPosition, PerpVaultUnlock, VaultState},
     signed_uint::SignedUint,
 };
 
@@ -80,16 +80,29 @@ fn unlock_few_times() {
     let shares_3 = deposit.shares.multiply_ratio(1u128, 4u128); // 25%
     let amt_3 = deposit.amount.multiply_ratio(1u128, 4u128);
 
+    // vault state before unlocks
+    let vault_state_before_unlocks = mock.query_vault_state();
+    assert_eq!(
+        vault_state_before_unlocks,
+        VaultState {
+            total_liquidity: deposit.amount,
+            total_shares: deposit.shares,
+        }
+    );
+
     // first unlock
     mock.unlock_from_vault(&credit_manager, Some(depositor), shares_1).unwrap();
     let unlocks = mock.query_cm_unlocks(depositor);
     let current_time = mock.query_block_time();
-    let unlock_1_expected = UnlockState {
+    let unlock_1_expected = PerpVaultUnlock {
         created_at: current_time,
         cooldown_end: current_time + cooldown_period,
+        shares: shares_1,
         amount: amt_1,
     };
     assert_eq!(unlocks, vec![unlock_1_expected.clone()]);
+    let vault_state = mock.query_vault_state();
+    assert_eq!(vault_state, vault_state_before_unlocks);
 
     // move time forward
     mock.increment_by_time(3600);
@@ -98,12 +111,15 @@ fn unlock_few_times() {
     mock.unlock_from_vault(&credit_manager, Some(depositor), shares_2).unwrap();
     let unlocks = mock.query_cm_unlocks(depositor);
     let current_time = mock.query_block_time();
-    let unlock_2_expected = UnlockState {
+    let unlock_2_expected = PerpVaultUnlock {
         created_at: current_time,
         cooldown_end: current_time + cooldown_period,
+        shares: shares_2,
         amount: amt_2,
     };
     assert_eq!(unlocks, vec![unlock_1_expected.clone(), unlock_2_expected.clone()]);
+    let vault_state = mock.query_vault_state();
+    assert_eq!(vault_state, vault_state_before_unlocks);
 
     // move time forward
     mock.increment_by_time(3600);
@@ -112,12 +128,15 @@ fn unlock_few_times() {
     mock.unlock_from_vault(&credit_manager, Some(depositor), shares_3).unwrap();
     let unlocks = mock.query_cm_unlocks(depositor);
     let current_time = mock.query_block_time();
-    let unlock_3_expected = UnlockState {
+    let unlock_3_expected = PerpVaultUnlock {
         created_at: current_time,
         cooldown_end: current_time + cooldown_period,
+        shares: shares_3,
         amount: amt_3,
     };
     assert_eq!(unlocks, vec![unlock_1_expected, unlock_2_expected, unlock_3_expected]);
+    let vault_state = mock.query_vault_state();
+    assert_eq!(vault_state, vault_state_before_unlocks);
 
     // deposit should be empty after all unlocks
     let deposit = mock.query_cm_deposit(depositor);
@@ -167,6 +186,9 @@ fn withdraw_unlocked_shares() {
     mock.deposit_to_vault(&credit_manager, Some(depositor), &[coin(1_000_000_000u128, "uusdc")])
         .unwrap();
 
+    // vault state before unlocks
+    let vault_state_before_unlocks = mock.query_vault_state();
+
     // unlocks should be empty
     let unlocks = mock.query_cm_unlocks(depositor);
     assert!(unlocks.is_empty());
@@ -182,6 +204,8 @@ fn withdraw_unlocked_shares() {
 
     // first unlock
     mock.unlock_from_vault(&credit_manager, Some(depositor), shares_1).unwrap();
+    let vault_state = mock.query_vault_state();
+    assert_eq!(vault_state, vault_state_before_unlocks);
 
     // move time forward
     mock.increment_by_time(3600);
@@ -189,13 +213,17 @@ fn withdraw_unlocked_shares() {
     // second unlock
     let unlock_2_current_time = mock.query_block_time();
     mock.unlock_from_vault(&credit_manager, Some(depositor), shares_2).unwrap();
+    let vault_state = mock.query_vault_state();
+    assert_eq!(vault_state, vault_state_before_unlocks);
 
     // move time forward
     mock.increment_by_time(3600);
 
-    // second unlock
+    // third unlock
     let unlock_3_current_time = mock.query_block_time();
     mock.unlock_from_vault(&credit_manager, Some(depositor), shares_3).unwrap();
+    let vault_state = mock.query_vault_state();
+    assert_eq!(vault_state, vault_state_before_unlocks);
 
     // move time forward to pass cooldown period for first and second unlock
     mock.set_block_time(unlock_2_current_time + cooldown_period);
@@ -210,13 +238,24 @@ fn withdraw_unlocked_shares() {
     let balance_2 = mock.query_balance(&credit_manager, "uusdc");
     assert_eq!(balance_2.amount, balance_1.amount + amt_1 + amt_2);
 
+    // check vault state after withdraw, it should be decreased by amount of two unlocks
+    let vault_state_after_two_unlocks = mock.query_vault_state();
+    assert_eq!(
+        vault_state_after_two_unlocks,
+        VaultState {
+            total_liquidity: vault_state_before_unlocks.total_liquidity - amt_1 - amt_2,
+            total_shares: vault_state_before_unlocks.total_shares - shares_1 - shares_2
+        }
+    );
+
     // check unlocks after withdraw, it should be one unlock left
     let unlocks = mock.query_cm_unlocks(depositor);
     assert_eq!(
         unlocks,
-        vec![UnlockState {
+        vec![PerpVaultUnlock {
             created_at: unlock_3_current_time,
             cooldown_end: unlock_3_current_time + cooldown_period,
+            shares: shares_3,
             amount: amt_3,
         }]
     );
@@ -231,14 +270,25 @@ fn withdraw_unlocked_shares() {
     let balance_3 = mock.query_balance(&credit_manager, "uusdc");
     assert_eq!(balance_3.amount, balance_2.amount + amt_3);
 
+    // check vault state after withdraw
+    let vault_state = mock.query_vault_state();
+    assert_eq!(
+        vault_state,
+        VaultState {
+            total_liquidity: vault_state_after_two_unlocks.total_liquidity - amt_3,
+            total_shares: vault_state_after_two_unlocks.total_shares - shares_3
+        }
+    );
+
     // check unlocks after withdraw, it should be empty
     let unlocks = mock.query_cm_unlocks(depositor);
     assert!(unlocks.is_empty());
 }
 
 #[test]
-fn cannot_unlock_if_zero_withdrawal_balance() {
-    let mut mock = MockEnv::new().build().unwrap();
+fn unlock_and_withdraw_if_zero_withdrawal_balance() {
+    let cooldown_period = 86400u64;
+    let mut mock = MockEnv::new().cooldown_period(cooldown_period).build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -276,14 +326,40 @@ fn cannot_unlock_if_zero_withdrawal_balance() {
     // increase uatom price to make the position profitable
     mock.set_price(&owner, "uatom", Decimal::from_str("50").unwrap()).unwrap();
 
+    // Unlock is possible even if there is zero withdrawal balance. Vault balance can change after unlock during cooldown period.
+    let block_time = mock.query_block_time();
     let deposit = mock.query_cm_deposit(user);
-    let res = mock.unlock_from_vault(&credit_manager, Some(user), deposit.shares);
+    mock.unlock_from_vault(&credit_manager, Some(user), deposit.shares).unwrap();
+    let perp_vault_pos = mock.query_cm_vault_position(user, ActionKind::Default).unwrap();
+    assert_eq!(
+        perp_vault_pos,
+        PerpVaultPosition {
+            denom: "uusdc".to_string(),
+            deposit: PerpVaultDeposit {
+                shares: Uint128::zero(),
+                amount: Uint128::zero()
+            },
+            unlocks: vec![PerpVaultUnlock {
+                created_at: block_time,
+                cooldown_end: block_time + cooldown_period,
+                shares: deposit.shares,
+                amount: Uint128::zero(), // zero withdrawal balance
+            }],
+        }
+    );
+
+    // move time forward
+    mock.increment_by_time(cooldown_period + 1);
+
+    // withdraw from vault fails because of zero withdrawal balance
+    let res = mock.withdraw_from_vault(&credit_manager, Some(user));
     assert_err(res, ContractError::ZeroWithdrawalBalance {});
 }
 
 #[test]
 fn calculate_shares_correctly_after_zero_withdrawal_balance() {
-    let mut mock = MockEnv::new().build().unwrap();
+    let cooldown_period = 86400u64;
+    let mut mock = MockEnv::new().cooldown_period(cooldown_period).build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -332,9 +408,14 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
     mock.set_price(&owner, "uatom", Decimal::from_str("100").unwrap()).unwrap();
 
     // make sure that there is no withdrawal balance
-    let deposit = mock.query_cm_deposit(depositor_1);
-    let res = mock.unlock_from_vault(&credit_manager, Some(depositor_1), deposit.shares);
-    assert_err(res, ContractError::ZeroWithdrawalBalance {});
+    let vault_state = mock.query_vault_state();
+    let accounting = mock.query_total_accounting();
+    let available_liquidity = accounting
+        .withdrawal_balance
+        .total
+        .checked_add(vault_state.total_liquidity.into())
+        .unwrap();
+    assert!(available_liquidity < SignedUint::zero());
 
     // deposit uusdc to vault when zero withdrawal balance
     mock.deposit_to_vault(&credit_manager, Some(depositor_3), &[coin(2500u128, "uusdc")]).unwrap();
@@ -427,9 +508,10 @@ fn query_vault_position() {
                 shares: deposit_shares_after_1_unlock,
                 amount: deposit_amt_after_1_unlock
             },
-            unlocks: vec![UnlockState {
+            unlocks: vec![PerpVaultUnlock {
                 created_at: unlock_1_current_time,
                 cooldown_end: unlock_1_current_time + cooldown_period,
+                shares: shares_to_unlock,
                 amount: amt_to_unlock,
             }]
         }
@@ -453,14 +535,16 @@ fn query_vault_position() {
                 amount: Uint128::zero()
             },
             unlocks: vec![
-                UnlockState {
+                PerpVaultUnlock {
                     created_at: unlock_1_current_time,
                     cooldown_end: unlock_1_current_time + cooldown_period,
+                    shares: shares_to_unlock,
                     amount: amt_to_unlock,
                 },
-                UnlockState {
+                PerpVaultUnlock {
                     created_at: unlock_2_current_time,
                     cooldown_end: unlock_2_current_time + cooldown_period,
+                    shares: shares_to_unlock,
                     amount: amt_to_unlock,
                 }
             ]
@@ -532,9 +616,10 @@ fn use_wallet_for_vault() {
                 shares: deposit_shares_after_unlock,
                 amount: deposit_amt_after_unlock
             },
-            unlocks: vec![UnlockState {
+            unlocks: vec![PerpVaultUnlock {
                 created_at: unlock_current_time,
                 cooldown_end: unlock_current_time + cooldown_period,
+                shares: shares_to_unlock,
                 amount: amt_to_unlock,
             }]
         }

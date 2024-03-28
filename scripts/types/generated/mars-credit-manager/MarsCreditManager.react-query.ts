@@ -76,7 +76,7 @@ import {
   DebtAmount,
   PerpVaultPosition,
   PerpVaultDeposit,
-  UnlockState,
+  PerpVaultUnlock,
   PerpPosition,
   PnlAmounts,
   VaultPositionValue,

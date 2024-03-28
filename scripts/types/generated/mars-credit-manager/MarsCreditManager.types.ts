@@ -669,16 +669,17 @@ export interface DebtAmount {
 export interface PerpVaultPosition {
   denom: string
   deposit: PerpVaultDeposit
-  unlocks: UnlockState[]
+  unlocks: PerpVaultUnlock[]
 }
 export interface PerpVaultDeposit {
   amount: Uint128
   shares: Uint128
 }
-export interface UnlockState {
+export interface PerpVaultUnlock {
   amount: Uint128
   cooldown_end: number
   created_at: number
+  shares: Uint128
 }
 export interface PerpPosition {
   base_denom: string

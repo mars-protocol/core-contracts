@@ -33,7 +33,7 @@ import {
   Coin,
   PerpVaultPosition,
   PerpVaultDeposit,
-  UnlockState,
+  PerpVaultUnlock,
   PerpPosition,
   PnlAmounts,
   VaultPosition,
