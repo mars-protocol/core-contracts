@@ -1,34 +1,64 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+import { useEffect, useState } from 'react'
 import './App.css'
+import useHealthComputer from './hooks/useHealthComputer.ts'
+import init from '../pkg-web/'
+import MaxPerpAmount from './components/MaxPerpAmount.tsx'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [healthComputerJson, setHealthComputerJson] = useState('')
+  const [type, setType] = useState<'borrow' | 'swap' | 'perp'>('perp')
+  const [accountId, setAccountId] = useState('')
+  const { data: healthComputer } = useHealthComputer(accountId)
+
+  useEffect(() => {
+    const loadHealthComputerWasm = async () => {
+      await init()
+    }
+    loadHealthComputerWasm()
+  }, [])
+
+  useEffect(() => {
+    if (!accountId) return
+    setHealthComputerJson(JSON.stringify(healthComputer, undefined, 4))
+  }, [accountId, healthComputer])
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className={'h-full w-full flex flex-col gap-4'}>
+      <div className='flex gap-4'>
+        <button onClick={() => setType('perp')}>Max perp amount</button>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
+
+      {type === 'perp' && (
+        <MaxPerpAmount healthComputer={healthComputerJson && JSON.parse(healthComputerJson)} />
+      )}
+
+      <div className={'flex flex-col gap-4 h-full'}>
+        <h2 className={'text-xl font-bold '}>Health computer object</h2>
+
+        <div className='flex flex-col'>
+          Select account Id:
+          <input
+            type={'text'}
+            value={accountId}
+            className={'text-center'}
+            onChange={(e) => setAccountId(e.target.value)}
+          />
+        </div>
+
+        <textarea
+          className={'w-full h-full'}
+          value={healthComputerJson}
+          onChange={(event) => {
+            if (!event.target.value) return
+            console.log('updated HC manually')
+
+            setHealthComputerJson(
+              JSON.stringify(JSON.parse(event.target.value), undefined, 4) ?? '',
+            )
+          }}
+        ></textarea>
       </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    </div>
   )
 }
 
