@@ -3,7 +3,6 @@ use mars_types::{
     math::SignedDecimal,
     oracle::ActionKind,
     perps::{DenomState, Funding},
-    signed_uint::SignedUint,
 };
 
 use crate::{
@@ -40,7 +39,7 @@ pub fn init_denom(
             max_funding_velocity,
             skew_scale,
             last_funding_rate: SignedDecimal::zero(),
-            last_funding_accrued_per_unit_in_base_denom: SignedUint::zero(),
+            last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero(),
         },
         last_updated: env.block.time.seconds(),
         ..Default::default()

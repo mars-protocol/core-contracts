@@ -5,7 +5,6 @@ use mars_types::{
     math::SignedDecimal,
     params::PerpParams,
     perps::{Funding, PerpDenomState},
-    signed_uint::SignedUint,
 };
 
 pub struct PerpInfo {
@@ -99,6 +98,6 @@ pub fn create_default_funding() -> Funding {
         skew_scale: Uint128::new(1000000000u128),
         last_funding_rate: SignedDecimal::from_str("1.0").unwrap(),
         max_funding_velocity: Decimal::percent(0),
-        last_funding_accrued_per_unit_in_base_denom: SignedUint::from_str("300").unwrap(),
+        last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("300").unwrap(),
     }
 }

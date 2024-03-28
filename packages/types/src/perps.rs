@@ -160,7 +160,7 @@ pub struct Funding {
     pub last_funding_rate: SignedDecimal,
 
     /// Last funding accrued per unit
-    pub last_funding_accrued_per_unit_in_base_denom: SignedUint,
+    pub last_funding_accrued_per_unit_in_base_denom: SignedDecimal,
 }
 
 impl Default for Funding {
@@ -169,7 +169,7 @@ impl Default for Funding {
             max_funding_velocity: Decimal::zero(),
             skew_scale: Uint128::one(),
             last_funding_rate: SignedDecimal::zero(),
-            last_funding_accrued_per_unit_in_base_denom: SignedUint::zero(),
+            last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero(),
         }
     }
 }
@@ -234,7 +234,7 @@ pub struct Position {
     pub size: SignedUint,
     pub entry_price: Decimal,
     pub entry_exec_price: Decimal,
-    pub entry_accrued_funding_per_unit_in_base_denom: SignedUint,
+    pub entry_accrued_funding_per_unit_in_base_denom: SignedDecimal,
     pub initial_skew: SignedUint,
     pub realized_pnl: PnlAmounts,
 }

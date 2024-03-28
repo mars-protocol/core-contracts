@@ -58,7 +58,7 @@ pub trait DenomStateExt {
         current_time: u64,
         denom_price: Decimal,
         base_denom_price: Decimal,
-    ) -> ContractResult<SignedUint>;
+    ) -> ContractResult<SignedDecimal>;
 
     /// The USDC-denominated cumulative funding calculated _before_ modifying the market skew.
     ///
@@ -68,7 +68,7 @@ pub trait DenomStateExt {
         current_time: u64,
         denom_price: Decimal,
         base_denom_price: Decimal,
-    ) -> ContractResult<SignedUint>;
+    ) -> ContractResult<SignedDecimal>;
 
     /// Compute the current funding
     fn current_funding(
@@ -204,7 +204,7 @@ impl DenomStateExt for DenomState {
         current_time: u64,
         denom_price: Decimal,
         base_denom_price: Decimal,
-    ) -> ContractResult<SignedUint> {
+    ) -> ContractResult<SignedDecimal> {
         let price = denom_price.checked_div(base_denom_price)?;
         let curr_funding_rate = self.current_funding_rate(current_time)?;
         let avg_funding_rate = self
@@ -215,7 +215,7 @@ impl DenomStateExt for DenomState {
         let res = avg_funding_rate
             .checked_mul(self.time_elapsed_in_days(current_time).into())?
             .checked_mul(price.into())?;
-        Ok(res.to_signed_uint_floor())
+        Ok(res)
     }
 
     fn current_funding_accrued_per_unit_in_base_denom(
@@ -223,7 +223,7 @@ impl DenomStateExt for DenomState {
         current_time: u64,
         denom_price: Decimal,
         base_denom_price: Decimal,
-    ) -> ContractResult<SignedUint> {
+    ) -> ContractResult<SignedDecimal> {
         let curr_funding_entrance_per_unit = self.current_funding_entrance_per_unit_in_base_denom(
             current_time,
             denom_price,
@@ -471,7 +471,7 @@ impl DenomStateExt for DenomState {
 
         let accrued_funding = self
             .skew()?
-            .checked_mul(current_funding.last_funding_accrued_per_unit_in_base_denom)?
+            .checked_mul_floor(current_funding.last_funding_accrued_per_unit_in_base_denom)?
             .checked_sub(self.total_entry_funding)?
             .checked_mul_floor(base_denom_price.into())?;
 
@@ -519,7 +519,7 @@ fn decrease_accumulators(denom_state: &mut DenomState, position: &Position) -> C
 
     // decrease the total_entry_funding accumulator accordingly
     denom_state.total_entry_funding = denom_state.total_entry_funding.checked_sub(
-        position.size.checked_mul(position.entry_accrued_funding_per_unit_in_base_denom)?,
+        position.size.checked_mul_floor(position.entry_accrued_funding_per_unit_in_base_denom)?,
     )?;
 
     // decrease the total_squared_positions accumulator
@@ -552,7 +552,7 @@ fn increase_accumulators(
 
     // increase the total_entry_funding accumulator with recalculated funding
     denom_state.total_entry_funding = denom_state.total_entry_funding.checked_add(
-        size.checked_mul(denom_state.funding.last_funding_accrued_per_unit_in_base_denom)?,
+        size.checked_mul_floor(denom_state.funding.last_funding_accrued_per_unit_in_base_denom)?,
     )?;
 
     // increase the total_squared_positions accumulator
@@ -733,11 +733,11 @@ mod tests {
         assert_eq!(
             ds.current_funding_entrance_per_unit_in_base_denom(
                 43400,
-                Decimal::from_str("3600").unwrap(),
+                Decimal::from_str("3.6").unwrap(),
                 Decimal::from_str("0.9").unwrap()
             )
             .unwrap(),
-            SignedUint::from_str("-68").unwrap()
+            SignedDecimal::from_str("-0.068").unwrap()
         );
     }
 
@@ -747,11 +747,11 @@ mod tests {
         assert_eq!(
             ds.current_funding_accrued_per_unit_in_base_denom(
                 43400,
-                Decimal::from_str("3600").unwrap(),
+                Decimal::from_str("3.6").unwrap(),
                 Decimal::from_str("0.9").unwrap()
             )
             .unwrap(),
-            SignedUint::from_str("56").unwrap()
+            SignedDecimal::from_str("-12.432").unwrap()
         );
     }
 
@@ -761,7 +761,7 @@ mod tests {
         assert_eq!(
             ds.current_funding(
                 ds.last_updated,
-                Decimal::from_str("4200").unwrap(),
+                Decimal::from_str("4600").unwrap(),
                 Decimal::from_str("0.8").unwrap()
             )
             .unwrap(),
@@ -771,13 +771,14 @@ mod tests {
         assert_eq!(
             ds.current_funding(
                 43400,
-                Decimal::from_str("4200").unwrap(),
+                Decimal::from_str("4600").unwrap(),
                 Decimal::from_str("0.8").unwrap()
             )
             .unwrap(),
             Funding {
                 last_funding_rate: SignedDecimal::from_str("-0.043").unwrap(),
-                last_funding_accrued_per_unit_in_base_denom: SignedUint::from_str("78").unwrap(),
+                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("85.25")
+                    .unwrap(),
                 ..ds.funding
             }
         );
@@ -824,7 +825,7 @@ mod tests {
 
         ds.open_position(
             43400,
-            SignedUint::from_str("-100").unwrap(),
+            SignedUint::from_str("-105").unwrap(),
             Decimal::from_str("4200").unwrap(),
             Decimal::from_str("0.8").unwrap(),
         )
@@ -835,15 +836,15 @@ mod tests {
             DenomState {
                 funding: Funding {
                     last_funding_rate: SignedDecimal::from_str("-0.043").unwrap(),
-                    last_funding_accrued_per_unit_in_base_denom: SignedUint::from_str("78")
+                    last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("76.75")
                         .unwrap(),
                     ..ds_before_modification.funding
                 },
-                total_entry_cost: SignedUint::from_str("-415064").unwrap(),
-                total_entry_funding: SignedUint::from_str("-7532").unwrap(),
-                total_squared_positions: SignedUint::from_str("24400").unwrap(),
-                total_abs_multiplied_positions: SignedUint::from_str("-10225").unwrap(),
-                short_oi: ds_before_modification.short_oi + Uint128::new(100u128),
+                total_entry_cost: SignedUint::from_str("-435810").unwrap(),
+                total_entry_funding: SignedUint::from_str("-7791").unwrap(),
+                total_squared_positions: SignedUint::from_str("25425").unwrap(),
+                total_abs_multiplied_positions: SignedUint::from_str("-11250").unwrap(),
+                short_oi: ds_before_modification.short_oi + Uint128::new(105u128),
                 last_updated: 43400,
                 ..ds_before_modification
             }
@@ -860,10 +861,11 @@ mod tests {
             Decimal::from_str("4200").unwrap(),
             Decimal::from_str("0.8").unwrap(),
             &Position {
-                size: SignedUint::from_str("-100").unwrap(),
+                size: SignedUint::from_str("-105").unwrap(),
                 entry_price: Decimal::from_str("4200").unwrap(),
-                entry_exec_price: Decimal::from_str("4149.39").unwrap(),
-                entry_accrued_funding_per_unit_in_base_denom: SignedUint::from_str("78").unwrap(),
+                entry_exec_price: Decimal::from_str("4149.3795").unwrap(),
+                entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("76.75")
+                    .unwrap(),
                 initial_skew: SignedUint::from_str("-12000").unwrap(),
                 realized_pnl: PnlAmounts::default(),
             },
@@ -875,15 +877,15 @@ mod tests {
             DenomState {
                 funding: Funding {
                     last_funding_rate: SignedDecimal::from_str("-0.043").unwrap(),
-                    last_funding_accrued_per_unit_in_base_denom: SignedUint::from_str("78")
+                    last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("76.75")
                         .unwrap(),
                     ..ds_before_modification.funding
                 },
-                total_entry_cost: SignedUint::from_str("414814").unwrap(),
-                total_entry_funding: SignedUint::from_str("8068").unwrap(),
-                total_squared_positions: SignedUint::from_str("4400").unwrap(),
-                total_abs_multiplied_positions: SignedUint::from_str("9775").unwrap(),
-                short_oi: ds_before_modification.short_oi - Uint128::new(100u128),
+                total_entry_cost: SignedUint::from_str("435560").unwrap(),
+                total_entry_funding: SignedUint::from_str("8327").unwrap(),
+                total_squared_positions: SignedUint::from_str("3375").unwrap(),
+                total_abs_multiplied_positions: SignedUint::from_str("10800").unwrap(),
+                short_oi: ds_before_modification.short_oi - Uint128::new(105u128),
                 last_updated: 43400,
                 ..ds_before_modification
             }
@@ -1011,7 +1013,7 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(accrued_funding, SignedUint::from_str("-749015").unwrap());
+        assert_eq!(accrued_funding, SignedUint::from_str("-737015").unwrap());
         assert_eq!(
             funding,
             ds.current_funding(
@@ -1041,8 +1043,8 @@ mod tests {
             PnlValues {
                 price_pnl: SignedUint::from_str("-49795106").unwrap(),
                 closing_fee: SignedUint::from_str("-1493940").unwrap(),
-                accrued_funding: SignedUint::from_str("-749015").unwrap(),
-                pnl: SignedUint::from_str("-52038061").unwrap()
+                accrued_funding: SignedUint::from_str("-737015").unwrap(),
+                pnl: SignedUint::from_str("-52026061").unwrap()
             }
         );
         assert_eq!(
@@ -1065,7 +1067,8 @@ mod tests {
                 max_funding_velocity: Decimal::from_str("3").unwrap(),
                 skew_scale: Uint128::new(1000000u128),
                 last_funding_rate: SignedDecimal::from_str("-0.025").unwrap(),
-                last_funding_accrued_per_unit_in_base_denom: SignedUint::from_str("-12").unwrap(),
+                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("-12.5")
+                    .unwrap(),
             },
             last_updated: 200,
             total_entry_cost: SignedUint::from_str("-125").unwrap(),

@@ -6,6 +6,7 @@ use mars_rover_health_computer::{HealthComputer, PerpsData};
 use mars_types::{
     credit_manager::{DebtAmount, Positions},
     health::AccountKind,
+    math::SignedDecimal,
     params::{AssetParams, PerpParams},
     perps::{PerpPosition, Position},
     signed_uint::SignedUint,
@@ -60,7 +61,7 @@ fn currently_long_max_q_change() {
     // let size: SignedDecimal = Decimal::from_str("0.5").unwrap().into();
     let size = SignedUint::from_str("500000").unwrap();
 
-    let entry_accrued_funding_per_unit_in_base_denom = SignedUint::from_str("100").unwrap();
+    let entry_accrued_funding_per_unit_in_base_denom = SignedDecimal::from_str("100").unwrap();
     let entry_exec_price = Decimal::from_str("1999").unwrap();
     let position = Position {
         size,
@@ -190,7 +191,7 @@ fn max_position_size_zero_if_net_oi_exceeded() {
     // position state
     let size = SignedUint::from_str("500000").unwrap();
 
-    let entry_accrued_funding_per_unit_in_base_denom = SignedUint::from_str("100").unwrap();
+    let entry_accrued_funding_per_unit_in_base_denom = SignedDecimal::from_str("100").unwrap();
     let entry_exec_price = Decimal::from_str("1999").unwrap();
     let current_exec_price = Decimal::from_str("1199.5").unwrap();
     let position = Position {
@@ -309,7 +310,7 @@ fn max_position_size_zero_if_long_oi_exceeded() {
     // position state
     let size = SignedUint::from_str("500000").unwrap();
 
-    let entry_accrued_funding_per_unit_in_base_denom = SignedUint::from_str("100").unwrap();
+    let entry_accrued_funding_per_unit_in_base_denom = SignedDecimal::from_str("100").unwrap();
     let entry_exec_price = Decimal::from_str("1999").unwrap();
     let current_exec_price = Decimal::from_str("1199.5").unwrap();
     let position = Position {
@@ -403,7 +404,7 @@ fn existing_short_max_q_change() {
 
     // perp state
     let mut funding = create_default_funding();
-    funding.last_funding_accrued_per_unit_in_base_denom = SignedUint::from_str("200").unwrap();
+    funding.last_funding_accrued_per_unit_in_base_denom = SignedDecimal::from_str("200").unwrap();
     let eth_perp_params = PerpParams {
         opening_fee_rate: Decimal::from_str("0.2").unwrap(),
         closing_fee_rate: Decimal::from_str("0.003").unwrap(),
@@ -428,7 +429,7 @@ fn existing_short_max_q_change() {
     // position state
     let size = SignedUint::from_str("-1000000").unwrap();
 
-    let entry_accrued_funding_per_unit_in_base_denom = SignedUint::from_str("300").unwrap();
+    let entry_accrued_funding_per_unit_in_base_denom = SignedDecimal::from_str("300").unwrap();
     let entry_exec_price = Decimal::from_str("1999").unwrap();
     let current_exec_price = Decimal::from_str("1201").unwrap();
 
@@ -532,7 +533,7 @@ fn no_existing_perp_position() {
 
     // perp state
     let mut funding = create_default_funding();
-    funding.last_funding_accrued_per_unit_in_base_denom = SignedUint::from_str("200").unwrap();
+    funding.last_funding_accrued_per_unit_in_base_denom = SignedDecimal::from_str("200").unwrap();
     let eth_perp_params = PerpParams {
         opening_fee_rate: Decimal::from_str("0.2").unwrap(),
         closing_fee_rate: Decimal::from_str("0.003").unwrap(),

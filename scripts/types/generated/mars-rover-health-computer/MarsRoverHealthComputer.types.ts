@@ -92,15 +92,10 @@ export interface PerpDenomState {
   total_entry_funding: SignedUint
 }
 export interface Funding {
-  last_funding_accrued_per_unit_in_base_denom: SignedUint
+  last_funding_accrued_per_unit_in_base_denom: SignedDecimal
   last_funding_rate: SignedDecimal
   max_funding_velocity: Decimal
   skew_scale: Uint128
-}
-export interface SignedUint {
-  abs: Uint128
-  negative: boolean
-  [k: string]: unknown
 }
 export interface SignedDecimal {
   abs: Decimal
@@ -112,6 +107,11 @@ export interface PnlValues {
   closing_fee: SignedUint
   pnl: SignedUint
   price_pnl: SignedUint
+}
+export interface SignedUint {
+  abs: Uint128
+  negative: boolean
+  [k: string]: unknown
 }
 export interface PerpParams {
   closing_fee_rate: Decimal

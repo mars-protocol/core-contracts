@@ -44,11 +44,11 @@ impl PositionExt for Position {
         let price_pnl_in_base_denom =
             self.size.checked_mul_floor(price_diff.checked_div(base_denom_price.into())?)?;
 
-        // size * (current_accrued_funding_per_unit - entry_accrued_funding_per_unit) * base_denom_price
+        // size * (current_accrued_funding_per_unit - entry_accrued_funding_per_unit)
         let accrued_funding_diff = funding
             .last_funding_accrued_per_unit_in_base_denom
             .checked_sub(self.entry_accrued_funding_per_unit_in_base_denom)?;
-        let accrued_funding_in_base_denom = self.size.checked_mul(accrued_funding_diff)?;
+        let accrued_funding_in_base_denom = self.size.checked_mul_floor(accrued_funding_diff)?;
 
         // Only charge:
         // - opening fee if we are increasing size
@@ -167,7 +167,7 @@ mod tests {
             size: SignedUint::from_str("100").unwrap(),
             entry_price: Decimal::from_str("4200").unwrap(), 
             entry_exec_price: Decimal::from_str("4200.966").unwrap(),
-            entry_accrued_funding_per_unit_in_base_denom: SignedUint::from_str("-14").unwrap(),
+            entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("-14").unwrap(),
             initial_skew: SignedUint::from_str("180").unwrap(),
             realized_pnl: PnlAmounts::default()
         },
@@ -187,7 +187,7 @@ mod tests {
             size: SignedUint::from_str("100").unwrap(),
             entry_price: Decimal::from_str("4200").unwrap(), 
             entry_exec_price: Decimal::from_str("4201.134").unwrap(),
-            entry_accrued_funding_per_unit_in_base_denom: SignedUint::from_str("-12").unwrap(),
+            entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("-12.826").unwrap(),
             initial_skew: SignedUint::from_str("220").unwrap(),
             realized_pnl: PnlAmounts::default()
         },
@@ -196,9 +196,9 @@ mod tests {
         PnlAmounts {
             opening_fee: SignedUint::zero(),
             price_pnl: SignedUint::from_str("24984").unwrap(),
-            accrued_funding: SignedUint::from_str("-200").unwrap(),
+            accrued_funding: SignedUint::from_str("-118").unwrap(),
             closing_fee: SignedUint::from_str("-11003").unwrap(),
-            pnl: SignedUint::from_str("13781").unwrap(),
+            pnl: SignedUint::from_str("13863").unwrap(),
         };
         "long position - price up"
     )]
@@ -207,7 +207,7 @@ mod tests {
             size: SignedUint::from_str("100").unwrap(),
             entry_price: Decimal::from_str("4200").unwrap(), 
             entry_exec_price: Decimal::from_str("4201.134").unwrap(),
-            entry_accrued_funding_per_unit_in_base_denom: SignedUint::from_str("-12").unwrap(),
+            entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("-12.826").unwrap(),
             initial_skew: SignedUint::from_str("220").unwrap(),
             realized_pnl: PnlAmounts::default()
         },
@@ -216,9 +216,9 @@ mod tests {
         PnlAmounts {
             opening_fee: SignedUint::zero(),
             price_pnl: SignedUint::from_str("-25027").unwrap(),
-            accrued_funding: SignedUint::from_str("-200").unwrap(),
+            accrued_funding: SignedUint::from_str("-118").unwrap(),
             closing_fee: SignedUint::from_str("-10003").unwrap(),
-            pnl: SignedUint::from_str("-35230").unwrap(),
+            pnl: SignedUint::from_str("-35148").unwrap(),
         };
         "long position - price down"
     )]
@@ -227,7 +227,7 @@ mod tests {
             size: SignedUint::from_str("-100").unwrap(),
             entry_price: Decimal::from_str("4200").unwrap(), 
             entry_exec_price: Decimal::from_str("4201.386").unwrap(),
-            entry_accrued_funding_per_unit_in_base_denom: SignedUint::from_str("-14").unwrap(),
+            entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("-14").unwrap(),
             initial_skew: SignedUint::from_str("380").unwrap(),
             realized_pnl: PnlAmounts::default()
         },
@@ -247,7 +247,7 @@ mod tests {
             size: SignedUint::from_str("-100").unwrap(),
             entry_price: Decimal::from_str("4200").unwrap(), 
             entry_exec_price: Decimal::from_str("4200.714").unwrap(),
-            entry_accrued_funding_per_unit_in_base_denom: SignedUint::from_str("-12").unwrap(),
+            entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("-12.826").unwrap(),
             initial_skew: SignedUint::from_str("220").unwrap(),
             realized_pnl: PnlAmounts::default()
         },
@@ -256,9 +256,9 @@ mod tests {
         PnlAmounts {
             opening_fee: SignedUint::zero(),
             price_pnl: SignedUint::from_str("-25093").unwrap(),
-            accrued_funding: SignedUint::from_str("200").unwrap(),
+            accrued_funding: SignedUint::from_str("117").unwrap(),
             closing_fee: SignedUint::from_str("-11004").unwrap(),
-            pnl: SignedUint::from_str("-35897").unwrap(),
+            pnl: SignedUint::from_str("-35980").unwrap(),
         };
         "short position - price up"
     )]
@@ -267,7 +267,7 @@ mod tests {
             size: SignedUint::from_str("-100").unwrap(),
             entry_price: Decimal::from_str("4200").unwrap(), 
             entry_exec_price: Decimal::from_str("4200.714").unwrap(),
-            entry_accrued_funding_per_unit_in_base_denom: SignedUint::from_str("-12").unwrap(),
+            entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("-12.826").unwrap(),
             initial_skew: SignedUint::from_str("220").unwrap(),
             realized_pnl: PnlAmounts::default()
         },
@@ -276,9 +276,9 @@ mod tests {
         PnlAmounts {
             opening_fee: SignedUint::zero(),
             price_pnl: SignedUint::from_str("24924").unwrap(),
-            accrued_funding: SignedUint::from_str("200").unwrap(),
+            accrued_funding: SignedUint::from_str("117").unwrap(),
             closing_fee: SignedUint::from_str("-10004").unwrap(),
-            pnl: SignedUint::from_str("15120").unwrap(),
+            pnl: SignedUint::from_str("15037").unwrap(),
         };
         "short position - price down"
     )]
@@ -290,7 +290,7 @@ mod tests {
     ) {
         let funding = Funding {
             skew_scale: Uint128::new(1000000u128),
-            last_funding_accrued_per_unit_in_base_denom: SignedUint::from_str("-14").unwrap(),
+            last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("-14").unwrap(),
             ..Default::default()
         };
         let pnl_amounts = position

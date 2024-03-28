@@ -78,7 +78,7 @@ fn initialize_denom() {
                 max_funding_velocity: Decimal::from_str("3").unwrap(),
                 skew_scale: Uint128::new(1000000u128),
                 last_funding_rate: SignedDecimal::zero(),
-                last_funding_accrued_per_unit_in_base_denom: SignedUint::zero()
+                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
             },
             last_updated: block_time
         }
@@ -248,7 +248,7 @@ fn funding_change_accordingly_to_denom_state_modification() {
             last_updated: ds_h24.last_updated + SECONDS_IN_DAY,
             funding: Funding {
                 last_funding_rate: SignedDecimal::from_str("0.009").unwrap(),
-                last_funding_accrued_per_unit_in_base_denom: SignedUint::from_str("-9").unwrap(),
+                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("-9").unwrap(),
                 ..ds_h24.funding
             },
             ..ds_h24

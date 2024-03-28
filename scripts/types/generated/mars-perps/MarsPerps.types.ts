@@ -234,7 +234,7 @@ export interface DenomStateResponse {
   total_cost_base: SignedUint
 }
 export interface Funding {
-  last_funding_accrued_per_unit_in_base_denom: SignedUint
+  last_funding_accrued_per_unit_in_base_denom: SignedDecimal
   last_funding_rate: SignedDecimal
   max_funding_velocity: Decimal
   skew_scale: Uint128
