@@ -1,12 +1,16 @@
-import { useEffect, useState } from 'react'
+import { ReactNode, useCallback, useEffect, useState } from 'react'
 import './App.css'
 import useHealthComputer from './hooks/useHealthComputer.ts'
-import init from '../pkg-web/'
+import init, { HealthComputer } from '../pkg-web/'
 import MaxPerpAmount from './components/MaxPerpAmount.tsx'
+import MaxBorrowAmount from './components/MaxBorrowAmount.tsx'
+import MaxSwapAmount from './components/MaxSwapAmount.tsx'
+import LiquidationPrice from './components/LiquidationPrice.tsx'
+import MaxWithdrawAmount from './components/MaxWithdrawAmount.tsx'
 
 function App() {
   const [healthComputerJson, setHealthComputerJson] = useState('')
-  const [type, setType] = useState<'borrow' | 'swap' | 'perp'>('perp')
+  const [type, setType] = useState<FunctionType>('perp')
   const [accountId, setAccountId] = useState('')
   const { data: healthComputer } = useHealthComputer(accountId)
 
@@ -22,17 +26,27 @@ function App() {
     setHealthComputerJson(JSON.stringify(healthComputer, undefined, 4))
   }, [accountId, healthComputer])
 
+  const InteractionInterface = useCallback(() => {
+    const func = FUNCTIONS.find(({ functionType }) => functionType === type)
+    return func?.component(healthComputer)
+  }, [healthComputer, type])
+
   return (
     <div className={'h-full w-full flex flex-col gap-4'}>
       <div className='flex gap-4'>
-        <button onClick={() => setType('perp')}>Max perp amount</button>
+        {FUNCTIONS.map(({ name, functionType }) => (
+          <button
+            onClick={() => setType(functionType)}
+            className={functionType === type ? 'bg-gray-500' : ''}
+          >
+            {name}
+          </button>
+        ))}
       </div>
 
-      {type === 'perp' && (
-        <MaxPerpAmount healthComputer={healthComputerJson && JSON.parse(healthComputerJson)} />
-      )}
+      <InteractionInterface />
 
-      <div className={'flex flex-col gap-4 h-full'}>
+      <div className={'flex flex-col gap-4 h-full w-full'}>
         <h2 className={'text-xl font-bold '}>Health computer object</h2>
 
         <div className='flex flex-col'>
@@ -50,7 +64,6 @@ function App() {
           value={healthComputerJson}
           onChange={(event) => {
             if (!event.target.value) return
-            console.log('updated HC manually')
 
             setHealthComputerJson(
               JSON.stringify(JSON.parse(event.target.value), undefined, 4) ?? '',
@@ -63,3 +76,47 @@ function App() {
 }
 
 export default App
+
+type FunctionType = 'perp' | 'swap' | 'borrow' | 'liquidation' | 'withdraw'
+
+const FUNCTIONS: {
+  name: string
+  functionType: FunctionType
+  component: (healthComputer: HealthComputer) => ReactNode
+}[] = [
+  {
+    name: 'Max perp amount',
+    functionType: 'perp',
+    component: (healthComputer: HealthComputer) => (
+      <MaxPerpAmount healthComputer={healthComputer} />
+    ),
+  },
+  {
+    name: 'Max swap amount',
+    functionType: 'swap',
+    component: (healthComputer: HealthComputer) => (
+      <MaxSwapAmount healthComputer={healthComputer} />
+    ),
+  },
+  {
+    name: 'Max borrow amount',
+    functionType: 'borrow',
+    component: (healthComputer: HealthComputer) => (
+      <MaxBorrowAmount healthComputer={healthComputer} />
+    ),
+  },
+  {
+    name: 'Max withdraw amount',
+    functionType: 'withdraw',
+    component: (healthComputer: HealthComputer) => (
+      <MaxWithdrawAmount healthComputer={healthComputer} />
+    ),
+  },
+  {
+    name: 'Liquidation price',
+    functionType: 'liquidation',
+    component: (healthComputer: HealthComputer) => (
+      <LiquidationPrice healthComputer={healthComputer} />
+    ),
+  },
+]
