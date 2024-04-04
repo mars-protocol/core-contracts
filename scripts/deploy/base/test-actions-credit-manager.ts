@@ -2,7 +2,7 @@ import { Storage } from './storage'
 import { DeploymentConfig, TestActions, VaultInfo } from '../../types/config'
 import { difference } from 'lodash'
 import assert from 'assert'
-import { printBlue, printGreen } from '../../utils/chalk'
+import { printBlue, printGreen, printYellow } from '../../utils/chalk'
 import { SigningCosmWasmClient } from '@cosmjs/cosmwasm-stargate'
 import {
   MarsCreditManagerClient,
@@ -22,14 +22,14 @@ export class Rover {
   private exec: MarsCreditManagerClient
   private query: MarsCreditManagerQueryClient
   private nft: MarsAccountNftQueryClient
-  private accountId?: string
+  accountId?: string
 
   constructor(
     private userAddr: string,
     private storage: Storage,
     private config: DeploymentConfig,
     private cwClient: SigningCosmWasmClient,
-    private actions: TestActions,
+    private actions?: TestActions,
   ) {
     this.exec = new MarsCreditManagerClient(cwClient, userAddr, storage.addresses.creditManager!)
     this.query = new MarsCreditManagerQueryClient(cwClient, storage.addresses.creditManager!)
@@ -43,11 +43,14 @@ export class Rover {
   async createCreditAccount() {
     const before = await this.nft.tokens({ owner: this.userAddr })
     const executeMsg = { create_credit_account: 'default' } satisfies ExecuteMsg
-    await this.cwClient.execute(
+    const response = await this.cwClient.execute(
       this.userAddr,
       this.storage.addresses.creditManager!,
       executeMsg,
       'auto',
+    )
+    printYellow(
+      `Create credit account, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`,
     )
     const after = await this.nft.tokens({ owner: this.userAddr })
     const diff = difference(after.tokens, before.tokens)
@@ -56,110 +59,163 @@ export class Rover {
     printGreen(`Newly created credit account id: #${diff[0]}`)
   }
 
-  async deposit() {
-    const amount = this.actions.depositAmount
-    await this.updateCreditAccount(
-      [{ deposit: { amount, denom: this.config.chain.baseDenom } }],
-      [{ amount, denom: this.config.chain.baseDenom }],
-    )
+  async reuseCreditAccount(accountId: string) {
+    this.accountId = accountId
+    printGreen(`Reuse credit account id: #${accountId}`)
+  }
+
+  async depositWithTestParams() {
+    const denom = this.config.chain.baseDenom
+    const amount = this.actions!.depositAmount
+    await this.deposit(denom, amount)
+
     const positions = await this.query.positions({ accountId: this.accountId! })
     assert.equal(positions.deposits.length, 1)
     assert.equal(positions.deposits[0].amount, amount)
-    assert.equal(positions.deposits[0].denom, this.config.chain.baseDenom)
-    printGreen(`Deposited into credit account: ${amount} ${this.config.chain.baseDenom}`)
+    assert.equal(positions.deposits[0].denom, denom)
+    printGreen(`Deposited into credit account: ${amount} ${denom}`)
   }
 
-  async lend() {
-    const amount = this.actions.lendAmount
-    await this.updateCreditAccount(
-      [{ lend: { amount: { exact: amount }, denom: this.config.chain.baseDenom } }],
-      [],
+  async deposit(denom: string, amount: string) {
+    const response = await this.updateCreditAccount(
+      [{ deposit: { amount, denom } }],
+      [{ amount: amount, denom }],
     )
+    printYellow(`Deposit, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
+  }
+
+  async lendWithTestParams() {
+    const denom = this.config.chain.baseDenom
+    const amount = this.actions!.lendAmount
+    await this.lend(denom, amount)
+
     const positions = await this.query.positions({ accountId: this.accountId! })
     assert.equal(positions.lends.length, 1)
-    assert.equal(positions.lends[0].denom, this.config.chain.baseDenom)
-    printGreen(`Lent to Red Bank: ${amount} ${this.config.chain.baseDenom}`)
+    assert.equal(positions.lends[0].denom, denom)
+    printGreen(`Lent to Red Bank: ${amount} ${denom}`)
   }
 
-  async withdraw() {
-    const amount = this.actions.withdrawAmount
+  async lend(denom: string, amount: string) {
+    const response = await this.updateCreditAccount(
+      [{ lend: { amount: { exact: amount }, denom } }],
+      [],
+    )
+    printYellow(`Lend, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
+  }
+
+  async withdrawWithTestParams() {
+    const denom = this.config.chain.baseDenom
+    const amount = this.actions!.withdrawAmount
+
     const positionsBefore = await this.query.positions({ accountId: this.accountId! })
     const beforeWithdraw = parseFloat(
-      positionsBefore.deposits.find((c) => c.denom === this.config.chain.baseDenom)!.amount,
+      positionsBefore.deposits.find((c) => c.denom === denom)!.amount,
     )
-    await this.updateCreditAccount([
-      { withdraw: { amount: { exact: amount }, denom: this.config.chain.baseDenom } },
-    ])
+
+    await this.withdraw(denom, amount)
+
     const positionsAfter = await this.query.positions({ accountId: this.accountId! })
-    const afterWithdraw = parseFloat(
-      positionsAfter.deposits.find((c) => c.denom === this.config.chain.baseDenom)!.amount,
-    )
+    const afterWithdraw = parseFloat(positionsAfter.deposits.find((c) => c.denom === denom)!.amount)
     assert.equal(beforeWithdraw - afterWithdraw, amount)
-    printGreen(`Withdrew: ${amount} ${this.config.chain.baseDenom}`)
+    printGreen(`Withdrew: ${amount} ${denom}`)
   }
 
-  async borrow() {
-    const amount = this.actions.borrowAmount
-    await this.updateCreditAccount([{ borrow: { amount, denom: this.config.chain.baseDenom } }])
+  async withdraw(denom: string, amount: string) {
+    const response = await this.updateCreditAccount([
+      { withdraw: { amount: { exact: amount }, denom } },
+    ])
+    printYellow(`Withdraw, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
+  }
+
+  async borrowWithTestParams() {
+    const denom = this.config.chain.baseDenom
+    const amount = this.actions!.borrowAmount
+    await this.borrow(denom, amount)
+
     const positions = await this.query.positions({ accountId: this.accountId! })
     assert.equal(positions.debts.length, 1)
-    assert.equal(positions.debts[0].denom, this.config.chain.baseDenom)
-    printGreen(`Borrowed from RedBank: ${amount} ${this.config.chain.baseDenom}`)
+    assert.equal(positions.debts[0].denom, denom)
+    printGreen(`Borrowed from RedBank: ${amount} ${denom}`)
   }
 
-  async repay() {
-    const amount = this.actions.repayAmount
-    await this.updateCreditAccount([
-      { repay: { coin: { amount: { exact: amount }, denom: this.config.chain.baseDenom } } },
-    ])
+  async borrow(denom: string, amount: string) {
+    const response = await this.updateCreditAccount([{ borrow: { amount, denom } }])
+    printYellow(`Borrow, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
+  }
+
+  async repayWithTestParams() {
+    const denom = this.config.chain.baseDenom
+    const amount = this.actions!.repayAmount
+    await this.repay(denom, amount)
+
     const positions = await this.query.positions({ accountId: this.accountId! })
     printGreen(
-      `Repaid to RedBank: ${amount} ${
-        this.config.chain.baseDenom
-      }. Debt remaining: ${JSON.stringify(positions.debts)}`,
+      `Repaid to RedBank: ${amount} ${denom}. Debt remaining: ${JSON.stringify(positions.debts)}`,
     )
   }
 
-  async reclaim() {
+  async repayFullBalance(denom: string) {
+    const response = await this.updateCreditAccount([
+      { repay: { coin: { amount: 'account_balance', denom } } },
+    ])
+    printYellow(`Repay, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
+  }
+
+  async repay(denom: string, amount: string) {
+    const response = await this.updateCreditAccount([
+      { repay: { coin: { amount: { exact: amount }, denom } } },
+    ])
+    printYellow(`Repay, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
+  }
+
+  async reclaimWithTestParams() {
     const positions = await this.query.positions({ accountId: this.accountId! })
 
-    const amount = this.actions.reclaimAmount
-    await this.updateCreditAccount([
-      { reclaim: { amount: { exact: amount }, denom: this.config.chain.baseDenom } },
-    ])
+    const denom = this.config.chain.baseDenom
+    const amount = this.actions!.reclaimAmount
+    await this.reclaim(denom, amount)
+
     printGreen(
-      `User reclaimed: ${amount} ${
-        this.config.chain.baseDenom
-      }. Lent amount remaining: ${JSON.stringify(positions.lends)}`,
+      `User reclaimed: ${amount} ${denom}. Lent amount remaining: ${JSON.stringify(
+        positions.lends,
+      )}`,
     )
   }
 
-  async swap() {
-    const amount = this.actions.swap.amount
+  async reclaim(denom: string, amount: string) {
+    const response = await this.updateCreditAccount([
+      { reclaim: { amount: { exact: amount }, denom } },
+    ])
+    printYellow(`Reclaim, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
+  }
+
+  async swapWithTestParams() {
+    const amount = this.actions!.swap.amount
     printBlue(
-      `Swapping ${amount} ${this.config.chain.baseDenom} for ${this.actions.secondaryDenom}`,
+      `Swapping ${amount} ${this.config.chain.baseDenom} for ${this.actions!.secondaryDenom}`,
     )
     const prevPositions = await this.query.positions({ accountId: this.accountId! })
     printBlue(`Previous account balance: ${JSON.stringify(prevPositions.deposits)}`)
-    await this.updateCreditAccount([
+    const response = await this.updateCreditAccount([
       {
         swap_exact_in: {
           coin_in: { amount: { exact: amount }, denom: this.config.chain.baseDenom },
-          denom_out: this.actions.secondaryDenom,
-          slippage: this.actions.swap.slippage,
+          denom_out: this.actions!.secondaryDenom,
+          slippage: this.actions!.swap.slippage,
         },
       },
     ])
+    printYellow(`Swap, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
     printGreen(`Swap successful`)
     const newPositions = await this.query.positions({ accountId: this.accountId! })
     printGreen(`New account balance: ${JSON.stringify(newPositions.deposits)}`)
   }
 
-  async zap(lp_token_out: string) {
-    await this.updateCreditAccount([
+  async zapWithTestParams(lp_token_out: string) {
+    const response = await this.updateCreditAccount([
       {
         provide_liquidity: {
-          coins_in: this.actions.zap.coinsIn.map((c) => ({
+          coins_in: this.actions!.zap.coinsIn.map((c) => ({
             denom: c.denom,
             amount: { exact: c.amount },
           })),
@@ -168,21 +224,22 @@ export class Rover {
         },
       },
     ])
+    printYellow(`Zap, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
     const positions = await this.query.positions({ accountId: this.accountId! })
     const lp_balance = positions.deposits.find((c) => c.denom === lp_token_out)!.amount
     printGreen(
-      `Zapped ${this.actions.zap.coinsIn
-        .map((c) => c.denom)
-        .join(', ')} for LP token: ${lp_balance} ${lp_token_out}`,
+      `Zapped ${this.actions!.zap.coinsIn.map((c) => c.denom).join(
+        ', ',
+      )} for LP token: ${lp_balance} ${lp_token_out}`,
     )
   }
 
-  async unzap(lp_token_in: string) {
+  async unzapWithTestParams(lp_token_in: string) {
     const lpToken = {
       denom: lp_token_in,
-      amount: this.actions.unzapAmount,
+      amount: this.actions!.unzapAmount,
     }
-    await this.updateCreditAccount([
+    const response = await this.updateCreditAccount([
       {
         withdraw_liquidity: {
           lp_token: { amount: { exact: lpToken.amount }, denom: lpToken.denom },
@@ -190,34 +247,36 @@ export class Rover {
         },
       },
     ])
+    printYellow(`Unzap, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
     const underlying = await this.query.estimateWithdrawLiquidity({ lpToken })
     printGreen(
-      `Unzapped ${lp_token_in} ${this.actions.unzapAmount} for underlying: ${underlying
+      `Unzapped ${lp_token_in} ${this.actions!.unzapAmount} for underlying: ${underlying
         .map((c) => `${c.amount} ${c.denom}`)
         .join(', ')}`,
     )
   }
 
-  async vaultDeposit(v: VaultConfigBaseForString, info: VaultInfo) {
+  async vaultDepositWithTestParams(v: VaultConfigBaseForString, info: VaultInfo) {
     const oldRoverBalance = await this.cwClient.getBalance(
       this.storage.addresses.creditManager!,
       info.tokens.vault_token,
     )
     printBlue('testing vault deposit')
     printGreen(v.addr)
-    printGreen(this.actions.vault.depositAmount)
+    printGreen(this.actions!.vault.depositAmount)
     printGreen(info.tokens.base_token)
-    await this.updateCreditAccount([
+    const response = await this.updateCreditAccount([
       {
         enter_vault: {
           coin: {
-            amount: { exact: this.actions.vault.depositAmount },
+            amount: { exact: this.actions!.vault.depositAmount },
             denom: info.tokens.base_token,
           },
           vault: { address: v.addr },
         },
       },
     ])
+    printYellow(`Vault deposit, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
     const positions = await this.query.positions({ accountId: this.accountId! })
     assert.equal(positions.vaults.length, 1)
     const state = await this.getVaultBalance(v.addr)
@@ -230,7 +289,7 @@ export class Rover {
     assert(newAmount === state.locked || newAmount === state.unlocked)
 
     printGreen(
-      `Deposited ${this.actions.vault.depositAmount} ${
+      `Deposited ${this.actions!.vault.depositAmount} ${
         info.tokens.base_token
       } in exchange for ${JSON.stringify(positions.vaults[0].amount)} vault tokens (${
         info.tokens.vault_token
@@ -238,35 +297,39 @@ export class Rover {
     )
   }
 
-  async vaultWithdraw(v: VaultConfigBaseForString, info: VaultInfo) {
+  async vaultWithdrawWithTestParams(v: VaultConfigBaseForString, info: VaultInfo) {
     const oldBalance = await this.getAccountBalance(info.tokens.base_token)
-    await this.updateCreditAccount([
+    const response = await this.updateCreditAccount([
       {
         exit_vault: {
-          amount: this.actions.vault.withdrawAmount,
+          amount: this.actions!.vault.withdrawAmount,
           vault: { address: v.addr },
         },
       },
     ])
+    printYellow(`Vault withdraw, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
     const newBalance = await this.getAccountBalance(info.tokens.base_token)
     assert(newBalance > oldBalance)
     printGreen(
       `Withdrew ${newBalance - oldBalance} ${info.tokens.base_token} in exchange for ${
-        this.actions.vault.withdrawAmount
+        this.actions!.vault.withdrawAmount
       } ${info.tokens.vault_token} vault tokens`,
     )
   }
 
-  async vaultRequestUnlock(v: VaultConfigBaseForString, info: VaultInfo) {
+  async vaultRequestUnlockWithTestParams(v: VaultConfigBaseForString, info: VaultInfo) {
     const oldBalance = await this.getVaultBalance(v.addr)
-    await this.updateCreditAccount([
+    const response = await this.updateCreditAccount([
       {
         request_vault_unlock: {
-          amount: this.actions.vault.withdrawAmount,
+          amount: this.actions!.vault.withdrawAmount,
           vault: { address: v.addr },
         },
       },
     ])
+    printYellow(
+      `Vault request unlock, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`,
+    )
     const newBalance = await this.getVaultBalance(v.addr)
     assert(newBalance.locked < oldBalance.locked)
     assert.equal(newBalance.unlocking.length, 1)
@@ -293,6 +356,99 @@ export class Rover {
       tokens: await client.info(),
       lockup: await this.getLockup(v),
     }
+  }
+
+  async depositToPerpVault(denom: string, amount: string) {
+    const response = await this.updateCreditAccount(
+      [
+        {
+          deposit_to_perp_vault: {
+            denom,
+            amount: { exact: amount },
+          },
+        },
+      ],
+      [],
+    )
+    printYellow(
+      `Perp vault deposit, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`,
+    )
+  }
+
+  async unlockFromPerpVault() {
+    const positions_before = await this.query.positions({ accountId: this.accountId! })
+    const shares = positions_before.perp_vault?.deposit.shares
+    const response = await this.updateCreditAccount(
+      [
+        {
+          unlock_from_perp_vault: {
+            shares: shares?.toString() || '0',
+          },
+        },
+      ],
+      [],
+    )
+    printYellow(`Perp vault unlock, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
+  }
+
+  async withdrawFromPerpVault() {
+    const response = await this.updateCreditAccount(
+      [
+        {
+          withdraw_from_perp_vault: {},
+        },
+      ],
+      [],
+    )
+    printYellow(
+      `Perp vault withdraw, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`,
+    )
+  }
+
+  async openPerp(denom: string, size: number) {
+    const msg = {
+      open_perp: {
+        denom,
+        size: size.toString() as any,
+      },
+    }
+    const response = await this.updateCreditAccount([msg], [])
+    printYellow(`Open perp, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
+  }
+
+  async closePerp(denom: string) {
+    const response = await this.updateCreditAccount(
+      [
+        {
+          close_perp: {
+            denom,
+          },
+        },
+      ],
+      [],
+    )
+    printYellow(`Close perp, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
+  }
+
+  async liquidateDeposit(liqAccId: string, depositDenom: string, debtCoin: Coin) {
+    const response = await this.updateCreditAccount(
+      [
+        {
+          liquidate: {
+            debt_coin: debtCoin,
+            liquidatee_account_id: liqAccId,
+            request: {
+              deposit: depositDenom,
+            },
+          },
+        },
+        { refund_all_coin_balances: {} },
+      ],
+      [],
+    )
+    printYellow(`Liquidate deposit, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
+    const positions = await this.query.positions({ accountId: liqAccId })
+    printGreen(`Liquidatee perps positions should be empty: ${JSON.stringify(positions.perps)}`)
   }
 
   private async getLockup(v: VaultConfigBaseForString): Promise<VaultInfo['lockup']> {

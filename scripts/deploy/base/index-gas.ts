@@ -1,5 +1,5 @@
 import { setupDeployer } from './setup-deployer'
-import { printGreen, printRed, printYellow } from '../../utils/chalk'
+import { printRed, printYellow } from '../../utils/chalk'
 import { DeploymentConfig } from '../../types/config'
 import { wasmFile } from '../../utils/environment'
 
@@ -45,7 +45,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     await deployer.instantiateHealthContract()
     await deployer.instantiateCreditManager()
     await deployer.instantiateNftContract()
-    await deployer.instantiatePerps()
+    await deployer.instantiatePerps(0)
     await deployer.setConfigOnHealthContract()
     await deployer.transferNftContractOwnership()
     await deployer.setConfigOnCreditManagerContract()
@@ -63,7 +63,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     }
     if (config.perps) {
       for (const perp of config.perps?.denoms) {
-        await deployer.initializePerpDenom(perp)
+        await deployer.initializePerpDenom(perp, 0)
       }
     }
     for (const oracleConfig of config.oracleConfigs) {
@@ -73,52 +73,56 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
 
     await deployer.grantCreditLines()
 
-    // Test basic user flows
-    if (config.runTests && config.testActions) {
-      await deployer.executeDeposit()
-      await deployer.executeBorrow()
-      await deployer.executeRepay()
-      await deployer.executeWithdraw()
-      // await deployer.executeRewardsSwap()
+    // User flows with gas usage
+    const ntrnDenom = 'untrn'
+    const nobleUsdcDenom = 'ibc/4C19E7EC06C1AB2EC2D70C6855FEB6D48E9CE174913991DA0A517D21978E7E42'
+    const atomDenom = 'ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9'
+    const tiaDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/utia'
+    const solDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/usol'
 
-      const rover = await deployer.newUserRoverClient(config.testActions)
-      await rover.createCreditAccount()
-      await rover.depositWithTestParams()
-      await rover.lendWithTestParams()
-      await rover.borrowWithTestParams()
-      await rover.swapWithTestParams()
-      await rover.repayWithTestParams()
-      await rover.reclaimWithTestParams()
-      await rover.withdrawWithTestParams()
+    const depositor = await deployer.deployerAsRoverClient()
+    await depositor.createCreditAccount()
+    const ntrnDepositAmt = '5000000'
+    await depositor.deposit(ntrnDenom, ntrnDepositAmt)
+    await depositor.lend(ntrnDenom, ntrnDepositAmt)
+    const usdcDepositAmt = '10000000'
+    await depositor.deposit(nobleUsdcDenom, usdcDepositAmt)
+    await depositor.depositToPerpVault(nobleUsdcDenom, usdcDepositAmt)
 
-      const vaultConfig = config.vaults[0].vault
-      const info = await rover.getVaultInfo(vaultConfig)
-      await rover.zapWithTestParams(info.tokens.base_token)
-      await rover.vaultDepositWithTestParams(vaultConfig, info)
-      if (info.lockup) {
-        await rover.vaultRequestUnlockWithTestParams(vaultConfig, info)
-      } else {
-        await rover.vaultWithdrawWithTestParams(vaultConfig, info)
-        await rover.unzapWithTestParams(info.tokens.base_token)
-      }
-      await rover.refundAllBalances()
-    }
+    const liquidator = await deployer.deployerAsRoverClient()
+    await liquidator.createCreditAccount()
+    await liquidator.deposit(ntrnDenom, '5000000')
 
-    // If multisig is set, transfer ownership from deployer to multisig
-    if (config.multisigAddr) {
-      await deployer.updateIncentivesContractOwner()
-      await deployer.updateRedBankContractOwner()
-      await deployer.updateOracleContractOwner()
-      await deployer.updateRewardsContractOwner()
-      await deployer.updateSwapperContractOwner()
-      await deployer.updateParamsContractOwner()
-      await deployer.updateAddressProviderContractOwner()
-      await deployer.updateCreditManagerOwner()
-      await deployer.updateHealthOwner()
-      printGreen('It is confirmed that all contracts have transferred ownership to the Multisig')
-    } else {
-      printGreen('Owner remains the deployer address.')
-    }
+    const trader = await deployer.deployerAsRoverClient()
+    await trader.createCreditAccount()
+    await trader.deposit(nobleUsdcDenom, '22000000')
+    await trader.borrow(ntrnDenom, '2000000')
+    await trader.openPerp(atomDenom, 10000)
+    await trader.openPerp(tiaDenom, 10000)
+    await trader.openPerp(solDenom, 10000)
+
+    // prepare for liquidation
+    await deployer.setOracle({ denom: ntrnDenom, price_source: { fixed: { price: '15' } } }, true)
+    await liquidator.liquidateDeposit(trader.accountId!, nobleUsdcDenom, {
+      denom: ntrnDenom,
+      amount: '1000000',
+    })
+
+    // reset price after liquidation
+    await deployer.setOracle({ denom: ntrnDenom, price_source: { fixed: { price: '1' } } }, true)
+
+    // close trader's positions
+    await trader.repayFullBalance(ntrnDenom)
+    await trader.refundAllBalances()
+
+    // close liquidator's positions
+    await liquidator.refundAllBalances()
+
+    // close depositor's positions
+    await depositor.reclaim(ntrnDenom, ntrnDepositAmt)
+    await depositor.unlockFromPerpVault()
+    await depositor.withdrawFromPerpVault()
+    await depositor.refundAllBalances()
 
     printYellow('COMPLETE')
   } catch (e) {

@@ -284,6 +284,10 @@ export class Deployer {
     return this.getRoverClient(address, client, testActions)
   }
 
+  async deployerAsRoverClient(testActions?: TestActions) {
+    return this.getRoverClient(this.deployerAddr, this.cwClient, testActions)
+  }
+
   async saveDeploymentAddrsToFile(label: string) {
     const addressesDir = resolve(join(__dirname, '../../../deploy/addresses'))
     await writeFile(
@@ -380,7 +384,11 @@ export class Deployer {
     return { client, address }
   }
 
-  private getRoverClient(address: string, client: SigningCosmWasmClient, testActions: TestActions) {
+  private getRoverClient(
+    address: string,
+    client: SigningCosmWasmClient,
+    testActions?: TestActions,
+  ) {
     return new Rover(address, this.storage, this.config, client, testActions)
   }
 
@@ -491,11 +499,14 @@ export class Deployer {
     this.storage.actions.assetsSet.push(assetConfig.denom)
   }
 
-  async instantiatePerps() {
+  async instantiatePerps(cooldownPeriod?: number) {
     if (this.config.perps) {
+      const cooldownPeriodUpdated =
+        cooldownPeriod !== undefined ? cooldownPeriod : this.config.perps.cooldownPeriod
+
       const msg: PerpsInstantiateMsg = {
         base_denom: this.config.perps.baseDenom,
-        cooldown_period: this.config.perps.cooldownPeriod,
+        cooldown_period: cooldownPeriodUpdated,
         credit_manager: this.storage.addresses.creditManager!,
         oracle: this.storage.addresses.oracle!,
         params: this.storage.addresses.params!,
@@ -506,7 +517,7 @@ export class Deployer {
     }
   }
 
-  async initializePerpDenom(perpDenom: PerpDenom) {
+  async initializePerpDenom(perpDenom: PerpDenom, minPositionVal?: number) {
     if (this.storage.actions.perpsSet.includes(perpDenom.denom)) {
       printBlue(`${perpDenom.denom} already initialized in perps and params contracts`)
       return
@@ -528,6 +539,8 @@ export class Deployer {
     )
     printYellow(`${perpDenom.denom} initialized in perp contract`)
 
+    const minPositionValue = minPositionVal?.toString() || perpDenom.minPositionValue
+
     const paramsMsg: ParamsExecuteMsg = {
       update_perp_params: {
         add_or_update: {
@@ -541,7 +554,7 @@ export class Deployer {
             liquidation_threshold: perpDenom.liquidationThreshold,
             max_loan_to_value: perpDenom.maxLoanToValue,
             max_position_value: perpDenom.maxPositionValue,
-            min_position_value: perpDenom.minPositionValue,
+            min_position_value: minPositionValue,
           },
         },
       },
@@ -715,8 +728,8 @@ export class Deployer {
     printYellow(`Twap snapshots recorded for denoms: ${denoms.join(',')}.`)
   }
 
-  async setOracle(oracleConfig: OracleConfig) {
-    if (this.storage.actions.oraclePricesSet.includes(oracleConfig.denom)) {
+  async setOracle(oracleConfig: OracleConfig, forceUpdate: boolean = false) {
+    if (!forceUpdate && this.storage.actions.oraclePricesSet.includes(oracleConfig.denom)) {
       printBlue(`${oracleConfig.denom} already set in Oracle contract`)
       return
     }
