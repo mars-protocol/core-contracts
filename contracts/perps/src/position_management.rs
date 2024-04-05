@@ -118,7 +118,7 @@ pub fn open_position(
     )?;
 
     Ok(Response::new()
-        .add_attribute("method", "open_position")
+        .add_attribute("action", "open_position")
         .add_attribute("account_id", account_id)
         .add_attribute("denom", denom)
         .add_attribute("size", size.to_string())
@@ -331,10 +331,10 @@ fn update_position_state(
 
     Ok(Response::new()
         .add_messages(msgs)
-        .add_attribute("method", method)
+        .add_attribute("action", method)
         .add_attribute("account_id", account_id)
         .add_attribute("denom", denom)
-        .add_attribute("starting_size", entry_size.to_string())
+        .add_attribute("entry_size", entry_size.to_string())
         .add_attribute("new_size", new_size.to_string())
         .add_attribute("entry_price", entry_price.to_string())
         .add_attribute("current_price", denom_price.to_string())
@@ -517,7 +517,7 @@ pub fn close_all_positions(
 
     Ok(Response::new()
         .add_messages(msgs)
-        .add_attribute("method", "close_all_positions")
+        .add_attribute("action", "close_all_positions")
         .add_attribute("account_id", account_id)
         .add_attribute("realised_pnl", pnl.to_string()))
 }

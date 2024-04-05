@@ -15,5 +15,5 @@ pub fn initialize(store: &mut dyn Storage, cfg: Config<Addr>) -> ContractResult<
     // initialize global cash flow to zero
     TOTAL_CASH_FLOW.save(store, &CashFlow::default())?;
 
-    Ok(Response::new().add_attribute("method", "initialize"))
+    Ok(Response::new().add_attribute("action", "initialize"))
 }

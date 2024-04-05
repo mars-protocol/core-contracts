@@ -47,7 +47,7 @@ pub fn init_denom(
     DENOM_STATES.save(store, denom, &denom_state)?;
 
     Ok(Response::new()
-        .add_attribute("method", "init_denom")
+        .add_attribute("action", "init_denom")
         .add_attribute("denom", denom)
         .add_attribute("max_funding_velocity", max_funding_velocity.to_string())
         .add_attribute("skew_scale", skew_scale.to_string()))
@@ -87,7 +87,7 @@ pub fn enable_denom(
         Ok(ds)
     })?;
 
-    Ok(Response::new().add_attribute("method", "enable_denom").add_attribute("denom", denom))
+    Ok(Response::new().add_attribute("action", "enable_denom").add_attribute("denom", denom))
 }
 
 pub fn disable_denom(
@@ -123,5 +123,5 @@ pub fn disable_denom(
         Ok(ds)
     })?;
 
-    Ok(Response::new().add_attribute("method", "disable_denom").add_attribute("denom", denom))
+    Ok(Response::new().add_attribute("action", "disable_denom").add_attribute("denom", denom))
 }

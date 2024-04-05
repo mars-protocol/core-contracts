@@ -60,7 +60,8 @@ pub fn deposit(
     increase_deposit_shares(deps.storage, &user_id_key, shares)?;
 
     Ok(Response::new()
-        .add_attribute("method", "deposit")
+        .add_attribute("action", "deposit")
+        .add_attribute("denom", cfg.base_denom)
         .add_attribute("amount", amount)
         .add_attribute("shares", shares))
 }
@@ -106,7 +107,8 @@ pub fn unlock(
     })?;
 
     Ok(Response::new()
-        .add_attribute("method", "unlock")
+        .add_attribute("action", "unlock")
+        .add_attribute("denom", cfg.base_denom)
         .add_attribute("shares", shares)
         .add_attribute("created_at", current_time.to_string())
         .add_attribute("cooldown_end", cooldown_end.to_string()))
@@ -169,7 +171,8 @@ pub fn withdraw(
     VAULT_STATE.save(deps.storage, &vs)?;
 
     Ok(Response::new()
-        .add_attribute("method", "withdraw")
+        .add_attribute("action", "withdraw")
+        .add_attribute("denom", &cfg.base_denom)
         .add_attribute("shares", total_unlocked_shares)
         .add_attribute("amount", total_unlocked_amount)
         .add_message(BankMsg::Send {
