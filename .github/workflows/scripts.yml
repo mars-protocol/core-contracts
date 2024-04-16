@@ -60,5 +60,5 @@ jobs:
         run: yarn build
 
       - name: Check react health example builds
-        working-directory: ./scripts/health/example-react
+        working-directory: ./scripts/health/
         run: yarn install && yarn build
