@@ -1,18 +1,9 @@
 import { useEffect, useState } from 'react';
 
 export default function useChainConfig() {
-    const [chain, setChain] = useState<string>('pion-1')
     const [addresses, setAddresses] = useState<{ [key: string]: string }>()
 
-    useEffect(() => {
-        if(!window) return
-        setChain(window.localStorage.getItem('chain') ?? 'pion-1')
-
-        window.addEventListener('chainChange', () => {
-            setChain(window.localStorage.getItem('chain') ?? 'pion-1')
-        })
-        
-    }, [])
+    const chain = import.meta.env.VITE_CHAIN_ID
 
     useEffect(() => {
         switch (chain) {

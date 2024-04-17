@@ -14,5 +14,10 @@ export default function usePositions(accountId: string) {
       
       return {...result, perps: []}
   },
-  )
+  {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    revalidateIfStale: false,
+    keepPreviousData: false,
+  })
 }

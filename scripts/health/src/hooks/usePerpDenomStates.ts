@@ -14,7 +14,7 @@ export default function useAllPerpsDenomStates() {
     if (!perpsParams) return
     const promises = [] as Promise<PerpDenomState>[]
     Object.keys(perpsParams)!.forEach((perp) => {
-      if(!clients?.perps) return
+      if(!chainConfig?.addresses?.perps) return
       promises.push(clients!.perps.perpDenomState({ denom: perp }))
     }
     )
@@ -25,5 +25,12 @@ export default function useAllPerpsDenomStates() {
     result.forEach((perpState) => (perpDenomStates[perpState.denom] = perpState))
 
     return perpDenomStates
-  })
+  },
+  {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    revalidateIfStale: false,
+    keepPreviousData: false,
+  },
+)
 }

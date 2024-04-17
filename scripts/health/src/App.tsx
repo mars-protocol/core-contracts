@@ -1,5 +1,4 @@
 import { ReactNode, useCallback, useEffect, useState } from 'react'
-import { mutate } from 'swr'
 import init, { HealthComputer } from '../pkg-web/'
 import './App.css'
 import LiquidationPrice from './components/LiquidationPrice.tsx'
@@ -7,8 +6,6 @@ import MaxBorrowAmount from './components/MaxBorrowAmount.tsx'
 import MaxPerpAmount from './components/MaxPerpAmount.tsx'
 import MaxSwapAmount from './components/MaxSwapAmount.tsx'
 import MaxWithdrawAmount from './components/MaxWithdrawAmount.tsx'
-import Select from './components/Select/index.tsx'
-import useChainConfig from './hooks/useChainConfig.ts'
 import useHealthComputer from './hooks/useHealthComputer.ts'
 
 function App() {
@@ -16,7 +13,6 @@ function App() {
   const [type, setType] = useState<FunctionType>('perp')
   const [accountId, setAccountId] = useState('')
   const { data: healthComputer } = useHealthComputer(accountId)
-  const chainConfig = useChainConfig()
 
   useEffect(() => {
     const loadHealthComputerWasm = async () => {
@@ -35,26 +31,8 @@ function App() {
     return func?.component(healthComputer)
   }, [healthComputer, type])
 
-  const setChain = useCallback((chain: string) => {
-    if (!window) return
-    window.localStorage.setItem('chain', chain)
-    window.dispatchEvent(new Event('chainChange'))
-    mutate(
-      key => typeof key === 'string' && key.startsWith('chains')
-    )
-  }, [])
-
   return (
     <div className={'h-full w-full flex flex-col gap-4'}>
-      <div className='flex items-center w-full'>
-        <Select
-        label='Chain'
-        options={CHAINS}
-        value={chainConfig.chain}
-        onSelected={setChain}
-        hideNoneValueOption
-      />
-      </div>
       <div className='flex gap-4'>
         {FUNCTIONS.map(({ name, functionType }) => (
           <button
