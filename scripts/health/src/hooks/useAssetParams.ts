@@ -12,7 +12,10 @@ export default function useAssetParams() {
     const result = await clients.params.allAssetParams({limit: 100})
 
     const assetParams: { [key: string]: AssetParamsBaseForAddr } = {}
-    result.forEach((asset) => (assetParams[asset.denom] = asset))
+    result.forEach((asset) => {
+      assetParams[asset.denom] = asset
+      if(!asset.close_factor) assetParams[asset.denom].close_factor = '0'
+  })
     return assetParams
   },
   {

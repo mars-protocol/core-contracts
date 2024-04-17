@@ -52,6 +52,7 @@ function App() {
         options={CHAINS}
         value={chainConfig.chain}
         onSelected={setChain}
+        hideNoneValueOption
       />
       </div>
       <div className='flex gap-4'>
