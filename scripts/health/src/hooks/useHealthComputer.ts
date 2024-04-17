@@ -1,10 +1,11 @@
-import usePositions from './usePositions.ts'
-import usePrices from './usePrices.ts'
-import useAllPerpsDenomStates from './usePerpDenomStates.ts'
 import { useMemo } from 'react'
 import { HealthComputer } from '../../pkg-web'
 import useAssetParams from './useAssetParams.ts'
+import useChainConfig from './useChainConfig.ts'
+import useAllPerpsDenomStates from './usePerpDenomStates.ts'
 import usePerpsParams from './usePerpsParams.ts'
+import usePositions from './usePositions.ts'
+import usePrices from './usePrices.ts'
 
 export default function useHealthComputer(accountId: string) {
   const { data: positions } = usePositions(accountId)
@@ -12,6 +13,7 @@ export default function useHealthComputer(accountId: string) {
   const { data: perpsDenomStates } = useAllPerpsDenomStates()
   const { data: assetParams } = useAssetParams()
   const { data: perpsParams } = usePerpsParams()
+  const chainConfig = useChainConfig()
 
   return useMemo(() => {
     return {
@@ -24,11 +26,11 @@ export default function useHealthComputer(accountId: string) {
           vault_configs: {},
           vault_values: {},
         },
-        perps_data: {
+        perps_data: chainConfig.addresses?.perps ? {
           denom_states: perpsDenomStates,
           params: perpsParams,
-        },
+        } : {},
       } as HealthComputer,
     }
-  }, [positions, prices, assetParams, perpsDenomStates, perpsParams])
+  }, [positions, prices, assetParams, perpsDenomStates, perpsParams, chainConfig.addresses?.perps])
 }

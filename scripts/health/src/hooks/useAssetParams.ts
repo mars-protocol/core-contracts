@@ -1,17 +1,24 @@
 import useSWR from 'swr'
-import useClients from './useClients.ts'
 import { AssetParamsBaseForAddr } from '../../../types/generated/mars-params/MarsParams.types.ts'
+import useChainConfig from './useChainConfig.ts'
+import useClients from './useClients.ts'
 
 export default function useAssetParams() {
   const clients = useClients()
+  const chainConfig = useChainConfig()
 
-  return useSWR(clients && `chains/pion-1/assets/params`, async () => {
+  return useSWR(clients && `chains/${chainConfig.chain}/assets/params`, async () => {
     if (!clients) return
-    const result = await clients.params.allAssetParams({})
+    const result = await clients.params.allAssetParams({limit: 100})
 
     const assetParams: { [key: string]: AssetParamsBaseForAddr } = {}
-    result.forEach((perpState) => (assetParams[perpState.denom] = perpState))
-
+    result.forEach((asset) => (assetParams[asset.denom] = asset))
     return assetParams
+  },
+  {
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
+    revalidateIfStale: false,
+    keepPreviousData: false,
   })
 }
