@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
-import { HealthComputer, liquidation_price_js, LiquidationPriceKind } from '../../pkg-web'
-import Select from './Select/index.tsx'
+import { HealthComputer, LiquidationPriceKind, liquidation_price_js } from '../../pkg-web'
 import { SelectAsset } from './Select/SelectAsset.tsx'
+import Select from './Select/index.tsx'
 
 type Props = {
   healthComputer: HealthComputer
@@ -17,8 +17,6 @@ export default function MaxBorrowAmount(props: Props) {
     try {
       setError(null)
       const amount = liquidation_price_js(props.healthComputer, denom, kind)
-
-      console.log(props.healthComputer)
       setAmount(amount)
     } catch (e) {
       setError((e as string).toString())
