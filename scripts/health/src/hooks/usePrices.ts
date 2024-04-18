@@ -18,8 +18,11 @@ async function fetchPythPrices(assets: Asset[]) {
 
   const prices: { [key: string]: string } = {}
 
+  const VALUE_SCALE_FACTOR = 12
+
   pythResponse.forEach((price, index) => {
     prices[assets[index].denom] = BigNumber(price.price.price)
+      .shiftedBy(VALUE_SCALE_FACTOR)
       .shiftedBy(price.price.expo - assets[index].decimals + 6)
       .decimalPlaces(18)
       .toString()
