@@ -10,14 +10,15 @@ export default function usePositions(accountId: string) {
     accountId && `accounts/${accountId}/positions`,
     async () => {
       const result = await clients?.creditManager.positions({ accountId })
-      if(chainConfig.addresses?.perps) return result
-      
-      return {...result, perps: []}
-  },
-  {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    revalidateIfStale: false,
-    keepPreviousData: false,
-  })
+      if (chainConfig.addresses?.perps) return result
+
+      return { ...result, perps: [] }
+    },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      revalidateIfStale: false,
+      keepPreviousData: false,
+    },
+  )
 }

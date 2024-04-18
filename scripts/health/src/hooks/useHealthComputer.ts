@@ -14,8 +14,8 @@ export default function useHealthComputer(accountId: string) {
   const { data: assetParams } = useAssetParams()
   const { data: perpsParams } = usePerpsParams()
   const chainConfig = useChainConfig()
-  const hasPerps = chainConfig.addresses?.perps 
-  
+  const hasPerps = chainConfig.addresses?.perps
+
   return useMemo(() => {
     return {
       data: {
@@ -27,9 +27,9 @@ export default function useHealthComputer(accountId: string) {
           vault_configs: {},
           vault_values: {},
         },
-        perps_data:  {
-          denom_states: hasPerps? perpsDenomStates : {},
-          params: hasPerps?  perpsParams : {},
+        perps_data: {
+          denom_states: hasPerps ? perpsDenomStates : {},
+          params: hasPerps ? perpsParams : {},
         },
       } as HealthComputer,
     }

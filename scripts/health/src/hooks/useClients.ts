@@ -21,7 +21,10 @@ export default function useClients() {
       )) as never
       if (!chainConfig.addresses) return
       return {
-        creditManager: new MarsCreditManagerQueryClient(client, chainConfig.addresses.creditManager),
+        creditManager: new MarsCreditManagerQueryClient(
+          client,
+          chainConfig.addresses.creditManager,
+        ),
         accountNft: new MarsAccountNftQueryClient(client, chainConfig.addresses.accountNft),
         oracle: new MarsOracleOsmosisQueryClient(client, chainConfig.addresses.oracle),
         params: new MarsParamsQueryClient(client, chainConfig.addresses.params),

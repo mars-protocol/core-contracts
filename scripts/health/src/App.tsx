@@ -28,8 +28,8 @@ function App() {
 
   const InteractionInterface = useCallback(() => {
     const func = FUNCTIONS.find(({ functionType }) => functionType === type)
-    return func?.component(healthComputer)
-  }, [healthComputer, type])
+    return func?.component(JSON.parse(healthComputerJson))
+  }, [healthComputerJson, type])
 
   return (
     <div className={'h-full w-full flex flex-col gap-4'}>
@@ -121,6 +121,4 @@ const FUNCTIONS: {
   },
 ]
 
-
-const CHAINS: string[] = ['pion-1', 'osmosis-1'
-]
+const CHAINS: string[] = ['pion-1', 'osmosis-1']

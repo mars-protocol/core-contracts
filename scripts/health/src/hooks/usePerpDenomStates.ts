@@ -10,27 +10,28 @@ export default function useAllPerpsDenomStates() {
   const { data: perpsParams } = usePerpsParams()
   const chainConfig = useChainConfig()
 
-  return useSWR(clients && perpsParams && `chains/${chainConfig.chain}/perps/state`, async () => {
-    if (!perpsParams) return
-    const promises = [] as Promise<PerpDenomState>[]
-    Object.keys(perpsParams)!.forEach((perp) => {
-      if(!chainConfig?.addresses?.perps) return
-      promises.push(clients!.perps.perpDenomState({ denom: perp }))
-    }
-    )
+  return useSWR(
+    clients && perpsParams && `chains/${chainConfig.chain}/perps/state`,
+    async () => {
+      if (!perpsParams) return
+      const promises = [] as Promise<PerpDenomState>[]
+      Object.keys(perpsParams)!.forEach((perp) => {
+        if (!chainConfig?.addresses?.perps) return
+        promises.push(clients!.perps.perpDenomState({ denom: perp }))
+      })
 
-    const result = await Promise.all(promises)
-    const perpDenomStates: { [key: string]: PerpDenomState } = {}
+      const result = await Promise.all(promises)
+      const perpDenomStates: { [key: string]: PerpDenomState } = {}
 
-    result.forEach((perpState) => (perpDenomStates[perpState.denom] = perpState))
+      result.forEach((perpState) => (perpDenomStates[perpState.denom] = perpState))
 
-    return perpDenomStates
-  },
-  {
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    revalidateIfStale: false,
-    keepPreviousData: false,
-  },
-)
+      return perpDenomStates
+    },
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      revalidateIfStale: false,
+      keepPreviousData: false,
+    },
+  )
 }
