@@ -120,5 +120,3 @@ const FUNCTIONS: {
     ),
   },
 ]
-
-const CHAINS: string[] = ['pion-1', 'osmosis-1']
