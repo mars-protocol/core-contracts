@@ -9,7 +9,7 @@ import MaxWithdrawAmount from './components/MaxWithdrawAmount.tsx'
 import useHealthComputer from './hooks/useHealthComputer.ts'
 
 function App() {
-  const [healthComputerJson, setHealthComputerJson] = useState('')
+  const [healthComputerJson, setHealthComputerJson] = useState('{}')
   const [type, setType] = useState<FunctionType>('perp')
   const [accountId, setAccountId] = useState('')
   const { data: healthComputer } = useHealthComputer(accountId)
@@ -32,10 +32,11 @@ function App() {
   }, [healthComputerJson, type])
 
   return (
-    <div className={'h-full w-full flex flex-col gap-4'}>
+    <div className='flex flex-col w-full h-full gap-4'>
       <div className='flex gap-4'>
         {FUNCTIONS.map(({ name, functionType }) => (
           <button
+            key={name}
             onClick={() => setType(functionType)}
             className={functionType === type ? 'bg-gray-500' : ''}
           >
