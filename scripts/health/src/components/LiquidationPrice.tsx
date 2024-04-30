@@ -1,5 +1,5 @@
-import { HealthComputer, liquidation_price_js, LiquidationPriceKind } from '../../pkg-web'
 import { useCallback, useState } from 'react'
+import { HealthComputer, LiquidationPriceKind, liquidation_price_js } from '../../pkg-web'
 import { SelectAsset } from './Select/SelectAsset.tsx'
 import Select from './Select/index.tsx'
 
@@ -24,7 +24,7 @@ export default function MaxBorrowAmount(props: Props) {
   }, [denom, kind, props.healthComputer])
 
   return (
-    <div className='gap-4 flex flex-col items-start bg-black p-8 rounded-md'>
+    <div className='flex flex-col items-start gap-4 p-8 bg-black rounded-md'>
       <SelectAsset value={denom ?? ''} onSelected={setDenom} />
       <Select label='Kind' options={['asset', 'debt']} value={kind} onSelected={setKind} />
 

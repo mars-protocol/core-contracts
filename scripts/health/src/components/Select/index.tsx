@@ -3,6 +3,7 @@ type Props = {
   options: string[]
   value: string
   onSelected: (value: never) => void
+  hideNoneValueOption?: boolean
 }
 
 export default function Select(props: Props) {
@@ -15,7 +16,7 @@ export default function Select(props: Props) {
         defaultValue={''}
         onChange={(e) => props.onSelected(e.target.value as never)}
       >
-        <option>-</option>
+        {!props.hideNoneValueOption && <option>-</option>}
         {props.options.map((option) => (
           <option key={option} value={option}>
             {option}

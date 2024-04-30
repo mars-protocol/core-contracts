@@ -1,15 +1,15 @@
 import { ReactNode, useCallback, useEffect, useState } from 'react'
-import './App.css'
-import useHealthComputer from './hooks/useHealthComputer.ts'
 import init, { HealthComputer } from '../pkg-web/'
-import MaxPerpAmount from './components/MaxPerpAmount.tsx'
-import MaxBorrowAmount from './components/MaxBorrowAmount.tsx'
-import MaxSwapAmount from './components/MaxSwapAmount.tsx'
+import './App.css'
 import LiquidationPrice from './components/LiquidationPrice.tsx'
+import MaxBorrowAmount from './components/MaxBorrowAmount.tsx'
+import MaxPerpAmount from './components/MaxPerpAmount.tsx'
+import MaxSwapAmount from './components/MaxSwapAmount.tsx'
 import MaxWithdrawAmount from './components/MaxWithdrawAmount.tsx'
+import useHealthComputer from './hooks/useHealthComputer.ts'
 
 function App() {
-  const [healthComputerJson, setHealthComputerJson] = useState('')
+  const [healthComputerJson, setHealthComputerJson] = useState('{}')
   const [type, setType] = useState<FunctionType>('perp')
   const [accountId, setAccountId] = useState('')
   const { data: healthComputer } = useHealthComputer(accountId)
@@ -28,14 +28,15 @@ function App() {
 
   const InteractionInterface = useCallback(() => {
     const func = FUNCTIONS.find(({ functionType }) => functionType === type)
-    return func?.component(healthComputer)
-  }, [healthComputer, type])
+    return func?.component(JSON.parse(healthComputerJson))
+  }, [healthComputerJson, type])
 
   return (
-    <div className={'h-full w-full flex flex-col gap-4'}>
+    <div className='flex flex-col w-full h-full gap-4'>
       <div className='flex gap-4'>
         {FUNCTIONS.map(({ name, functionType }) => (
           <button
+            key={name}
             onClick={() => setType(functionType)}
             className={functionType === type ? 'bg-gray-500' : ''}
           >
