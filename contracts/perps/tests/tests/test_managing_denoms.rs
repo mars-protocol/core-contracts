@@ -148,6 +148,27 @@ fn cannot_disable_denom_if_not_found() {
 }
 
 #[test]
+fn only_enabled_denom_can_be_disabled() {
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+
+    mock.init_denom(&owner, "perp/osmo/usd", Decimal::zero(), Uint128::one()).unwrap();
+    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
+    mock.set_price(&owner, "perp/osmo/usd", Decimal::from_str("1").unwrap()).unwrap();
+
+    mock.disable_denom(&owner, "perp/osmo/usd").unwrap();
+
+    let res = mock.disable_denom(&owner, "perp/osmo/usd");
+    assert_err(
+        res,
+        ContractError::DenomNotEnabled {
+            denom: "perp/osmo/usd".to_string(),
+        },
+    );
+}
+
+#[test]
 fn owner_can_disable_denom() {
     let mut mock = MockEnv::new().build().unwrap();
 

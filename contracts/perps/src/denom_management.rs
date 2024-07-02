@@ -69,7 +69,7 @@ pub fn enable_denom(
             });
         };
 
-        // if the denom already exists, if must have not already been enabled
+        // if the denom already exists, it must have not already been enabled
         if ds.enabled {
             return Err(ContractError::DenomEnabled {
                 denom: denom.into(),
@@ -106,6 +106,13 @@ pub fn disable_denom(
                 denom: denom.into(),
             });
         };
+
+        // if the denom already exists, it must have already been enabled
+        if !ds.enabled {
+            return Err(ContractError::DenomNotEnabled {
+                denom: denom.into(),
+            });
+        }
 
         let current_time = env.block.time.seconds();
 
