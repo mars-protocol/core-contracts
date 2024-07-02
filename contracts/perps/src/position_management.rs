@@ -207,6 +207,13 @@ fn update_position_state(
 
         // Decrease the position
         Ordering::Less => {
+            // When a denom is disabled it should be close only
+            if !ds.enabled {
+                return Err(ContractError::PositionCannotBeModifiedIfDenomDisabled {
+                    denom,
+                });
+            }
+
             // Enforce min size when decreasing
             ensure_min_position(position_value, &perp_params)?;
 

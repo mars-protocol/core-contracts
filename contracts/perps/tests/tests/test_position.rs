@@ -106,8 +106,9 @@ fn cannot_open_position_for_disabled_denom() {
         },
     );
 }
+
 #[test]
-fn cannot_increase_position_for_disabled_denom() {
+fn cannot_modify_position_for_disabled_denom() {
     let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
@@ -146,6 +147,7 @@ fn cannot_increase_position_for_disabled_denom() {
 
     mock.disable_denom(&owner, "uatom").unwrap();
 
+    // increase position
     let res = mock.modify_position(
         &credit_manager,
         "2",
@@ -153,13 +155,72 @@ fn cannot_increase_position_for_disabled_denom() {
         SignedUint::from_str("-175").unwrap(),
         &[], // fees are not important for this test
     );
-
     assert_err(
         res,
         ContractError::DenomNotEnabled {
             denom: "uatom".to_string(),
         },
     );
+
+    // decrease position
+    let res = mock.modify_position(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedUint::from_str("-100").unwrap(),
+        &[], // fees are not important for this test
+    );
+    assert_err(
+        res,
+        ContractError::PositionCannotBeModifiedIfDenomDisabled {
+            denom: "uatom".to_string(),
+        },
+    );
+}
+
+#[test]
+fn only_close_position_possible_for_disabled_denom() {
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
+
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("7.2").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
+
+    // init denoms
+    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params("uatom")
+            },
+        },
+    );
+
+    let size = SignedUint::from_str("125").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
+
+    mock.disable_denom(&owner, "uatom").unwrap();
+
+    mock.set_price(&owner, "uatom", Decimal::from_str("10.2").unwrap()).unwrap();
+
+    mock.close_position(&credit_manager, "2", "uatom", &[]).unwrap();
 }
 
 #[test]

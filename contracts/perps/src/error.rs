@@ -44,6 +44,13 @@ pub enum ContractError {
         denom: String,
     },
 
+    #[error(
+        "Position can not be modified if denom `{denom}` is disabled. Only closing is allowed."
+    )]
+    PositionCannotBeModifiedIfDenomDisabled {
+        denom: String,
+    },
+
     #[error("denom `{denom}` is not found")]
     DenomNotFound {
         denom: String,
