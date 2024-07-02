@@ -17,8 +17,8 @@ use crate::{
     },
     migrations,
     query::{
-        query_all_asset_params, query_all_vault_configs, query_config, query_total_deposit,
-        query_vault_config,
+        query_all_asset_params, query_all_total_deposits_v2, query_all_vault_configs,
+        query_all_vault_configs_v2, query_config, query_total_deposit, query_vault_config,
     },
     state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, TARGET_HEALTH_FACTOR},
 };
@@ -91,7 +91,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
         QueryMsg::AssetParams {
             denom,
-        } => to_json_binary(&ASSET_PARAMS.load(deps.storage, &denom)?),
+        } => to_json_binary(&ASSET_PARAMS.may_load(deps.storage, &denom)?),
         QueryMsg::AllAssetParams {
             start_after,
             limit,
@@ -103,12 +103,20 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             start_after,
             limit,
         } => to_json_binary(&query_all_vault_configs(deps, start_after, limit)?),
+        QueryMsg::AllVaultConfigsV2 {
+            start_after,
+            limit,
+        } => to_json_binary(&query_all_vault_configs_v2(deps, start_after, limit)?),
         QueryMsg::TargetHealthFactor {} => {
             to_json_binary(&TARGET_HEALTH_FACTOR.load(deps.storage)?)
         }
         QueryMsg::TotalDeposit {
             denom,
         } => to_json_binary(&query_total_deposit(deps, &env, denom)?),
+        QueryMsg::AllTotalDepositsV2 {
+            start_after,
+            limit,
+        } => to_json_binary(&query_all_total_deposits_v2(deps, start_after, limit)?),
     };
     res.map_err(Into::into)
 }
