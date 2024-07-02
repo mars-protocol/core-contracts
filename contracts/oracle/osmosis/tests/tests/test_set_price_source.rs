@@ -1,12 +1,11 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{testing::mock_env, Addr, Decimal};
-use mars_oracle_base::ContractError;
+use mars_oracle_base::{redemption_rate::RedemptionRate, ContractError};
 use mars_oracle_osmosis::{
     contract::entry::execute,
     msg::{ExecuteMsg, PriceSourceResponse},
-    DowntimeDetector, OsmosisPriceSourceChecked, OsmosisPriceSourceUnchecked, RedemptionRate, Twap,
-    TwapKind,
+    DowntimeDetector, OsmosisPriceSourceChecked, OsmosisPriceSourceUnchecked, Twap, TwapKind,
 };
 use mars_owner::OwnerError::NotOwner;
 use mars_testing::mock_info;
@@ -1035,6 +1034,15 @@ fn setting_price_source_xyk_lp() {
         err,
         ContractError::InvalidPriceSource {
             reason: "ConcentratedLiquidity pool not supported. Pool id 7777".to_string()
+        }
+    );
+
+    // attempting to use CosmWasm pool
+    let err = set_price_source_xyk_lp("uausdc_unusdc_lp", 8888).unwrap_err();
+    assert_eq!(
+        err,
+        ContractError::InvalidPriceSource {
+            reason: "CosmWasm pool not supported. Pool id 8888".to_string()
         }
     );
 

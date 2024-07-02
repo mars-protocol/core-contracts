@@ -35,7 +35,7 @@ pub enum QueryMsg {
     #[returns(super::msg::ConfigResponse)]
     Config {},
 
-    #[returns(super::asset::AssetParams)]
+    #[returns(Option<super::asset::AssetParams>)]
     AssetParams {
         denom: String,
     },
@@ -58,6 +58,12 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
 
+    #[returns(cw_paginate::PaginationResponse<super::vault::VaultConfig>)]
+    AllVaultConfigsV2 {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
     #[returns(Decimal)]
     TargetHealthFactor {},
 
@@ -66,6 +72,14 @@ pub enum QueryMsg {
     #[returns(TotalDepositResponse)]
     TotalDeposit {
         denom: String,
+    },
+
+    /// Compute the total amount deposited for paginated assets across Red Bank
+    /// and Credit Manager.
+    #[returns(cw_paginate::PaginationResponse<TotalDepositResponse>)]
+    AllTotalDepositsV2 {
+        start_after: Option<String>,
+        limit: Option<u32>,
     },
 }
 
