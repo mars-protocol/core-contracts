@@ -309,6 +309,68 @@ fn open_position_cannot_be_too_small() {
 }
 
 #[test]
+fn max_open_perps_reached() {
+    let mut mock = MockEnv::new().max_positions(2).build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("7.2").unwrap()).unwrap();
+    mock.set_price(&owner, "utia", Decimal::from_str("10.5").unwrap()).unwrap();
+    mock.set_price(&owner, "untrn", Decimal::from_str("1.5").unwrap()).unwrap();
+
+    // init denoms
+    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("uatom"),
+        },
+    );
+    mock.init_denom(&owner, "utia", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("utia"),
+        },
+    );
+    mock.init_denom(&owner, "untrn", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("untrn"),
+        },
+    );
+
+    // open a position for account 2
+    mock.open_position(&credit_manager, "2", "uatom", SignedUint::from_str("-125").unwrap(), &[])
+        .unwrap();
+    mock.open_position(&credit_manager, "2", "utia", SignedUint::from_str("100").unwrap(), &[])
+        .unwrap();
+
+    // try to open third position
+    let res = mock.open_position(
+        &credit_manager,
+        "2",
+        "untrn",
+        SignedUint::from_str("-125").unwrap(),
+        &[],
+    );
+    assert_err(
+        res,
+        ContractError::MaxPositionsReached {
+            account_id: "2".to_string(),
+            max_positions: 2,
+        },
+    );
+}
+
+#[test]
 fn reduced_position_cannot_be_too_small() {
     let min_position_value = Uint128::new(1251u128);
     let mut mock = MockEnv::new().build().unwrap();

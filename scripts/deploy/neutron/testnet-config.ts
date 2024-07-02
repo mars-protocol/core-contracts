@@ -597,6 +597,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
   perps: {
     baseDenom: nobleUsdcDenom,
     cooldownPeriod: 300, // 5 min
+    maxPositions: 4,
     denoms: [
       atomPerpDenom,
       ntrnPerpDenom,

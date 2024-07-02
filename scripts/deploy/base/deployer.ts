@@ -507,6 +507,7 @@ export class Deployer {
       const msg: PerpsInstantiateMsg = {
         base_denom: this.config.perps.baseDenom,
         cooldown_period: cooldownPeriodUpdated,
+        max_positions: this.config.perps.maxPositions,
         credit_manager: this.storage.addresses.creditManager!,
         oracle: this.storage.addresses.oracle!,
         params: this.storage.addresses.params!,

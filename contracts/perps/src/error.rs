@@ -128,6 +128,14 @@ pub enum ContractError {
     IllegalPositionModification {
         reason: String,
     },
+
+    #[error(
+        "Account `{account_id}` has reached the maximum number of open positions: {max_positions}"
+    )]
+    MaxPositionsReached {
+        account_id: String,
+        max_positions: u8,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

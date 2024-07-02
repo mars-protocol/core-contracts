@@ -8,7 +8,12 @@ use super::helpers::MockEnv;
 
 #[test]
 fn proper_initialization() {
-    let mock = MockEnv::new().perps_base_denom("uusdc").cooldown_period(3688).build().unwrap();
+    let mock = MockEnv::new()
+        .perps_base_denom("uusdc")
+        .cooldown_period(3688)
+        .max_positions(9)
+        .build()
+        .unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -36,6 +41,7 @@ fn proper_initialization() {
             params: ParamsBase::new(params),
             base_denom: "uusdc".to_string(),
             cooldown_period: 3688,
+            max_positions: 9
         }
     );
 }

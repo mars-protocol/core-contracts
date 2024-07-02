@@ -1172,6 +1172,7 @@ impl MockEnvBuilder {
                     params: self.params.clone().unwrap().into(),
                     base_denom: "uusdc".to_string(),
                     cooldown_period: 360,
+                    max_positions: 4,
                 },
                 &[],
                 "mock-perps-contract",

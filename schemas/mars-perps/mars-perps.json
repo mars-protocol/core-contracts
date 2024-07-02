@@ -11,6 +11,7 @@
       "base_denom",
       "cooldown_period",
       "credit_manager",
+      "max_positions",
       "oracle",
       "params"
     ],
@@ -28,6 +29,12 @@
       "credit_manager": {
         "description": "Address of the Mars Rover credit manager (CM) contract.\n\nUsers open, modify, or close perp positions by interacting with the CM. The CM then invokes the appropriate execute method(s) on the perps contract to fulfill the user requests.",
         "type": "string"
+      },
+      "max_positions": {
+        "description": "The maximum number of positions that can be opened by a single user",
+        "type": "integer",
+        "format": "uint8",
+        "minimum": 0.0
       },
       "oracle": {
         "description": "Adapter for interacting with the Mars oracle contract",
@@ -959,6 +966,7 @@
         "base_denom",
         "cooldown_period",
         "credit_manager",
+        "max_positions",
         "oracle",
         "params"
       ],
@@ -976,6 +984,12 @@
         "credit_manager": {
           "description": "Address of the Mars Rover credit manager (CM) contract.\n\nUsers open, modify, or close perp positions by interacting with the CM. The CM then invokes the appropriate execute method(s) on the perps contract to fulfill the user requests.",
           "type": "string"
+        },
+        "max_positions": {
+          "description": "The maximum number of positions that can be opened by a single user",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
         },
         "oracle": {
           "description": "Adapter for interacting with the Mars oracle contract",

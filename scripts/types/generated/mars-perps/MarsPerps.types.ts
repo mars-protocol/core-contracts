@@ -11,6 +11,7 @@ export interface InstantiateMsg {
   base_denom: string
   cooldown_period: number
   credit_manager: string
+  max_positions: number
   oracle: OracleBaseForString
   params: ParamsBaseForString
 }
@@ -198,6 +199,7 @@ export interface ConfigForString {
   base_denom: string
   cooldown_period: number
   credit_manager: string
+  max_positions: number
   oracle: OracleBaseForString
   params: ParamsBaseForString
 }

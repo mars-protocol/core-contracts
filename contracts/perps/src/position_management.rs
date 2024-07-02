@@ -1,7 +1,8 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, collections::HashMap};
 
 use cosmwasm_std::{
-    coins, ensure_eq, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Order, Response, Uint128,
+    coins, ensure_eq, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Order, Response,
+    StdError, Uint128,
 };
 use cw_utils::{may_pay, must_pay};
 use mars_types::{
@@ -41,8 +42,20 @@ pub fn open_position(
         });
     }
 
+    // number of open positions per account is limited
+    let positions = POSITIONS
+        .prefix(&account_id)
+        .range(deps.storage, None, None, Order::Ascending)
+        .collect::<Result<HashMap<_, _>, StdError>>()?;
+    if positions.len() as u8 >= cfg.max_positions {
+        return Err(ContractError::MaxPositionsReached {
+            account_id,
+            max_positions: cfg.max_positions,
+        });
+    }
+
     // each account can only have one position for a denom at the same time
-    if POSITIONS.has(deps.storage, (&account_id, &denom)) {
+    if positions.get(&denom).is_some() {
         return Err(ContractError::PositionExists {
             account_id,
             denom,

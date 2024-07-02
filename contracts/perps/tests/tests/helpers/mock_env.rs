@@ -41,6 +41,7 @@ pub struct MockEnvBuilder {
     oracle_base_denom: String,
     perps_base_denom: String,
     cooldown_period: u64,
+    max_positions: u8,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -52,6 +53,7 @@ impl MockEnv {
             oracle_base_denom: "uusd".to_string(),
             perps_base_denom: "uusdc".to_string(),
             cooldown_period: 3600,
+            max_positions: 4,
         }
     }
 
@@ -571,6 +573,7 @@ impl MockEnvBuilder {
                 params: ParamsBase::new(params_contract.to_string()),
                 base_denom: self.perps_base_denom.clone(),
                 cooldown_period: self.cooldown_period,
+                max_positions: self.max_positions,
             },
             &[],
             "mock-perps",
@@ -677,6 +680,11 @@ impl MockEnvBuilder {
 
     pub fn cooldown_period(&mut self, cp: u64) -> &mut Self {
         self.cooldown_period = cp;
+        self
+    }
+
+    pub fn max_positions(&mut self, max_positions: u8) -> &mut Self {
+        self.max_positions = max_positions;
         self
     }
 }

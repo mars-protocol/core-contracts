@@ -50,6 +50,9 @@ pub struct Config<T> {
     /// Stakers need to wait a cooldown period before being able to withdraw USDC from the vault.
     /// Value defined in seconds.
     pub cooldown_period: u64,
+
+    /// The maximum number of positions that can be opened by a single user
+    pub max_positions: u8,
 }
 
 impl Config<String> {
@@ -60,6 +63,7 @@ impl Config<String> {
             params: self.params.check(api)?,
             base_denom: self.base_denom,
             cooldown_period: self.cooldown_period,
+            max_positions: self.max_positions,
         })
     }
 }
@@ -72,6 +76,7 @@ impl From<Config<Addr>> for Config<String> {
             params: cfg.params.into(),
             base_denom: cfg.base_denom,
             cooldown_period: cfg.cooldown_period,
+            max_positions: cfg.max_positions,
         }
     }
 }

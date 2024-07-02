@@ -86,6 +86,7 @@ export interface DeploymentConfig {
   perps?: {
     baseDenom: string
     cooldownPeriod: number
+    maxPositions: number
     denoms: PerpDenom[]
   }
 }
