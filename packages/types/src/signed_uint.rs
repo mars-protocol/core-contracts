@@ -264,6 +264,13 @@ impl SignedUint {
         };
         Ok(res)
     }
+
+    pub fn neg(&self) -> Self {
+        Self {
+            negative: !self.negative,
+            abs: self.abs,
+        }
+    }
 }
 
 impl From<Uint128> for SignedUint {

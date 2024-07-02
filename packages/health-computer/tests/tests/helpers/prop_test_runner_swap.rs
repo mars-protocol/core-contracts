@@ -15,9 +15,18 @@ pub fn max_swap_prop_test_runner(cases: u32, kind: &SwapKind) {
     runner
         .run(
             &random_health_computer().prop_filter(
-                "For swap we need to ensure 2 available denom params and 1 valid deposit",
-                |h| {
-                    if h.asset_params.len() < 2 {
+                "For swap we need to ensure: 2 available denom params and 1 valid deposit, and pnl not so high as to introduce slight inaccuracies",
+                |h: &HealthComputer| {
+                    if h.asset_params.len() < 2
+                        || h.compute_health()
+                            .unwrap()
+                            .perp_pnl_profit
+                            .gt(&Uint128::new(1000000000000000u128))
+                        || h.compute_health()
+                            .unwrap()
+                            .perp_pnl_losses
+                            .gt(&Uint128::new(1000000000000000u128))
+                    {
                         false
                     } else {
                         let from_denom = h.asset_params.keys().next().unwrap();

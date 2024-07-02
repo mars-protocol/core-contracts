@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    CheckedFromRatioError, CheckedMultiplyFractionError, DecimalRangeExceeded, DivideByZeroError,
-    OverflowError, StdError,
+    CheckedFromRatioError, CheckedMultiplyFractionError, ConversionOverflowError,
+    DecimalRangeExceeded, DivideByZeroError, OverflowError, StdError,
 };
 use mars_owner::OwnerError;
 use thiserror::Error;
@@ -64,4 +64,7 @@ pub enum HealthError {
 
     #[error("{0}")]
     DecimalRangeExceeded(#[from] DecimalRangeExceeded),
+
+    #[error("{0}")]
+    ConversionOverflowError(#[from] ConversionOverflowError),
 }

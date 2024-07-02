@@ -95,9 +95,9 @@ pub fn atomperp_info() -> PerpInfo {
 
 pub fn create_default_funding() -> Funding {
     Funding {
-        skew_scale: Uint128::new(1000000000u128),
+        skew_scale: Uint128::new(1_000_000_000_000_000u128),
         last_funding_rate: SignedDecimal::from_str("1.0").unwrap(),
         max_funding_velocity: Decimal::percent(0),
-        last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("300").unwrap(),
+        last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("3").unwrap(),
     }
 }

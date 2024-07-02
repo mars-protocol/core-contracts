@@ -61,7 +61,7 @@ fn currently_long_max_q_change() {
     // let size: SignedDecimal = Decimal::from_str("0.5").unwrap().into();
     let size = SignedUint::from_str("500000").unwrap();
 
-    let entry_accrued_funding_per_unit_in_base_denom = SignedDecimal::from_str("100").unwrap();
+    let entry_accrued_funding_per_unit_in_base_denom = SignedDecimal::from_str("5").unwrap();
     let entry_exec_price = Decimal::from_str("1999").unwrap();
     let position = Position {
         size,
@@ -106,7 +106,7 @@ fn currently_long_max_q_change() {
             perps: vec![PerpPosition {
                 base_denom: base_denom.clone(),
                 entry_exec_price,
-                current_exec_price: Decimal::from_str("1199.5").unwrap(),
+                current_exec_price: Decimal::from_str("1999.9999").unwrap(),
                 denom: eth_perp_params.denom.clone(),
                 closing_fee_rate: eth_perp_params.closing_fee_rate,
                 current_price: current_eth_perp_price,
@@ -133,7 +133,7 @@ fn currently_long_max_q_change() {
         )
         .unwrap();
 
-    assert_eq!(max_long, SignedUint::from_str("1908937").unwrap());
+    assert_eq!(max_long, SignedUint::from_str("1835738").unwrap());
 
     // Flip position test
     let max_short = h
@@ -146,7 +146,7 @@ fn currently_long_max_q_change() {
         )
         .unwrap();
 
-    assert_eq!(max_short, SignedUint::from_str("-1537400").unwrap());
+    assert_eq!(max_short, SignedUint::from_str("-1460182").unwrap());
 }
 
 #[test]
@@ -157,7 +157,7 @@ fn max_position_size_zero_if_net_oi_exceeded() {
 
     // prices
     let base_denom_price = Decimal::one();
-    let current_eth_perp_price = Decimal::from_str("2000").unwrap();
+    let current_eth_perp_price: Decimal = Decimal::from_str("2000").unwrap();
     let entry_eth_perp_price = Decimal::from_str("2000").unwrap();
 
     // market state
@@ -404,7 +404,7 @@ fn existing_short_max_q_change() {
 
     // perp state
     let mut funding = create_default_funding();
-    funding.last_funding_accrued_per_unit_in_base_denom = SignedDecimal::from_str("200").unwrap();
+    funding.last_funding_accrued_per_unit_in_base_denom = SignedDecimal::from_str("3").unwrap();
     let eth_perp_params = PerpParams {
         opening_fee_rate: Decimal::from_str("0.2").unwrap(),
         closing_fee_rate: Decimal::from_str("0.003").unwrap(),
@@ -429,7 +429,7 @@ fn existing_short_max_q_change() {
     // position state
     let size = SignedUint::from_str("-1000000").unwrap();
 
-    let entry_accrued_funding_per_unit_in_base_denom = SignedDecimal::from_str("300").unwrap();
+    let entry_accrued_funding_per_unit_in_base_denom = SignedDecimal::from_str("2").unwrap();
     let entry_exec_price = Decimal::from_str("1999").unwrap();
     let current_exec_price = Decimal::from_str("1201").unwrap();
 
@@ -503,7 +503,7 @@ fn existing_short_max_q_change() {
         )
         .unwrap();
 
-    assert_eq!(max_short, SignedUint::from_str("-5560378").unwrap(),);
+    assert_eq!(max_short, SignedUint::from_str("-2204204").unwrap(),);
 
     let max_long = h
         .max_perp_size_estimate(
@@ -515,7 +515,7 @@ fn existing_short_max_q_change() {
         )
         .unwrap();
 
-    assert_eq!(max_long, SignedUint::from_str("4765277").unwrap(),);
+    assert_eq!(max_long, SignedUint::from_str("1453092").unwrap(),);
 }
 
 #[test]
@@ -595,7 +595,7 @@ fn no_existing_perp_position() {
         )
         .unwrap();
 
-    assert_eq!(result, SignedUint::from_str("2437877").unwrap());
+    assert_eq!(result, SignedUint::from_str("1465698").unwrap());
 }
 
 // TODO add test setup function to generate and manage state for tests to reduce repition.

@@ -37,7 +37,6 @@ impl PositionExt for Position {
     ) -> ContractResult<PnlAmounts> {
         let exit_exec_price =
             closing_execution_price(skew, funding.skew_scale, self.size, denom_price)?;
-
         // size * (exit_exec_price - entry_exec_price)
         let price_diff =
             SignedDecimal::from(exit_exec_price).checked_sub(self.entry_exec_price.into())?;
