@@ -417,6 +417,7 @@ export const atomAsset: AssetConfig = {
     slope_1: '0.14',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const nobleUSDCAsset: AssetConfig = {
@@ -446,6 +447,7 @@ export const nobleUSDCAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const pclLpMarsUsdcAsset: AssetConfig = {
@@ -505,6 +507,7 @@ export const pclLpMarsAsset: AssetConfig = {
     slope_1: '0.125',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const pclLpUsdcAsset: AssetConfig = {

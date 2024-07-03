@@ -71,8 +71,6 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     }
     await deployer.setRoutes()
 
-    await deployer.grantCreditLines()
-
     // User flows with gas usage
     const ntrnDenom = 'untrn'
     const nobleUsdcDenom = 'ibc/4C19E7EC06C1AB2EC2D70C6855FEB6D48E9CE174913991DA0A517D21978E7E42'

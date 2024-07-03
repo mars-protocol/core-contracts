@@ -1,14 +1,14 @@
 {
-  "addressProvider": "neutron15zmt0uknyghzsa6ej6uee7f9kmved7lnz0xg2dr8mzvw8m06gzgs9suxdz",
-  "redBank": "neutron1fu3p73w5q8e4gz9u2hqmwk5nqmntzemt4a3reglzttn9vgcecsgqj4mzw3",
-  "incentives": "neutron1ra7a2nxhv2x5e2pvz7lecc09kdtf458xks2me6kge64j5v5qat5spl2f35",
-  "oracle": "neutron19rd3xd493rk6h3ctu3vxwqsqx5ldth40rkwen8gz9wjgvy49c92sk2ct3q",
-  "rewardsCollector": "neutron1jamfg40agt0cxc0ctlnhvshpvx3985sms4trq0vtfqnvzpkmzzuqe7qths",
-  "swapper": "neutron1fryupl8phav82xps8z7gfsxxehw2rvjxuww505k77cqxzyu06ldsp3q5m0",
-  "params": "neutron1vj60swh8v527zp5d5hvtzm78wdh9r6gu68sxevsw949nt2aemyyqnznlf8",
-  "zapper": "neutron1ulymmatqteds4cw7y2d7my8zn70rhrsmspl46x5dswmm7eunwcfq75ks8t",
-  "health": "neutron18ufxzeh2ku8vjc0pzxz03c75nlfgvzgemx6uj0xedmg0sv03280qp5p3rp",
-  "creditManager": "neutron1pky2mph7gsdfth4z6uwgkwc6d3tkp4hcpjfglhn73pegx0ktfpvqzyg9zh",
-  "accountNft": "neutron10lrd9mqgavjwu0g9jcx4dyvycfehhgyvjk4c6zd3m4vyqdewljqqdhuven",
-  "perps": "neutron15rrd66vwdcvphat369jgey7z03ugyavdfhp8e7r5m40sy4mnzudsxfsnm8"
+  "addressProvider": "neutron1p2m7lkghwaqe8qmual6c8xnmuu4l5939uwge8rrk6ka4galmyukssr50s4",
+  "redBank": "neutron1s9qr0f6xgx5x8w04njskdaa0qrwvmyljhaak0w8cv45ksekradrs0zr67q",
+  "incentives": "neutron1d3ecll6csrjk8ms7t9kegxf6gvszen73sw9zeff4tagpjh9gydaqrqe8ts",
+  "oracle": "neutron1sc3z8h3ldgjvrwmmxagqf8vr9nhtav20704ym2u6g9ldhtj5hd4sp5e3fm",
+  "rewardsCollector": "neutron1l5pqh58hgthsmzz2c36r3a4w54y7r6w8pflpsds6uhfcn94c7xrszgyxz8",
+  "swapper": "neutron1lmqhusxc0nqpxedygz6wkzq5kn6gwn82922qudn0rt27cclmmacscyg5cn",
+  "params": "neutron1gcqdwvtychwr06h8fkxylzmvq3c07ms84jwjggywzje233ldpk7qajt9v9",
+  "zapper": "neutron1svpun2fmatjjz5xsl9vtphf824787t0kjjdajl4gf2932mkags3qe3yqmc",
+  "health": "neutron1kgkr4mct6t02dgn8n3memxx07txeq0hsfkh74cawd9deksvxc87sp0tmug",
+  "creditManager": "neutron1h68z6an3fat36lanxz68hexsmthhjzj50fwr76znmdx8evarmhgqc0ezvv",
+  "accountNft": "neutron1ruku7ulmy0xt03drzhea4thrxsgfakjq4yfvhcdrydzwccrszn9snl7vzr",
+  "perps": "neutron19arerrgxjeuzzza67yayyqmeu54smqyqdpaet4a0xwtrlj5sp2kq3nh707"
 }
