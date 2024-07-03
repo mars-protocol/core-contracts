@@ -20,18 +20,16 @@ backtraces = ["cosmwasm-std/backtraces"]
 javascript = ["tsify", "wasm-bindgen"]
 
 [dependencies]
-astroport         = { workspace = true }
 cosmwasm-schema   = { workspace = true }
 cosmwasm-std      = { workspace = true }
 cw721             = { workspace = true }
 cw721-base        = { workspace = true }
+cw-paginate       = { workspace = true }
 cw-storage-plus   = { workspace = true }
 cw-utils          = { workspace = true }
 cw-vault-standard = { workspace = true }
-mars-osmosis      = { workspace = true }
 mars-owner        = { workspace = true }
 mars-utils        = { workspace = true }
-osmosis-std       = { workspace = true }
 schemars          = { workspace = true }
 serde             = { workspace = true }
 serde-json-wasm   = { workspace = true }

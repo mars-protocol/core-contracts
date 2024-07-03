@@ -11,7 +11,7 @@ use mars_types::{
     params::{HlsParams, VaultConfig},
 };
 
-use super::helpers::{udai_info, ustars_info};
+use super::helpers::ustars_info;
 
 #[test]
 fn hls_deposit() {
@@ -35,6 +35,8 @@ fn hls_deposit() {
         kind: AccountKind::HighLeveredStrategy,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::HighLeveredStrategy,
+
             deposits: vec![Coin {
                 denom: ustars.denom.clone(),
                 amount: deposit_amount,
@@ -42,6 +44,7 @@ fn hls_deposit() {
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -76,15 +79,9 @@ fn hls_deposit() {
 #[test]
 fn hls_vault() {
     let ustars = ustars_info();
-    let udai = udai_info();
 
-    let oracle_prices =
-        HashMap::from([(ustars.denom.clone(), ustars.price), (udai.denom.clone(), udai.price)]);
-
-    let asset_params = HashMap::from([
-        (ustars.denom.clone(), ustars.params.clone()),
-        (udai.denom.clone(), udai.params.clone()),
-    ]);
+    let oracle_prices = HashMap::from([(ustars.denom.clone(), ustars.price)]);
+    let asset_params = HashMap::from([(ustars.denom.clone(), ustars.params.clone())]);
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -130,24 +127,19 @@ fn hls_vault() {
         kind: AccountKind::HighLeveredStrategy,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::HighLeveredStrategy,
             deposits: vec![coin(1200, &ustars.denom)],
-            debts: vec![
-                DebtAmount {
-                    denom: udai.denom,
-                    shares: Default::default(),
-                    amount: Uint128::new(3100),
-                },
-                DebtAmount {
-                    denom: ustars.denom,
-                    shares: Default::default(),
-                    amount: Uint128::new(200),
-                },
-            ],
+            debts: vec![DebtAmount {
+                denom: ustars.denom,
+                shares: Default::default(),
+                amount: Uint128::new(200),
+            }],
             lends: vec![],
             vaults: vec![VaultPosition {
                 vault,
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::new(5264))),
             }],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -161,14 +153,14 @@ fn hls_vault() {
     assert_eq!(health.total_collateral_value, Uint128::new(6318574763758));
     assert_eq!(health.max_ltv_adjusted_collateral, Uint128::new(4738931072818));
     assert_eq!(health.liquidation_threshold_adjusted_collateral, Uint128::new(5054859811006));
-    assert_eq!(health.total_debt_value, Uint128::new(1053095794055));
+    assert_eq!(health.total_debt_value, Uint128::new(1053095793083));
     assert_eq!(
         health.max_ltv_health_factor,
-        Some(Decimal::from_str("4.499999999592154861").unwrap())
+        Some(Decimal::from_str("4.500000003745623167").unwrap())
     );
     assert_eq!(
         health.liquidation_health_factor,
-        Some(Decimal::from_str("4.799999999565091796").unwrap())
+        Some(Decimal::from_str("4.800000003995457989").unwrap())
     );
     assert!(!health.is_above_max_ltv());
     assert!(!health.is_liquidatable());
@@ -197,6 +189,7 @@ fn hls_on_blacklisted_asset() {
         kind: AccountKind::HighLeveredStrategy,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::HighLeveredStrategy,
             deposits: vec![Coin {
                 denom: ustars.denom.clone(),
                 amount: deposit_amount,
@@ -204,6 +197,7 @@ fn hls_on_blacklisted_asset() {
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -233,15 +227,9 @@ fn hls_on_blacklisted_asset() {
 #[test]
 fn hls_on_blacklisted_vault() {
     let ustars = ustars_info();
-    let udai = udai_info();
 
-    let oracle_prices =
-        HashMap::from([(ustars.denom.clone(), ustars.price), (udai.denom.clone(), udai.price)]);
-
-    let asset_params = HashMap::from([
-        (ustars.denom.clone(), ustars.params.clone()),
-        (udai.denom.clone(), udai.params.clone()),
-    ]);
+    let oracle_prices = HashMap::from([(ustars.denom.clone(), ustars.price)]);
+    let asset_params = HashMap::from([(ustars.denom.clone(), ustars.params.clone())]);
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -287,24 +275,19 @@ fn hls_on_blacklisted_vault() {
         kind: AccountKind::HighLeveredStrategy,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::HighLeveredStrategy,
             deposits: vec![coin(1200, &ustars.denom)],
-            debts: vec![
-                DebtAmount {
-                    denom: udai.denom,
-                    shares: Default::default(),
-                    amount: Uint128::new(3100),
-                },
-                DebtAmount {
-                    denom: ustars.denom,
-                    shares: Default::default(),
-                    amount: Uint128::new(200),
-                },
-            ],
+            debts: vec![DebtAmount {
+                denom: ustars.denom,
+                shares: Default::default(),
+                amount: Uint128::new(200),
+            }],
             lends: vec![],
             vaults: vec![VaultPosition {
                 vault,
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::new(5264))),
             }],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -318,14 +301,14 @@ fn hls_on_blacklisted_vault() {
     assert_eq!(health.total_collateral_value, Uint128::new(6318574763758));
     assert_eq!(health.max_ltv_adjusted_collateral, Uint128::new(4738931068870));
     assert_eq!(health.liquidation_threshold_adjusted_collateral, Uint128::new(5054859811006));
-    assert_eq!(health.total_debt_value, Uint128::new(1053095794055));
+    assert_eq!(health.total_debt_value, Uint128::new(1053095793083));
     assert_eq!(
         health.max_ltv_health_factor,
-        Some(Decimal::from_str("4.499999995843208163").unwrap())
+        Some(Decimal::from_str("4.499999999996676465").unwrap())
     );
     assert_eq!(
         health.liquidation_health_factor,
-        Some(Decimal::from_str("4.799999999565091796").unwrap())
+        Some(Decimal::from_str("4.800000003995457989").unwrap())
     );
     assert!(!health.is_above_max_ltv());
     assert!(!health.is_liquidatable());

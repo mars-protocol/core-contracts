@@ -48,6 +48,8 @@ fn only_assets_with_no_debts() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![Coin {
                 denom: umars.denom.clone(),
                 amount: deposit_amount,
@@ -55,6 +57,7 @@ fn only_assets_with_no_debts() {
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -115,6 +118,8 @@ fn terra_ragnarok() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![Coin {
                 denom: uluna.denom.clone(),
                 amount: deposit_amount,
@@ -126,6 +131,7 @@ fn terra_ragnarok() {
             }],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -181,6 +187,8 @@ fn terra_ragnarok() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![Coin {
                 denom: uluna.denom.clone(),
                 amount: deposit_amount,
@@ -192,6 +200,7 @@ fn terra_ragnarok() {
             }],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -248,6 +257,8 @@ fn ltv_and_lqdt_adjusted_values() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![
                 Coin {
                     denom: ustars.denom.clone(),
@@ -265,6 +276,7 @@ fn ltv_and_lqdt_adjusted_values() {
             }],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -363,6 +375,8 @@ fn debt_value() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![
                 Coin {
                     denom: ustars.denom.clone(),
@@ -391,6 +405,7 @@ fn debt_value() {
             ],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -491,6 +506,8 @@ fn above_max_ltv_below_liq_threshold() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(33, &udai.denom)],
             debts: vec![DebtAmount {
                 denom: udai.denom,
@@ -499,6 +516,7 @@ fn above_max_ltv_below_liq_threshold() {
             }],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -552,6 +570,8 @@ fn liquidatable() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(33, &udai.denom)],
             debts: vec![
                 DebtAmount {
@@ -567,6 +587,7 @@ fn liquidatable() {
             ],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -622,6 +643,8 @@ fn rover_whitelist_influences_max_ltv() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(33, &udai.denom)],
             debts: vec![
                 DebtAmount {
@@ -637,6 +660,7 @@ fn rover_whitelist_influences_max_ltv() {
             ],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -716,6 +740,8 @@ fn unlocked_vault() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(33, &udai.denom)],
             debts: vec![
                 DebtAmount {
@@ -734,6 +760,7 @@ fn unlocked_vault() {
                 vault,
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::new(5264))),
             }],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -813,6 +840,8 @@ fn locked_vault() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(33, &udai.denom)],
             debts: vec![
                 DebtAmount {
@@ -834,6 +863,7 @@ fn locked_vault() {
                     unlocking: UnlockingPositions::new(vec![]),
                 }),
             }],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -913,6 +943,8 @@ fn locked_vault_with_unlocking_positions() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(33, &udai.denom)],
             debts: vec![
                 DebtAmount {
@@ -943,6 +975,7 @@ fn locked_vault_with_unlocking_positions() {
                     ]),
                 }),
             }],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -1022,6 +1055,8 @@ fn vault_is_not_whitelisted() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(33, &udai.denom)],
             debts: vec![
                 DebtAmount {
@@ -1040,6 +1075,7 @@ fn vault_is_not_whitelisted() {
                 vault,
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::new(5264))),
             }],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -1127,6 +1163,8 @@ fn vault_base_token_is_not_whitelisted() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(33, &udai.denom)],
             debts: vec![
                 DebtAmount {
@@ -1157,6 +1195,7 @@ fn vault_base_token_is_not_whitelisted() {
                     ]),
                 }),
             }],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -1214,6 +1253,8 @@ fn lent_coins_used_as_collateral() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(23, &udai.denom)],
             debts: vec![DebtAmount {
                 denom: udai.denom.clone(),
@@ -1222,6 +1263,7 @@ fn lent_coins_used_as_collateral() {
             }],
             lends: vec![coin(10, udai.denom), coin(2, uluna.denom)],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -1282,6 +1324,8 @@ fn allowed_lent_coins_influence_max_ltv() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(23, &udai.denom)],
             debts: vec![DebtAmount {
                 denom: udai.denom.clone(),
@@ -1290,6 +1334,7 @@ fn allowed_lent_coins_influence_max_ltv() {
             }],
             lends: vec![coin(10, udai.denom), coin(2, uluna.denom)],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -1351,9 +1396,12 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(152000000, &uusd.denom)],
             debts: vec![],
             lends: vec![],
+            staked_astro_lps: vec![],
             vaults: vec![],
             perps: vec![PerpPosition {
                 denom: btcperp.denom,
@@ -1431,10 +1479,13 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(152000000, &uusd.denom)],
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![PerpPosition {
                 denom: btcperp.denom,
                 base_denom: uusd.denom,
@@ -1506,10 +1557,13 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(152000000, &uusd.denom)],
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![PerpPosition {
                 denom: btcperp.denom,
                 base_denom: uusd.denom,
@@ -1617,6 +1671,8 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![],
             debts: vec![],
             lends: vec![],
@@ -1624,7 +1680,7 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
                 vault,
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::new(5264))),
             }],
-
+            staked_astro_lps: vec![],
             perps: vec![PerpPosition {
                 denom: btcperp.denom,
                 base_denom: uusd.denom,
@@ -1703,10 +1759,13 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(152000000, &uusd.denom)],
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![PerpPosition {
                 denom: btcperp.denom,
                 base_denom: uusd.denom,
@@ -1807,10 +1866,13 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(152000000, &uusd.denom)],
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![
                 PerpPosition {
                     denom: btcperp.denom,
@@ -1932,10 +1994,13 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(152000000, &uusd.denom)],
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![
                 PerpPosition {
                     denom: btcperp.denom,
@@ -2042,10 +2107,13 @@ fn perp_short_delta_neutral_with_btc_collateral() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(size.abs.into(), &btc_coin.denom)],
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![PerpPosition {
                 denom: btcperp.denom,
                 base_denom: uusd.denom,
@@ -2133,6 +2201,8 @@ fn spot_short_delta_neutral_with_leverage() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1300000000, &uusd.denom)],
             debts: vec![DebtAmount {
                 denom: btc_coin.denom,
@@ -2141,6 +2211,7 @@ fn spot_short_delta_neutral_with_leverage() {
             }],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![PerpPosition {
                 denom: btcperp.denom,
                 base_denom: uusd.denom,
@@ -2264,6 +2335,8 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(300000000, &uusd.denom)],
             debts: vec![DebtAmount {
                 denom: uluna.denom,
@@ -2272,6 +2345,7 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
             }],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![
                 PerpPosition {
                     denom: btcperp.denom,
@@ -2381,10 +2455,12 @@ fn single_perp_funding_greater_than_pnl() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
             deposits: vec![coin(152000000, &uusd.denom)],
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![PerpPosition {
                 denom: btcperp.denom,
                 base_denom: uusd.denom,

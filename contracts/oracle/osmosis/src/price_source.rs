@@ -1,12 +1,11 @@
 use std::{cmp::min, fmt};
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{
-    Addr, Decimal, Decimal256, Deps, Empty, Env, Isqrt, QuerierWrapper, StdResult, Uint128, Uint256,
-};
+use cosmwasm_std::{Addr, Decimal, Deps, Empty, Env, QuerierWrapper, StdResult};
 use cw_storage_plus::Map;
-use ica_oracle::msg::RedemptionRateResponse;
 use mars_oracle_base::{
+    lp_pricing,
+    redemption_rate::{assert_rr_not_too_old, query_redemption_rate, RedemptionRate},
     ContractError::{self, InvalidPrice},
     ContractResult, PriceSourceChecked, PriceSourceUnchecked,
 };
@@ -19,7 +18,7 @@ use mars_utils::helpers::validate_native_denom;
 use osmosis_std::types::osmosis::downtimedetector::v1beta1::Downtime;
 use pyth_sdk_cw::PriceIdentifier;
 
-use crate::helpers::{self, query_redemption_rate};
+use crate::helpers;
 
 #[cw_serde]
 #[derive(Eq)]
@@ -241,16 +240,6 @@ impl Twap {
             ),
         }
     }
-}
-
-#[cw_serde]
-pub struct RedemptionRate<T> {
-    /// Contract addr
-    pub contract_addr: T,
-
-    /// The maximum number of seconds since the last price was by an oracle, before
-    /// rejecting the price as too stale
-    pub max_staleness: u64,
 }
 
 pub type OsmosisPriceSourceUnchecked = OsmosisPriceSource<String>;
@@ -595,10 +584,6 @@ impl OsmosisPriceSourceChecked {
         Ok(())
     }
 
-    /// The calculation of the value of liquidity token, see: https://blog.alphafinance.io/fair-lp-token-pricing/.
-    /// This formulation avoids a potential sandwich attack that distorts asset prices by a flashloan.
-    ///
-    /// NOTE: Price sources must exist for both assets in the pool.
     fn query_xyk_liquidity_token_price(
         deps: &Deps,
         env: &Env,
@@ -624,38 +609,27 @@ impl OsmosisPriceSourceChecked {
                     ),
                 })
             }
+            Pool::CosmWasm(pool) => {
+                return Err(ContractError::InvalidPrice {
+                    reason: format!("CosmWasm pool not supported. Pool id {}", pool.id),
+                })
+            }
         };
 
         let coin0 = Pool::unwrap_coin(&pool.pool_assets[0].token)?;
         let coin1 = Pool::unwrap_coin(&pool.pool_assets[1].token)?;
+        let total_shares = Pool::unwrap_coin(&pool.total_shares)?.amount;
 
-        let coin0_price = price_sources.load(deps.storage, &coin0.denom)?.query_price(
+        lp_pricing::query_xyk_lp_price(
             deps,
             env,
-            &coin0.denom,
-            config,
-            price_sources,
-            kind.clone(),
-        )?;
-        let coin1_price = price_sources.load(deps.storage, &coin1.denom)?.query_price(
-            deps,
-            env,
-            &coin1.denom,
             config,
             price_sources,
             kind,
-        )?;
-
-        let coin0_value = Uint256::from_uint128(coin0.amount) * Decimal256::from(coin0_price);
-        let coin1_value = Uint256::from_uint128(coin1.amount) * Decimal256::from(coin1_price);
-
-        // We need to use Uint256, because Uint128 * Uint128 may overflow the 128-bit limit
-        let pool_value_u256 = Uint256::from(2u8) * (coin0_value * coin1_value).isqrt();
-        let pool_value_u128 = Uint128::try_from(pool_value_u256)?;
-
-        let total_shares = Pool::unwrap_coin(&pool.total_shares)?.amount;
-
-        Ok(Decimal::from_ratio(pool_value_u128, total_shares))
+            coin0,
+            coin1,
+            total_shares,
+        )
     }
 
     /// Staked asset price quoted in OSMO.
@@ -729,7 +703,7 @@ impl OsmosisPriceSourceChecked {
         // Check if the redemption rate is not too old
         assert_rr_not_too_old(current_time, &rr, redemption_rate)?;
 
-        // min from geometric TWAP and exchange rate
+        // min from TWAP and exchange rate
         let min_price = min(staked_price, rr.redemption_rate);
 
         // use current price source
@@ -744,22 +718,4 @@ impl OsmosisPriceSourceChecked {
 
         min_price.checked_mul(transitive_price).map_err(Into::into)
     }
-}
-
-/// Redemption rate comes from different chain (Stride) and it can be greater than the current block time due to differences in block generation times,
-/// network latency, and the asynchronous nature of cross-chain data updates. We accept such case as valid RR.
-fn assert_rr_not_too_old(
-    current_time: u64,
-    rr_res: &RedemptionRateResponse,
-    rr_config: &RedemptionRate<Addr>,
-) -> Result<(), ContractError> {
-    if rr_res.update_time + rr_config.max_staleness < current_time {
-        return Err(InvalidPrice {
-            reason: format!(
-                "redemption rate update time is too old/stale. last updated: {}, now: {}",
-                rr_res.update_time, current_time
-            ),
-        });
-    }
-    Ok(())
 }

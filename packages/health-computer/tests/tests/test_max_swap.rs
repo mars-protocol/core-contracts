@@ -36,10 +36,13 @@ fn max_swap_default() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &udai.denom)],
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -82,10 +85,13 @@ fn max_swap_margin() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(5000, &udai.denom), coin(500, &umars.denom)],
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },

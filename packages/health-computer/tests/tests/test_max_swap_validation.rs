@@ -39,6 +39,8 @@ fn missing_price_data() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(33, &udai.denom)],
             debts: vec![
                 DebtAmount {
@@ -54,6 +56,7 @@ fn missing_price_data() {
             ],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -93,6 +96,8 @@ fn missing_params() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(33, &udai.denom)],
             debts: vec![
                 DebtAmount {
@@ -108,6 +113,7 @@ fn missing_params() {
             ],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -117,10 +123,10 @@ fn missing_params() {
         perps_data,
     };
 
-    let err: HealthError = h
+    let res = h
         .max_swap_amount_estimate(&umars.denom, &udai.denom, &SwapKind::Default, Decimal::zero())
-        .unwrap_err();
-    assert_eq!(err, HealthError::MissingAssetParams(umars.denom));
+        .unwrap();
+    assert_eq!(res, Uint128::zero());
 }
 
 #[test]
@@ -145,10 +151,13 @@ fn deposit_not_present() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![],
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -190,6 +199,8 @@ fn zero_when_unhealthy() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(33, &udai.denom)],
             debts: vec![
                 DebtAmount {
@@ -205,6 +216,7 @@ fn zero_when_unhealthy() {
             ],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -250,10 +262,13 @@ fn no_debts() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(deposit_amount.u128(), &ustars.denom)],
             debts: vec![],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -297,6 +312,8 @@ fn should_allow_max_swap() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &umars.denom), coin(deposit_amount.u128(), &udai.denom)],
             debts: vec![DebtAmount {
                 denom: udai.denom.clone(),
@@ -305,6 +322,7 @@ fn should_allow_max_swap() {
             }],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },
@@ -378,24 +396,20 @@ fn hls_with_max_withdraw() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+
             deposits: vec![coin(1200, &ustars.denom)],
-            debts: vec![
-                DebtAmount {
-                    denom: uatom.denom.clone(),
-                    shares: Default::default(),
-                    amount: Uint128::new(3100),
-                },
-                DebtAmount {
-                    denom: ustars.denom.clone(),
-                    shares: Default::default(),
-                    amount: Uint128::new(800),
-                },
-            ],
+            debts: vec![DebtAmount {
+                denom: ustars.denom.clone(),
+                shares: Default::default(),
+                amount: Uint128::new(800),
+            }],
             lends: vec![],
             vaults: vec![VaultPosition {
                 vault,
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::new(5264))),
             }],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },

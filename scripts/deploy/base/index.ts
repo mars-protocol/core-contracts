@@ -53,6 +53,11 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
 
     await deployer.updateAddressProvider()
 
+    if (config.swapper.name == 'astroport') {
+      await deployer.updateSwapperAstroportConfig(config.astroportConfig!)
+      await deployer.setAstroportIncentivesAddress(config.astroportConfig!.incentives!)
+    }
+
     // setup
     for (const asset of config.assets) {
       await deployer.updateAssetParams(asset)
@@ -70,8 +75,6 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
       await deployer.setOracle(oracleConfig)
     }
     await deployer.setRoutes()
-
-    await deployer.grantCreditLines()
 
     // Test basic user flows
     if (config.runTests && config.testActions) {

@@ -17,7 +17,7 @@ use mars_types::{
         HealthResult, LiquidationPriceKind, SwapKind,
     },
     math::SignedDecimal,
-    params::{AssetParams, CmSettings, VaultConfig},
+    params::{AssetParams, CmSettings, HlsAssetType, VaultConfig},
     perps::{PerpPosition, PnL},
     signed_rational::SignedRational,
     signed_uint::SignedUint,
@@ -149,6 +149,9 @@ impl HealthComputer {
 
         let withdraw_denom_max_ltv = match self.kind {
             AccountKind::Default => params.max_loan_to_value,
+            AccountKind::FundManager {
+                ..
+            } => params.max_loan_to_value,
             AccountKind::HighLeveredStrategy => {
                 params
                     .credit_manager
@@ -385,6 +388,9 @@ impl HealthComputer {
 
         let borrow_denom_max_ltv = match self.kind {
             AccountKind::Default => params.max_loan_to_value,
+            AccountKind::FundManager {
+                ..
+            } => params.max_loan_to_value,
             AccountKind::HighLeveredStrategy => {
                 params
                     .credit_manager
@@ -464,6 +470,9 @@ impl HealthComputer {
                 let checked_vault_max_ltv = if *whitelisted {
                     match self.kind {
                         AccountKind::Default => *max_loan_to_value,
+                        AccountKind::FundManager {
+                            ..
+                        } => *max_loan_to_value,
                         AccountKind::HighLeveredStrategy => {
                             hls.as_ref()
                                 .ok_or(MissingHLSParams(addr.to_string()))?
@@ -933,20 +942,24 @@ impl HealthComputer {
         let deposits = self.coins_value(&self.positions.deposits)?;
         let lends = self.coins_value(&self.positions.lends)?;
         let vaults = self.vaults_value()?;
+        let staked_lp = self.coins_value(&self.positions.staked_astro_lps)?;
 
         Ok(CollateralValue {
             total_collateral_value: deposits
                 .total_collateral_value
                 .checked_add(vaults.total_collateral_value)?
-                .checked_add(lends.total_collateral_value)?,
+                .checked_add(lends.total_collateral_value)?
+                .checked_add(staked_lp.total_collateral_value)?,
             max_ltv_adjusted_collateral: deposits
                 .max_ltv_adjusted_collateral
                 .checked_add(vaults.max_ltv_adjusted_collateral)?
-                .checked_add(lends.max_ltv_adjusted_collateral)?,
+                .checked_add(lends.max_ltv_adjusted_collateral)?
+                .checked_add(staked_lp.max_ltv_adjusted_collateral)?,
             liquidation_threshold_adjusted_collateral: deposits
                 .liquidation_threshold_adjusted_collateral
                 .checked_add(vaults.liquidation_threshold_adjusted_collateral)?
-                .checked_add(lends.liquidation_threshold_adjusted_collateral)?,
+                .checked_add(lends.liquidation_threshold_adjusted_collateral)?
+                .checked_add(staked_lp.liquidation_threshold_adjusted_collateral)?,
         })
     }
 
@@ -956,12 +969,7 @@ impl HealthComputer {
         let mut liquidation_threshold_adjusted_collateral = Uint128::zero();
 
         for c in coins {
-            let coin_price =
-                self.oracle_prices.get(&c.denom).ok_or(MissingPrice(c.denom.clone()))?;
-            let coin_value = c.amount.checked_mul_floor(*coin_price)?;
-            total_collateral_value = total_collateral_value.checked_add(coin_value)?;
-
-            let AssetParams {
+            let Some(AssetParams {
                 credit_manager:
                     CmSettings {
                         hls,
@@ -969,7 +977,15 @@ impl HealthComputer {
                     },
                 liquidation_threshold,
                 ..
-            } = self.asset_params.get(&c.denom).ok_or(MissingAssetParams(c.denom.clone()))?;
+            }) = self.coin_contribution_to_collateral(c)?
+            else {
+                continue;
+            };
+
+            let coin_price =
+                self.oracle_prices.get(&c.denom).ok_or(MissingPrice(c.denom.clone()))?;
+            let coin_value = c.amount.checked_mul_floor(*coin_price)?;
+            total_collateral_value = total_collateral_value.checked_add(coin_value)?;
 
             let checked_max_ltv = self.get_coin_max_ltv(&c.denom)?;
 
@@ -979,6 +995,9 @@ impl HealthComputer {
 
             let checked_liquidation_threshold = match self.kind {
                 AccountKind::Default => *liquidation_threshold,
+                AccountKind::FundManager {
+                    ..
+                } => *liquidation_threshold,
                 AccountKind::HighLeveredStrategy => {
                     hls.as_ref().ok_or(MissingHLSParams(c.denom.clone()))?.liquidation_threshold
                 }
@@ -992,6 +1011,54 @@ impl HealthComputer {
             max_ltv_adjusted_collateral,
             liquidation_threshold_adjusted_collateral,
         })
+    }
+
+    fn coin_contribution_to_collateral(&self, coin: &Coin) -> HealthResult<Option<&AssetParams>> {
+        let Some(asset_params) = self.asset_params.get(&coin.denom) else {
+            // If the coin is not found (whitelisted), it is not considered for collateral
+            return Ok(None);
+        };
+
+        match self.kind {
+            AccountKind::HighLeveredStrategy => {
+                // HLS should have 0 or 1 debt denom in the account. If there are more than 1 we can safely calculate the collateral value
+                // because the rule will be checked in the Credit Manager contract and won't allow more than 1 debt denom in the account.
+                if !self.positions.debts.is_empty() {
+                    let mut correlations = vec![];
+                    for debt in self.positions.debts.iter() {
+                        let debt_params = self
+                            .asset_params
+                            .get(&debt.denom)
+                            .ok_or(MissingAssetParams(debt.denom.clone()))?;
+                        let debt_hls = debt_params
+                            .credit_manager
+                            .hls
+                            .as_ref()
+                            .ok_or(MissingHLSParams(debt.denom.clone()))?;
+
+                        // collect all the correlations of the debts
+                        correlations.extend(&debt_hls.correlations);
+                    }
+
+                    // If the collateral is not correlated with any of the debts, skip it.
+                    // It doesn't contribute to the collateral value.
+                    if !correlations.contains(&&HlsAssetType::Coin {
+                        denom: coin.denom.clone(),
+                    }) {
+                        return Ok(None);
+                    }
+                } else if asset_params.credit_manager.hls.is_none() {
+                    // Only collateral with hls params can be used in an HLS account and can contribute to the collateral value
+                    return Ok(None);
+                }
+            }
+            AccountKind::Default => {}
+            AccountKind::FundManager {
+                ..
+            } => {}
+        }
+
+        Ok(Some(asset_params))
     }
 
     fn vaults_value(&self) -> HealthResult<CollateralValue> {
@@ -1031,6 +1098,9 @@ impl HealthComputer {
             let checked_vault_max_ltv = if *whitelisted && base_params.credit_manager.whitelisted {
                 match self.kind {
                     AccountKind::Default => *max_loan_to_value,
+                    AccountKind::FundManager {
+                        ..
+                    } => *max_loan_to_value,
                     AccountKind::HighLeveredStrategy => {
                         hls.as_ref().ok_or(MissingHLSParams(addr.to_string()))?.max_loan_to_value
                     }
@@ -1047,6 +1117,9 @@ impl HealthComputer {
 
             let checked_liquidation_threshold = match self.kind {
                 AccountKind::Default => *liquidation_threshold,
+                AccountKind::FundManager {
+                    ..
+                } => *liquidation_threshold,
                 AccountKind::HighLeveredStrategy => {
                     hls.as_ref().ok_or(MissingHLSParams(addr.to_string()))?.liquidation_threshold
                 }
@@ -1142,6 +1215,9 @@ impl HealthComputer {
 
         match self.kind {
             AccountKind::Default => Ok(params.max_loan_to_value),
+            AccountKind::FundManager {
+                ..
+            } => Ok(params.max_loan_to_value),
             AccountKind::HighLeveredStrategy => Ok(params
                 .credit_manager
                 .hls
