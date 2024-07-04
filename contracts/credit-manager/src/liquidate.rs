@@ -38,8 +38,12 @@ pub fn calculate_liquidation(
         current_debt_for_denom(deps.as_ref(), liquidatee_account_id, &debt_coin.denom)?;
 
     let params = PARAMS.load(deps.storage)?;
-    let request_coin_params = params.query_asset_params(&deps.querier, request_coin)?;
-    let debt_coin_params = params.query_asset_params(&deps.querier, &debt_coin.denom)?;
+    let request_coin_params = params
+        .query_asset_params(&deps.querier, request_coin)?
+        .ok_or(ContractError::AssetParamsNotFound(request_coin.to_string()))?;
+    let debt_coin_params = params
+        .query_asset_params(&deps.querier, &debt_coin.denom)?
+        .ok_or(ContractError::AssetParamsNotFound(debt_coin.denom.to_string()))?;
 
     let oracle = ORACLE.load(deps.storage)?;
     let debt_coin_price =

@@ -35,6 +35,13 @@ pub enum QueryMsg {
     VaultUtilization {
         vault: VaultUnchecked,
     },
+    /// Enumerate the amounts the vaults have been utilized,
+    /// denominated in the same denom set in the vault config's deposit cap
+    #[returns(cw_paginate::PaginationResponse<VaultUtilizationResponse>)]
+    AllVaultUtilizations {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
     /// All positions represented by token with value
     #[returns(Positions)]
     Positions {
@@ -85,6 +92,12 @@ pub enum QueryMsg {
     #[returns(crate::adapters::vault::VaultPositionValue)]
     VaultPositionValue {
         vault_position: VaultPosition,
+    },
+    /// Enumerate all vault bindings; start_after accepts account_id
+    #[returns(Vec<VaultBinding>)]
+    VaultBindings {
+        start_after: Option<String>,
+        limit: Option<u32>,
     },
 }
 
@@ -143,10 +156,12 @@ impl Coins for Vec<DebtAmount> {
 #[cw_serde]
 pub struct Positions {
     pub account_id: String,
+    pub account_kind: AccountKind,
     pub deposits: Vec<Coin>,
     pub debts: Vec<DebtAmount>,
     pub lends: Vec<Coin>,
     pub vaults: Vec<VaultPosition>,
+    pub staked_astro_lps: Vec<Coin>,
     pub perps: Vec<PerpPosition>,
     pub perp_vault: Option<PerpVaultPosition>,
 }
@@ -184,4 +199,10 @@ pub struct ConfigResponse {
 pub struct Account {
     pub id: String,
     pub kind: AccountKind,
+}
+
+#[cw_serde]
+pub struct VaultBinding {
+    pub account_id: String,
+    pub vault_address: String,
 }

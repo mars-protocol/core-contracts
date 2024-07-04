@@ -5,6 +5,12 @@ const nobleUsdcDenom = 'ibc/4C19E7EC06C1AB2EC2D70C6855FEB6D48E9CE174913991DA0A51
 const atomDenom = 'ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9'
 const marsDenom = 'ibc/584A4A23736884E0C198FD1EE932455A9357A492A7B94324E4A02B5628687831'
 
+const pclLpMarsUsdcDenom =
+  'factory/neutron1sf456kx85dz0wfjs4sx0s80dyzmc360pfc0rdzactxt8xrse9ykqsdpy2y/astroport/share'
+const pclLpMarsDenom = 'factory/neutron1wm8jd0hrw79pfhhm9xmuq43jwz4wtukvxfgkkw/mars'
+const pclLpUsdcDenom = 'factory/neutron1wm8jd0hrw79pfhhm9xmuq43jwz4wtukvxfgkkw/usdc'
+const pclLpMarsUsdcPairAddr = 'neutron1sf456kx85dz0wfjs4sx0s80dyzmc360pfc0rdzactxt8xrse9ykqsdpy2y'
+
 // dummy denoms for testing
 const btcDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/ubtc'
 const ethDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/ueth'
@@ -22,7 +28,7 @@ const rpcEndpoint = 'https://rpc-palvus.pion-1.ntrn.tech'
 // Astroport configuration
 const astroportFactory = 'neutron1jj0scx400pswhpjes589aujlqagxgcztw04srynmhf0f6zplzn2qqmhwj7'
 const astroportRouter = 'neutron12jm24l9lr9cupufqjuxpdjnnweana4h66tsx5cl800mke26td26sq7m05p'
-// const astroportNtrnAtomPair = 'neutron1sm23jnz4lqd88etklvwlm66a0x6mhflaqlv65wwr7nwwxa6258ks6nshpq'
+const astroportIncentives = 'neutron1slxs8heecwyw0n6zmj7unj3nenrfhk2zpagfz2lt87dnevmksgwsq9adkn'
 
 // note the following three addresses are all 'mars' bech32 prefix
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
@@ -195,6 +201,33 @@ export const usdOracle: OracleConfig = {
   },
 }
 
+export const pclLpMarsUsdcOracle: OracleConfig = {
+  denom: pclLpMarsUsdcDenom,
+  price_source: {
+    pcl_liquidity_token: {
+      pair_address: pclLpMarsUsdcPairAddr,
+    },
+  },
+}
+
+export const pclLpMarsOracle: OracleConfig = {
+  denom: pclLpMarsDenom,
+  price_source: {
+    fixed: {
+      price: '0.84',
+    },
+  },
+}
+
+export const pclLpUsdcOracle: OracleConfig = {
+  denom: pclLpUsdcDenom,
+  price_source: {
+    fixed: {
+      price: '1.05',
+    },
+  },
+}
+
 // Router configurations
 export const atomUsdcRoute = {
   denom_in: atomDenom,
@@ -329,12 +362,12 @@ export const usdcMarsRoute = {
 // Asset configurations
 export const ntrnAsset: AssetConfig = {
   denom: 'untrn',
-  max_loan_to_value: '0.35',
-  liquidation_threshold: '0.40',
+  max_loan_to_value: '0.54',
+  liquidation_threshold: '0.55',
   liquidation_bonus: {
-    max_lb: '0.05',
-    min_lb: '0',
-    slope: '2',
+    max_lb: '0.2',
+    min_lb: '0.05',
+    slope: '1',
     starting_lb: '0',
   },
   protocol_liquidation_fee: '0.5',
@@ -359,12 +392,12 @@ export const ntrnAsset: AssetConfig = {
 
 export const atomAsset: AssetConfig = {
   denom: atomDenom,
-  max_loan_to_value: '0.68',
-  liquidation_threshold: '0.7',
+  max_loan_to_value: '0.74',
+  liquidation_threshold: '0.75',
   liquidation_bonus: {
-    max_lb: '0.05',
-    min_lb: '0',
-    slope: '2',
+    max_lb: '0.2',
+    min_lb: '0.05',
+    slope: '1',
     starting_lb: '0',
   },
   protocol_liquidation_fee: '0.5',
@@ -379,9 +412,9 @@ export const atomAsset: AssetConfig = {
   deposit_cap: '150000000000',
   reserve_factor: '0.1',
   interest_rate_model: {
-    optimal_utilization_rate: '0.7',
+    optimal_utilization_rate: '0.8',
     base: '0',
-    slope_1: '0.2',
+    slope_1: '0.14',
     slope_2: '3',
   },
   close_factor: '0.9',
@@ -389,16 +422,106 @@ export const atomAsset: AssetConfig = {
 
 export const nobleUSDCAsset: AssetConfig = {
   denom: nobleUsdcDenom,
-  max_loan_to_value: '0.74',
-  liquidation_threshold: '0.75',
+  max_loan_to_value: '0.795',
+  liquidation_threshold: '0.8',
   liquidation_bonus: {
-    max_lb: '0.05',
-    min_lb: '0',
-    slope: '2',
+    max_lb: '0.2',
+    min_lb: '0.05',
+    slope: '1',
     starting_lb: '0',
   },
   protocol_liquidation_fee: '0.5',
-  symbol: 'axlUSDC',
+  symbol: 'nobleUSDC',
+  credit_manager: {
+    whitelisted: true,
+  },
+  red_bank: {
+    borrow_enabled: true,
+    deposit_enabled: true,
+  },
+  deposit_cap: '500000000000',
+  reserve_factor: '0.1',
+  interest_rate_model: {
+    optimal_utilization_rate: '0.8',
+    base: '0',
+    slope_1: '0.2',
+    slope_2: '2',
+  },
+  close_factor: '0.9',
+}
+
+export const pclLpMarsUsdcAsset: AssetConfig = {
+  denom: pclLpMarsUsdcDenom,
+  max_loan_to_value: '0.35',
+  liquidation_threshold: '0.40',
+  liquidation_bonus: {
+    max_lb: '0.2',
+    min_lb: '0.05',
+    slope: '1',
+    starting_lb: '0',
+  },
+  protocol_liquidation_fee: '0.5',
+  symbol: 'PCL_LP_MARS_USDC',
+  credit_manager: {
+    whitelisted: true,
+  },
+  red_bank: {
+    borrow_enabled: false,
+    deposit_enabled: true,
+  },
+  deposit_cap: '1000000000000000000',
+  reserve_factor: '0.1',
+  interest_rate_model: {
+    optimal_utilization_rate: '0.6',
+    base: '0',
+    slope_1: '0.15',
+    slope_2: '3',
+  },
+  close_factor: '0.9',
+}
+
+export const pclLpMarsAsset: AssetConfig = {
+  denom: pclLpMarsDenom,
+  max_loan_to_value: '0.74',
+  liquidation_threshold: '0.75',
+  liquidation_bonus: {
+    max_lb: '0.2',
+    min_lb: '0.05',
+    slope: '1',
+    starting_lb: '0',
+  },
+  protocol_liquidation_fee: '0.5',
+  symbol: 'PCL_LP_MARS',
+  credit_manager: {
+    whitelisted: true,
+  },
+  red_bank: {
+    borrow_enabled: true,
+    deposit_enabled: true,
+  },
+  deposit_cap: '500000000000',
+  reserve_factor: '0.1',
+  interest_rate_model: {
+    optimal_utilization_rate: '0.8',
+    base: '0',
+    slope_1: '0.125',
+    slope_2: '2',
+  },
+  close_factor: '0.9',
+}
+
+export const pclLpUsdcAsset: AssetConfig = {
+  denom: pclLpUsdcDenom,
+  max_loan_to_value: '0.74',
+  liquidation_threshold: '0.75',
+  liquidation_bonus: {
+    max_lb: '0.2',
+    min_lb: '0.05',
+    slope: '1',
+    starting_lb: '0',
+  },
+  protocol_liquidation_fee: '0.5',
+  symbol: 'PCL_LP_USDC',
   credit_manager: {
     whitelisted: true,
   },
@@ -578,15 +701,25 @@ export const neutronTestnetConfig: DeploymentConfig = {
   maxValueForBurn: '10000',
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',
-  zapperContractName: 'mars_zapper_osmosis',
+  zapperContractName: 'mars_zapper_astroport',
   runTests: false,
-  assets: [ntrnAsset, atomAsset, nobleUSDCAsset],
+  assets: [
+    ntrnAsset,
+    atomAsset,
+    nobleUSDCAsset,
+    pclLpMarsUsdcAsset,
+    pclLpMarsAsset,
+    pclLpUsdcAsset,
+  ],
   vaults: [],
   oracleConfigs: [
     usdOracle,
     nobleUSDCOracle,
     atomOracle,
     ntrnOracle,
+    pclLpMarsOracle,
+    pclLpUsdcOracle,
+    pclLpMarsUsdcOracle,
     btcOracle,
     ethOracle,
     injOracle,
@@ -594,6 +727,11 @@ export const neutronTestnetConfig: DeploymentConfig = {
     tiaOracle,
     solOracle,
   ],
+  astroportConfig: {
+    factory: astroportFactory,
+    router: astroportRouter,
+    incentives: astroportIncentives,
+  },
   perps: {
     baseDenom: nobleUsdcDenom,
     cooldownPeriod: 300, // 5 min

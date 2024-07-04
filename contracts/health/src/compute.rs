@@ -34,6 +34,7 @@ pub fn compute_health(
         })
         .collect::<StdResult<HashMap<_, _>>>()?;
     let vault_base_token_denoms = vault_infos.values().map(|v| &v.base_token).collect::<Vec<_>>();
+    let staked_lp_denoms = positions.staked_astro_lps.iter().map(|d| &d.denom).collect::<Vec<_>>();
     let perp_denoms = positions.perps.iter().map(|p| &p.denom).collect::<Vec<_>>();
     let perp_vault_denoms = if let Some(p) = &positions.perp_vault {
         vec![&p.denom]
@@ -50,26 +51,19 @@ pub fn compute_health(
         .chain(debt_denoms)
         .chain(lend_denoms)
         .chain(vault_base_token_denoms)
+        .chain(staked_lp_denoms)
         .chain(perp_vault_denoms)
         .try_for_each(|denom| -> StdResult<()> {
-            // Asset data
-            let price = q.oracle.query_price(&deps.querier, denom, action.clone())?.price;
-            oracle_prices.insert(denom.clone(), price);
-            let params = q.params.query_asset_params(&deps.querier, denom)?;
-            asset_params.insert(denom.clone(), params);
+            let params_opt = q.params.query_asset_params(&deps.querier, denom)?;
+            // If the asset is not supported, we skip it (both params and price)
+            if let Some(params) = params_opt {
+                asset_params.insert(denom.to_string(), params);
 
+                let price = q.oracle.query_price(&deps.querier, denom, action.clone())?.price;
+                oracle_prices.insert(denom.to_string(), price);
+            }
             Ok(())
         })?;
-
-    let mut perps_data: PerpsData = Default::default();
-    perp_denoms.into_iter().try_for_each(|denom| -> StdResult<()> {
-        // Perp data
-        let perp_params = q.params.query_perp_params(&deps.querier, denom)?;
-        let perp_denom_state = q.perps.query_perp_denom_state(&deps.querier, denom)?;
-        perps_data.denom_states.insert(denom.clone(), perp_denom_state);
-        perps_data.params.insert(denom.clone(), perp_params);
-        Ok(())
-    })?;
 
     // Collect all vault data
     let mut vaults_data: VaultsData = Default::default();
@@ -78,6 +72,16 @@ pub fn compute_health(
         vaults_data.vault_values.insert(v.vault.address.clone(), vault_coin_value);
         let config = q.query_vault_config(&v.vault)?;
         vaults_data.vault_configs.insert(v.vault.address.clone(), config);
+        Ok(())
+    })?;
+
+    let mut perps_data: PerpsData = Default::default();
+    perp_denoms.into_iter().try_for_each(|denom| -> StdResult<()> {
+        // Perp data
+        let perp_params = q.params.query_perp_params(&deps.querier, denom)?;
+        let perp_denom_state = q.perps.query_perp_denom_state(&deps.querier, denom)?;
+        perps_data.denom_states.insert(denom.clone(), perp_denom_state);
+        perps_data.params.insert(denom.clone(), perp_params);
         Ok(())
     })?;
 

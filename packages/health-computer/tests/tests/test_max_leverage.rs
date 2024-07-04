@@ -88,6 +88,7 @@ fn currently_long_max_q_change() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
             deposits: vec![coin(50000000, base_denom.clone()), coin(1000000000, "uosmo")],
             debts: vec![
                 DebtAmount {
@@ -103,6 +104,7 @@ fn currently_long_max_q_change() {
             ],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![PerpPosition {
                 base_denom: base_denom.clone(),
                 entry_exec_price,
@@ -219,6 +221,7 @@ fn max_position_size_zero_if_net_oi_exceeded() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
             deposits: vec![coin(50, base_denom.clone()), coin(1000, "uosmo")],
             debts: vec![
                 DebtAmount {
@@ -234,6 +237,7 @@ fn max_position_size_zero_if_net_oi_exceeded() {
             ],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![PerpPosition {
                 base_denom: base_denom.clone(),
                 entry_exec_price,
@@ -338,6 +342,7 @@ fn max_position_size_zero_if_long_oi_exceeded() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
             deposits: vec![coin(50, base_denom.clone()), coin(1000, "uosmo")],
             debts: vec![
                 DebtAmount {
@@ -353,6 +358,7 @@ fn max_position_size_zero_if_long_oi_exceeded() {
             ],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![PerpPosition {
                 base_denom: base_denom.clone(),
                 entry_exec_price,
@@ -458,6 +464,7 @@ fn existing_short_max_q_change() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
             deposits: vec![coin(50000000, base_denom.clone()), coin(1000000000, "uosmo")],
             debts: vec![
                 DebtAmount {
@@ -473,6 +480,7 @@ fn existing_short_max_q_change() {
             ],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![PerpPosition {
                 base_denom: base_denom.clone(),
                 entry_exec_price,
@@ -558,6 +566,7 @@ fn no_existing_perp_position() {
         kind: AccountKind::Default,
         positions: Positions {
             account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
             deposits: vec![
                 coin(50000000, base_denom.clone()),
                 coin(1000000000, "uosmo".to_string()),
@@ -576,6 +585,7 @@ fn no_existing_perp_position() {
             ],
             lends: vec![],
             vaults: vec![],
+            staked_astro_lps: vec![],
             perps: vec![],
             perp_vault: None,
         },

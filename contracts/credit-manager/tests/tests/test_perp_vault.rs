@@ -1,5 +1,6 @@
 use cosmwasm_std::{coin, coins, Addr, OverflowError, OverflowOperation, Uint128};
 use mars_credit_manager::error::ContractError;
+use mars_testing::multitest::helpers::blacklisted_coin_info;
 use mars_types::{
     credit_manager::{
         Action::{Deposit, DepositToPerpVault, UnlockFromPerpVault, WithdrawFromPerpVault},
@@ -8,11 +9,11 @@ use mars_types::{
     perps::{PerpVaultDeposit, PerpVaultPosition, PerpVaultUnlock},
 };
 
-use super::helpers::{assert_err, blacklisted_coin, coin_info, AccountToFund, MockEnv};
+use super::helpers::{assert_err, coin_info, AccountToFund, MockEnv};
 
 #[test]
 fn can_only_deposit_to_perp_vault_what_is_whitelisted() {
-    let coin_info = blacklisted_coin();
+    let coin_info = blacklisted_coin_info();
     let user = Addr::unchecked("user");
     let mut mock = MockEnv::new().set_params(&[coin_info.clone()]).build().unwrap();
     let account_id = mock.create_credit_account(&user).unwrap();
