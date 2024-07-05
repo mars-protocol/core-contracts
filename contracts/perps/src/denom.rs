@@ -81,7 +81,8 @@ pub trait DenomStateExt {
     /// Validate the position size against the open interest limits
     fn validate_open_interest(
         &self,
-        size: SignedUint,
+        new_size: SignedUint,
+        old_size: SignedUint,
         denom_price: Decimal,
         param: &PerpParams,
     ) -> ContractResult<()>;
@@ -260,33 +261,47 @@ impl DenomStateExt for DenomState {
 
     fn validate_open_interest(
         &self,
-        size: SignedUint,
+        new_size: SignedUint,
+        old_size: SignedUint,
         denom_price: Decimal,
         param: &PerpParams,
     ) -> ContractResult<()> {
-        let net_oi = if size.is_positive() {
-            let long_oi = self.long_oi.checked_add(size.abs)?;
-            let long_oi_value = long_oi.checked_mul_floor(denom_price)?;
-            if long_oi_value > param.max_long_oi_value {
-                return Err(ContractError::LongOpenInterestReached {
-                    max: param.max_long_oi_value,
-                    found: long_oi_value,
-                });
-            }
+        let mut long_oi = self.long_oi;
+        let mut short_oi = self.short_oi;
 
-            long_oi.abs_diff(self.short_oi)
+        // remove old_size from OI
+        if old_size.is_positive() {
+            long_oi = long_oi.checked_sub(old_size.abs)?;
         } else {
-            let short_oi = self.short_oi.checked_add(size.abs)?;
-            let short_oi_value = short_oi.checked_mul_floor(denom_price)?;
-            if short_oi_value > param.max_short_oi_value {
-                return Err(ContractError::ShortOpenInterestReached {
-                    max: param.max_short_oi_value,
-                    found: short_oi_value,
-                });
-            }
+            short_oi = short_oi.checked_sub(old_size.abs)?;
+        }
 
-            self.long_oi.abs_diff(short_oi)
-        };
+        // add new_size to OI
+        if new_size.is_positive() {
+            long_oi = long_oi.checked_add(new_size.abs)?;
+        } else {
+            short_oi = short_oi.checked_add(new_size.abs)?;
+        }
+
+        // validate OI long
+        let long_oi_value = long_oi.checked_mul_floor(denom_price)?;
+        if long_oi_value > param.max_long_oi_value {
+            return Err(ContractError::LongOpenInterestReached {
+                max: param.max_long_oi_value,
+                found: long_oi_value,
+            });
+        }
+
+        // validate OI short
+        let short_oi_value = short_oi.checked_mul_floor(denom_price)?;
+        if short_oi_value > param.max_short_oi_value {
+            return Err(ContractError::ShortOpenInterestReached {
+                max: param.max_short_oi_value,
+                found: short_oi_value,
+            });
+        }
+
+        let net_oi = long_oi.abs_diff(short_oi);
 
         let net_oi_value = net_oi.checked_mul_floor(denom_price)?;
         if net_oi_value > param.max_net_oi_value {
@@ -376,14 +391,11 @@ impl DenomStateExt for DenomState {
         // then we increase the accumulators with new data
         increase_accumulators(self, new_size, denom_price)?;
 
-        // update the open interest
-        if new_size.abs > position.size.abs {
-            let q_change = new_size.checked_sub(position.size)?;
-            self.increase_open_interest(q_change)?;
-        } else {
-            let q_change = position.size.checked_sub(new_size)?;
-            self.decrease_open_interest(q_change)?;
-        }
+        // update the open interest:
+        // - decrease for the old size
+        self.decrease_open_interest(position.size)?;
+        // - increase for the new size
+        self.increase_open_interest(new_size)?;
 
         self.last_updated = current_time;
 

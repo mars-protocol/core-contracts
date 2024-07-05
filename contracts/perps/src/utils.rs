@@ -2,7 +2,6 @@ use cosmwasm_std::{Addr, Uint128};
 use mars_types::{
     keys::{UserId, UserIdKey},
     params::PerpParams,
-    signed_uint::SignedUint,
 };
 
 use crate::error::{ContractError, ContractResult};
@@ -32,19 +31,6 @@ pub fn ensure_max_position(
                 found: position_value,
             });
         }
-    }
-    Ok(())
-}
-
-/// Ensure that the new position size does not flip the position from long to short or vice versa
-pub fn ensure_position_not_flipped(
-    old_size: SignedUint,
-    new_size: SignedUint,
-) -> ContractResult<()> {
-    if !new_size.is_zero() && new_size.is_positive() != old_size.is_positive() {
-        return Err(ContractError::IllegalPositionModification {
-            reason: "Cannot flip Position. Submit independent close and open messages".to_string(),
-        });
     }
     Ok(())
 }

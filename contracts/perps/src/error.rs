@@ -136,6 +136,11 @@ pub enum ContractError {
         account_id: String,
         max_positions: u8,
     },
+
+    #[error("Invalid position flip: {reason}")]
+    InvalidPositionFlip {
+        reason: String,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

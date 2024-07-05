@@ -1,13 +1,13 @@
 use std::{cmp::Ordering, collections::HashMap};
 
 use cosmwasm_std::{
-    coins, ensure_eq, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Order, Response,
+    coins, ensure_eq, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Order, Response,
     StdError, Uint128,
 };
 use cw_utils::{may_pay, must_pay};
 use mars_types::{
     oracle::ActionKind,
-    perps::{CashFlow, DenomState, PnL, PnlAmounts, Position},
+    perps::{CashFlow, Config, DenomState, PnL, PnlAmounts, Position},
     signed_uint::SignedUint,
 };
 
@@ -18,7 +18,7 @@ use crate::{
     position::{PositionExt, PositionModification},
     pricing::opening_execution_price,
     state::{CONFIG, DENOM_STATES, POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW},
-    utils::{ensure_max_position, ensure_min_position, ensure_position_not_flipped},
+    utils::{ensure_max_position, ensure_min_position},
 };
 
 pub fn open_position(
@@ -88,7 +88,7 @@ pub fn open_position(
     ensure_max_position(position_value, &perp_params)?;
 
     // validate the position's size against OI limits
-    ds.validate_open_interest(size, denom_price, &perp_params)?;
+    ds.validate_open_interest(size, SignedUint::zero(), denom_price, &perp_params)?;
 
     // skew _before_ modification
     let initial_skew = ds.skew()?;
@@ -170,8 +170,6 @@ fn update_position_state(
     denom: String,
     new_size: SignedUint,
 ) -> ContractResult<Response> {
-    let mut msgs = vec![];
-
     // States
     let cfg = CONFIG.load(deps.storage)?;
 
@@ -188,11 +186,6 @@ fn update_position_state(
 
     let entry_size = position.size;
 
-    // Check if we have flipped sides (e.g long -> short or vice versa).
-    // To reduce complexity and contract size we reject this.
-    // Users should use independent close and open actions.
-    ensure_position_not_flipped(entry_size, new_size)?;
-
     // Prices
     let entry_price = position.entry_price;
     let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
@@ -208,78 +201,94 @@ fn update_position_state(
     // skew _before_ modification
     let initial_skew = ds.skew()?;
 
-    let modification = match new_size.abs.cmp(&entry_size.abs) {
+    let modification = if new_size.is_zero() {
         // Close the position
-        Ordering::Less if new_size.is_zero() => {
-            // Update the denom's accumulators.
-            // Funding rates and index is updated to the current block time (using old size).
-            ds.close_position(env.block.time.seconds(), denom_price, base_denom_price, &position)?;
 
-            PositionModification::Decrease(entry_size)
+        // Update the denoms accumulators.
+        // Funding rates and index is updated to the current block time (using old size).
+        ds.close_position(env.block.time.seconds(), denom_price, base_denom_price, &position)?;
+
+        PositionModification::Decrease(entry_size)
+    } else {
+        // When a denom is disabled it should be close only
+        if !ds.enabled {
+            return Err(ContractError::PositionCannotBeModifiedIfDenomDisabled {
+                denom,
+            });
         }
 
-        // Decrease the position
-        Ordering::Less => {
-            // When a denom is disabled it should be close only
-            if !ds.enabled {
-                return Err(ContractError::PositionCannotBeModifiedIfDenomDisabled {
-                    denom,
+        let is_flipped = new_size.negative != entry_size.negative;
+
+        match (is_flipped, new_size.abs.cmp(&entry_size.abs)) {
+            // Position is not changed
+            (false, Ordering::Equal) => {
+                return Err(ContractError::IllegalPositionModification {
+                    reason: "new_size is equal to old_size.".to_string(),
                 });
             }
 
-            // Enforce min size when decreasing
-            ensure_min_position(position_value, &perp_params)?;
+            // Position is decreasing
+            (false, Ordering::Less) => {
+                // Enforce min size when decreasing
+                ensure_min_position(position_value, &perp_params)?;
 
-            // Update the denom's accumulators.
-            // Funding rates and index is updated to the current block time (using old size).
-            ds.modify_position(
-                env.block.time.seconds(),
-                denom_price,
-                base_denom_price,
-                &position,
-                new_size,
-            )?;
+                // Update the denoms accumulators.
+                // Funding rates and index is updated to the current block time (using old size).
+                ds.modify_position(
+                    env.block.time.seconds(),
+                    denom_price,
+                    base_denom_price,
+                    &position,
+                    new_size,
+                )?;
 
-            let q_change = entry_size.checked_sub(new_size)?;
-            PositionModification::Decrease(q_change)
-        }
-
-        // Increase position
-        Ordering::Greater => {
-            // When a denom is disabled it should be close only
-            if !ds.enabled {
-                return Err(ContractError::DenomNotEnabled {
-                    denom,
-                });
+                let q_change = entry_size.checked_sub(new_size)?;
+                PositionModification::Decrease(q_change)
             }
 
-            // Enforce position size cannot be too big when increasing
-            ensure_max_position(position_value, &perp_params)?;
+            // Position is increasing
+            (false, Ordering::Greater) => {
+                // Enforce position size cannot be too big when increasing
+                ensure_max_position(position_value, &perp_params)?;
 
-            let q_change = new_size.checked_sub(entry_size)?;
+                // validate the position's size against OI limits
+                ds.validate_open_interest(new_size, entry_size, denom_price, &perp_params)?;
 
-            // validate the position's size against OI limits
-            let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
-            ds.validate_open_interest(q_change, denom_price, &perp_params)?; // q change
+                // Update the denoms accumulators.
+                // Funding rates and index is updated to the current block time (using old size).
+                ds.modify_position(
+                    env.block.time.seconds(),
+                    denom_price,
+                    base_denom_price,
+                    &position,
+                    new_size,
+                )?;
 
-            // Update the denom's accumulators.
-            // Funding rates and index is updated to the current block time (using old size).
-            ds.modify_position(
-                env.block.time.seconds(),
-                denom_price,
-                base_denom_price,
-                &position,
-                new_size,
-            )?;
+                let q_change = new_size.checked_sub(entry_size)?;
+                PositionModification::Increase(q_change)
+            }
 
-            PositionModification::Increase(q_change)
-        }
+            // Position is flipping
+            (true, _) => {
+                // Ensure min and max position size when flipping a position
+                ensure_min_position(position_value, &perp_params)?;
+                ensure_max_position(position_value, &perp_params)?;
 
-        // Means we have submitted a new size the same as the old size.
-        Ordering::Equal => {
-            return Err(ContractError::IllegalPositionModification {
-                reason: "new_size is equal to old_size.".to_string(),
-            })
+                // Ensure the position's size against OI limits
+                ds.validate_open_interest(new_size, entry_size, denom_price, &perp_params)?;
+
+                // Update the denoms accumulators.
+                // Funding rates and index is updated to the current block time (using old size).
+                ds.modify_position(
+                    env.block.time.seconds(),
+                    denom_price,
+                    base_denom_price,
+                    &position,
+                    new_size,
+                )?;
+
+                PositionModification::Flip(new_size, entry_size)
+            }
         }
     };
 
@@ -299,16 +308,9 @@ fn update_position_state(
     // Convert PnL amounts to coins
     let pnl = pnl_amounts.to_coins(&cfg.base_denom).pnl;
 
-    let send_amount = execute_payment(&cfg.base_denom, paid_amount, &pnl)?;
+    let mut msgs = vec![];
 
-    if !send_amount.is_zero() {
-        // send coins to credit manager
-        let send_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: cfg.credit_manager.into(),
-            amount: coins(send_amount.u128(), cfg.base_denom),
-        });
-        msgs.push(send_msg);
-    }
+    apply_payment_to_cm_if_needed(cfg, &mut msgs, paid_amount, &pnl)?;
 
     apply_new_amounts_to_realized_pnl(&mut realized_pnl, &mut ds, &mut tcf, &pnl_amounts)?;
 
@@ -389,7 +391,7 @@ fn apply_new_amounts_to_realized_pnl(
 
 /// Compute how many coins should be sent to the credit account.
 /// Credit manager doesn't send more coins than required.
-fn execute_payment(
+fn get_payment_amount_to_cm(
     base_denom: &str,
     paid_amount: Uint128,
     pnl: &PnL,
@@ -521,17 +523,9 @@ pub fn close_all_positions(
     // Convert PnL amounts to coins
     let pnl = pnl_amounts_accumulator.to_coins(&cfg.base_denom).pnl;
 
-    let send_amount = execute_payment(&cfg.base_denom, paid_amount, &pnl)?;
-
     let mut msgs = vec![];
-    if !send_amount.is_zero() {
-        // send coins to credit manager
-        let send_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: cfg.credit_manager.into(),
-            amount: coins(send_amount.u128(), cfg.base_denom),
-        });
-        msgs.push(send_msg);
-    }
+
+    apply_payment_to_cm_if_needed(cfg, &mut msgs, paid_amount, &pnl)?;
 
     TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
 
@@ -540,4 +534,23 @@ pub fn close_all_positions(
         .add_attribute("action", "close_all_positions")
         .add_attribute("account_id", account_id)
         .add_attribute("realised_pnl", pnl.to_string()))
+}
+
+fn apply_payment_to_cm_if_needed(
+    cfg: Config<Addr>,
+    msgs: &mut Vec<CosmosMsg>,
+    paid_amount: Uint128,
+    pnl: &PnL,
+) -> ContractResult<()> {
+    let payment_amount = get_payment_amount_to_cm(&cfg.base_denom, paid_amount, pnl)?;
+    if !payment_amount.is_zero() {
+        // send coins to credit manager
+        let send_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: cfg.credit_manager.into(),
+            amount: coins(payment_amount.u128(), cfg.base_denom),
+        });
+        msgs.push(send_msg);
+    }
+
+    Ok(())
 }

@@ -157,7 +157,7 @@ fn cannot_modify_position_for_disabled_denom() {
     );
     assert_err(
         res,
-        ContractError::DenomNotEnabled {
+        ContractError::PositionCannotBeModifiedIfDenomDisabled {
             denom: "uatom".to_string(),
         },
     );
@@ -624,7 +624,73 @@ fn validate_opening_position() {
 }
 
 #[test]
-fn validate_modify_position() {
+fn error_when_new_size_equals_old_size() {
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uusdc", "uatom"]);
+    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.8").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
+
+    // init denoms
+    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    let max_net_oi = Uint128::new(509);
+    let max_long_oi = Uint128::new(4009);
+    let max_short_oi = Uint128::new(4209);
+
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                max_net_oi_value: max_net_oi,
+                max_long_oi_value: max_long_oi,
+                max_short_oi_value: max_short_oi,
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params("uatom")
+            },
+        },
+    );
+
+    // Test with positive size
+    let size = SignedUint::from_str("12").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee]).unwrap();
+    // Try to modify position of 12 to 12
+    let res = mock.modify_position(&credit_manager, "1", "uatom", size, &[]);
+
+    assert_err(
+        res,
+        ContractError::IllegalPositionModification {
+            reason: "new_size is equal to old_size.".to_string(),
+        },
+    );
+
+    // Test with negative size
+    let size = SignedUint::from_str("-3").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
+    // Try to modify position of -3 to -3
+    let res = mock.modify_position(&credit_manager, "2", "uatom", size, &[]);
+
+    assert_err(
+        res,
+        ContractError::IllegalPositionModification {
+            reason: "new_size is equal to old_size.".to_string(),
+        },
+    );
+}
+
+#[test]
+fn error_when_oi_limits_exceeded() {
     let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
@@ -672,6 +738,8 @@ fn validate_modify_position() {
     mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
 
     // long OI is too big
+    // Long OI = (401) * 10 (price) = 4010
+    // Max Long OI = 4009
     let res = mock.modify_position(
         &credit_manager,
         "1",
@@ -688,6 +756,8 @@ fn validate_modify_position() {
     );
 
     // net OI is too big
+    // Net OI = (40 + 91) * 10 (price) = 510
+    // Max Net OI = 509
     let res = mock.modify_position(
         &credit_manager,
         "1",
@@ -704,6 +774,8 @@ fn validate_modify_position() {
     );
 
     // short OI is too big
+    // Short OI = (421) * 10 (price) = 4210
+    // Max Short OI = 4209
     let res = mock.modify_position(
         &credit_manager,
         "2",
@@ -719,7 +791,7 @@ fn validate_modify_position() {
         },
     );
 
-    // net OI is too big
+    // net OI is too big when
     let res = mock.modify_position(
         &credit_manager,
         "2",
@@ -732,6 +804,42 @@ fn validate_modify_position() {
         ContractError::NetOpenInterestReached {
             max: max_net_oi,
             found: max_net_oi + Uint128::one(),
+        },
+    );
+
+    // Long OI is too big after flipping size
+    // Long OI = (30 + 421) * 10 (price) = 4510
+    // Max Long OI = 4009
+    let res = mock.modify_position(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedUint::from_str("421").unwrap(),
+        &[],
+    );
+    assert_err(
+        res,
+        ContractError::LongOpenInterestReached {
+            max: max_long_oi,
+            found: Uint128::from_str("4510").unwrap(),
+        },
+    );
+
+    // Short OI is too big after flipping size
+    // Short OI = (40 + 512) * 10 (price) = 5520
+    // Max Short OI = 4209
+    let res = mock.modify_position(
+        &credit_manager,
+        "1",
+        "uatom",
+        SignedUint::from_str("-512").unwrap(),
+        &[],
+    );
+    assert_err(
+        res,
+        ContractError::ShortOpenInterestReached {
+            max: max_short_oi,
+            found: Uint128::from_str("5520").unwrap(),
         },
     );
 }
@@ -925,6 +1033,30 @@ fn modify_position_realises_pnl() {
         closing_exec_price: Some(Decimal::from_str("1.26175").unwrap()),
     };
     "close short"
+)]
+#[test_case(
+    Some(SignedUint::from_str("1200").unwrap()),
+    SignedUint::from_str("-2500").unwrap(),
+    PositionFeesResponse {
+    base_denom: "uusdc".to_string(),
+    opening_fee: Uint128::new(15u128),
+    closing_fee: Uint128::new(11u128),
+    opening_exec_price: Some(Decimal::from_str("1.2609375").unwrap()),
+    closing_exec_price: Some(Decimal::from_str("1.26325").unwrap()),
+    };
+    "flip long to short"
+)]
+#[test_case(
+    Some(SignedUint::from_str("-500").unwrap()),
+    SignedUint::from_str("500").unwrap(),
+    PositionFeesResponse {
+    base_denom: "uusdc".to_string(),
+    opening_fee: Uint128::new(3u128),
+    closing_fee: Uint128::new(5u128),
+    opening_exec_price: Some(Decimal::from_str("1.2628125").unwrap()),
+    closing_exec_price: Some(Decimal::from_str("1.2621875").unwrap()),
+    };
+    "flip short to long"
 )]
 fn query_position_fees(
     old_size: Option<SignedUint>,

@@ -41,7 +41,7 @@ fn perp_position_when_usdc_in_account() {
     let perp_size = SignedUint::from_str("200").unwrap();
 
     // check perp data before any action
-    let perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
     let opening_fee = mock.query_perp_opening_fee(&atom_info.denom, perp_size);
 
     // open perp position
@@ -71,10 +71,10 @@ fn perp_position_when_usdc_in_account() {
     assert_eq!(perp_position, expected_perp_position);
 
     // check if perp balance increased by opening fee
-    let current_perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
-    let expected_perp_usdc_balance_after_opening_perp =
-        perp_usdc_balance.amount + opening_fee.fee.amount;
-    assert_eq!(current_perp_usdc_balance.amount, expected_perp_usdc_balance_after_opening_perp);
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let expected_vault_usdc_balance_after_opening_perp =
+        vault_usdc_balance.amount + opening_fee.fee.amount;
+    assert_eq!(current_vault_usdc_balance.amount, expected_vault_usdc_balance_after_opening_perp);
 
     // simulate loss in perp position
     mock.price_change(CoinPrice {
@@ -112,10 +112,10 @@ fn perp_position_when_usdc_in_account() {
     assert_eq!(position.perps.len(), 0);
 
     // check if perp balance increased by position loss
-    let current_perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
     assert_eq!(
-        current_perp_usdc_balance.amount,
-        expected_perp_usdc_balance_after_opening_perp + loss_amt
+        current_vault_usdc_balance.amount,
+        expected_vault_usdc_balance_after_opening_perp + loss_amt
     );
 }
 
@@ -179,7 +179,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
     let perp_size = SignedUint::from_str("400").unwrap();
 
     // check perp data before any action
-    let perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
     let opening_fee = mock.query_perp_opening_fee(&atom_info.denom, perp_size);
 
     // open perp position
@@ -215,10 +215,10 @@ fn perp_position_when_not_enough_usdc_in_account() {
     assert_eq!(perp_position, expected_perp_position);
 
     // check if perp balance increased by opening fee
-    let current_perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
-    let expected_perp_usdc_balance_after_opening_perp =
-        perp_usdc_balance.amount + opening_fee.fee.amount;
-    assert_eq!(current_perp_usdc_balance.amount, expected_perp_usdc_balance_after_opening_perp);
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let expected_vault_usdc_balance_after_opening_perp =
+        vault_usdc_balance.amount + opening_fee.fee.amount;
+    assert_eq!(current_vault_usdc_balance.amount, expected_vault_usdc_balance_after_opening_perp);
 
     // deposit usdc again
     mock.update_credit_account(
@@ -265,10 +265,10 @@ fn perp_position_when_not_enough_usdc_in_account() {
     assert_eq!(position.perps.len(), 0);
 
     // check if perp balance increased by position loss
-    let current_perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
     assert_eq!(
-        current_perp_usdc_balance.amount,
-        expected_perp_usdc_balance_after_opening_perp + loss_amt
+        current_vault_usdc_balance.amount,
+        expected_vault_usdc_balance_after_opening_perp + loss_amt
     );
 }
 
@@ -327,7 +327,7 @@ fn perp_position_when_no_usdc_in_account() {
     let perp_size = SignedUint::from_str("400").unwrap();
 
     // check perp data before any action
-    let perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
     let opening_fee = mock.query_perp_opening_fee(&atom_info.denom, perp_size);
 
     // open perp position
@@ -361,10 +361,10 @@ fn perp_position_when_no_usdc_in_account() {
     assert_eq!(perp_position, expected_perp_position);
 
     // check if perp balance increased by opening fee
-    let current_perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
-    let expected_perp_usdc_balance_after_opening_perp =
-        perp_usdc_balance.amount + opening_fee.fee.amount;
-    assert_eq!(current_perp_usdc_balance.amount, expected_perp_usdc_balance_after_opening_perp);
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let expected_vault_usdc_balance_after_opening_perp =
+        vault_usdc_balance.amount + opening_fee.fee.amount;
+    assert_eq!(current_vault_usdc_balance.amount, expected_vault_usdc_balance_after_opening_perp);
 
     // simulate loss in perp position
     mock.price_change(CoinPrice {
@@ -400,10 +400,10 @@ fn perp_position_when_no_usdc_in_account() {
     assert_eq!(position.perps.len(), 0);
 
     // check if perp balance increased by position loss
-    let current_perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
     assert_eq!(
-        current_perp_usdc_balance.amount,
-        expected_perp_usdc_balance_after_opening_perp + loss_amt
+        current_vault_usdc_balance.amount,
+        expected_vault_usdc_balance_after_opening_perp + loss_amt
     );
 }
 
@@ -430,7 +430,7 @@ fn close_perp_position_with_profit() {
     let perp_size = SignedUint::from_str("200").unwrap();
 
     // check perp data before any action
-    let perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
     let opening_fee = mock.query_perp_opening_fee(&atom_info.denom, perp_size);
 
     // open perp position
@@ -460,10 +460,10 @@ fn close_perp_position_with_profit() {
     assert_eq!(perp_position, expected_perp_position);
 
     // check if perp balance increased by opening fee
-    let current_perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
-    let expected_perp_usdc_balance_after_opening_perp =
-        perp_usdc_balance.amount + opening_fee.fee.amount;
-    assert_eq!(current_perp_usdc_balance.amount, expected_perp_usdc_balance_after_opening_perp);
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let expected_vault_usdc_balance_after_opening_perp =
+        vault_usdc_balance.amount + opening_fee.fee.amount;
+    assert_eq!(current_vault_usdc_balance.amount, expected_vault_usdc_balance_after_opening_perp);
 
     // simulate profit in perp position
     mock.price_change(CoinPrice {
@@ -502,10 +502,10 @@ fn close_perp_position_with_profit() {
     assert_eq!(position.perps.len(), 0);
 
     // check if perp balance decreased by position profit
-    let current_perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
     assert_eq!(
-        current_perp_usdc_balance.amount,
-        expected_perp_usdc_balance_after_opening_perp - profit_amt
+        current_vault_usdc_balance.amount,
+        expected_vault_usdc_balance_after_opening_perp - profit_amt
     );
 }
 
@@ -545,9 +545,9 @@ fn increase_position_with_realized_pnl() {
 
     // check data before modification
     let position = mock.query_positions(&account_id);
-    let pos_usdc_balance_before_modification =
+    let user_usdc_balance_before_modification =
         get_coin(&usdc_info.denom, &position.deposits).amount;
-    let perp_usdc_balance_before_modification =
+    let vault_usdc_balance_before_modification =
         mock.query_balance(mock.perps.address(), &usdc_info.denom).amount;
 
     // simulate profit in perp position
@@ -581,24 +581,25 @@ fn increase_position_with_realized_pnl() {
 
     // check position data
     let position = mock.query_positions(&account_id);
-    let pos_usdc_balance_after_modification = get_coin(&usdc_info.denom, &position.deposits).amount;
+    let user_usdc_balance_after_modification =
+        get_coin(&usdc_info.denom, &position.deposits).amount;
     assert_eq!(position.deposits.len(), 2);
     assert_present(&position, &osmo_coin_deposited.denom, osmo_coin_deposited.amount);
     assert_present(
         &position,
         &usdc_coin_deposited.denom,
-        pos_usdc_balance_before_modification + profit_amt, // deposit increased by perp profit
+        user_usdc_balance_before_modification + profit_amt, // deposit increased by perp profit
     );
     assert_eq!(position.lends.len(), 0);
     assert_eq!(position.debts.len(), 0);
     assert_eq!(position.perps.len(), 1);
 
     // check if perp balance decreased by position profit
-    let perp_usdc_balance_after_modification =
+    let vault_usdc_balance_after_modification =
         mock.query_balance(mock.perps.address(), &usdc_info.denom).amount;
     assert_eq!(
-        perp_usdc_balance_after_modification,
-        perp_usdc_balance_before_modification - profit_amt
+        vault_usdc_balance_after_modification,
+        vault_usdc_balance_before_modification - profit_amt
     );
 
     // simulate loss in perp position
@@ -636,15 +637,15 @@ fn increase_position_with_realized_pnl() {
     assert_present(
         &position,
         &usdc_coin_deposited.denom,
-        pos_usdc_balance_after_modification - loss_amt, // loss deducted from deposit
+        user_usdc_balance_after_modification - loss_amt, // loss deducted from deposit
     );
     assert_eq!(position.lends.len(), 0);
     assert_eq!(position.debts.len(), 0);
     assert_eq!(position.perps.len(), 1);
 
     // check if perp balance increased by position loss
-    let current_perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
-    assert_eq!(current_perp_usdc_balance.amount, perp_usdc_balance_after_modification + loss_amt);
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    assert_eq!(current_vault_usdc_balance.amount, vault_usdc_balance_after_modification + loss_amt);
 }
 
 #[test]
@@ -683,9 +684,9 @@ fn decrease_position_with_realized_pnl() {
 
     // check data before modification
     let position = mock.query_positions(&account_id);
-    let pos_usdc_balance_before_modification =
+    let user_usdc_balance_before_modification =
         get_coin(&usdc_info.denom, &position.deposits).amount;
-    let perp_usdc_balance_before_modification =
+    let vault_usdc_balance_before_modification =
         mock.query_balance(mock.perps.address(), &usdc_info.denom).amount;
 
     // simulate profit in perp position
@@ -719,24 +720,25 @@ fn decrease_position_with_realized_pnl() {
 
     // check position data
     let position = mock.query_positions(&account_id);
-    let pos_usdc_balance_after_modification = get_coin(&usdc_info.denom, &position.deposits).amount;
+    let user_usdc_balance_after_modification =
+        get_coin(&usdc_info.denom, &position.deposits).amount;
     assert_eq!(position.deposits.len(), 2);
     assert_present(&position, &osmo_coin_deposited.denom, osmo_coin_deposited.amount);
     assert_present(
         &position,
         &usdc_coin_deposited.denom,
-        pos_usdc_balance_before_modification + profit_amt, // deposit increased by perp profit
+        user_usdc_balance_before_modification + profit_amt, // deposit increased by perp profit
     );
     assert_eq!(position.lends.len(), 0);
     assert_eq!(position.debts.len(), 0);
     assert_eq!(position.perps.len(), 1);
 
     // check if perp balance decreased by position profit
-    let perp_usdc_balance_after_modification =
+    let vault_usdc_balance_after_modification =
         mock.query_balance(mock.perps.address(), &usdc_info.denom).amount;
     assert_eq!(
-        perp_usdc_balance_after_modification,
-        perp_usdc_balance_before_modification - profit_amt
+        vault_usdc_balance_after_modification,
+        vault_usdc_balance_before_modification - profit_amt
     );
 
     // simulate loss in perp position
@@ -774,15 +776,156 @@ fn decrease_position_with_realized_pnl() {
     assert_present(
         &position,
         &usdc_coin_deposited.denom,
-        pos_usdc_balance_after_modification - loss_amt, // loss deducted from deposit
+        user_usdc_balance_after_modification - loss_amt, // loss deducted from deposit
     );
     assert_eq!(position.lends.len(), 0);
     assert_eq!(position.debts.len(), 0);
     assert_eq!(position.perps.len(), 1);
 
     // check if perp balance increased by position loss
-    let current_perp_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
-    assert_eq!(current_perp_usdc_balance.amount, perp_usdc_balance_after_modification + loss_amt);
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    assert_eq!(current_vault_usdc_balance.amount, vault_usdc_balance_after_modification + loss_amt);
+}
+
+#[test]
+fn flip_position_with_realized_pnl() {
+    let osmo_info = uosmo_info();
+    let atom_info = uatom_info();
+    let usdc_info = coin_info("uusdc");
+
+    let osmo_coin_deposited = osmo_info.to_coin(10000);
+    let usdc_coin_deposited = usdc_info.to_coin(1000);
+
+    let cm_user = Addr::unchecked("user");
+
+    let (mut mock, account_id) = setup(
+        &osmo_info,
+        &atom_info,
+        &usdc_info,
+        &osmo_coin_deposited,
+        &usdc_coin_deposited,
+        &cm_user,
+    );
+
+    // start in short position
+    let perp_size = SignedUint::from_str("-400").unwrap();
+
+    // open the perp position
+    mock.update_credit_account(
+        &account_id,
+        &cm_user,
+        vec![OpenPerp {
+            denom: atom_info.denom.clone(),
+            size: perp_size,
+        }],
+        &[],
+    )
+    .unwrap();
+
+    // check data before modification
+    let position = mock.query_positions(&account_id);
+    let user_usdc_balance_before_modification =
+        get_coin(&usdc_info.denom, &position.deposits).amount;
+
+    let vault_usdc_balance_before_modification =
+        mock.query_balance(mock.perps.address(), &usdc_info.denom).amount;
+
+    // simulate profit in short perp position (price decrease)
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: atom_info.denom.clone(),
+        price: atom_info.price * Decimal::percent(90u64), // 10% loss in price
+    });
+
+    // flip perp position to long
+    let new_size = SignedUint::from_str("100").unwrap();
+
+    // check perp position pnl
+    let perp_position = mock
+        .query_perp_position_with_new_size(&account_id, &atom_info.denom, Some(new_size))
+        .position;
+    let profit_amt =
+        pnl_profit(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
+
+    // modify perp position
+    mock.update_credit_account(
+        &account_id,
+        &cm_user,
+        vec![ModifyPerp {
+            denom: atom_info.denom.clone(),
+            new_size,
+        }],
+        &[],
+    )
+    .unwrap();
+
+    // check position data
+    let position = mock.query_positions(&account_id);
+    let user_usdc_balance_after_modification =
+        get_coin(&usdc_info.denom, &position.deposits).amount;
+    assert_eq!(position.deposits.len(), 2);
+    assert_present(&position, &osmo_coin_deposited.denom, osmo_coin_deposited.amount);
+    assert_present(
+        &position,
+        &usdc_coin_deposited.denom,
+        user_usdc_balance_before_modification + profit_amt, // deposit increased by perp profit
+    );
+    assert_eq!(position.lends.len(), 0);
+    assert_eq!(position.debts.len(), 0);
+    assert_eq!(position.perps.len(), 1);
+
+    // check if perp balance decreased by position profit
+    let vault_usdc_balance_after_modification =
+        mock.query_balance(mock.perps.address(), &usdc_info.denom).amount;
+    assert_eq!(
+        vault_usdc_balance_after_modification,
+        vault_usdc_balance_before_modification - profit_amt
+    );
+
+    // simulate loss in perp position (position = long, so decrease in price)
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: atom_info.denom.clone(),
+        price: atom_info.price * Decimal::percent(80u64), // 20% profit in price
+    });
+
+    // flip position to short again
+    let new_size = SignedUint::from_str("-250").unwrap();
+
+    // check perp position pnl
+    let perp_position = mock
+        .query_perp_position_with_new_size(&account_id, &atom_info.denom, Some(new_size))
+        .position;
+    let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
+
+    // modify perp position
+    mock.update_credit_account(
+        &account_id,
+        &cm_user,
+        vec![ModifyPerp {
+            denom: atom_info.denom,
+            new_size,
+        }],
+        &[],
+    )
+    .unwrap();
+
+    // check position data
+    let position = mock.query_positions(&account_id);
+    assert_eq!(position.deposits.len(), 2);
+    assert_present(&position, &osmo_coin_deposited.denom, osmo_coin_deposited.amount);
+    assert_present(
+        &position,
+        &usdc_coin_deposited.denom,
+        user_usdc_balance_after_modification - loss_amt, // loss deducted from deposit
+    );
+    assert_eq!(position.lends.len(), 0);
+    assert_eq!(position.debts.len(), 0);
+    assert_eq!(position.perps.len(), 1);
+
+    // check if perp balance increased by position loss
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    assert_eq!(current_vault_usdc_balance.amount, vault_usdc_balance_after_modification + loss_amt);
 }
 
 #[test]

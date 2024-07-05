@@ -18,7 +18,7 @@ use crate::{
     position::{PositionExt, PositionModification},
     pricing::{closing_execution_price, opening_execution_price},
     state::{CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, REALIZED_PNL, UNLOCKS, VAULT_STATE},
-    utils::{create_user_id_key, ensure_position_not_flipped},
+    utils::create_user_id_key,
     vault::shares_to_amount,
 };
 
@@ -238,6 +238,9 @@ pub fn position(
 
     // Update the opening fee amount if the position size is increased
     let modification = match new_size {
+        Some(ns) if ns.negative != position.size.negative && !ns.is_zero() => {
+            PositionModification::Flip(new_size.unwrap(), position.size)
+        }
         Some(ns) if ns.abs > position.size.abs => {
             let q_change = ns.checked_sub(position.size)?;
             PositionModification::Increase(q_change)
@@ -246,7 +249,7 @@ pub fn position(
             let q_change = position.size.checked_sub(ns)?;
             PositionModification::Decrease(q_change)
         }
-        _ => PositionModification::None,
+        None => PositionModification::None,
     };
 
     let pnl_amounts = position.compute_pnl(
@@ -542,9 +545,36 @@ pub fn position_fees(
     let mut closing_exec_price = None;
     match position_opt {
         Some(position) => {
-            ensure_position_not_flipped(position.size, new_size)?;
+            if position.size.negative != new_size.negative && !new_size.is_zero() {
+                // Position is being flipped
 
-            if position.size.abs > new_size.abs {
+                // Calculate the closing price and fee for the `old_size`
+                let closing_price =
+                    closing_execution_price(skew, skew_scale, position.size, denom_price)?;
+                closing_fee = calculate_fee(
+                    closing_price,
+                    base_denom_price,
+                    position.size,
+                    perp_params.closing_fee_rate,
+                )?;
+
+                // Update the skew to reflect the position flip
+                let new_skew = skew.checked_sub(position.size)?;
+
+                // Calculate the opening price and fee for the `new_size`
+                let opening_price =
+                    opening_execution_price(new_skew, skew_scale, new_size, denom_price)?;
+
+                opening_fee = calculate_fee(
+                    opening_price,
+                    base_denom_price,
+                    new_size,
+                    perp_params.opening_fee_rate,
+                )?;
+
+                opening_exec_price = Some(opening_price);
+                closing_exec_price = Some(closing_price);
+            } else if position.size.abs > new_size.abs {
                 // decrease position size
                 let q_change = position.size.checked_sub(new_size)?;
                 let denom_exec_price =

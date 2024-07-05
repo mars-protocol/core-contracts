@@ -17,7 +17,6 @@ pub fn opening_execution_price(
     let res = execution_price(initial_premium, final_premium_opening, oracle_price)?;
     Ok(res)
 }
-
 /// Price with market impact applied for closing a position
 pub fn closing_execution_price(
     skew: SignedUint,
@@ -85,6 +84,6 @@ fn execution_price(
     let res =
         SignedDecimal::one().checked_add(avg_premium_bounded)?.checked_mul(oracle_price.into())?;
 
-    // Price won't be negative so it is safe to return Decimal
+    // Price won't be negative, so it is safe to return Decimal
     Ok(res.abs)
 }

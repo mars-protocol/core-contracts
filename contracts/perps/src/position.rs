@@ -6,7 +6,7 @@ use mars_types::{
 };
 
 use crate::{
-    error::ContractResult,
+    error::{ContractError, ContractResult},
     pricing::{closing_execution_price, opening_execution_price},
 };
 
@@ -81,11 +81,13 @@ impl PositionExt for Position {
 pub enum PositionModification {
     Increase(SignedUint),
     Decrease(SignedUint),
+    // new_size, old_size
+    Flip(SignedUint, SignedUint),
     None,
 }
 
 impl PositionModification {
-    // Compute the fees based on the modification type and parameters
+    // Compute the (opening_fee, closing_fee) based on the modification type and parameters
     fn compute_fees(
         &self,
         opening_fee_rate: Decimal,
@@ -118,6 +120,32 @@ impl PositionModification {
                 let closing_fee =
                     compute_fee(closing_fee_rate, *size, denom_exec_price, base_denom_price)?;
                 Ok((SignedUint::zero(), closing_fee))
+            }
+            // Apply opening and closing fee based on the position size change:
+            // - closing fee is applied to the old size
+            // - opening fee is applied to the new size
+            PositionModification::Flip(new_size, old_size) => {
+                if new_size.negative == old_size.negative {
+                    return Err(ContractError::InvalidPositionFlip {
+                        reason: "old_size and new_size must have opposite signs".to_string(),
+                    });
+                }
+
+                // Closing the old_size
+                let denom_exec_price =
+                    closing_execution_price(skew, skew_scale, *old_size, denom_price)?;
+                let closing_fee =
+                    compute_fee(closing_fee_rate, *old_size, denom_exec_price, base_denom_price)?;
+
+                // Update the skew to reflect the position flip
+                let new_skew = skew.checked_sub(*old_size)?;
+
+                // Calculate opening fee for the new_size
+                let denom_exec_price =
+                    opening_execution_price(new_skew, skew_scale, *new_size, denom_price)?;
+                let opening_fee =
+                    compute_fee(opening_fee_rate, *new_size, denom_exec_price, base_denom_price)?;
+                Ok((opening_fee, closing_fee))
             }
 
             // No modification needed, return the original size
@@ -304,5 +332,66 @@ mod tests {
             )
             .unwrap();
         assert_eq!(pnl_amounts, expect_pnl);
+    }
+
+    #[test_case(
+        PositionModification::Increase(SignedUint::from_str("100").unwrap()),
+        Decimal::from_str("4000").unwrap(),
+        Decimal::from_str("0.8").unwrap(),
+        SignedUint::from_str("100").unwrap(),
+        (SignedUint::from_str("-1501").unwrap(),SignedUint::zero());
+        "modification increase"
+    )]
+    #[test_case(
+        PositionModification::Decrease(SignedUint::from_str("45").unwrap()),
+        Decimal::from_str("4000").unwrap(),
+        Decimal::from_str("0.8").unwrap(),
+        SignedUint::from_str("500").unwrap(),
+        (SignedUint::zero(),SignedUint::from_str("-1126").unwrap());
+        "modification decrease"
+    )]
+    #[test_case(
+        PositionModification::Flip(SignedUint::from_str("-50").unwrap(),SignedUint::from_str("35").unwrap()),
+        Decimal::from_str("4000").unwrap(),
+        Decimal::from_str("0.8").unwrap(),
+        SignedUint::from_str("500").unwrap(),
+        (SignedUint::from_str("-751").unwrap(),SignedUint::from_str("-876").unwrap());
+        "modification flip - long to short"
+    )]
+    #[test_case(
+        PositionModification::Flip(SignedUint::from_str("82").unwrap(),SignedUint::from_str("-37").unwrap()),
+        Decimal::from_str("4000").unwrap(),
+        Decimal::from_str("0.8").unwrap(),
+        SignedUint::from_str("500").unwrap(),
+        (SignedUint::from_str("-1231").unwrap(),SignedUint::from_str("-926").unwrap());
+        "modification flip - short to long"
+    )]
+    #[test_case(
+        PositionModification::None{},
+        Decimal::from_str("4000").unwrap(),
+        Decimal::from_str("0.8").unwrap(),
+        SignedUint::from_str("128").unwrap(),
+        (SignedUint::zero(),SignedUint::from_str("-3201").unwrap());
+        "modification flip - none"
+    )]
+    fn computing_fees(
+        position: PositionModification,
+        current_price: Decimal,
+        base_denom_price: Decimal,
+        size: SignedUint,
+        expected_fees: (SignedUint, SignedUint),
+    ) {
+        let fees = position
+            .compute_fees(
+                Decimal::from_str("0.003").unwrap(),
+                Decimal::from_str("0.005").unwrap(),
+                current_price,
+                base_denom_price,
+                size,
+                SignedUint::from_str("280").unwrap(),
+                Uint128::new(1000000u128),
+            )
+            .unwrap();
+        assert_eq!(fees, expected_fees);
     }
 }
