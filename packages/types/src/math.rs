@@ -1,5 +1,5 @@
 use std::{
-    cmp::Ordering,
+    cmp::{max, min, Ordering},
     fmt::{self, Write},
     str::FromStr,
 };
@@ -47,6 +47,13 @@ impl SignedDecimal {
 
     pub fn is_negative(&self) -> bool {
         !self.is_zero() && self.negative
+    }
+
+    pub fn neg(&self) -> Self {
+        Self {
+            negative: !self.negative,
+            abs: self.abs,
+        }
     }
 
     /// Add to the signedDecimal by another SignedDecimal.
@@ -201,6 +208,11 @@ impl SignedDecimal {
                 abs: self.abs.to_uint_floor(),
             }
         }
+    }
+
+    /// This function returns the number between range of numbers or it's minimum or maximum.
+    pub fn clamp(self, minimum: SignedDecimal, maximum: SignedDecimal) -> SignedDecimal {
+        min(max(self, minimum), maximum)
     }
 }
 
@@ -412,5 +424,29 @@ mod tests {
             SignedDecimal::from_str("-1").unwrap(),
         );
         assert_eq!(val, SignedDecimal::from_str("-2").unwrap());
+    }
+
+    #[test]
+    fn clamp() {
+        // within the range
+        let new_value = SignedDecimal::from_str("0.6").unwrap().clamp(
+            SignedDecimal::from_str("-1.5").unwrap(),
+            SignedDecimal::from_str("1.2").unwrap(),
+        );
+        assert_eq!(new_value, SignedDecimal::from_str("0.6").unwrap());
+
+        // less than the minimum
+        let new_value = SignedDecimal::from_str("-1.6").unwrap().clamp(
+            SignedDecimal::from_str("-1.5").unwrap(),
+            SignedDecimal::from_str("1.2").unwrap(),
+        );
+        assert_eq!(new_value, SignedDecimal::from_str("-1.5").unwrap());
+
+        // greater than the maximum
+        let new_value = SignedDecimal::from_str("1.3").unwrap().clamp(
+            SignedDecimal::from_str("-1.5").unwrap(),
+            SignedDecimal::from_str("1.2").unwrap(),
+        );
+        assert_eq!(new_value, SignedDecimal::from_str("1.2").unwrap());
     }
 }

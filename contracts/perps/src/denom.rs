@@ -1,7 +1,4 @@
-use std::{
-    cmp::{max, min},
-    str::FromStr,
-};
+use std::str::FromStr;
 
 use cosmwasm_std::{Decimal, Deps, Order, Uint128};
 use mars_types::{
@@ -21,6 +18,9 @@ use crate::{
 };
 
 pub const SECONDS_IN_DAY: u64 = 86400;
+
+/// The maximum funding rate: 4% per hour, 96% per day. It doesn't depend on the asset.
+pub const MAX_FUNDING_RATE: Decimal = Decimal::percent(96);
 
 /// Total unrealized PnL of a denom is the sum of unrealized PnL of all open positions (without market impact).
 ///
@@ -185,7 +185,7 @@ impl DenomStateExt for DenomState {
         let p_skew =
             SignedDecimal::checked_from_ratio(self.skew()?, self.funding.skew_scale.into())?;
         let p_skew_bounded =
-            min(max(SignedDecimal::from_str("-1").unwrap(), p_skew), SignedDecimal::one());
+            p_skew.clamp(SignedDecimal::from_str("-1").unwrap(), SignedDecimal::one());
 
         let funding_rate_velocity =
             p_skew_bounded.checked_mul(self.funding.max_funding_velocity.into())?;
@@ -197,7 +197,13 @@ impl DenomStateExt for DenomState {
             self.current_funding_rate_velocity()?
                 .checked_mul(self.time_elapsed_in_days(current_time).into())?,
         )?;
-        Ok(current_funding_rate)
+
+        // Ensure the funding rate is capped at 4% per hour (96% per day).
+        let max_funding_rate_signed = SignedDecimal::from(MAX_FUNDING_RATE);
+        let funding_rate_bounded =
+            current_funding_rate.clamp(max_funding_rate_signed.neg(), max_funding_rate_signed);
+
+        Ok(funding_rate_bounded)
     }
 
     fn current_funding_entrance_per_unit_in_base_denom(
