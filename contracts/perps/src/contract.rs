@@ -75,20 +75,6 @@ pub fn execute(
         ExecuteMsg::Withdraw {
             account_id,
         } => vault::withdraw(deps, info, env.block.time.seconds(), account_id),
-        ExecuteMsg::OpenPosition {
-            account_id,
-            denom,
-            size,
-        } => position_management::open_position(deps, env, info, account_id, denom, size),
-        ExecuteMsg::ClosePosition {
-            account_id,
-            denom,
-        } => position_management::close_position(deps, env, info, account_id, denom),
-        ExecuteMsg::ModifyPosition {
-            account_id,
-            denom,
-            new_size,
-        } => position_management::modify_position(deps, env, info, account_id, denom, new_size),
         ExecuteMsg::CloseAllPositions {
             account_id,
             action,
@@ -98,6 +84,20 @@ pub fn execute(
             info,
             account_id,
             action.unwrap_or(ActionKind::Default),
+        ),
+        ExecuteMsg::ExecutePerpOrder {
+            account_id,
+            denom,
+            size,
+            reduce_only,
+        } => position_management::execute_perp_order(
+            deps,
+            env,
+            info,
+            account_id,
+            denom,
+            size,
+            reduce_only,
         ),
     }
 }
@@ -149,13 +149,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::Position {
             account_id,
             denom,
-            new_size,
+            order_size,
         } => to_json_binary(&query::position(
             deps,
             env.block.time.seconds(),
             account_id,
             denom,
-            new_size,
+            order_size,
         )?),
         QueryMsg::Positions {
             start_after,

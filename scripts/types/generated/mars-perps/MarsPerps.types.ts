@@ -53,23 +53,11 @@ export type ExecuteMsg =
       }
     }
   | {
-      open_position: {
+      execute_perp_order: {
         account_id: string
         denom: string
+        reduce_only?: boolean | null
         size: SignedUint
-      }
-    }
-  | {
-      close_position: {
-        account_id: string
-        denom: string
-      }
-    }
-  | {
-      modify_position: {
-        account_id: string
-        denom: string
-        new_size: SignedUint
       }
     }
   | {
@@ -150,7 +138,7 @@ export type QueryMsg =
       position: {
         account_id: string
         denom: string
-        new_size?: SignedUint | null
+        order_size?: SignedUint | null
       }
     }
   | {
@@ -298,7 +286,7 @@ export interface PerpVaultUnlock {
 }
 export interface PositionResponse {
   account_id: string
-  position: PerpPosition
+  position?: PerpPosition | null
 }
 export interface PerpPosition {
   base_denom: string

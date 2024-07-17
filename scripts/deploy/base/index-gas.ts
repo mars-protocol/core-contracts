@@ -95,9 +95,10 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     await trader.createCreditAccount()
     await trader.deposit(nobleUsdcDenom, '22000000')
     await trader.borrow(ntrnDenom, '2000000')
-    await trader.openPerp(atomDenom, 10000)
-    await trader.openPerp(tiaDenom, 10000)
-    await trader.openPerp(solDenom, 10000)
+    const perpSize = { abs: '10000', negative: false }
+    await trader.executePerpOrder(atomDenom, perpSize, false)
+    await trader.executePerpOrder(tiaDenom, perpSize, false)
+    await trader.executePerpOrder(solDenom, perpSize, false)
 
     // prepare for liquidation
     await deployer.setOracle({ denom: ntrnDenom, price_source: { fixed: { price: '15' } } }, true)

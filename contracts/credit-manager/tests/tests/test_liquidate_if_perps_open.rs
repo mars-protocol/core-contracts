@@ -4,7 +4,7 @@ use cosmwasm_std::{coin, coins, Addr, Decimal, Uint128};
 use mars_mock_oracle::msg::CoinPrice;
 use mars_types::{
     credit_manager::{
-        Action::{Borrow, Deposit, Liquidate, OpenPerp},
+        Action::{Borrow, Deposit, ExecutePerpOrder, Liquidate},
         LiquidateRequest,
     },
     oracle::ActionKind,
@@ -86,13 +86,15 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
             Deposit(uosmo_coin_deposited.clone()),
             Deposit(uusdc_coin_deposited.clone()),
             Borrow(uatom_info.to_coin(2400)),
-            OpenPerp {
+            ExecutePerpOrder {
                 denom: uosmo_info.denom.clone(),
-                size: SignedUint::from_str("200").unwrap(),
+                order_size: SignedUint::from_str("200").unwrap(),
+                reduce_only: None,
             },
-            OpenPerp {
+            ExecutePerpOrder {
                 denom: uatom_info.denom.clone(),
-                size: SignedUint::from_str("-400").unwrap(),
+                order_size: SignedUint::from_str("-400").unwrap(),
+                reduce_only: None,
             },
         ],
         &[uosmo_coin_deposited.clone(), uusdc_coin_deposited.clone()],
@@ -127,9 +129,9 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
 
     // perps pnl before liquidation
     let uosmo_perp_position =
-        mock.query_perp_position(&liquidatee_account_id, &uosmo_info.denom).position;
+        mock.query_perp_position(&liquidatee_account_id, &uosmo_info.denom).position.unwrap();
     let uatom_perp_position =
-        mock.query_perp_position(&liquidatee_account_id, &uatom_info.denom).position;
+        mock.query_perp_position(&liquidatee_account_id, &uatom_info.denom).position.unwrap();
     let mut pnl_amounts_acc = PnlAmounts::default();
     pnl_amounts_acc.add(&uosmo_perp_position.unrealised_pnl).unwrap();
     pnl_amounts_acc.add(&uatom_perp_position.unrealised_pnl).unwrap();
@@ -270,13 +272,15 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
             Deposit(uosmo_coin_deposited.clone()),
             Deposit(uusdc_coin_deposited.clone()),
             Borrow(uatom_info.to_coin(2400)),
-            OpenPerp {
+            ExecutePerpOrder {
                 denom: uosmo_info.denom.clone(),
-                size: SignedUint::from_str("200").unwrap(),
+                order_size: SignedUint::from_str("200").unwrap(),
+                reduce_only: None,
             },
-            OpenPerp {
+            ExecutePerpOrder {
                 denom: uatom_info.denom.clone(),
-                size: SignedUint::from_str("-400").unwrap(),
+                order_size: SignedUint::from_str("-400").unwrap(),
+                reduce_only: None,
             },
         ],
         &[uosmo_coin_deposited.clone(), uusdc_coin_deposited.clone()],
@@ -313,9 +317,9 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
 
     // perps pnl before liquidation
     let uosmo_perp_position =
-        mock.query_perp_position(&liquidatee_account_id, &uosmo_info.denom).position;
+        mock.query_perp_position(&liquidatee_account_id, &uosmo_info.denom).position.unwrap();
     let uatom_perp_position =
-        mock.query_perp_position(&liquidatee_account_id, &uatom_info.denom).position;
+        mock.query_perp_position(&liquidatee_account_id, &uatom_info.denom).position.unwrap();
     let mut pnl_amounts_acc = PnlAmounts::default();
     pnl_amounts_acc.add(&uosmo_perp_position.unrealised_pnl).unwrap();
     pnl_amounts_acc.add(&uatom_perp_position.unrealised_pnl).unwrap();
@@ -460,13 +464,15 @@ fn close_perps_with_profit() {
             Deposit(uosmo_coin_deposited.clone()),
             Deposit(uusdc_coin_deposited.clone()),
             Borrow(uatom_info.to_coin(2400)),
-            OpenPerp {
+            ExecutePerpOrder {
                 denom: uosmo_info.denom.clone(),
-                size: SignedUint::from_str("200").unwrap(),
+                order_size: SignedUint::from_str("200").unwrap(),
+                reduce_only: None,
             },
-            OpenPerp {
+            ExecutePerpOrder {
                 denom: utia_info.denom.clone(),
-                size: SignedUint::from_str("-400").unwrap(),
+                order_size: SignedUint::from_str("-400").unwrap(),
+                reduce_only: None,
             },
         ],
         &[uosmo_coin_deposited.clone(), uusdc_coin_deposited.clone()],
@@ -511,9 +517,9 @@ fn close_perps_with_profit() {
 
     // perps pnl before liquidation
     let uosmo_perp_position =
-        mock.query_perp_position(&liquidatee_account_id, &uosmo_info.denom).position;
+        mock.query_perp_position(&liquidatee_account_id, &uosmo_info.denom).position.unwrap();
     let utia_perp_position =
-        mock.query_perp_position(&liquidatee_account_id, &utia_info.denom).position;
+        mock.query_perp_position(&liquidatee_account_id, &utia_info.denom).position.unwrap();
     let mut pnl_amounts_acc = PnlAmounts::default();
     pnl_amounts_acc.add(&uosmo_perp_position.unrealised_pnl).unwrap();
     pnl_amounts_acc.add(&utia_perp_position.unrealised_pnl).unwrap();
@@ -651,9 +657,10 @@ fn liquidation_uses_correct_price_kind_if_perps_open() {
         vec![
             Deposit(uosmo_coin_deposited.clone()),
             Borrow(uatom_info.to_coin(2650)),
-            OpenPerp {
+            ExecutePerpOrder {
                 denom: utia_info.denom.clone(),
-                size: SignedUint::from_str("-400").unwrap(),
+                order_size: SignedUint::from_str("-400").unwrap(),
+                reduce_only: None,
             },
         ],
         &[uosmo_coin_deposited.clone()],

@@ -115,20 +115,10 @@ export type Action =
       withdraw_from_perp_vault: {}
     }
   | {
-      open_perp: {
+      execute_perp_order: {
         denom: string
-        size: SignedUint
-      }
-    }
-  | {
-      close_perp: {
-        denom: string
-      }
-    }
-  | {
-      modify_perp: {
-        denom: string
-        new_size: SignedUint
+        order_size: SignedUint
+        reduce_only?: boolean | null
       }
     }
   | {
@@ -341,26 +331,6 @@ export type CallbackMsg =
       }
     }
   | {
-      open_perp: {
-        account_id: string
-        denom: string
-        size: SignedUint
-      }
-    }
-  | {
-      close_perp: {
-        account_id: string
-        denom: string
-      }
-    }
-  | {
-      modify_perp: {
-        account_id: string
-        denom: string
-        new_size: SignedUint
-      }
-    }
-  | {
       enter_vault: {
         account_id: string
         coin: ActionCoin
@@ -379,6 +349,14 @@ export type CallbackMsg =
         account_id: string
         previous_total_balance: Uint128
         vault: VaultBaseForAddr
+      }
+    }
+  | {
+      execute_perp_order: {
+        account_id: string
+        denom: string
+        reduce_only?: boolean | null
+        size: SignedUint
       }
     }
   | {

@@ -12,35 +12,6 @@ use crate::{
     utils::{decrement_coin_balance, increment_coin_balance},
 };
 
-pub fn open_perp(
-    mut deps: DepsMut,
-    account_id: &str,
-    denom: &str,
-    size: SignedUint,
-) -> ContractResult<Response> {
-    let perps = PERPS.load(deps.storage)?;
-
-    let opening_fee = perps.query_opening_fee(&deps.querier, denom, size)?;
-    let fee = opening_fee.fee;
-
-    let mut response = Response::new();
-
-    let borrow_msg_opt = deduct_payment(&mut deps, account_id, &fee)?;
-    if let Some(borrow_msg) = borrow_msg_opt {
-        response = response.add_message(borrow_msg);
-    }
-
-    let msg = perps.open_msg(account_id, denom, size, vec![fee.clone()])?;
-
-    Ok(response
-        .add_message(msg)
-        .add_attribute("action", "open_perp_position")
-        .add_attribute("account_id", account_id)
-        .add_attribute("denom", denom)
-        .add_attribute("size", size.to_string())
-        .add_attribute("opening_fee", fee.to_string()))
-}
-
 /// Deduct payment from the user’s account. If the user doesn’t have enough USDC, it is borrowed
 fn deduct_payment(
     deps: &mut DepsMut,
@@ -78,11 +49,12 @@ fn deduct_payment(
     Ok(Some(borrow_msg))
 }
 
-pub fn modify_perp(
+pub fn execute_perp_order(
     mut deps: DepsMut,
     account_id: &str,
     denom: &str,
-    new_size: SignedUint,
+    order_size: SignedUint,
+    reduce_only: Option<bool>,
 ) -> ContractResult<Response> {
     let perps = PERPS.load(deps.storage)?;
 
@@ -93,42 +65,60 @@ pub fn modify_perp(
     // the position PnL first here in the credit manager (so that it know how
     // much funds to send to the perps contract), then in the perps contract it
     // computes the PnL **again** to assert the amount is correct.
-    let position = perps.query_position(&deps.querier, account_id, denom, Some(new_size))?;
-    let pnl = position.unrealised_pnl.to_coins(&position.base_denom).pnl;
-    let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
+    let position = perps.query_position(&deps.querier, account_id, denom, Some(order_size))?;
+    Ok(match position {
+        Some(position) => {
+            // Modify existing position
+            let pnl = position.unrealised_pnl.to_coins(&position.base_denom).pnl;
+            let pnl_string = pnl.to_string();
+            let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
 
-    msgs.push(perps.modify_msg(account_id, denom, new_size, funds)?);
+            msgs.push(perps.execute_perp_order(
+                account_id,
+                denom,
+                order_size,
+                reduce_only,
+                funds,
+            )?);
 
-    Ok(Response::new()
-        .add_messages(msgs)
-        .add_attribute("action", "modify_perp_position")
-        .add_attribute("account_id", account_id)
-        .add_attribute("denom", denom)
-        .add_attribute("new_size", new_size.to_string()))
-}
+            Response::new()
+                .add_messages(msgs)
+                .add_attribute("action", "execute_perp_order")
+                .add_attribute("account_id", account_id)
+                .add_attribute("denom", denom)
+                .add_attribute("realised_pnl", pnl_string)
+                .add_attribute("reduce_only", reduce_only.unwrap_or(false).to_string())
+                .add_attribute("order_size", order_size.to_string())
+                .add_attribute("new_size", position.size.checked_add(order_size)?.to_string())
+        }
+        None => {
+            // Open new position
+            let opening_fee = perps.query_opening_fee(&deps.querier, denom, order_size)?;
+            let fee = opening_fee.fee;
+            let mut response = Response::new();
+            let borrow_msg_opt = deduct_payment(&mut deps, account_id, &fee)?;
+            if let Some(borrow_msg) = borrow_msg_opt {
+                response = response.add_message(borrow_msg);
+            }
 
-pub fn close_perp(mut deps: DepsMut, account_id: &str, denom: &str) -> ContractResult<Response> {
-    let perps = PERPS.load(deps.storage)?;
+            let msg = perps.execute_perp_order(
+                account_id,
+                denom,
+                order_size,
+                reduce_only,
+                vec![fee.clone()],
+            )?;
 
-    // query the perp position PnL so that we know whether funds needs to be
-    // sent to the perps contract
-    //
-    // NOTE: This implementation is not gas efficient, because we have to query
-    // the position PnL first here in the credit manager (so that it know how
-    // much funds to send to the perps contract), then in the perps contract it
-    // computes the PnL **again** to assert the amount is correct.
-    let position = perps.query_position(&deps.querier, account_id, denom, None)?;
-    let pnl = position.unrealised_pnl.to_coins(&position.base_denom).pnl;
-    let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
-
-    let close_msg = perps.close_msg(account_id, denom, funds)?;
-    msgs.push(close_msg);
-
-    Ok(Response::new()
-        .add_messages(msgs)
-        .add_attribute("action", "close_perp_position")
-        .add_attribute("account_id", account_id)
-        .add_attribute("denom", denom))
+            response
+                .add_message(msg)
+                .add_attribute("action", "open_perp_position")
+                .add_attribute("account_id", account_id)
+                .add_attribute("denom", denom)
+                .add_attribute("reduce_only", reduce_only.unwrap_or(false).to_string())
+                .add_attribute("new_size", order_size.to_string())
+                .add_attribute("opening_fee", fee.to_string())
+        }
+    })
 }
 
 /// Check if liquidatee has any perp positions.

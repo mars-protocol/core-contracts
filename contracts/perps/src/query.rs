@@ -225,7 +225,7 @@ pub fn position(
     current_time: u64,
     account_id: String,
     denom: String,
-    new_size: Option<SignedUint>,
+    order_size: Option<SignedUint>,
 ) -> ContractResult<PositionResponse> {
     let cfg = CONFIG.load(deps.storage)?;
     let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
@@ -234,51 +234,62 @@ pub fn position(
     let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
     let ds = DENOM_STATES.load(deps.storage, &denom)?;
     let curr_funding = ds.current_funding(current_time, denom_price, base_denom_price)?;
-    let position = POSITIONS.load(deps.storage, (&account_id, &denom))?;
+    let position = POSITIONS.may_load(deps.storage, (&account_id, &denom))?;
 
-    // Update the opening fee amount if the position size is increased
-    let modification = match new_size {
-        Some(ns) if ns.negative != position.size.negative && !ns.is_zero() => {
-            PositionModification::Flip(new_size.unwrap(), position.size)
-        }
-        Some(ns) if ns.abs > position.size.abs => {
-            let q_change = ns.checked_sub(position.size)?;
-            PositionModification::Increase(q_change)
-        }
-        Some(ns) => {
-            let q_change = position.size.checked_sub(ns)?;
-            PositionModification::Decrease(q_change)
-        }
-        None => PositionModification::None,
-    };
-
-    let pnl_amounts = position.compute_pnl(
-        &curr_funding,
-        ds.skew()?,
-        denom_price,
-        base_denom_price,
-        perp_params.opening_fee_rate,
-        perp_params.closing_fee_rate,
-        modification,
-    )?;
-
-    let exit_exec_price =
-        closing_execution_price(ds.skew()?, curr_funding.skew_scale, position.size, denom_price)?;
-
-    Ok(PositionResponse {
-        account_id,
-        position: PerpPosition {
-            denom,
-            base_denom: cfg.base_denom,
-            size: position.size,
-            entry_price: position.entry_price,
-            current_price: denom_price,
-            entry_exec_price: position.entry_exec_price,
-            current_exec_price: exit_exec_price,
-            unrealised_pnl: pnl_amounts,
-            realised_pnl: position.realized_pnl,
-            closing_fee_rate: perp_params.closing_fee_rate,
+    Ok(match position {
+        None => PositionResponse {
+            account_id,
+            position: None,
         },
+        Some(position) => {
+            // Update the opening fee amount if the position size is increased
+            let modification = match order_size {
+                Some(order_size_checked) => {
+                    let new_size = position.size.checked_add(order_size_checked)?;
+                    if new_size.negative != position.size.negative && !new_size.is_zero() {
+                        PositionModification::Flip(new_size, position.size)
+                    } else if new_size.abs > position.size.abs {
+                        PositionModification::Increase(order_size_checked)
+                    } else {
+                        PositionModification::Decrease(order_size_checked)
+                    }
+                }
+                None => PositionModification::None,
+            };
+
+            let pnl_amounts = position.compute_pnl(
+                &curr_funding,
+                ds.skew()?,
+                denom_price,
+                base_denom_price,
+                perp_params.opening_fee_rate,
+                perp_params.closing_fee_rate,
+                modification,
+            )?;
+
+            let exit_exec_price = closing_execution_price(
+                ds.skew()?,
+                curr_funding.skew_scale,
+                position.size,
+                denom_price,
+            )?;
+
+            PositionResponse {
+                account_id,
+                position: Some(PerpPosition {
+                    denom,
+                    base_denom: cfg.base_denom,
+                    size: position.size,
+                    entry_price: position.entry_price,
+                    current_price: denom_price,
+                    entry_exec_price: position.entry_exec_price,
+                    current_exec_price: exit_exec_price,
+                    unrealised_pnl: pnl_amounts,
+                    realised_pnl: position.realized_pnl,
+                    closing_fee_rate: perp_params.closing_fee_rate,
+                }),
+            }
+        }
     })
 }
 
@@ -361,7 +372,7 @@ pub fn positions(
 
             Ok(PositionResponse {
                 account_id,
-                position: PerpPosition {
+                position: Some(PerpPosition {
                     denom,
                     base_denom: cfg.base_denom.clone(),
                     size: position.size,
@@ -372,7 +383,7 @@ pub fn positions(
                     unrealised_pnl: pnl_amounts,
                     realised_pnl: position.realized_pnl,
                     closing_fee_rate: perp_params.closing_fee_rate,
-                },
+                }),
             })
         })
         .collect()

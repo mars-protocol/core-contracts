@@ -453,45 +453,21 @@ pub enum ExecuteMsg {
         account_id: Option<String>,
     },
 
-    /// Open a new perp position.
-    ///
-    /// Only callable by Rover credit manager.
-    ///
-    /// Must send exactly one coin of `base_denom`.
-    OpenPosition {
-        /// The user's credit account token ID
+    /// Execute a perp order against a perp market for a given account.
+    /// If the position in that market for that account id exists, it is modified.
+    /// If no position exists, a position is created (providing reduce_only is none or false)
+    ExecutePerpOrder {
         account_id: String,
-
-        /// Name of the trading pair
         denom: String,
 
-        /// Size of the position, denominated in the traded asset.
-        ///
-        /// A positive number means the position is long, a negative number
-        /// means it's short.
-        ///
-        /// Must be greater than the minimum position size set at the protocol
-        /// level.
+        // The amount of size to execute against the position.
+        // Positive numbers will increase longs and decrease shorts
+        // Negative numbers will decrease longs and increase shorts
         size: SignedUint,
-    },
 
-    /// Close a perp position. Return collateral + unrealized PnL to the user's
-    /// credit account.
-    ///
-    /// Only callable by Rover credit manager.
-    ClosePosition {
-        account_id: String,
-        denom: String,
-    },
-
-    /// Modify a perp position.
-    ModifyPosition {
-        account_id: String,
-        denom: String,
-
-        /// To increase a long or reduce a short, this will be positive
-        /// To decrease a long or increase a short, this will be negative
-        new_size: SignedUint,
+        // Reduce Only enforces a position size cannot increase in absolute terms, ensuring a position will never flip
+        // from long to short or vice versa
+        reduce_only: Option<bool>,
     },
 
     /// Close all perp positions. Use this to liquidate a user's credit account.
@@ -572,7 +548,7 @@ pub enum QueryMsg {
     Position {
         account_id: String,
         denom: String,
-        new_size: Option<SignedUint>,
+        order_size: Option<SignedUint>,
     },
 
     /// List positions of all accounts and denoms
@@ -666,7 +642,7 @@ pub struct DebtResponse {
 #[cw_serde]
 pub struct PositionResponse {
     pub account_id: String,
-    pub position: PerpPosition,
+    pub position: Option<PerpPosition>,
 }
 
 #[cw_serde]

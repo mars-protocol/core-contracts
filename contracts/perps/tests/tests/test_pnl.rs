@@ -72,19 +72,20 @@ fn computing_total_pnl() {
     mock.set_price(&owner, "uatom", Decimal::from_str("7.2").unwrap()).unwrap();
     mock.set_price(&owner, "utia", Decimal::from_str("2.65").unwrap()).unwrap();
 
+    let osmo_size_1 = SignedUint::from_str("100").unwrap();
+    let tia_size_1 = SignedUint::from_str("-250").unwrap();
+    let osmo_size_2 = SignedUint::from_str("500").unwrap();
+    let atom_size_2 = SignedUint::from_str("-125").unwrap();
+    let tia_size_2 = SignedUint::from_str("1245").unwrap();
+
     // open few positions for account 1
-    mock.open_position(&credit_manager, "1", "uosmo", SignedUint::from_str("100").unwrap(), &[])
-        .unwrap();
-    mock.open_position(&credit_manager, "1", "utia", SignedUint::from_str("-250").unwrap(), &[])
-        .unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "uosmo", osmo_size_1, None, &[]).unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "utia", tia_size_1, None, &[]).unwrap();
 
     // open few positions for account 2
-    mock.open_position(&credit_manager, "2", "uosmo", SignedUint::from_str("500").unwrap(), &[])
-        .unwrap();
-    mock.open_position(&credit_manager, "2", "uatom", SignedUint::from_str("-125").unwrap(), &[])
-        .unwrap();
-    mock.open_position(&credit_manager, "2", "utia", SignedUint::from_str("1245").unwrap(), &[])
-        .unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "uosmo", osmo_size_2, None, &[]).unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "uatom", atom_size_2, None, &[]).unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "utia", tia_size_2, None, &[]).unwrap();
 
     // calculate total PnL if no price change
     let total_pnl = mock.query_total_pnl();
@@ -107,17 +108,45 @@ fn computing_total_pnl() {
 
     // close all positions except uatom
     let pos = mock.query_position("1", "uosmo");
-    mock.close_position(&credit_manager, "1", "uosmo", &from_position_to_coin(pos.position))
-        .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "1",
+        "uosmo",
+        osmo_size_1.neg(),
+        None,
+        &from_position_to_coin(pos.position.unwrap()),
+    )
+    .unwrap();
     let pos = mock.query_position("1", "utia");
-    mock.close_position(&credit_manager, "1", "utia", &from_position_to_coin(pos.position))
-        .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "1",
+        "utia",
+        tia_size_1.neg(),
+        None,
+        &from_position_to_coin(pos.position.unwrap()),
+    )
+    .unwrap();
     let pos = mock.query_position("2", "uosmo");
-    mock.close_position(&credit_manager, "2", "uosmo", &from_position_to_coin(pos.position))
-        .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        "uosmo",
+        osmo_size_2.neg(),
+        None,
+        &from_position_to_coin(pos.position.unwrap()),
+    )
+    .unwrap();
     let pos = mock.query_position("2", "utia");
-    mock.close_position(&credit_manager, "2", "utia", &from_position_to_coin(pos.position))
-        .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        "utia",
+        tia_size_2.neg(),
+        None,
+        &from_position_to_coin(pos.position.unwrap()),
+    )
+    .unwrap();
 
     // only uatom position is left
     let total_pnl = mock.query_total_pnl();
@@ -125,8 +154,15 @@ fn computing_total_pnl() {
 
     // close uatom position
     let pos = mock.query_position("2", "uatom");
-    mock.close_position(&credit_manager, "2", "uatom", &from_position_to_coin(pos.position))
-        .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        "uatom",
+        atom_size_2.neg(),
+        None,
+        &from_position_to_coin(pos.position.unwrap()),
+    )
+    .unwrap();
 
     // after closing all positions, total PnL should be 0
     let total_pnl = mock.query_total_pnl();

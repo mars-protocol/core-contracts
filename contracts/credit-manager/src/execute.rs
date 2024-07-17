@@ -24,7 +24,7 @@ use crate::{
     liquidate_astro_lp::liquidate_astro_lp,
     liquidate_deposit::liquidate_deposit,
     liquidate_lend::liquidate_lend,
-    perp::{close_all_perps, close_perp, modify_perp, open_perp},
+    perp::{close_all_perps, execute_perp_order},
     perp_vault::{deposit_to_perp_vault, unlock_from_perp_vault, withdraw_from_perp_vault},
     reclaim::reclaim,
     refund::refund_coin_balances,
@@ -243,27 +243,15 @@ pub fn dispatch_actions(
                     account_id: account_id.to_string(),
                 })
             }
-            Action::OpenPerp {
+            Action::ExecutePerpOrder {
                 denom,
-                size,
-            } => callbacks.push(CallbackMsg::OpenPerp {
+                order_size: size,
+                reduce_only,
+            } => callbacks.push(CallbackMsg::ExecutePerpOrder {
                 account_id: account_id.to_string(),
                 denom,
                 size,
-            }),
-            Action::ClosePerp {
-                denom,
-            } => callbacks.push(CallbackMsg::ClosePerp {
-                account_id: account_id.to_string(),
-                denom,
-            }),
-            Action::ModifyPerp {
-                denom,
-                new_size,
-            } => callbacks.push(CallbackMsg::ModifyPerp {
-                account_id: account_id.to_string(),
-                denom,
-                new_size,
+                reduce_only,
             }),
             Action::EnterVault {
                 vault,
@@ -556,20 +544,6 @@ pub fn execute_callback(
         CallbackMsg::WithdrawFromPerpVault {
             account_id,
         } => withdraw_from_perp_vault(deps.as_ref(), env, &account_id),
-        CallbackMsg::OpenPerp {
-            account_id,
-            denom,
-            size,
-        } => open_perp(deps, &account_id, &denom, size),
-        CallbackMsg::ClosePerp {
-            account_id,
-            denom,
-        } => close_perp(deps, &account_id, &denom),
-        CallbackMsg::ModifyPerp {
-            account_id,
-            denom,
-            new_size,
-        } => modify_perp(deps, &account_id, &denom, new_size),
         CallbackMsg::CloseAllPerps {
             account_id,
         } => close_all_perps(deps, &account_id, ActionKind::Liquidation),
@@ -706,5 +680,11 @@ pub fn execute_callback(
             account_id,
             lp_denom,
         } => claim_lp_rewards(deps, &account_id, &lp_denom),
+        CallbackMsg::ExecutePerpOrder {
+            account_id,
+            denom,
+            size,
+            reduce_only,
+        } => execute_perp_order(deps, account_id.as_str(), denom.as_str(), size, reduce_only),
     }
 }

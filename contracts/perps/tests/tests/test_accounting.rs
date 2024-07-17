@@ -68,12 +68,28 @@ fn accounting() {
     let vault_state_before_opening = mock.query_vault_state();
 
     // open few positions for account 1
-    let size = SignedUint::from_str("10000000").unwrap();
-    let osmo_opening_fee = mock.query_opening_fee("uosmo", size).fee;
-    mock.open_position(&credit_manager, "1", "uosmo", size, &[osmo_opening_fee.clone()]).unwrap();
-    let size = SignedUint::from_str("-260000").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee.clone()]).unwrap();
+    let osmo_size = SignedUint::from_str("10000000").unwrap();
+    let osmo_opening_fee = mock.query_opening_fee("uosmo", osmo_size).fee;
+    mock.execute_perp_order(
+        &credit_manager,
+        "1",
+        "uosmo",
+        osmo_size,
+        None,
+        &[osmo_opening_fee.clone()],
+    )
+    .unwrap();
+    let atom_size = SignedUint::from_str("-260000").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", atom_size).fee;
+    mock.execute_perp_order(
+        &credit_manager,
+        "1",
+        "uatom",
+        atom_size,
+        None,
+        &[atom_opening_fee.clone()],
+    )
+    .unwrap();
 
     // check vault state after opening positions
     let vault_state = mock.query_vault_state();
@@ -116,8 +132,15 @@ fn accounting() {
 
     // close uosmo position
     let pos = mock.query_position("1", "uosmo");
-    mock.close_position(&credit_manager, "1", "uosmo", &from_position_to_coin(pos.position))
-        .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "1",
+        "uosmo",
+        SignedUint::zero().checked_sub(osmo_size).unwrap(),
+        Some(true),
+        &from_position_to_coin(pos.position.unwrap()),
+    )
+    .unwrap();
 
     // check vault state after closing uosmo position
     let vault_state = mock.query_vault_state();
@@ -166,8 +189,15 @@ fn accounting() {
 
     // close uatom position
     let pos = mock.query_position("1", "uatom");
-    mock.close_position(&credit_manager, "1", "uatom", &from_position_to_coin(pos.position))
-        .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "1",
+        "uatom",
+        SignedUint::zero().checked_sub(atom_size).unwrap(),
+        Some(true),
+        &from_position_to_coin(pos.position.unwrap()),
+    )
+    .unwrap();
 
     // check vault state after closing uatom position
     let vault_state = mock.query_vault_state();

@@ -221,8 +221,15 @@ fn funding_change_accordingly_to_denom_state_modification() {
             params: default_perp_params("ueth"),
         },
     );
-    mock.open_position(&credit_manager, "1", "ueth", SignedUint::from_str("300").unwrap(), &[])
-        .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "1",
+        "ueth",
+        SignedUint::from_str("300").unwrap(),
+        None,
+        &[],
+    )
+    .unwrap();
     mock.disable_denom(&owner, "ueth").unwrap();
 
     // query denom state for h0

@@ -535,71 +535,30 @@
             "additionalProperties": false
           },
           {
-            "description": "Open a new perpetual futures position",
+            "description": "Execute a state update against the specified perp market for the given account. If no position exists in the given market, a position is created. Existing postions are modified. Note that size is signed - to increase short or reduce long, use a negative value - to reduce short or increase long, use a positive value",
             "type": "object",
             "required": [
-              "open_perp"
+              "execute_perp_order"
             ],
             "properties": {
-              "open_perp": {
+              "execute_perp_order": {
                 "type": "object",
                 "required": [
                   "denom",
-                  "size"
+                  "order_size"
                 ],
                 "properties": {
                   "denom": {
                     "type": "string"
                   },
-                  "size": {
+                  "order_size": {
                     "$ref": "#/definitions/SignedUint"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "description": "Close a perpetual futures position.\n\nIf the position is in profit, the counterparty vault will be deposited appropriate amount of base currency into the credit account.\n\nIf the position is in loss, the credit manager will send appropriate amount of base currency from the credit account to the counterparty vault.",
-            "type": "object",
-            "required": [
-              "close_perp"
-            ],
-            "properties": {
-              "close_perp": {
-                "type": "object",
-                "required": [
-                  "denom"
-                ],
-                "properties": {
-                  "denom": {
-                    "type": "string"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false
-          },
-          {
-            "type": "object",
-            "required": [
-              "modify_perp"
-            ],
-            "properties": {
-              "modify_perp": {
-                "type": "object",
-                "required": [
-                  "denom",
-                  "new_size"
-                ],
-                "properties": {
-                  "denom": {
-                    "type": "string"
                   },
-                  "new_size": {
-                    "$ref": "#/definitions/SignedUint"
+                  "reduce_only": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
                   }
                 },
                 "additionalProperties": false

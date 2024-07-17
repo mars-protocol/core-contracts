@@ -84,11 +84,11 @@ export interface MarsPerpsReadOnlyInterface {
   position: ({
     accountId,
     denom,
-    newSize,
+    orderSize,
   }: {
     accountId: string
     denom: string
-    newSize?: SignedUint
+    orderSize?: SignedUint
   }) => Promise<PositionResponse>
   positions: ({
     limit,
@@ -241,17 +241,17 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
   position = async ({
     accountId,
     denom,
-    newSize,
+    orderSize,
   }: {
     accountId: string
     denom: string
-    newSize?: SignedUint
+    orderSize?: SignedUint
   }): Promise<PositionResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
       position: {
         account_id: accountId,
         denom,
-        new_size: newSize,
+        order_size: orderSize,
       },
     })
   }
@@ -421,41 +421,17 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     memo?: string,
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
-  openPosition: (
+  executePerpOrder: (
     {
       accountId,
       denom,
+      reduceOnly,
       size,
     }: {
       accountId: string
       denom: string
+      reduceOnly?: boolean
       size: SignedUint
-    },
-    fee?: number | StdFee | 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ) => Promise<ExecuteResult>
-  closePosition: (
-    {
-      accountId,
-      denom,
-    }: {
-      accountId: string
-      denom: string
-    },
-    fee?: number | StdFee | 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ) => Promise<ExecuteResult>
-  modifyPosition: (
-    {
-      accountId,
-      denom,
-      newSize,
-    }: {
-      accountId: string
-      denom: string
-      newSize: SignedUint
     },
     fee?: number | StdFee | 'auto',
     memo?: string,
@@ -490,9 +466,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     this.deposit = this.deposit.bind(this)
     this.unlock = this.unlock.bind(this)
     this.withdraw = this.withdraw.bind(this)
-    this.openPosition = this.openPosition.bind(this)
-    this.closePosition = this.closePosition.bind(this)
-    this.modifyPosition = this.modifyPosition.bind(this)
+    this.executePerpOrder = this.executePerpOrder.bind(this)
     this.closeAllPositions = this.closeAllPositions.bind(this)
   }
   updateOwner = async (
@@ -659,14 +633,16 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       _funds,
     )
   }
-  openPosition = async (
+  executePerpOrder = async (
     {
       accountId,
       denom,
+      reduceOnly,
       size,
     }: {
       accountId: string
       denom: string
+      reduceOnly?: boolean
       size: SignedUint
     },
     fee: number | StdFee | 'auto' = 'auto',
@@ -677,65 +653,11 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       this.sender,
       this.contractAddress,
       {
-        open_position: {
+        execute_perp_order: {
           account_id: accountId,
           denom,
+          reduce_only: reduceOnly,
           size,
-        },
-      },
-      fee,
-      memo,
-      _funds,
-    )
-  }
-  closePosition = async (
-    {
-      accountId,
-      denom,
-    }: {
-      accountId: string
-      denom: string
-    },
-    fee: number | StdFee | 'auto' = 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ): Promise<ExecuteResult> => {
-    return await this.client.execute(
-      this.sender,
-      this.contractAddress,
-      {
-        close_position: {
-          account_id: accountId,
-          denom,
-        },
-      },
-      fee,
-      memo,
-      _funds,
-    )
-  }
-  modifyPosition = async (
-    {
-      accountId,
-      denom,
-      newSize,
-    }: {
-      accountId: string
-      denom: string
-      newSize: SignedUint
-    },
-    fee: number | StdFee | 'auto' = 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ): Promise<ExecuteResult> => {
-    return await this.client.execute(
-      this.sender,
-      this.contractAddress,
-      {
-        modify_position: {
-          account_id: accountId,
-          denom,
-          new_size: newSize,
         },
       },
       fee,

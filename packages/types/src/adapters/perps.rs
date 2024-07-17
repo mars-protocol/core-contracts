@@ -79,37 +79,21 @@ impl Perps {
         }))
     }
 
-    /// Generate message for opening a new perp position
-    pub fn open_msg(
+    pub fn execute_perp_order(
         &self,
         account_id: impl Into<String>,
         denom: impl Into<String>,
         size: SignedUint,
+        reduce_only: Option<bool>,
         funds: Vec<Coin>,
     ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
-            msg: to_json_binary(&ExecuteMsg::OpenPosition {
+            msg: to_json_binary(&ExecuteMsg::ExecutePerpOrder {
                 account_id: account_id.into(),
                 denom: denom.into(),
                 size,
-            })?,
-            funds,
-        }))
-    }
-
-    /// Generate message for closing a perp position
-    pub fn close_msg(
-        &self,
-        account_id: impl Into<String>,
-        denom: impl Into<String>,
-        funds: Vec<Coin>,
-    ) -> StdResult<CosmosMsg> {
-        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: self.address().into(),
-            msg: to_json_binary(&ExecuteMsg::ClosePosition {
-                account_id: account_id.into(),
-                denom: denom.into(),
+                reduce_only,
             })?,
             funds,
         }))
@@ -132,38 +116,19 @@ impl Perps {
         }))
     }
 
-    /// Generate message for modifying a perp position
-    pub fn modify_msg(
-        &self,
-        account_id: impl Into<String>,
-        denom: impl Into<String>,
-        new_size: SignedUint,
-        funds: Vec<Coin>,
-    ) -> StdResult<CosmosMsg> {
-        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: self.address().into(),
-            msg: to_json_binary(&ExecuteMsg::ModifyPosition {
-                account_id: account_id.into(),
-                denom: denom.into(),
-                new_size,
-            })?,
-            funds,
-        }))
-    }
-
     pub fn query_position(
         &self,
         querier: &QuerierWrapper,
         account_id: impl Into<String>,
         denom: impl Into<String>,
-        new_size: Option<SignedUint>,
-    ) -> StdResult<PerpPosition> {
+        order_size: Option<SignedUint>,
+    ) -> StdResult<Option<PerpPosition>> {
         let res: PositionResponse = querier.query_wasm_smart(
             self.address(),
             &QueryMsg::Position {
                 account_id: account_id.into(),
                 denom: denom.into(),
-                new_size,
+                order_size,
             },
         )?;
         Ok(res.position)

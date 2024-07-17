@@ -321,7 +321,8 @@ fn unlock_and_withdraw_if_zero_withdrawal_balance() {
     // open a position
     let size = SignedUint::from_str("50").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee]).unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee])
+        .unwrap();
 
     // increase uatom price to make the position profitable
     mock.set_price(&owner, "uatom", Decimal::from_str("50").unwrap()).unwrap();
@@ -402,7 +403,8 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
     // open a position
     let size = SignedUint::from_str("100").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee]).unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee])
+        .unwrap();
 
     // increase uatom price to make the position profitable
     mock.set_price(&owner, "uatom", Decimal::from_str("100").unwrap()).unwrap();

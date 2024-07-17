@@ -205,59 +205,23 @@ impl MockEnv {
         )
     }
 
-    pub fn open_position(
+    pub fn execute_perp_order(
         &mut self,
         sender: &Addr,
         account_id: &str,
         denom: &str,
         size: SignedUint,
-        send_funds: &[Coin],
+        reduce_only: Option<bool>,
+        funds: &[Coin],
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
             self.perps.clone(),
-            &perps::ExecuteMsg::OpenPosition {
+            &perps::ExecuteMsg::ExecutePerpOrder {
                 account_id: account_id.to_string(),
                 denom: denom.to_string(),
                 size,
-            },
-            send_funds,
-        )
-    }
-
-    pub fn modify_position(
-        &mut self,
-        sender: &Addr,
-        account_id: &str,
-        denom: &str,
-        new_size: SignedUint,
-        funds: &[Coin],
-    ) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            sender.clone(),
-            self.perps.clone(),
-            &perps::ExecuteMsg::ModifyPosition {
-                account_id: account_id.to_string(),
-                denom: denom.to_string(),
-                new_size,
-            },
-            funds,
-        )
-    }
-
-    pub fn close_position(
-        &mut self,
-        sender: &Addr,
-        account_id: &str,
-        denom: &str,
-        funds: &[Coin],
-    ) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            sender.clone(),
-            self.perps.clone(),
-            &perps::ExecuteMsg::ClosePosition {
-                account_id: account_id.to_string(),
-                denom: denom.to_string(),
+                reduce_only,
             },
             funds,
         )
@@ -443,7 +407,7 @@ impl MockEnv {
                 &perps::QueryMsg::Position {
                     account_id: account_id.to_string(),
                     denom: denom.to_string(),
-                    new_size: None,
+                    order_size: None,
                 },
             )
             .unwrap()

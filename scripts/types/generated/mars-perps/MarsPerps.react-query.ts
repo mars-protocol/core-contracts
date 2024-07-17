@@ -411,7 +411,7 @@ export interface MarsPerpsPositionQuery<TData>
   args: {
     accountId: string
     denom: string
-    newSize?: SignedUint
+    orderSize?: SignedUint
   }
 }
 export function useMarsPerpsPositionQuery<TData = PositionResponse>({
@@ -426,7 +426,7 @@ export function useMarsPerpsPositionQuery<TData = PositionResponse>({
         ? client.position({
             accountId: args.accountId,
             denom: args.denom,
-            newSize: args.newSize,
+            orderSize: args.orderSize,
           })
         : Promise.reject(new Error('Invalid client')),
     {
@@ -660,60 +660,12 @@ export function useMarsPerpsCloseAllPositionsMutation(
     options,
   )
 }
-export interface MarsPerpsModifyPositionMutation {
+export interface MarsPerpsExecutePerpOrderMutation {
   client: MarsPerpsClient
   msg: {
     accountId: string
     denom: string
-    newSize: SignedUint
-  }
-  args?: {
-    fee?: number | StdFee | 'auto'
-    memo?: string
-    funds?: Coin[]
-  }
-}
-export function useMarsPerpsModifyPositionMutation(
-  options?: Omit<
-    UseMutationOptions<ExecuteResult, Error, MarsPerpsModifyPositionMutation>,
-    'mutationFn'
-  >,
-) {
-  return useMutation<ExecuteResult, Error, MarsPerpsModifyPositionMutation>(
-    ({ client, msg, args: { fee, memo, funds } = {} }) =>
-      client.modifyPosition(msg, fee, memo, funds),
-    options,
-  )
-}
-export interface MarsPerpsClosePositionMutation {
-  client: MarsPerpsClient
-  msg: {
-    accountId: string
-    denom: string
-  }
-  args?: {
-    fee?: number | StdFee | 'auto'
-    memo?: string
-    funds?: Coin[]
-  }
-}
-export function useMarsPerpsClosePositionMutation(
-  options?: Omit<
-    UseMutationOptions<ExecuteResult, Error, MarsPerpsClosePositionMutation>,
-    'mutationFn'
-  >,
-) {
-  return useMutation<ExecuteResult, Error, MarsPerpsClosePositionMutation>(
-    ({ client, msg, args: { fee, memo, funds } = {} }) =>
-      client.closePosition(msg, fee, memo, funds),
-    options,
-  )
-}
-export interface MarsPerpsOpenPositionMutation {
-  client: MarsPerpsClient
-  msg: {
-    accountId: string
-    denom: string
+    reduceOnly?: boolean
     size: SignedUint
   }
   args?: {
@@ -722,15 +674,15 @@ export interface MarsPerpsOpenPositionMutation {
     funds?: Coin[]
   }
 }
-export function useMarsPerpsOpenPositionMutation(
+export function useMarsPerpsExecutePerpOrderMutation(
   options?: Omit<
-    UseMutationOptions<ExecuteResult, Error, MarsPerpsOpenPositionMutation>,
+    UseMutationOptions<ExecuteResult, Error, MarsPerpsExecutePerpOrderMutation>,
     'mutationFn'
   >,
 ) {
-  return useMutation<ExecuteResult, Error, MarsPerpsOpenPositionMutation>(
+  return useMutation<ExecuteResult, Error, MarsPerpsExecutePerpOrderMutation>(
     ({ client, msg, args: { fee, memo, funds } = {} }) =>
-      client.openPosition(msg, fee, memo, funds),
+      client.executePerpOrder(msg, fee, memo, funds),
     options,
   )
 }

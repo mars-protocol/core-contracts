@@ -234,13 +234,13 @@
         "additionalProperties": false
       },
       {
-        "description": "Open a new perp position.\n\nOnly callable by Rover credit manager.\n\nMust send exactly one coin of `base_denom`.",
+        "description": "Execute a perp order against a perp market for a given account. If the position in that market for that account id exists, it is modified. If no position exists, a position is created (providing reduce_only is none or false)",
         "type": "object",
         "required": [
-          "open_position"
+          "execute_perp_order"
         ],
         "properties": {
-          "open_position": {
+          "execute_perp_order": {
             "type": "object",
             "required": [
               "account_id",
@@ -249,81 +249,19 @@
             ],
             "properties": {
               "account_id": {
-                "description": "The user's credit account token ID",
                 "type": "string"
               },
               "denom": {
-                "description": "Name of the trading pair",
                 "type": "string"
+              },
+              "reduce_only": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
               },
               "size": {
-                "description": "Size of the position, denominated in the traded asset.\n\nA positive number means the position is long, a negative number means it's short.\n\nMust be greater than the minimum position size set at the protocol level.",
-                "allOf": [
-                  {
-                    "$ref": "#/definitions/SignedUint"
-                  }
-                ]
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "description": "Close a perp position. Return collateral + unrealized PnL to the user's credit account.\n\nOnly callable by Rover credit manager.",
-        "type": "object",
-        "required": [
-          "close_position"
-        ],
-        "properties": {
-          "close_position": {
-            "type": "object",
-            "required": [
-              "account_id",
-              "denom"
-            ],
-            "properties": {
-              "account_id": {
-                "type": "string"
-              },
-              "denom": {
-                "type": "string"
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "description": "Modify a perp position.",
-        "type": "object",
-        "required": [
-          "modify_position"
-        ],
-        "properties": {
-          "modify_position": {
-            "type": "object",
-            "required": [
-              "account_id",
-              "denom",
-              "new_size"
-            ],
-            "properties": {
-              "account_id": {
-                "type": "string"
-              },
-              "denom": {
-                "type": "string"
-              },
-              "new_size": {
-                "description": "To increase a long or reduce a short, this will be positive To decrease a long or increase a short, this will be negative",
-                "allOf": [
-                  {
-                    "$ref": "#/definitions/SignedUint"
-                  }
-                ]
+                "$ref": "#/definitions/SignedUint"
               }
             },
             "additionalProperties": false
@@ -708,7 +646,7 @@
               "denom": {
                 "type": "string"
               },
-              "new_size": {
+              "order_size": {
                 "anyOf": [
                   {
                     "$ref": "#/definitions/SignedUint"
@@ -1787,15 +1725,21 @@
       "title": "PositionResponse",
       "type": "object",
       "required": [
-        "account_id",
-        "position"
+        "account_id"
       ],
       "properties": {
         "account_id": {
           "type": "string"
         },
         "position": {
-          "$ref": "#/definitions/PerpPosition"
+          "anyOf": [
+            {
+              "$ref": "#/definitions/PerpPosition"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false,
@@ -2071,15 +2015,21 @@
         "PositionResponse": {
           "type": "object",
           "required": [
-            "account_id",
-            "position"
+            "account_id"
           ],
           "properties": {
             "account_id": {
               "type": "string"
             },
             "position": {
-              "$ref": "#/definitions/PerpPosition"
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/PerpPosition"
+                },
+                {
+                  "type": "null"
+                }
+              ]
             }
           },
           "additionalProperties": false

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, Addr, Decimal, Uint128};
+use cosmwasm_std::{coin, coins, Addr, Decimal, Uint128};
 use mars_perps::{accounting::BalanceExt, error::ContractError};
 use mars_types::{
     math::SignedDecimal,
@@ -18,11 +18,12 @@ use crate::tests::helpers::default_perp_params;
 fn random_user_cannot_open_position() {
     let mut mock = MockEnv::new().build().unwrap();
 
-    let res = mock.open_position(
+    let res = mock.execute_perp_order(
         &Addr::unchecked("random-user-123"),
         "2",
         "uatom",
         SignedUint::from_str("-125").unwrap(),
+        None,
         &[],
     );
     assert_err(res, ContractError::SenderIsNotCreditManager);
@@ -64,15 +65,18 @@ fn random_user_cannot_modify_position() {
 
     let size = SignedUint::from_str("-125").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
+        .unwrap();
 
-    let res = mock.modify_position(
+    let res = mock.execute_perp_order(
         &Addr::unchecked("random-user-123"),
         "2",
         "uatom",
         SignedUint::from_str("-125").unwrap(),
+        None,
         &[],
     );
+
     assert_err(res, ContractError::SenderIsNotCreditManager);
 }
 
@@ -92,11 +96,12 @@ fn cannot_open_position_for_disabled_denom() {
         .unwrap();
     mock.disable_denom(&owner, "uatom").unwrap();
 
-    let res = mock.open_position(
+    let res = mock.execute_perp_order(
         &credit_manager,
         "2",
         "uatom",
         SignedUint::from_str("-125").unwrap(),
+        None,
         &[],
     );
     assert_err(
@@ -143,16 +148,18 @@ fn cannot_modify_position_for_disabled_denom() {
 
     let size = SignedUint::from_str("-125").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
+        .unwrap();
 
     mock.disable_denom(&owner, "uatom").unwrap();
 
     // increase position
-    let res = mock.modify_position(
+    let res = mock.execute_perp_order(
         &credit_manager,
         "2",
         "uatom",
         SignedUint::from_str("-175").unwrap(),
+        None,
         &[], // fees are not important for this test
     );
     assert_err(
@@ -163,11 +170,12 @@ fn cannot_modify_position_for_disabled_denom() {
     );
 
     // decrease position
-    let res = mock.modify_position(
+    let res = mock.execute_perp_order(
         &credit_manager,
         "2",
         "uatom",
         SignedUint::from_str("-100").unwrap(),
+        None,
         &[], // fees are not important for this test
     );
     assert_err(
@@ -214,13 +222,14 @@ fn only_close_position_possible_for_disabled_denom() {
 
     let size = SignedUint::from_str("125").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
+        .unwrap();
 
     mock.disable_denom(&owner, "uatom").unwrap();
 
     mock.set_price(&owner, "uatom", Decimal::from_str("10.2").unwrap()).unwrap();
 
-    mock.close_position(&credit_manager, "2", "uatom", &[]).unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "uatom", size.neg(), None, &[]).unwrap();
 }
 
 #[test]
@@ -245,24 +254,29 @@ fn only_one_position_possible_for_denom() {
     );
 
     // open a position for account 2
-    mock.open_position(&credit_manager, "2", "uatom", SignedUint::from_str("-125").unwrap(), &[])
-        .unwrap();
-
-    // try to open one more time
-    let res = mock.open_position(
+    mock.execute_perp_order(
         &credit_manager,
         "2",
         "uatom",
         SignedUint::from_str("-125").unwrap(),
+        None,
         &[],
-    );
-    assert_err(
-        res,
-        ContractError::PositionExists {
-            account_id: "2".to_string(),
-            denom: "uatom".to_string(),
-        },
-    );
+    )
+    .unwrap();
+
+    // try to open one more time
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedUint::from_str("-125").unwrap(),
+        None,
+        &[],
+    )
+    .unwrap();
+
+    let position = mock.query_position("2", "uatom");
+    assert_eq!(position.position.unwrap().size, SignedUint::from_str("-250").unwrap());
 }
 
 #[test]
@@ -292,11 +306,12 @@ fn open_position_cannot_be_too_small() {
 
     // position size is too small
     // 100 * 12.5 = 1250
-    let res = mock.open_position(
+    let res = mock.execute_perp_order(
         &credit_manager,
         "2",
         "uatom",
         SignedUint::from_str("100").unwrap(),
+        None,
         &[],
     );
     assert_err(
@@ -348,17 +363,32 @@ fn max_open_perps_reached() {
     );
 
     // open a position for account 2
-    mock.open_position(&credit_manager, "2", "uatom", SignedUint::from_str("-125").unwrap(), &[])
-        .unwrap();
-    mock.open_position(&credit_manager, "2", "utia", SignedUint::from_str("100").unwrap(), &[])
-        .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedUint::from_str("-125").unwrap(),
+        None,
+        &[],
+    )
+    .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        "utia",
+        SignedUint::from_str("100").unwrap(),
+        None,
+        &[],
+    )
+    .unwrap();
 
     // try to open third position
-    let res = mock.open_position(
+    let res = mock.execute_perp_order(
         &credit_manager,
         "2",
         "untrn",
         SignedUint::from_str("-125").unwrap(),
+        None,
         &[],
     );
     assert_err(
@@ -408,14 +438,16 @@ fn reduced_position_cannot_be_too_small() {
     // create valid position
     let size = SignedUint::from_str("200").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
+        .unwrap();
 
     // Position size is too small
-    let res = mock.modify_position(
+    let res = mock.execute_perp_order(
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("100").unwrap(),
+        SignedUint::from_str("-100").unwrap(),
+        None,
         &[],
     );
 
@@ -455,11 +487,12 @@ fn open_position_cannot_be_too_big() {
 
     // position size is too big
     // 100 * 12.5 = 1250
-    let res = mock.open_position(
+    let res = mock.execute_perp_order(
         &credit_manager,
         "2",
         "uatom",
         SignedUint::from_str("100").unwrap(),
+        None,
         &[],
     );
     assert_err(
@@ -510,13 +543,15 @@ fn increased_position_cannot_be_too_big() {
     // 100 * 12.5 = 1250
     let size = SignedUint::from_str("50").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
+        .unwrap();
 
-    let res = mock.modify_position(
+    let res = mock.execute_perp_order(
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("100").unwrap(),
+        SignedUint::from_str("50").unwrap(),
+        None,
         &[], // fees are not important for this test
     );
     assert_err(
@@ -558,17 +593,32 @@ fn validate_opening_position() {
     );
 
     // prepare some OI
-    mock.open_position(&credit_manager, "1", "uatom", SignedUint::from_str("200").unwrap(), &[])
-        .unwrap();
-    mock.open_position(&credit_manager, "2", "uatom", SignedUint::from_str("-400").unwrap(), &[])
-        .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "1",
+        "uatom",
+        SignedUint::from_str("200").unwrap(),
+        None,
+        &[],
+    )
+    .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedUint::from_str("-400").unwrap(),
+        None,
+        &[],
+    )
+    .unwrap();
 
     // long OI is too big
-    let res = mock.open_position(
+    let res = mock.execute_perp_order(
         &credit_manager,
         "3",
         "uatom",
         SignedUint::from_str("403").unwrap(),
+        None,
         &[],
     ); // (200 + 403) * 10 = 6030
     assert_err(
@@ -580,11 +630,12 @@ fn validate_opening_position() {
     );
 
     // net OI is too big
-    let res = mock.open_position(
+    let res = mock.execute_perp_order(
         &credit_manager,
         "3",
         "uatom",
         SignedUint::from_str("401").unwrap(),
+        None,
         &[],
     ); // 200 + 401 = 601, abs(601 - 400) = 201 * 10 = 2010
     assert_err(
@@ -596,11 +647,12 @@ fn validate_opening_position() {
     );
 
     // short OI is too big
-    let res = mock.open_position(
+    let res = mock.execute_perp_order(
         &credit_manager,
         "4",
         "uatom",
         SignedUint::from_str("-101").unwrap(),
+        None,
         &[],
     ); // (400 + 101) * 10 = 5010
     assert_err(
@@ -612,8 +664,14 @@ fn validate_opening_position() {
     );
 
     // net OI is too big
-    let res =
-        mock.open_position(&credit_manager, "4", "uatom", SignedUint::from_str("-1").unwrap(), &[]); // 400 + 1 = 401, abs(200 - 401) = 201 * 10 = 2010
+    let res = mock.execute_perp_order(
+        &credit_manager,
+        "4",
+        "uatom",
+        SignedUint::from_str("-1").unwrap(),
+        None,
+        &[],
+    ); // 400 + 1 = 401, abs(200 - 401) = 201 * 10 = 2010
     assert_err(
         res,
         ContractError::NetOpenInterestReached {
@@ -663,9 +721,10 @@ fn error_when_new_size_equals_old_size() {
     // Test with positive size
     let size = SignedUint::from_str("12").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee]).unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee])
+        .unwrap();
     // Try to modify position of 12 to 12
-    let res = mock.modify_position(&credit_manager, "1", "uatom", size, &[]);
+    let res = mock.execute_perp_order(&credit_manager, "1", "uatom", SignedUint::zero(), None, &[]);
 
     assert_err(
         res,
@@ -677,9 +736,24 @@ fn error_when_new_size_equals_old_size() {
     // Test with negative size
     let size = SignedUint::from_str("-3").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedUint::from_str("-3").unwrap(),
+        None,
+        &[atom_opening_fee],
+    )
+    .unwrap();
     // Try to modify position of -3 to -3
-    let res = mock.modify_position(&credit_manager, "2", "uatom", size, &[]);
+    let res = mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        "uatom",
+        SignedUint::zero(),
+        None,
+        &[coin(1, "uusdc")],
+    );
 
     assert_err(
         res,
@@ -729,24 +803,34 @@ fn error_when_oi_limits_exceeded() {
         },
     );
 
-    // prepare some OI
+    // State:
+    // Long OI = (0) + 30 = 30
+    // Short OI = (0) -40 = -40
+    // Net OI = (0) + 30 - 40 = -10
     let size = SignedUint::from_str("30").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee]).unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee])
+        .unwrap();
     let size = SignedUint::from_str("-40").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "2", "uatom", size, &[atom_opening_fee]).unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
+        .unwrap();
 
-    // long OI is too big
-    // Long OI = (401) * 10 (price) = 4010
-    // Max Long OI = 4009
-    let res = mock.modify_position(
+    // Check 1: Long OI is too big
+
+    // State
+    // Long OI = (30) + 371 = 401
+    // Short OI = (-40)
+    let res = mock.execute_perp_order(
         &credit_manager,
         "1",
         "uatom",
-        SignedUint::from_str("401").unwrap(),
+        SignedUint::from_str("371").unwrap(),
+        None,
         &[],
     );
+    // Long OI value = (401 * 10) = 4010
+    // Max Long OI value = 4009
     assert_err(
         res,
         ContractError::LongOpenInterestReached {
@@ -755,16 +839,20 @@ fn error_when_oi_limits_exceeded() {
         },
     );
 
-    // net OI is too big
-    // Net OI = (40 + 91) * 10 (price) = 510
-    // Max Net OI = 509
-    let res = mock.modify_position(
+    // Check 2: Net OI is too big
+
+    // State
+    // Long OI = (30)
+    // Short OI = (-40) + -41 = -81
+    // Net OI = 30 -81 = -51
+    let res = mock.execute_perp_order(
         &credit_manager,
         "1",
         "uatom",
-        SignedUint::from_str("91").unwrap(),
+        SignedUint::from_str("-41").unwrap(),
+        None,
         &[],
-    ); // abs(91 - 40) = 51 * 10 = 510
+    );
     assert_err(
         res,
         ContractError::NetOpenInterestReached {
@@ -773,14 +861,17 @@ fn error_when_oi_limits_exceeded() {
         },
     );
 
-    // short OI is too big
-    // Short OI = (421) * 10 (price) = 4210
-    // Max Short OI = 4209
-    let res = mock.modify_position(
+    // State
+    // Long OI = (30)
+    // Short OI = (-40) - 381 = -4210
+    // Net OI = 30 - 421 = 391
+    let res = mock.execute_perp_order(
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("-421").unwrap(),
+        // Move size from +91 to -421
+        SignedUint::from_str("-381").unwrap(),
+        None,
         &[],
     );
     assert_err(
@@ -791,12 +882,16 @@ fn error_when_oi_limits_exceeded() {
         },
     );
 
-    // net OI is too big when
-    let res = mock.modify_position(
+    // State
+    // Long OI = (30)
+    // Short OI = (-40) - 41 = -81
+    // Net OI = 30 - 81 = -51
+    let res = mock.execute_perp_order(
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("-81").unwrap(),
+        SignedUint::from_str("-41").unwrap(),
+        None,
         &[],
     ); // abs(30 - 81) = 51 * 10 = 510
     assert_err(
@@ -807,14 +902,15 @@ fn error_when_oi_limits_exceeded() {
         },
     );
 
-    // Long OI is too big after flipping size
-    // Long OI = (30 + 421) * 10 (price) = 4510
-    // Max Long OI = 4009
-    let res = mock.modify_position(
+    // State
+    // Long OI = (30) + 421 = 451
+    // Short OI = (-40) + 40 = 0
+    let res = mock.execute_perp_order(
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("421").unwrap(),
+        SignedUint::from_str("461").unwrap(),
+        None,
         &[],
     );
     assert_err(
@@ -825,14 +921,15 @@ fn error_when_oi_limits_exceeded() {
         },
     );
 
-    // Short OI is too big after flipping size
-    // Short OI = (40 + 512) * 10 (price) = 5520
-    // Max Short OI = 4209
-    let res = mock.modify_position(
+    // State
+    // Long OI = (30) - 30 = 0
+    // Short OI = (-40) - 512 = 552
+    let res = mock.execute_perp_order(
         &credit_manager,
         "1",
         "uatom",
-        SignedUint::from_str("-512").unwrap(),
+        SignedUint::from_str("-542").unwrap(),
+        None,
         &[],
     );
     assert_err(
@@ -880,7 +977,8 @@ fn modify_position_realises_pnl() {
     // prepare some OI
     let size = SignedUint::from_str("300").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee.clone()]).unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
+        .unwrap();
 
     // update price - we are now up 10%
     mock.set_price(&owner, "uatom", Decimal::from_str("11").unwrap()).unwrap();
@@ -890,8 +988,15 @@ fn modify_position_realises_pnl() {
         mock.query_opening_fee("uatom", SignedUint::from_str("100").unwrap()).fee;
 
     // modify and verify that our pnl is realised
-    mock.modify_position(&credit_manager, "1", "uatom", SignedUint::from_str("400").unwrap(), &[])
-        .unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "1",
+        "uatom",
+        SignedUint::from_str("100").unwrap(),
+        None,
+        &[],
+    )
+    .unwrap();
 
     let position = mock.query_position("1", "uatom");
 
@@ -900,7 +1005,7 @@ fn modify_position_realises_pnl() {
         SignedDecimal::zero().checked_sub(atom_opening_fee_total.into()).unwrap(); // make it negative because it's a cost
     assert_eq!(atom_opening_fee_total, SignedDecimal::from_str("-43").unwrap());
     assert_eq!(
-        position.position.realised_pnl,
+        position.position.unwrap().realised_pnl,
         PnlAmounts {
             accrued_funding: SignedUint::zero(),
             price_pnl: SignedUint::from_str("300").unwrap(),
@@ -914,11 +1019,12 @@ fn modify_position_realises_pnl() {
     // update price - we fall back to 10
     mock.set_price(&owner, "uatom", Decimal::from_str("10.5").unwrap()).unwrap();
 
-    mock.modify_position(
+    mock.execute_perp_order(
         &credit_manager,
         "1",
         "uatom",
-        SignedUint::from_str("300").unwrap(),
+        SignedUint::from_str("-100").unwrap(),
+        None,
         &[coin(213u128, "uusdc")],
     )
     .unwrap();
@@ -926,7 +1032,7 @@ fn modify_position_realises_pnl() {
     let position = mock.query_position("1", "uatom");
 
     assert_eq!(
-        position.position.realised_pnl,
+        position.position.unwrap().realised_pnl,
         PnlAmounts {
             accrued_funding: SignedUint::zero(),
             price_pnl: SignedUint::from_str("98").unwrap(),
@@ -936,6 +1042,728 @@ fn modify_position_realises_pnl() {
             pnl: SignedUint::from_str("44").unwrap(),
         }
     );
+}
+
+#[test]
+fn shouldnt_open_when_reduce_only() {
+    let max_position_value = Uint128::new(1249u128);
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
+
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.8").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("12.5").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
+
+    // init denoms
+    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                max_position_value: Some(max_position_value),
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params("uatom")
+            },
+        },
+    );
+
+    let size = SignedUint::from_str("50").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let res = mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        "uatom",
+        size,
+        Some(true),
+        &[atom_opening_fee],
+    );
+
+    assert_err(
+        res,
+        ContractError::IllegalPositionModification {
+            reason: "Cannot open position if reduce_only = true".to_string(),
+        },
+    );
+}
+
+#[test]
+fn should_open_when_reduce_only_false_or_none() {
+    let max_position_value = Uint128::new(1249u128);
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
+
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.8").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("12.5").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
+
+    // init denoms
+    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                max_position_value: Some(max_position_value),
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params("uatom")
+            },
+        },
+    );
+
+    let size = SignedUint::from_str("50").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        "uatom",
+        size,
+        Some(false),
+        &[atom_opening_fee.clone()],
+    )
+    .unwrap();
+
+    mock.execute_perp_order(&credit_manager, "3", "uatom", size, None, &[atom_opening_fee])
+        .unwrap();
+
+    let position_a = mock.query_position("2", "uatom").position.unwrap();
+    let position_b = mock.query_position("3", "uatom").position.unwrap();
+
+    assert_eq!(position_a.size, size);
+    assert_eq!(position_a.denom, "uatom");
+
+    assert_eq!(position_b.size, size);
+    assert_eq!(position_b.denom, "uatom");
+}
+
+#[test]
+fn should_reduce_when_reduce_only_true() {
+    let max_position_value = Uint128::new(1249u128);
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+    let denom = "uatom";
+    let base_denom = "uusdc";
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
+
+    // set prices
+    mock.set_price(&owner, base_denom, Decimal::from_str("0.8").unwrap()).unwrap();
+    mock.set_price(&owner, denom, Decimal::from_str("12.5").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
+
+    // init denoms
+    mock.init_denom(&owner, denom, Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                max_position_value: Some(max_position_value),
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params(denom)
+            },
+        },
+    );
+
+    let size_long_position = SignedUint::from_str("50").unwrap();
+    let size_short_position = SignedUint::from_str("-50").unwrap();
+
+    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
+
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        denom,
+        size_long_position,
+        None,
+        &[atom_opening_fee.clone()],
+    )
+    .unwrap();
+
+    mock.execute_perp_order(
+        &credit_manager,
+        "3",
+        denom,
+        size_short_position,
+        None,
+        &[atom_opening_fee.clone()],
+    )
+    .unwrap();
+
+    let long_position = mock.query_position("2", "uatom").position.unwrap();
+    assert_eq!(long_position.size, size_long_position);
+    assert_eq!(long_position.denom, denom);
+
+    let new_long_size = SignedUint::from_str("25").unwrap();
+    let new_short_size = SignedUint::from_str("-25").unwrap();
+    let long_modification_size = new_long_size.checked_sub(size_long_position).unwrap();
+    let short_modification_size = new_short_size.checked_sub(size_short_position).unwrap();
+
+    let atom_closing_fee_long: PositionFeesResponse =
+        mock.query_position_fees("2", denom, new_long_size);
+
+    let long_pnl_losses = if long_position.unrealised_pnl.price_pnl.is_negative() {
+        long_position.unrealised_pnl.price_pnl.abs
+    } else {
+        Uint128::zero()
+    };
+
+    // Reduce long
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        denom,
+        long_modification_size,
+        Some(true),
+        &coins(
+            // add pnl to the closing fee
+            atom_closing_fee_long.closing_fee.checked_add(long_pnl_losses).unwrap().into(),
+            base_denom,
+        ),
+    )
+    .unwrap();
+
+    let atom_closing_fee_short: PositionFeesResponse =
+        mock.query_position_fees("3", denom, new_short_size);
+    let short_position = mock.query_position("3", "uatom").position.unwrap();
+    assert_eq!(short_position.size, size_short_position);
+    assert_eq!(short_position.denom, denom);
+
+    let short_pnl_losses = if short_position.unrealised_pnl.price_pnl.is_negative() {
+        short_position.unrealised_pnl.price_pnl.abs
+    } else {
+        Uint128::zero()
+    };
+
+    // Reduce short
+    mock.execute_perp_order(
+        &credit_manager,
+        "3",
+        denom,
+        short_modification_size,
+        Some(true),
+        &coins(
+            atom_closing_fee_short.closing_fee.checked_add(short_pnl_losses).unwrap().into(),
+            base_denom,
+        ),
+    )
+    .unwrap();
+
+    // Verify updates occurred
+    let updated_long_position = mock.query_position("2", denom).position.unwrap();
+    assert_eq!(updated_long_position.size, new_long_size);
+    assert_eq!(updated_long_position.denom, denom);
+
+    let short_position = mock.query_position("3", denom).position.unwrap();
+    assert_eq!(short_position.size, new_short_size);
+    assert_eq!(short_position.denom, denom);
+}
+
+#[test]
+fn shouldnt_increase_when_reduce_only_true() {
+    let max_position_value = Uint128::new(1249u128);
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+    let denom = "uatom";
+    let base_denom = "uusdc";
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
+
+    // set prices
+    mock.set_price(&owner, base_denom, Decimal::from_str("0.8").unwrap()).unwrap();
+    mock.set_price(&owner, denom, Decimal::from_str("12.5").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
+
+    // init denoms
+    mock.init_denom(&owner, denom, Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                max_position_value: Some(max_position_value),
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params(denom)
+            },
+        },
+    );
+
+    let size_long_position = SignedUint::from_str("50").unwrap();
+    let size_short_position = SignedUint::from_str("-50").unwrap();
+
+    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
+
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        denom,
+        size_long_position,
+        None,
+        &[atom_opening_fee.clone()],
+    )
+    .unwrap();
+
+    mock.execute_perp_order(
+        &credit_manager,
+        "3",
+        denom,
+        size_short_position,
+        None,
+        &[atom_opening_fee.clone()],
+    )
+    .unwrap();
+
+    let long_position = mock.query_position("2", "uatom").position.unwrap();
+    assert_eq!(long_position.size, size_long_position);
+    assert_eq!(long_position.denom, denom);
+
+    let new_long_size = SignedUint::from_str("75").unwrap();
+    let new_short_size = SignedUint::from_str("-75").unwrap();
+    let long_modification_size = new_long_size.checked_sub(size_long_position).unwrap();
+    let short_modification_size = new_short_size.checked_sub(size_short_position).unwrap();
+
+    let atom_closing_fee_long: PositionFeesResponse =
+        mock.query_position_fees("2", denom, new_long_size);
+
+    let long_pnl_losses = if long_position.unrealised_pnl.price_pnl.is_negative() {
+        long_position.unrealised_pnl.price_pnl.abs
+    } else {
+        Uint128::zero()
+    };
+
+    // increase long
+    let res = mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        denom,
+        long_modification_size,
+        Some(true),
+        &coins(
+            // add pnl to the closing fee
+            atom_closing_fee_long.closing_fee.checked_add(long_pnl_losses).unwrap().into(),
+            base_denom,
+        ),
+    );
+
+    assert_err(
+        res,
+        ContractError::IllegalPositionModification {
+            reason: "Cannot increase position if reduce_only = true".to_string(),
+        },
+    );
+
+    let short_position = mock.query_position("3", "uatom").position.unwrap();
+    assert_eq!(short_position.size, size_short_position);
+    assert_eq!(short_position.denom, denom);
+
+    // Reduce short
+    let res = mock.execute_perp_order(
+        &credit_manager,
+        "3",
+        denom,
+        short_modification_size,
+        Some(true),
+        &[],
+    );
+
+    assert_err(
+        res,
+        ContractError::IllegalPositionModification {
+            reason: "Cannot increase position if reduce_only = true".to_string(),
+        },
+    );
+
+    // Verify updates occurred
+    let updated_long_position = mock.query_position("2", denom).position.unwrap();
+    assert_eq!(updated_long_position.size, size_long_position);
+    assert_eq!(updated_long_position.denom, denom);
+
+    let short_position = mock.query_position("3", denom).position.unwrap();
+    assert_eq!(short_position.size, size_short_position);
+    assert_eq!(short_position.denom, denom);
+}
+
+#[test]
+fn increase_when_reduce_only_false() {
+    let max_position_value = Uint128::new(1249u128);
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+    let denom = "uatom";
+    let base_denom = "uusdc";
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
+
+    // set prices
+    mock.set_price(&owner, base_denom, Decimal::from_str("0.8").unwrap()).unwrap();
+    mock.set_price(&owner, denom, Decimal::from_str("12.5").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
+
+    // init denoms
+    mock.init_denom(&owner, denom, Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                max_position_value: Some(max_position_value),
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params(denom)
+            },
+        },
+    );
+
+    let size_long_position = SignedUint::from_str("50").unwrap();
+    let size_short_position = SignedUint::from_str("-50").unwrap();
+
+    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
+
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        denom,
+        size_long_position,
+        None,
+        &[atom_opening_fee.clone()],
+    )
+    .unwrap();
+
+    mock.execute_perp_order(
+        &credit_manager,
+        "3",
+        denom,
+        size_short_position,
+        None,
+        &[atom_opening_fee.clone()],
+    )
+    .unwrap();
+
+    let long_position = mock.query_position("2", "uatom").position.unwrap();
+    assert_eq!(long_position.size, size_long_position);
+    assert_eq!(long_position.denom, denom);
+
+    let new_long_size = SignedUint::from_str("75").unwrap();
+    let new_short_size = SignedUint::from_str("-75").unwrap();
+    let long_modification_size = new_long_size.checked_sub(size_long_position).unwrap();
+    let short_modification_size = new_short_size.checked_sub(size_short_position).unwrap();
+
+    // increase long
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        denom,
+        long_modification_size,
+        Some(false),
+        &coins(
+            // add pnl to the closing fee
+            5, base_denom,
+        ),
+    )
+    .unwrap();
+
+    let short_position = mock.query_position("3", "uatom").position.unwrap();
+    assert_eq!(short_position.size, size_short_position);
+    assert_eq!(short_position.denom, denom);
+
+    // Reduce short
+    mock.execute_perp_order(
+        &credit_manager,
+        "3",
+        denom,
+        short_modification_size,
+        Some(false),
+        &coins(5, base_denom),
+    )
+    .unwrap();
+
+    // Verify updates occurred
+    let updated_long_position = mock.query_position("2", denom).position.unwrap();
+    assert_eq!(updated_long_position.size, new_long_size);
+    assert_eq!(updated_long_position.denom, denom);
+
+    let short_position = mock.query_position("3", denom).position.unwrap();
+    assert_eq!(short_position.size, new_short_size);
+    assert_eq!(short_position.denom, denom);
+}
+
+#[test]
+fn flip_position_when_reduce_only_true() {
+    let max_position_value = Uint128::new(1249u128);
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+    let denom = "uatom";
+    let base_denom = "uusdc";
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
+
+    // set prices
+    mock.set_price(&owner, base_denom, Decimal::from_str("0.8").unwrap()).unwrap();
+    mock.set_price(&owner, denom, Decimal::from_str("12.5").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
+
+    // init denoms
+    mock.init_denom(&owner, denom, Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                max_position_value: Some(max_position_value),
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params(denom)
+            },
+        },
+    );
+
+    let size_long_position = SignedUint::from_str("50").unwrap();
+    let size_short_position = SignedUint::from_str("-50").unwrap();
+
+    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
+
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        denom,
+        size_long_position,
+        None,
+        &[atom_opening_fee.clone()],
+    )
+    .unwrap();
+
+    mock.execute_perp_order(
+        &credit_manager,
+        "3",
+        denom,
+        size_short_position,
+        None,
+        &[atom_opening_fee.clone()],
+    )
+    .unwrap();
+
+    let long_position = mock.query_position("2", "uatom").position.unwrap();
+    assert_eq!(long_position.size, size_long_position);
+    assert_eq!(long_position.denom, denom);
+
+    // Flip short
+    let new_long_size = SignedUint::from_str("-25").unwrap();
+    // Flip long
+    let new_short_size = SignedUint::from_str("25").unwrap();
+    let long_modification_size = new_long_size.checked_sub(size_long_position).unwrap();
+    let short_modification_size = new_short_size.checked_sub(size_short_position).unwrap();
+
+    let atom_closing_fee_long: PositionFeesResponse =
+        mock.query_position_fees("2", denom, new_long_size);
+
+    let long_pnl_losses = if long_position.unrealised_pnl.price_pnl.is_negative() {
+        long_position.unrealised_pnl.price_pnl.abs
+    } else {
+        Uint128::zero()
+    };
+
+    // Reduce long
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        denom,
+        long_modification_size,
+        Some(true),
+        &coins(
+            // add pnl to the closing fee
+            atom_closing_fee_long.closing_fee.checked_add(long_pnl_losses).unwrap().into(),
+            base_denom,
+        ),
+    )
+    .unwrap();
+
+    let atom_closing_fee_short: PositionFeesResponse =
+        mock.query_position_fees("3", denom, new_short_size);
+    let short_position = mock.query_position("3", "uatom").position.unwrap();
+    assert_eq!(short_position.size, size_short_position);
+    assert_eq!(short_position.denom, denom);
+
+    let short_pnl_losses = if short_position.unrealised_pnl.price_pnl.is_negative() {
+        short_position.unrealised_pnl.price_pnl.abs
+    } else {
+        Uint128::zero()
+    };
+
+    // Reduce short
+    mock.execute_perp_order(
+        &credit_manager,
+        "3",
+        denom,
+        short_modification_size,
+        Some(true),
+        &coins(
+            atom_closing_fee_short.closing_fee.checked_add(short_pnl_losses).unwrap().into(),
+            base_denom,
+        ),
+    )
+    .unwrap();
+
+    // Verify all positions are closed
+    let positions_2 = mock.query_positions_by_account_id("2", ActionKind::Default);
+    assert_eq!(positions_2.positions.len(), 0);
+
+    let positions_3 = mock.query_positions_by_account_id("3", ActionKind::Default);
+    assert_eq!(positions_3.positions.len(), 0);
+}
+
+#[test]
+fn flip_position_when_reduce_only_false() {
+    let max_position_value = Uint128::new(1249u128);
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+    let denom = "uatom";
+    let base_denom = "uusdc";
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
+
+    // set prices
+    mock.set_price(&owner, base_denom, Decimal::from_str("0.8").unwrap()).unwrap();
+    mock.set_price(&owner, denom, Decimal::from_str("12.5").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
+
+    // init denoms
+    mock.init_denom(&owner, denom, Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                max_position_value: Some(max_position_value),
+                opening_fee_rate: Decimal::percent(1),
+                closing_fee_rate: Decimal::percent(1),
+                ..default_perp_params(denom)
+            },
+        },
+    );
+
+    let size_long_position = SignedUint::from_str("50").unwrap();
+    let size_short_position = SignedUint::from_str("-50").unwrap();
+
+    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
+
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        denom,
+        size_long_position,
+        None,
+        &[atom_opening_fee.clone()],
+    )
+    .unwrap();
+
+    mock.execute_perp_order(
+        &credit_manager,
+        "3",
+        denom,
+        size_short_position,
+        None,
+        &[atom_opening_fee.clone()],
+    )
+    .unwrap();
+
+    let long_position = mock.query_position("2", "uatom").position.unwrap();
+    assert_eq!(long_position.size, size_long_position);
+    assert_eq!(long_position.denom, denom);
+
+    // Flip short
+    let new_long_size = SignedUint::from_str("-25").unwrap();
+    // Flip long
+    let new_short_size = SignedUint::from_str("25").unwrap();
+    let long_modification_size = new_long_size.checked_sub(size_long_position).unwrap();
+    let short_modification_size = new_short_size.checked_sub(size_short_position).unwrap();
+
+    // Reduce long
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        denom,
+        long_modification_size,
+        Some(false),
+        &coins(13, base_denom),
+    )
+    .unwrap();
+
+    let short_position = mock.query_position("3", "uatom").position.unwrap();
+    assert_eq!(short_position.size, size_short_position);
+    assert_eq!(short_position.denom, denom);
+
+    // Reduce short
+    mock.execute_perp_order(
+        &credit_manager,
+        "3",
+        denom,
+        short_modification_size,
+        Some(false),
+        &coins(12, base_denom),
+    )
+    .unwrap();
+
+    // Verify updates occurred
+    let updated_long_position = mock.query_position("2", denom).position.unwrap();
+    assert_eq!(updated_long_position.size, new_long_size);
+    assert_eq!(updated_long_position.denom, denom);
+
+    let short_position = mock.query_position("3", denom).position.unwrap();
+    assert_eq!(short_position.size, new_short_size);
+    assert_eq!(short_position.denom, denom);
 }
 
 #[test_case(
@@ -1097,12 +1925,13 @@ fn query_position_fees(
     // open a position to change skew
     let size = SignedUint::from_str("10000").unwrap();
     let opening_fee = mock.query_opening_fee("uosmo", size).fee;
-    mock.open_position(&credit_manager, "2", "uosmo", size, &[opening_fee]).unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "uosmo", size, None, &[opening_fee]).unwrap();
 
     // open a position if specified
     if let Some(old_size) = old_size {
         let opening_fee = mock.query_opening_fee("uosmo", old_size).fee;
-        mock.open_position(&credit_manager, "1", "uosmo", old_size, &[opening_fee]).unwrap();
+        mock.execute_perp_order(&credit_manager, "1", "uosmo", old_size, None, &[opening_fee])
+            .unwrap();
     }
 
     // check expected fees
@@ -1198,15 +2027,18 @@ fn close_all_positions(
     // open few positions
     let size = SignedUint::from_str("300").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
-    mock.open_position(&credit_manager, "1", "uatom", size, &[atom_opening_fee.clone()]).unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
+        .unwrap();
 
     let size = SignedUint::from_str("-500").unwrap();
     let ntrn_opening_fee = mock.query_opening_fee("untrn", size).fee;
-    mock.open_position(&credit_manager, "1", "untrn", size, &[ntrn_opening_fee.clone()]).unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "untrn", size, None, &[ntrn_opening_fee.clone()])
+        .unwrap();
 
     let size = SignedUint::from_str("100").unwrap();
     let osmo_opening_fee = mock.query_opening_fee("uosmo", size).fee;
-    mock.open_position(&credit_manager, "1", "uosmo", size, &[osmo_opening_fee.clone()]).unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "uosmo", size, None, &[osmo_opening_fee.clone()])
+        .unwrap();
 
     // update prices
     mock.set_price(&owner, "uatom", new_atom_price).unwrap();
@@ -1224,9 +2056,9 @@ fn close_all_positions(
     let perps_usdc_balance = mock.query_balance(&perps, "uusdc");
 
     // query positions
-    let atom_pos_before_close = mock.query_position("1", "uatom").position;
-    let ntrn_pos_before_close = mock.query_position("1", "untrn").position;
-    let osmo_pos_before_close = mock.query_position("1", "uosmo").position;
+    let atom_pos_before_close = mock.query_position("1", "uatom").position.unwrap();
+    let ntrn_pos_before_close = mock.query_position("1", "untrn").position.unwrap();
+    let osmo_pos_before_close = mock.query_position("1", "uosmo").position.unwrap();
 
     // compute funds to be sent to close all positions
     let mut pnl_amounts_acc = PnlAmounts::default();

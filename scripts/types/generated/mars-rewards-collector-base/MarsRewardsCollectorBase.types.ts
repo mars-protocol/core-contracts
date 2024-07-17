@@ -128,20 +128,10 @@ export type Action =
       withdraw_from_perp_vault: {}
     }
   | {
-      open_perp: {
+      execute_perp_order: {
         denom: string
-        size: SignedUint
-      }
-    }
-  | {
-      close_perp: {
-        denom: string
-      }
-    }
-  | {
-      modify_perp: {
-        denom: string
-        new_size: SignedUint
+        order_size: SignedUint
+        reduce_only?: boolean | null
       }
     }
   | {

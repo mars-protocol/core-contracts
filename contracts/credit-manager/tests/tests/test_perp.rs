@@ -5,7 +5,7 @@ use mars_credit_manager::error::ContractError;
 use mars_mock_oracle::msg::CoinPrice;
 use mars_types::{
     credit_manager::{
-        Action::{ClosePerp, Deposit, ModifyPerp, OpenPerp},
+        Action::{Deposit, ExecutePerpOrder},
         Positions,
     },
     health::AccountKind,
@@ -48,9 +48,10 @@ fn perp_position_when_usdc_in_account() {
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![OpenPerp {
+        vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
-            size: perp_size,
+            order_size: perp_size,
+            reduce_only: None,
         }],
         &[],
     )
@@ -67,7 +68,8 @@ fn perp_position_when_usdc_in_account() {
     assert_eq!(position.debts.len(), 0);
     assert_eq!(position.perps.len(), 1);
     let perp_position = position.perps.first().unwrap().clone();
-    let expected_perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
+    let expected_perp_position =
+        mock.query_perp_position(&account_id, &atom_info.denom).position.unwrap();
     assert_eq!(perp_position, expected_perp_position);
 
     // check if perp balance increased by opening fee
@@ -84,15 +86,17 @@ fn perp_position_when_usdc_in_account() {
     });
 
     // check perp position pnl
-    let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
+    let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position.unwrap();
     let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // close perp position
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![ClosePerp {
+        vec![ExecutePerpOrder {
             denom: atom_info.denom,
+            order_size: perp_size.neg(),
+            reduce_only: Some(true),
         }],
         &[],
     )
@@ -189,9 +193,10 @@ fn perp_position_when_not_enough_usdc_in_account() {
         vec![
             Deposit(osmo_coin_deposited.clone()),
             Deposit(usdc_coin_deposited.clone()),
-            OpenPerp {
+            ExecutePerpOrder {
                 denom: atom_info.denom.clone(),
-                size: perp_size,
+                order_size: perp_size,
+                reduce_only: None,
             },
         ],
         &[osmo_coin_deposited.clone(), usdc_coin_deposited.clone()],
@@ -211,7 +216,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
     assert_eq!(position.perps.len(), 1);
     let perp_position = position.perps.first().unwrap().clone();
     let expected_perp_position =
-        mock.query_perp_position(&trader_account_id, &atom_info.denom).position;
+        mock.query_perp_position(&trader_account_id, &atom_info.denom).position.unwrap();
     assert_eq!(perp_position, expected_perp_position);
 
     // check if perp balance increased by opening fee
@@ -237,15 +242,18 @@ fn perp_position_when_not_enough_usdc_in_account() {
     });
 
     // check perp position pnl
-    let perp_position = mock.query_perp_position(&trader_account_id, &atom_info.denom).position;
+    let perp_position =
+        mock.query_perp_position(&trader_account_id, &atom_info.denom).position.unwrap();
     let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // close perp position
     mock.update_credit_account(
         &trader_account_id,
         &cm_user,
-        vec![ClosePerp {
+        vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
+            order_size: perp_size.neg(),
+            reduce_only: Some(true),
         }],
         &[],
     )
@@ -336,9 +344,10 @@ fn perp_position_when_no_usdc_in_account() {
         &cm_user,
         vec![
             Deposit(osmo_coin_deposited.clone()),
-            OpenPerp {
+            ExecutePerpOrder {
                 denom: atom_info.denom.clone(),
-                size: perp_size,
+                order_size: perp_size,
+                reduce_only: None,
             },
         ],
         &[osmo_coin_deposited.clone()],
@@ -357,7 +366,7 @@ fn perp_position_when_no_usdc_in_account() {
     assert_eq!(position.perps.len(), 1);
     let perp_position = position.perps.first().unwrap().clone();
     let expected_perp_position =
-        mock.query_perp_position(&trader_account_id, &atom_info.denom).position;
+        mock.query_perp_position(&trader_account_id, &atom_info.denom).position.unwrap();
     assert_eq!(perp_position, expected_perp_position);
 
     // check if perp balance increased by opening fee
@@ -374,15 +383,18 @@ fn perp_position_when_no_usdc_in_account() {
     });
 
     // check perp position pnl
-    let perp_position = mock.query_perp_position(&trader_account_id, &atom_info.denom).position;
+    let perp_position =
+        mock.query_perp_position(&trader_account_id, &atom_info.denom).position.unwrap();
     let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // close perp position
     mock.update_credit_account(
         &trader_account_id,
         &cm_user,
-        vec![ClosePerp {
+        vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
+            order_size: perp_size.neg(),
+            reduce_only: Some(true),
         }],
         &[],
     )
@@ -437,9 +449,10 @@ fn close_perp_position_with_profit() {
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![OpenPerp {
+        vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
-            size: perp_size,
+            order_size: perp_size,
+            reduce_only: None,
         }],
         &[],
     )
@@ -456,7 +469,8 @@ fn close_perp_position_with_profit() {
     assert_eq!(position.debts.len(), 0);
     assert_eq!(position.perps.len(), 1);
     let perp_position = position.perps.first().unwrap().clone();
-    let expected_perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
+    let expected_perp_position =
+        mock.query_perp_position(&account_id, &atom_info.denom).position.unwrap();
     assert_eq!(perp_position, expected_perp_position);
 
     // check if perp balance increased by opening fee
@@ -473,7 +487,7 @@ fn close_perp_position_with_profit() {
     });
 
     // check perp position pnl
-    let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position;
+    let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position.unwrap();
     let profit_amt =
         pnl_profit(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
@@ -481,8 +495,10 @@ fn close_perp_position_with_profit() {
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![ClosePerp {
-            denom: atom_info.denom,
+        vec![ExecutePerpOrder {
+            denom: atom_info.denom.clone(),
+            order_size: perp_size.neg(),
+            reduce_only: Some(true),
         }],
         &[],
     )
@@ -535,9 +551,10 @@ fn increase_position_with_realized_pnl() {
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![OpenPerp {
+        vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
-            size: perp_size,
+            order_size: perp_size,
+            reduce_only: None,
         }],
         &[],
     )
@@ -559,11 +576,17 @@ fn increase_position_with_realized_pnl() {
 
     // increase perp position size
     let new_size = SignedUint::from_str("350").unwrap();
+    let delta_change = new_size.checked_sub(perp_size).unwrap();
 
     // check perp position pnl
     let perp_position = mock
-        .query_perp_position_with_new_size(&account_id, &atom_info.denom, Some(new_size))
-        .position;
+        .query_perp_position_with_modification_size(
+            &account_id,
+            &atom_info.denom,
+            Some(delta_change),
+        )
+        .position
+        .unwrap();
     let profit_amt =
         pnl_profit(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
@@ -571,9 +594,10 @@ fn increase_position_with_realized_pnl() {
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![ModifyPerp {
+        vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
-            new_size,
+            order_size: delta_change,
+            reduce_only: None,
         }],
         &[],
     )
@@ -611,20 +635,27 @@ fn increase_position_with_realized_pnl() {
 
     // increase perp position size
     let new_size = SignedUint::from_str("460").unwrap();
+    let delta_change = new_size.checked_sub(perp_size).unwrap();
 
     // check perp position pnl
     let perp_position = mock
-        .query_perp_position_with_new_size(&account_id, &atom_info.denom, Some(new_size))
-        .position;
+        .query_perp_position_with_modification_size(
+            &account_id,
+            &atom_info.denom,
+            Some(delta_change),
+        )
+        .position
+        .unwrap();
     let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![ModifyPerp {
-            denom: atom_info.denom,
-            new_size,
+        vec![ExecutePerpOrder {
+            denom: atom_info.denom.clone(),
+            order_size: delta_change,
+            reduce_only: None,
         }],
         &[],
     )
@@ -674,9 +705,10 @@ fn decrease_position_with_realized_pnl() {
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![OpenPerp {
+        vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
-            size: perp_size,
+            order_size: perp_size,
+            reduce_only: None,
         }],
         &[],
     )
@@ -698,11 +730,16 @@ fn decrease_position_with_realized_pnl() {
 
     // decrease perp position size
     let new_size = SignedUint::from_str("-320").unwrap();
-
+    let delta_change = new_size.checked_sub(perp_size).unwrap();
     // check perp position pnl
     let perp_position = mock
-        .query_perp_position_with_new_size(&account_id, &atom_info.denom, Some(new_size))
-        .position;
+        .query_perp_position_with_modification_size(
+            &account_id,
+            &atom_info.denom,
+            Some(delta_change),
+        )
+        .position
+        .unwrap();
     let profit_amt =
         pnl_profit(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
@@ -710,9 +747,10 @@ fn decrease_position_with_realized_pnl() {
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![ModifyPerp {
+        vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
-            new_size,
+            order_size: delta_change,
+            reduce_only: None,
         }],
         &[],
     )
@@ -750,20 +788,27 @@ fn decrease_position_with_realized_pnl() {
 
     // increase perp position size
     let new_size = SignedUint::from_str("-250").unwrap();
+    let delta_change = new_size.checked_sub(perp_size).unwrap();
 
     // check perp position pnl
     let perp_position = mock
-        .query_perp_position_with_new_size(&account_id, &atom_info.denom, Some(new_size))
-        .position;
+        .query_perp_position_with_modification_size(
+            &account_id,
+            &atom_info.denom,
+            Some(delta_change),
+        )
+        .position
+        .unwrap();
     let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![ModifyPerp {
+        vec![ExecutePerpOrder {
             denom: atom_info.denom,
-            new_size,
+            order_size: delta_change,
+            reduce_only: None,
         }],
         &[],
     )
@@ -814,9 +859,10 @@ fn flip_position_with_realized_pnl() {
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![OpenPerp {
+        vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
-            size: perp_size,
+            order_size: perp_size,
+            reduce_only: None,
         }],
         &[],
     )
@@ -839,11 +885,17 @@ fn flip_position_with_realized_pnl() {
 
     // flip perp position to long
     let new_size = SignedUint::from_str("100").unwrap();
+    let delta_change = new_size.checked_sub(perp_size).unwrap();
 
     // check perp position pnl
     let perp_position = mock
-        .query_perp_position_with_new_size(&account_id, &atom_info.denom, Some(new_size))
-        .position;
+        .query_perp_position_with_modification_size(
+            &account_id,
+            &atom_info.denom,
+            Some(delta_change),
+        )
+        .position
+        .unwrap();
     let profit_amt =
         pnl_profit(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
@@ -851,9 +903,10 @@ fn flip_position_with_realized_pnl() {
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![ModifyPerp {
+        vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
-            new_size,
+            order_size: delta_change,
+            reduce_only: None,
         }],
         &[],
     )
@@ -891,20 +944,27 @@ fn flip_position_with_realized_pnl() {
 
     // flip position to short again
     let new_size = SignedUint::from_str("-250").unwrap();
+    let delta_change = new_size.checked_sub(perp_size).unwrap();
 
     // check perp position pnl
     let perp_position = mock
-        .query_perp_position_with_new_size(&account_id, &atom_info.denom, Some(new_size))
-        .position;
+        .query_perp_position_with_modification_size(
+            &account_id,
+            &atom_info.denom,
+            Some(delta_change),
+        )
+        .position
+        .unwrap();
     let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![ModifyPerp {
-            denom: atom_info.denom,
-            new_size,
+        vec![ExecutePerpOrder {
+            denom: atom_info.denom.clone(),
+            order_size: delta_change,
+            reduce_only: None,
         }],
         &[],
     )
@@ -958,9 +1018,10 @@ fn cannot_open_perp_above_max_ltv() {
     let res = mock.update_credit_account(
         &account_id,
         &cm_user,
-        vec![OpenPerp {
-            denom: atom_info.denom,
-            size: perp_size,
+        vec![ExecutePerpOrder {
+            denom: atom_info.denom.clone(),
+            order_size: perp_size,
+            reduce_only: None,
         }],
         &[],
     );

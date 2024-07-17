@@ -21,6 +21,42 @@ use crate::{
     utils::{ensure_max_position, ensure_min_position},
 };
 
+pub fn execute_perp_order(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    account_id: String,
+    denom: String,
+    size: SignedUint,
+    reduce_only: Option<bool>,
+) -> ContractResult<Response> {
+    let position = POSITIONS.may_load(deps.storage, (&account_id, &denom))?;
+    let reduce_only_checked = reduce_only.unwrap_or(false);
+
+    match position {
+        None if reduce_only_checked => Err(ContractError::IllegalPositionModification {
+            reason: "Cannot open position if reduce_only = true".to_string(),
+        }),
+        None => open_position(deps, env, info, account_id, denom, size),
+        Some(position)
+            if reduce_only_checked && size.is_positive() == position.size.is_positive() =>
+        {
+            Err(ContractError::IllegalPositionModification {
+                reason: "Cannot increase position if reduce_only = true".to_string(),
+            })
+        }
+        Some(position) => {
+            let new_size = if reduce_only_checked && size.abs > position.size.abs {
+                SignedUint::zero()
+            } else {
+                position.size.checked_add(size)?
+            };
+
+            update_position_state(deps, env, info, position, account_id, denom, new_size)
+        }
+    }
+}
+
 pub fn open_position(
     deps: DepsMut,
     env: Env,

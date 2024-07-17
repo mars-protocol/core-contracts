@@ -160,27 +160,15 @@ pub enum Action {
     },
     /// Withdraw liquidity from the perp vault
     WithdrawFromPerpVault {},
-    /// Open a new perpetual futures position
-    OpenPerp {
+    /// Execute a state update against the specified perp market for the given account.
+    /// If no position exists in the given market, a position is created. Existing postions are modified.
+    /// Note that size is signed
+    ///     - to increase short or reduce long, use a negative value
+    ///     - to reduce short or increase long, use a positive value
+    ExecutePerpOrder {
         denom: String,
-        // positive means long, negative means short
-        size: SignedUint,
-    },
-    /// Close a perpetual futures position.
-    ///
-    /// If the position is in profit, the counterparty vault will be deposited
-    /// appropriate amount of base currency into the credit account.
-    ///
-    /// If the position is in loss, the credit manager will send appropriate
-    /// amount of base currency from the credit account to the counterparty vault.
-    ClosePerp {
-        denom: String,
-    },
-
-    // Reduce, increase or flip a positions size.
-    ModifyPerp {
-        denom: String,
-        new_size: SignedUint,
+        order_size: SignedUint,
+        reduce_only: Option<bool>,
     },
     /// Deposit coins into vault strategy
     /// If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault
@@ -323,23 +311,6 @@ pub enum CallbackMsg {
     WithdrawFromPerpVault {
         account_id: String,
     },
-    /// Corresponding to the OpenPerp action
-    OpenPerp {
-        account_id: String,
-        denom: String,
-        size: SignedUint,
-    },
-    /// Corresponding to the ClosePerp action
-    ClosePerp {
-        account_id: String,
-        denom: String,
-    },
-    /// Corresponding to the ModifyPerp action
-    ModifyPerp {
-        account_id: String,
-        denom: String,
-        new_size: SignedUint,
-    },
     /// Adds coin to a vault strategy
     EnterVault {
         account_id: String,
@@ -359,6 +330,13 @@ pub enum CallbackMsg {
         account_id: String,
         /// Total vault coin balance in Rover
         previous_total_balance: Uint128,
+    },
+    /// Executes a perp order against the given market. If no position exists, a position is opened.
+    ExecutePerpOrder {
+        account_id: String,
+        denom: String,
+        size: SignedUint,
+        reduce_only: Option<bool>,
     },
     /// Requests unlocking of shares for a vault with a lock period
     RequestVaultUnlock {
