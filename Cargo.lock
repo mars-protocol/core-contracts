@@ -2425,6 +2425,7 @@ dependencies = [
  "mars-owner 2.0.0",
  "mars-testing",
  "mars-types",
+ "neutron-sdk",
  "proptest",
  "pyth-sdk-cw",
  "test-case",
@@ -2766,6 +2767,7 @@ dependencies = [
  "mars-types",
  "mars-vault",
  "mars-zapper-mock",
+ "neutron-sdk",
  "osmosis-std 0.22.0",
  "prost 0.12.6",
  "pyth-sdk-cw",
@@ -2950,8 +2952,7 @@ dependencies = [
 [[package]]
 name = "neutron-sdk"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26fb513aae0c82b3185228e96664d8312e79c3aa763f6ebdc70cf4b8d513d533"
+source = "git+https://github.com/neutron-org/neutron-sdk?rev=98d81ea8dfdab87483eccf0acc22264263e789f8#98d81ea8dfdab87483eccf0acc22264263e789f8"
 dependencies = [
  "bech32 0.9.1",
  "cosmos-sdk-proto 0.20.0",

@@ -562,6 +562,43 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "description": "Price source used to query the price of a base symbol in USD from the Slinky module and normalize it to the smallest unit in uusd. See documentation for more details: https://docs.skip.build/connect/overview",
+            "type": "object",
+            "required": [
+              "slinky"
+            ],
+            "properties": {
+              "slinky": {
+                "type": "object",
+                "required": [
+                  "base_symbol",
+                  "denom_decimals",
+                  "max_blocks_old"
+                ],
+                "properties": {
+                  "base_symbol": {
+                    "description": "Base symbol of the currency pair written in uppercase (e.g. ATOM, OSMO, USDC). Quote symbol is always USD for our use case.",
+                    "type": "string"
+                  },
+                  "denom_decimals": {
+                    "description": "Assets are represented in their smallest unit and every asset can have different decimals (e.g. OSMO - 6 decimals, WETH - 18 decimals). It is used to normalize the Slinky price to be in the smallest unit of the base symbol.",
+                    "type": "integer",
+                    "format": "uint8",
+                    "minimum": 0.0
+                  },
+                  "max_blocks_old": {
+                    "description": "The maximum number of blocks since the last price was updated, before rejecting the price as too stale",
+                    "type": "integer",
+                    "format": "uint8",
+                    "minimum": 0.0
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
           }
         ]
       }

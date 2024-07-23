@@ -86,6 +86,13 @@ export type WasmPriceSourceForString =
         pair_address: string
       }
     }
+  | {
+      slinky: {
+        base_symbol: string
+        denom_decimals: number
+        max_blocks_old: number
+      }
+    }
 export type Decimal = string
 export type Identifier = string
 export type OwnerUpdate =

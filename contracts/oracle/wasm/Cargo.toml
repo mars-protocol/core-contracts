@@ -28,6 +28,7 @@ cw2              = { workspace = true }
 cw-storage-plus  = { workspace = true }
 mars-oracle-base = { workspace = true }
 mars-types       = { workspace = true }
+neutron-sdk      = { workspace = true }
 pyth-sdk-cw      = { workspace = true }
 
 [dev-dependencies]

@@ -55,6 +55,7 @@ mars-swapper-mock              = { workspace = true }
 mars-types                     = { workspace = true }
 mars-vault                     = { workspace = true }
 mars-zapper-mock               = { workspace = true }
+neutron-sdk                    = { workspace = true }
 prost                          = { workspace = true }
 pyth-sdk-cw                    = { workspace = true }
 regex                          = { workspace = true }

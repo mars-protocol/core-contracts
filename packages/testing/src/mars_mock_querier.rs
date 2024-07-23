@@ -7,7 +7,13 @@ use cosmwasm_std::{
 };
 use ica_oracle::msg::RedemptionRateResponse;
 use mars_oracle_osmosis::DowntimeDetector;
+use mars_oracle_wasm::slinky::CurrencyPairExt;
 use mars_types::{address_provider, incentives, oracle, params::AssetParams, red_bank};
+use neutron_sdk::bindings::{
+    marketmap::types::Market,
+    oracle::{query::GetPriceResponse, types::CurrencyPair},
+    query::NeutronQuery,
+};
 use osmosis_std::types::osmosis::{
     cosmwasmpool::v1beta1::CalcOutAmtGivenInRequest,
     downtimedetector::v1beta1::RecoveredSinceDowntimeOfLengthResponse,
@@ -27,6 +33,7 @@ use crate::{
     pyth_querier::PythQuerier,
     red_bank_querier::RedBankQuerier,
     redemption_rate_querier::RedemptionRateQuerier,
+    slinky_querier::SlinkyQuerier,
 };
 
 pub struct MarsMockQuerier {
@@ -40,10 +47,29 @@ pub struct MarsMockQuerier {
     redemption_rate_querier: RedemptionRateQuerier,
     params_querier: ParamsQuerier,
     cosmwasm_pool_queries: CosmWasmPoolQuerier,
+    slinky_querier: SlinkyQuerier,
 }
 
 impl Querier for MarsMockQuerier {
     fn raw_query(&self, bin_request: &[u8]) -> QuerierResult {
+        // try to parse Neutron request
+        let request: QueryRequest<NeutronQuery> = match from_json(bin_request) {
+            Ok(v) => v,
+            Err(e) => {
+                return SystemResult::Err(SystemError::InvalidRequest {
+                    error: format!("Parsing query request: {e}"),
+                    request: bin_request.into(),
+                })
+            }
+        };
+
+        // If Neutron request is handled by the querier, return the result.
+        // Otherwise, continue with the rest of the function.
+        let ntrn_query_response = self.handle_ntrn_query(&request);
+        if let SystemResult::Ok(_) = &ntrn_query_response {
+            return ntrn_query_response;
+        };
+
         let request: QueryRequest<Empty> = match from_json(bin_request) {
             Ok(v) => v,
             Err(e) => {
@@ -71,6 +97,7 @@ impl MarsMockQuerier {
             redemption_rate_querier: Default::default(),
             params_querier: ParamsQuerier::default(),
             cosmwasm_pool_queries: CosmWasmPoolQuerier::default(),
+            slinky_querier: SlinkyQuerier::default(),
         }
     }
 
@@ -230,7 +257,31 @@ impl MarsMockQuerier {
         self.params_querier.total_deposits.insert(denom.into(), amount.into());
     }
 
-    pub fn handle_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {
+    pub fn set_slinky_currency_pair(&mut self, cp: CurrencyPair) {
+        self.slinky_querier.currency_pairs.push(cp);
+    }
+
+    pub fn remove_slinky_currency_pair(&mut self, cp: CurrencyPair) {
+        self.slinky_querier.currency_pairs.retain(|x| x != &cp);
+    }
+
+    pub fn set_slinky_market(&mut self, cp: CurrencyPair, market: Market) {
+        self.slinky_querier.markets.insert(cp.key(), market);
+    }
+
+    pub fn remove_slinky_market(&mut self, cp: CurrencyPair) {
+        self.slinky_querier.markets.remove(&cp.key());
+    }
+
+    pub fn set_slinky_price(&mut self, cp: CurrencyPair, price_response: GetPriceResponse) {
+        self.slinky_querier.prices.insert(cp.key(), price_response);
+    }
+
+    pub fn remove_slinky_price(&mut self, cp: CurrencyPair) {
+        self.slinky_querier.prices.remove(&cp.key());
+    }
+
+    fn handle_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {
         match &request {
             QueryRequest::Wasm(WasmQuery::Smart {
                 contract_addr,
@@ -314,6 +365,15 @@ impl MarsMockQuerier {
             }
 
             _ => self.base.handle_query(request),
+        }
+    }
+
+    fn handle_ntrn_query(&self, request: &QueryRequest<NeutronQuery>) -> QuerierResult {
+        match &request {
+            QueryRequest::Custom(custom) => self.slinky_querier.handle_query(custom.clone()),
+            _ => SystemResult::Err(SystemError::UnsupportedRequest {
+                kind: "Unsupported Neutron query".to_string(),
+            }),
         }
     }
 }
