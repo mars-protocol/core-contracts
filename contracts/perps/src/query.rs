@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{cmp::max, collections::HashMap};
 
 use cosmwasm_std::{coin, Addr, Decimal, Deps, Order, StdResult, Storage, Uint128};
 use cw_storage_plus::Bound;
@@ -7,7 +7,8 @@ use mars_types::{
     perps::{
         Accounting, Config, DenomState, DenomStateResponse, PerpDenomState, PerpPosition,
         PerpVaultDeposit, PerpVaultPosition, PerpVaultUnlock, PnlAmounts, PnlValues,
-        PositionFeesResponse, PositionResponse, PositionsByAccountResponse, TradingFee, VaultState,
+        PositionFeesResponse, PositionResponse, PositionsByAccountResponse, TradingFee,
+        VaultResponse,
     },
     signed_uint::SignedUint,
 };
@@ -29,8 +30,55 @@ pub fn config(store: &dyn Storage) -> StdResult<Config<String>> {
     CONFIG.load(store).map(Into::into).map_err(Into::into)
 }
 
-pub fn vault_state(store: &dyn Storage) -> StdResult<VaultState> {
-    VAULT_STATE.load(store)
+pub fn vault(deps: Deps, current_time: u64, action: ActionKind) -> ContractResult<VaultResponse> {
+    // Load configuration and vault state from storage
+    let cfg = CONFIG.load(deps.storage)?;
+    let vault_state = VAULT_STATE.load(deps.storage)?;
+
+    // Query the base denomination price from the oracle
+    let base_denom_price =
+        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
+
+    // Compute total accounting data and unrealized PnL amount
+    let (acc_data, unrealized_pnl_amt) =
+        compute_total_accounting_data(&deps, &cfg.oracle, current_time, base_denom_price, action)?;
+
+    // Calculate total withdrawal balance
+    let total_withdrawal_balance =
+        acc_data.withdrawal_balance.total.checked_add(vault_state.total_balance)?;
+    let total_withdrawal_balance = max(total_withdrawal_balance, SignedUint::zero()).abs;
+
+    // Calculate share price if total shares are non-zero
+    let share_price = if vault_state.total_shares.is_zero() {
+        None
+    } else {
+        Some(Decimal::checked_from_ratio(total_withdrawal_balance, vault_state.total_shares)?)
+    };
+
+    // Calculate total cash flow
+    let total_cash_flow = acc_data.cash_flow.total()?.checked_add(vault_state.total_balance)?;
+    let total_cash_flow = max(total_cash_flow, SignedUint::zero()).abs;
+
+    // Calculate total debt
+    let total_debt = max(unrealized_pnl_amt.pnl, SignedUint::zero()).abs;
+
+    // Calculate collateralization ratio if total debt is non-zero
+    let collateralization_ratio = if total_debt.is_zero() {
+        None
+    } else {
+        Some(Decimal::checked_from_ratio(total_cash_flow, total_debt)?)
+    };
+
+    // Construct and return the VaultResponse
+    Ok(VaultResponse {
+        total_balance: vault_state.total_balance,
+        total_shares: vault_state.total_shares,
+        total_withdrawal_balance,
+        share_price,
+        total_liquidity: total_cash_flow,
+        total_debt,
+        collateralization_ratio,
+    })
 }
 
 pub fn denom_state(store: &dyn Storage, denom: String) -> StdResult<DenomStateResponse> {
@@ -514,13 +562,14 @@ pub fn total_accounting(deps: Deps, current_time: u64) -> ContractResult<Account
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
-    compute_total_accounting_data(
+    let (accounting, _) = compute_total_accounting_data(
         &deps,
         &cfg.oracle,
         current_time,
         base_denom_price,
         ActionKind::Default,
-    )
+    )?;
+    Ok(accounting)
 }
 
 pub fn denom_realized_pnl_for_account(

@@ -42,13 +42,13 @@ import {
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
   ArrayOfPerpVaultUnlock,
-  VaultState,
+  VaultResponse,
 } from './MarsPerps.types'
 export interface MarsPerpsReadOnlyInterface {
   contractAddress: string
   owner: () => Promise<OwnerResponse>
   config: () => Promise<ConfigForString>
-  vaultState: () => Promise<VaultState>
+  vault: ({ action }: { action?: ActionKind }) => Promise<VaultResponse>
   denomState: ({ denom }: { denom: string }) => Promise<DenomStateResponse>
   perpDenomState: ({ denom }: { denom: string }) => Promise<PerpDenomState>
   denomStates: ({
@@ -133,7 +133,7 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
     this.contractAddress = contractAddress
     this.owner = this.owner.bind(this)
     this.config = this.config.bind(this)
-    this.vaultState = this.vaultState.bind(this)
+    this.vault = this.vault.bind(this)
     this.denomState = this.denomState.bind(this)
     this.perpDenomState = this.perpDenomState.bind(this)
     this.denomStates = this.denomStates.bind(this)
@@ -160,9 +160,11 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
       config: {},
     })
   }
-  vaultState = async (): Promise<VaultState> => {
+  vault = async ({ action }: { action?: ActionKind }): Promise<VaultResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      vault_state: {},
+      vault: {
+        action,
+      },
     })
   }
   denomState = async ({ denom }: { denom: string }): Promise<DenomStateResponse> => {

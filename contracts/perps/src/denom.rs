@@ -6,7 +6,7 @@ use mars_types::{
     math::SignedDecimal,
     oracle::ActionKind,
     params::PerpParams,
-    perps::{Accounting, DenomState, Funding, PnlValues, Position},
+    perps::{Accounting, DenomState, Funding, PnlAmounts, PnlValues, Position},
     signed_uint::SignedUint,
 };
 
@@ -523,9 +523,10 @@ impl DenomStateExt for DenomState {
         base_denom_price: Decimal,
         closing_fee_rate: Decimal,
     ) -> ContractResult<Accounting> {
-        let (unrealized_pnl, _) =
+        let (unrealized_pnl_val, _) =
             self.compute_pnl(current_time, denom_price, base_denom_price, closing_fee_rate)?;
-        let acc = Accounting::compute(&self.cash_flow, &unrealized_pnl, base_denom_price)?;
+        let unrealized_pnl_amt = PnlAmounts::from_pnl_values(unrealized_pnl_val, base_denom_price)?;
+        let acc = Accounting::compute(&self.cash_flow, &unrealized_pnl_amt)?;
         Ok(acc)
     }
 }
@@ -630,11 +631,12 @@ pub fn compute_total_accounting_data(
     current_time: u64,
     base_denom_price: Decimal,
     action: ActionKind,
-) -> ContractResult<Accounting> {
+) -> ContractResult<(Accounting, PnlAmounts)> {
     let gcf = TOTAL_CASH_FLOW.load(deps.storage)?;
-    let unrealized_pnl = compute_total_pnl(deps, oracle, current_time, action)?;
-    let acc = Accounting::compute(&gcf, &unrealized_pnl, base_denom_price)?;
-    Ok(acc)
+    let unrealized_pnl_val = compute_total_pnl(deps, oracle, current_time, action)?;
+    let unrealized_pnl_amt = PnlAmounts::from_pnl_values(unrealized_pnl_val, base_denom_price)?;
+    let acc = Accounting::compute(&gcf, &unrealized_pnl_amt)?;
+    Ok((acc, unrealized_pnl_amt))
 }
 
 // ----------------------------------- Tests -----------------------------------

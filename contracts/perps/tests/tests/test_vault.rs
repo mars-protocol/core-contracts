@@ -5,7 +5,7 @@ use mars_perps::{error::ContractError, vault::DEFAULT_SHARES_PER_AMOUNT};
 use mars_types::{
     oracle::ActionKind,
     params::{PerpParams, PerpParamsUpdate},
-    perps::{PerpVaultDeposit, PerpVaultPosition, PerpVaultUnlock, VaultState},
+    perps::{PerpVaultDeposit, PerpVaultPosition, PerpVaultUnlock, VaultResponse},
     signed_uint::SignedUint,
 };
 
@@ -81,12 +81,17 @@ fn unlock_few_times() {
     let amt_3 = deposit.amount.multiply_ratio(1u128, 4u128);
 
     // vault state before unlocks
-    let vault_state_before_unlocks = mock.query_vault_state();
+    let vault_state_before_unlocks = mock.query_vault();
     assert_eq!(
         vault_state_before_unlocks,
-        VaultState {
-            total_liquidity: deposit.amount,
+        VaultResponse {
+            total_balance: deposit.amount.into(),
             total_shares: deposit.shares,
+            total_withdrawal_balance: deposit.amount,
+            share_price: Some(Decimal::from_ratio(deposit.amount, deposit.shares)),
+            total_liquidity: deposit.amount,
+            total_debt: Uint128::zero(),
+            collateralization_ratio: None
         }
     );
 
@@ -101,7 +106,7 @@ fn unlock_few_times() {
         amount: amt_1,
     };
     assert_eq!(unlocks, vec![unlock_1_expected.clone()]);
-    let vault_state = mock.query_vault_state();
+    let vault_state = mock.query_vault();
     assert_eq!(vault_state, vault_state_before_unlocks);
 
     // move time forward
@@ -118,7 +123,7 @@ fn unlock_few_times() {
         amount: amt_2,
     };
     assert_eq!(unlocks, vec![unlock_1_expected.clone(), unlock_2_expected.clone()]);
-    let vault_state = mock.query_vault_state();
+    let vault_state = mock.query_vault();
     assert_eq!(vault_state, vault_state_before_unlocks);
 
     // move time forward
@@ -135,7 +140,7 @@ fn unlock_few_times() {
         amount: amt_3,
     };
     assert_eq!(unlocks, vec![unlock_1_expected, unlock_2_expected, unlock_3_expected]);
-    let vault_state = mock.query_vault_state();
+    let vault_state = mock.query_vault();
     assert_eq!(vault_state, vault_state_before_unlocks);
 
     // deposit should be empty after all unlocks
@@ -187,7 +192,7 @@ fn withdraw_unlocked_shares() {
         .unwrap();
 
     // vault state before unlocks
-    let vault_state_before_unlocks = mock.query_vault_state();
+    let vault_state_before_unlocks = mock.query_vault();
 
     // unlocks should be empty
     let unlocks = mock.query_cm_unlocks(depositor);
@@ -204,7 +209,7 @@ fn withdraw_unlocked_shares() {
 
     // first unlock
     mock.unlock_from_vault(&credit_manager, Some(depositor), shares_1).unwrap();
-    let vault_state = mock.query_vault_state();
+    let vault_state = mock.query_vault();
     assert_eq!(vault_state, vault_state_before_unlocks);
 
     // move time forward
@@ -213,7 +218,7 @@ fn withdraw_unlocked_shares() {
     // second unlock
     let unlock_2_current_time = mock.query_block_time();
     mock.unlock_from_vault(&credit_manager, Some(depositor), shares_2).unwrap();
-    let vault_state = mock.query_vault_state();
+    let vault_state = mock.query_vault();
     assert_eq!(vault_state, vault_state_before_unlocks);
 
     // move time forward
@@ -222,7 +227,7 @@ fn withdraw_unlocked_shares() {
     // third unlock
     let unlock_3_current_time = mock.query_block_time();
     mock.unlock_from_vault(&credit_manager, Some(depositor), shares_3).unwrap();
-    let vault_state = mock.query_vault_state();
+    let vault_state = mock.query_vault();
     assert_eq!(vault_state, vault_state_before_unlocks);
 
     // move time forward to pass cooldown period for first and second unlock
@@ -239,12 +244,19 @@ fn withdraw_unlocked_shares() {
     assert_eq!(balance_2.amount, balance_1.amount + amt_1 + amt_2);
 
     // check vault state after withdraw, it should be decreased by amount of two unlocks
-    let vault_state_after_two_unlocks = mock.query_vault_state();
+    let vault_state_after_two_unlocks = mock.query_vault();
+    let total_deposits = vault_state_before_unlocks.total_balance.abs - amt_1 - amt_2;
+    let total_shares = vault_state_before_unlocks.total_shares - shares_1 - shares_2;
     assert_eq!(
         vault_state_after_two_unlocks,
-        VaultState {
-            total_liquidity: vault_state_before_unlocks.total_liquidity - amt_1 - amt_2,
-            total_shares: vault_state_before_unlocks.total_shares - shares_1 - shares_2
+        VaultResponse {
+            total_balance: total_deposits.into(),
+            total_shares,
+            total_withdrawal_balance: total_deposits,
+            share_price: Some(Decimal::from_ratio(total_deposits, total_shares)),
+            total_liquidity: total_deposits,
+            total_debt: Uint128::zero(),
+            collateralization_ratio: None
         }
     );
 
@@ -271,12 +283,16 @@ fn withdraw_unlocked_shares() {
     assert_eq!(balance_3.amount, balance_2.amount + amt_3);
 
     // check vault state after withdraw
-    let vault_state = mock.query_vault_state();
+    let vault_state = mock.query_vault();
     assert_eq!(
         vault_state,
-        VaultState {
-            total_liquidity: vault_state_after_two_unlocks.total_liquidity - amt_3,
-            total_shares: vault_state_after_two_unlocks.total_shares - shares_3
+        VaultResponse {
+            total_balance: vault_state_after_two_unlocks
+                .total_balance
+                .checked_sub(amt_3.into())
+                .unwrap(),
+            total_shares: vault_state_after_two_unlocks.total_shares - shares_3,
+            ..Default::default()
         }
     );
 
@@ -410,13 +426,10 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
     mock.set_price(&owner, "uatom", Decimal::from_str("100").unwrap()).unwrap();
 
     // make sure that there is no withdrawal balance
-    let vault_state = mock.query_vault_state();
+    let vault_state = mock.query_vault();
     let accounting = mock.query_total_accounting();
-    let available_liquidity = accounting
-        .withdrawal_balance
-        .total
-        .checked_add(vault_state.total_liquidity.into())
-        .unwrap();
+    let available_liquidity =
+        accounting.withdrawal_balance.total.checked_add(vault_state.total_balance).unwrap();
     assert!(available_liquidity < SignedUint::zero());
 
     // deposit uusdc to vault when zero withdrawal balance
@@ -657,5 +670,137 @@ fn use_wallet_for_vault() {
     assert_eq!(
         vault_balance_after_deposit.amount - amt_to_unlock,
         vault_balance_after_withdraw.amount
+    );
+}
+
+#[test]
+fn withdraw_profits_for_depositors() {
+    let cooldown_period = 86400u64;
+    let mut mock = MockEnv::new().cooldown_period(cooldown_period).build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let depositor_1 = "bob";
+    let depositor_2 = "dane";
+
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
+
+    // init denoms
+    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                closing_fee_rate: Decimal::percent(1),
+                opening_fee_rate: Decimal::percent(2),
+                ..default_perp_params("uatom")
+            },
+        },
+    );
+
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+
+    // deposit uusdc to vault
+    let depositor_1_amt = Uint128::new(1000u128);
+    let depositor_2_amt = Uint128::new(4000u128);
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor_1),
+        &[coin(depositor_1_amt.u128(), "uusdc")],
+    )
+    .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor_2),
+        &[coin(depositor_2_amt.u128(), "uusdc")],
+    )
+    .unwrap();
+
+    // check deposits
+    let deposit_1_before = mock.query_cm_deposit(depositor_1);
+    let deposit_2_before = mock.query_cm_deposit(depositor_2);
+    assert_eq!(deposit_1_before.amount, depositor_1_amt);
+    assert_eq!(deposit_1_before.shares, depositor_1_amt * Uint128::new(DEFAULT_SHARES_PER_AMOUNT));
+    assert_eq!(deposit_2_before.amount, depositor_2_amt);
+    assert_eq!(deposit_2_before.shares, deposit_1_before.shares.multiply_ratio(4u128, 1u128)); // 4 times more than depositor_1
+
+    // open a position
+    let size = SignedUint::from_str("100").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    assert_eq!(atom_opening_fee, coin(23, "uusdc"));
+    mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
+        .unwrap();
+
+    // decrease uatom price to make the position losing
+    mock.set_price(&owner, "uatom", Decimal::from_str("5").unwrap()).unwrap();
+
+    // close the position
+    let atom_closing_pnl = coin(562, "uusdc");
+    mock.execute_perp_order(
+        &credit_manager,
+        "1",
+        "uatom",
+        size.neg(),
+        None,
+        &[atom_closing_pnl.clone()],
+    )
+    .unwrap();
+
+    // check vault state
+    let vault = mock.query_vault();
+    let total_deposits = depositor_1_amt + depositor_2_amt;
+    let total_shares = total_deposits * Uint128::new(DEFAULT_SHARES_PER_AMOUNT);
+    let total_amt_from_perp_pos = atom_opening_fee.amount + atom_closing_pnl.amount;
+    let total_liquidity = total_deposits + total_amt_from_perp_pos;
+    assert_eq!(
+        vault,
+        VaultResponse {
+            total_balance: total_deposits.into(),
+            total_shares,
+            total_withdrawal_balance: total_liquidity, // total cash flow is equal to total withdrawal balance when no open positions
+            share_price: Some(Decimal::from_ratio(total_liquidity, total_shares)),
+            total_liquidity,
+            total_debt: Uint128::zero(),
+            collateralization_ratio: None
+        }
+    );
+
+    // unlocks
+    let unlock_current_time = mock.query_block_time();
+    mock.unlock_from_vault(&credit_manager, Some(depositor_1), deposit_1_before.shares).unwrap();
+    mock.unlock_from_vault(&credit_manager, Some(depositor_2), deposit_2_before.shares).unwrap();
+
+    // move time forward to pass cooldown period
+    mock.set_block_time(unlock_current_time + cooldown_period + 1);
+
+    // withdraw from the vault
+    mock.withdraw_from_vault(&credit_manager, Some(depositor_1)).unwrap();
+    mock.withdraw_from_vault(&credit_manager, Some(depositor_2)).unwrap();
+
+    // Check deposits. There should be zero amounts/shares.
+    let deposit_1 = mock.query_cm_deposit(depositor_1);
+    assert_eq!(deposit_1.amount, Uint128::zero());
+    assert_eq!(deposit_1.shares, Uint128::zero());
+    let deposit_2 = mock.query_cm_deposit(depositor_2);
+    assert_eq!(deposit_2.amount, Uint128::zero());
+    assert_eq!(deposit_2.shares, Uint128::zero());
+
+    // check vault state
+    let vault = mock.query_vault();
+    assert_eq!(
+        vault,
+        VaultResponse {
+            total_balance: SignedUint::zero().checked_sub(total_amt_from_perp_pos.into()).unwrap(), // negative number because of profits from perp positions
+            total_shares: Uint128::zero(),
+            total_withdrawal_balance: Uint128::zero(),
+            share_price: None,
+            total_liquidity: Uint128::zero(),
+            total_debt: Uint128::zero(),
+            collateralization_ratio: None
+        }
     );
 }

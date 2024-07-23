@@ -14,7 +14,7 @@ use mars_types::{
     perps::{
         self, Accounting, Config, DenomStateResponse, PerpDenomState, PerpVaultDeposit,
         PerpVaultPosition, PerpVaultUnlock, PnlAmounts, PnlValues, PositionFeesResponse,
-        PositionResponse, PositionsByAccountResponse, TradingFee, VaultState,
+        PositionResponse, PositionsByAccountResponse, TradingFee, VaultResponse,
     },
     signed_uint::SignedUint,
 };
@@ -286,10 +286,15 @@ impl MockEnv {
         self.app.wrap().query_wasm_smart(self.perps.clone(), &perps::QueryMsg::Config {}).unwrap()
     }
 
-    pub fn query_vault_state(&self) -> VaultState {
+    pub fn query_vault(&self) -> VaultResponse {
         self.app
             .wrap()
-            .query_wasm_smart(self.perps.clone(), &perps::QueryMsg::VaultState {})
+            .query_wasm_smart(
+                self.perps.clone(),
+                &perps::QueryMsg::Vault {
+                    action: None,
+                },
+            )
             .unwrap()
     }
 

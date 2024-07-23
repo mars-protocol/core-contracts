@@ -107,7 +107,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
     match msg {
         QueryMsg::Owner {} => to_json_binary(&OWNER.query(deps.storage)?),
         QueryMsg::Config {} => to_json_binary(&query::config(deps.storage)?),
-        QueryMsg::VaultState {} => to_json_binary(&query::vault_state(deps.storage)?),
+        QueryMsg::Vault {
+            action,
+        } => to_json_binary(&query::vault(
+            deps,
+            env.block.time.seconds(),
+            action.unwrap_or(ActionKind::Default),
+        )?),
         QueryMsg::DenomState {
             denom,
         } => to_json_binary(&query::denom_state(deps.storage, denom)?),

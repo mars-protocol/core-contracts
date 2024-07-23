@@ -1,9 +1,9 @@
-use std::str::FromStr;
+use std::{cmp::max, str::FromStr};
 
 use cosmwasm_std::{coin, Coin, Decimal, Uint128};
 use mars_types::{
     params::{PerpParams, PerpParamsUpdate},
-    perps::{Accounting, Balance, CashFlow, PerpPosition, PnL},
+    perps::{Accounting, Balance, CashFlow, PerpPosition, PnL, PnlAmounts, VaultResponse},
     signed_uint::SignedUint,
 };
 
@@ -21,7 +21,8 @@ fn accounting() {
     // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
 
-    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+    let base_denom_price = Decimal::from_str("0.9").unwrap();
+    mock.set_price(&owner, "uusdc", base_denom_price).unwrap();
 
     // deposit some big number of uusdc to vault
     mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
@@ -65,7 +66,7 @@ fn accounting() {
     let total_accounting = mock.query_total_accounting();
     assert_eq!(total_accounting, Accounting::default());
 
-    let vault_state_before_opening = mock.query_vault_state();
+    let vault_state_before_opening = mock.query_vault();
 
     // open few positions for account 1
     let osmo_size = SignedUint::from_str("10000000").unwrap();
@@ -92,8 +93,7 @@ fn accounting() {
     .unwrap();
 
     // check vault state after opening positions
-    let vault_state = mock.query_vault_state();
-    assert_eq!(vault_state_before_opening, vault_state);
+    assert_vault(&mock, &vault_state_before_opening, base_denom_price);
 
     // check accounting after opening positions
     let osmo_accounting = mock.query_denom_accounting("uosmo");
@@ -128,7 +128,7 @@ fn accounting() {
     // change only uosmo price
     mock.set_price(&owner, "uosmo", Decimal::from_str("2").unwrap()).unwrap();
 
-    let vault_state_before_closing = mock.query_vault_state();
+    let vault_state_before_closing = mock.query_vault();
 
     // close uosmo position
     let pos = mock.query_position("1", "uosmo");
@@ -143,8 +143,7 @@ fn accounting() {
     .unwrap();
 
     // check vault state after closing uosmo position
-    let vault_state = mock.query_vault_state();
-    assert_eq!(vault_state_before_closing, vault_state);
+    assert_vault(&mock, &vault_state_before_closing, base_denom_price);
 
     // check accounting after closing uosmo position
     let osmo_accounting = mock.query_denom_accounting("uosmo");
@@ -185,7 +184,7 @@ fn accounting() {
     // change only uatom price
     mock.set_price(&owner, "uatom", Decimal::from_str("15").unwrap()).unwrap();
 
-    let vault_state_before_closing = mock.query_vault_state();
+    let vault_state_before_closing = mock.query_vault();
 
     // close uatom position
     let pos = mock.query_position("1", "uatom");
@@ -200,8 +199,7 @@ fn accounting() {
     .unwrap();
 
     // check vault state after closing uatom position
-    let vault_state = mock.query_vault_state();
-    assert_eq!(vault_state_before_closing, vault_state);
+    assert_vault(&mock, &vault_state_before_closing, base_denom_price);
 
     // check accounting after closing uatom position
     let osmo_accounting = mock.query_denom_accounting("uosmo");
@@ -281,4 +279,42 @@ fn add_balances(a: &Balance, b: &Balance) -> Balance {
         accrued_funding: a.accrued_funding.checked_add(b.accrued_funding).unwrap(),
         total: a.total.checked_add(b.total).unwrap(),
     }
+}
+
+fn assert_vault(mock: &MockEnv, vault_before: &VaultResponse, base_denom_price: Decimal) {
+    let vault = mock.query_vault();
+    let total_accounting = mock.query_total_accounting();
+    let total_pnl_val = mock.query_total_pnl();
+    let total_pnl_amt = PnlAmounts::from_pnl_values(total_pnl_val, base_denom_price).unwrap();
+    let total_debt = max(total_pnl_amt.pnl, SignedUint::zero()).abs;
+    let total_withdrawal_balance =
+        total_accounting.withdrawal_balance.total.checked_add(vault_before.total_balance).unwrap();
+    let total_withdrawal_balance = max(total_withdrawal_balance, SignedUint::zero()).abs;
+    let total_liquidity = total_accounting
+        .cash_flow
+        .total()
+        .unwrap()
+        .checked_add(vault_before.total_balance)
+        .unwrap();
+    let total_liquidity = max(total_liquidity, SignedUint::zero()).abs;
+    let collateralization_ratio = if total_debt.is_zero() {
+        None
+    } else {
+        Some(Decimal::from_ratio(total_liquidity, total_debt))
+    };
+    assert_eq!(
+        vault,
+        VaultResponse {
+            total_balance: vault_before.total_balance,
+            total_shares: vault_before.total_shares,
+            total_withdrawal_balance,
+            share_price: Some(Decimal::from_ratio(
+                total_withdrawal_balance,
+                vault_before.total_shares
+            )),
+            total_liquidity,
+            total_debt,
+            collateralization_ratio
+        }
+    );
 }

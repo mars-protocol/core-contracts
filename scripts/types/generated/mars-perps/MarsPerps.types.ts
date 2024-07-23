@@ -97,7 +97,9 @@ export type QueryMsg =
       config: {}
     }
   | {
-      vault_state: {}
+      vault: {
+        action?: ActionKind | null
+      }
     }
   | {
       denom_state: {
@@ -313,7 +315,12 @@ export interface PositionsByAccountResponse {
   positions: PerpPosition[]
 }
 export type ArrayOfPerpVaultUnlock = PerpVaultUnlock[]
-export interface VaultState {
+export interface VaultResponse {
+  collateralization_ratio?: Decimal | null
+  share_price?: Decimal | null
+  total_balance: SignedUint
+  total_debt: Uint128
   total_liquidity: Uint128
   total_shares: Uint128
+  total_withdrawal_balance: Uint128
 }

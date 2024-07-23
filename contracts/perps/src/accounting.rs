@@ -3,9 +3,9 @@
 /// Accounting represents the state of the base denom balance (vault) after applying the given cash flow, unrealized PnL and base denom price.
 use std::cmp::max;
 
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::Uint128;
 use mars_types::{
-    perps::{Accounting, Balance, CashFlow, PnlAmounts, PnlValues},
+    perps::{Accounting, Balance, CashFlow, PnlAmounts},
     signed_uint::SignedUint,
 };
 
@@ -20,29 +20,23 @@ pub trait CashFlowExt {
 }
 
 pub trait BalanceExt {
-    /// Compute the balance after applying the given cash flow, unrealized PnL and base denom price
+    /// Compute the balance after applying the given cash flow and unrealized PnL
     fn compute_balance(
         cash_flow: &CashFlow,
-        unrealized_pnl: &PnlValues,
-        base_denom_price: Decimal,
+        unrealized_pnl: &PnlAmounts,
     ) -> ContractResult<Balance>;
 
-    /// Compute the withdrawal balance after applying the given cash flow, unrealized PnL and base denom price
+    /// Compute the withdrawal balance after applying the given cash flow and unrealized PnL
     fn compute_withdrawal_balance(
         cash_flow: &CashFlow,
-        unrealized_pnl: &PnlValues,
-        base_denom_price: Decimal,
+        unrealized_pnl: &PnlAmounts,
     ) -> ContractResult<Balance>;
 }
 
 pub trait AccountingExt {
-    /// Accounting after applying the given cash flow, unrealized PnL and base denom price.
+    /// Accounting after applying the given cash flow and unrealized PnL.
     /// It can be used to compute the accounting for a single denom or for all denoms.
-    fn compute(
-        cash_flow: &CashFlow,
-        unrealized_pnl: &PnlValues,
-        base_denom_price: Decimal,
-    ) -> ContractResult<Accounting>;
+    fn compute(cash_flow: &CashFlow, unrealized_pnl: &PnlAmounts) -> ContractResult<Accounting>;
 }
 
 impl CashFlowExt for CashFlow {
@@ -65,23 +59,14 @@ impl CashFlowExt for CashFlow {
 impl BalanceExt for Balance {
     fn compute_balance(
         cash_flow: &CashFlow,
-        unrealized_pnl: &PnlValues,
-        base_denom_price: Decimal,
+        unrealized_pnl: &PnlAmounts,
     ) -> ContractResult<Balance> {
-        // denominate pnl values into base denom (e.g. USDC)
-        let price_pnl_in_base_denom =
-            unrealized_pnl.price_pnl.checked_div_floor(base_denom_price.into())?;
-        let accrued_funding_in_base_denom =
-            unrealized_pnl.accrued_funding.checked_div_floor(base_denom_price.into())?;
-        let closing_fee_in_base_denom =
-            unrealized_pnl.closing_fee.checked_div_floor(base_denom_price.into())?;
-
         // Account profit is vault loss and vice versa.
         // If values are positive, vault is losing money.
-        let price_pnl = cash_flow.price_pnl.checked_sub(price_pnl_in_base_denom)?;
+        let price_pnl = cash_flow.price_pnl.checked_sub(unrealized_pnl.price_pnl)?;
         let accrued_funding =
-            cash_flow.accrued_funding.checked_sub(accrued_funding_in_base_denom)?;
-        let closing_fee = cash_flow.closing_fee.checked_sub(closing_fee_in_base_denom)?;
+            cash_flow.accrued_funding.checked_sub(unrealized_pnl.accrued_funding)?;
+        let closing_fee = cash_flow.closing_fee.checked_sub(unrealized_pnl.closing_fee)?;
 
         let balance = Balance {
             price_pnl,
@@ -99,24 +84,17 @@ impl BalanceExt for Balance {
 
     fn compute_withdrawal_balance(
         cash_flow: &CashFlow,
-        unrealized_pnl: &PnlValues,
-        base_denom_price: Decimal,
+        unrealized_pnl: &PnlAmounts,
     ) -> ContractResult<Balance> {
-        // denominate pnl values into base denom (e.g. USDC)
-        let price_pnl_in_base_denom =
-            unrealized_pnl.price_pnl.checked_div_floor(base_denom_price.into())?;
-        let accrued_funding_in_base_denom =
-            unrealized_pnl.accrued_funding.checked_div_floor(base_denom_price.into())?;
-
         // If unrealized price pnl or accrued funding is positive it means that the vault is losing money.
         // We have to subtract amount which will be taken from the vault after realizing the pnl.
         // If unrealized price pnl or accrued funding is negative it means that the vault is making money.
         // We have to cap the amount to zero because we don't have that money in the vault (we will have once pnl is realized).
         let price_pnl =
-            cash_flow.price_pnl.checked_sub(max(SignedUint::zero(), price_pnl_in_base_denom))?;
+            cash_flow.price_pnl.checked_sub(max(SignedUint::zero(), unrealized_pnl.price_pnl))?;
         let accrued_funding = cash_flow
             .accrued_funding
-            .checked_sub(max(SignedUint::zero(), accrued_funding_in_base_denom))?;
+            .checked_sub(max(SignedUint::zero(), unrealized_pnl.accrued_funding))?;
 
         let balance = Balance {
             price_pnl,
@@ -134,14 +112,9 @@ impl BalanceExt for Balance {
 }
 
 impl AccountingExt for Accounting {
-    fn compute(
-        cash_flow: &CashFlow,
-        unrealized_pnl: &PnlValues,
-        base_denom_price: Decimal,
-    ) -> ContractResult<Accounting> {
-        let balance = Balance::compute_balance(cash_flow, unrealized_pnl, base_denom_price)?;
-        let withdrawal_balance =
-            Balance::compute_withdrawal_balance(cash_flow, unrealized_pnl, base_denom_price)?;
+    fn compute(cash_flow: &CashFlow, unrealized_pnl: &PnlAmounts) -> ContractResult<Accounting> {
+        let balance = Balance::compute_balance(cash_flow, unrealized_pnl)?;
+        let withdrawal_balance = Balance::compute_withdrawal_balance(cash_flow, unrealized_pnl)?;
         Ok(Accounting {
             cash_flow: cash_flow.clone(),
             balance,
@@ -232,14 +205,14 @@ mod tests {
             accrued_funding: SignedUint::from_str("200").unwrap(),
             closing_fee: SignedUint::from_str("50").unwrap(),
         };
-        let base_denom_price = Decimal::from_str("0.5").unwrap();
 
         // compute balance with positive numbers
-        let unrealized_pnl = PnlValues {
-            price_pnl: SignedUint::from_str("200").unwrap(),
-            accrued_funding: SignedUint::from_str("120").unwrap(),
-            closing_fee: SignedUint::from_str("30").unwrap(),
-            pnl: SignedUint::from_str("350").unwrap(),
+        let unrealized_pnl = PnlAmounts {
+            price_pnl: SignedUint::from_str("400").unwrap(),
+            accrued_funding: SignedUint::from_str("240").unwrap(),
+            closing_fee: SignedUint::from_str("60").unwrap(),
+            pnl: SignedUint::from_str("700").unwrap(),
+            opening_fee: SignedUint::zero(),
         };
         let expected_balance = Balance {
             price_pnl: SignedUint::from_str("-100").unwrap(),
@@ -248,16 +221,16 @@ mod tests {
             accrued_funding: SignedUint::from_str("-40").unwrap(),
             total: SignedUint::from_str("-50").unwrap(),
         };
-        let actual_balance =
-            Balance::compute_balance(&cash_flow, &unrealized_pnl, base_denom_price).unwrap();
+        let actual_balance = Balance::compute_balance(&cash_flow, &unrealized_pnl).unwrap();
         assert_eq!(actual_balance, expected_balance);
 
         // compute balance with negative numbers
-        let unrealized_pnl = PnlValues {
-            price_pnl: SignedUint::from_str("-200").unwrap(),
-            accrued_funding: SignedUint::from_str("-120").unwrap(),
-            closing_fee: SignedUint::from_str("-30").unwrap(),
-            pnl: SignedUint::from_str("-350").unwrap(),
+        let unrealized_pnl = PnlAmounts {
+            price_pnl: SignedUint::from_str("-400").unwrap(),
+            accrued_funding: SignedUint::from_str("-240").unwrap(),
+            closing_fee: SignedUint::from_str("-60").unwrap(),
+            pnl: SignedUint::from_str("-700").unwrap(),
+            opening_fee: SignedUint::zero(),
         };
         let expected_balance = Balance {
             price_pnl: SignedUint::from_str("700").unwrap(),
@@ -266,8 +239,7 @@ mod tests {
             accrued_funding: SignedUint::from_str("440").unwrap(),
             total: SignedUint::from_str("1350").unwrap(),
         };
-        let actual_balance =
-            Balance::compute_balance(&cash_flow, &unrealized_pnl, base_denom_price).unwrap();
+        let actual_balance = Balance::compute_balance(&cash_flow, &unrealized_pnl).unwrap();
         assert_eq!(actual_balance, expected_balance);
     }
 
@@ -279,14 +251,14 @@ mod tests {
             accrued_funding: SignedUint::from_str("200").unwrap(),
             closing_fee: SignedUint::from_str("50").unwrap(),
         };
-        let base_denom_price = Decimal::from_str("0.5").unwrap();
 
         // compute withdrawal balance with positive numbers
-        let unrealized_pnl = PnlValues {
-            price_pnl: SignedUint::from_str("200").unwrap(),
-            accrued_funding: SignedUint::from_str("120").unwrap(),
-            closing_fee: SignedUint::from_str("30").unwrap(),
-            pnl: SignedUint::from_str("350").unwrap(),
+        let unrealized_pnl = PnlAmounts {
+            price_pnl: SignedUint::from_str("400").unwrap(),
+            accrued_funding: SignedUint::from_str("240").unwrap(),
+            closing_fee: SignedUint::from_str("60").unwrap(),
+            pnl: SignedUint::from_str("700").unwrap(),
+            opening_fee: SignedUint::zero(),
         };
         let expected_balance = Balance {
             price_pnl: SignedUint::from_str("-100").unwrap(),
@@ -296,16 +268,16 @@ mod tests {
             total: SignedUint::from_str("10").unwrap(),
         };
         let actual_balance =
-            Balance::compute_withdrawal_balance(&cash_flow, &unrealized_pnl, base_denom_price)
-                .unwrap();
+            Balance::compute_withdrawal_balance(&cash_flow, &unrealized_pnl).unwrap();
         assert_eq!(actual_balance, expected_balance);
 
         // compute withdrawal balance with negative numbers
-        let unrealized_pnl = PnlValues {
-            price_pnl: SignedUint::from_str("-200").unwrap(),
-            accrued_funding: SignedUint::from_str("-120").unwrap(),
-            closing_fee: SignedUint::from_str("-30").unwrap(),
-            pnl: SignedUint::from_str("-350").unwrap(),
+        let unrealized_pnl = PnlAmounts {
+            price_pnl: SignedUint::from_str("-400").unwrap(),
+            accrued_funding: SignedUint::from_str("-240").unwrap(),
+            closing_fee: SignedUint::from_str("-60").unwrap(),
+            pnl: SignedUint::from_str("-700").unwrap(),
+            opening_fee: SignedUint::zero(),
         };
         let expected_balance = Balance {
             price_pnl: cash_flow.price_pnl,
@@ -315,8 +287,7 @@ mod tests {
             total: SignedUint::from_str("650").unwrap(),
         };
         let actual_balance =
-            Balance::compute_withdrawal_balance(&cash_flow, &unrealized_pnl, base_denom_price)
-                .unwrap();
+            Balance::compute_withdrawal_balance(&cash_flow, &unrealized_pnl).unwrap();
         assert_eq!(actual_balance, expected_balance);
     }
 
@@ -328,19 +299,17 @@ mod tests {
             accrued_funding: SignedUint::from_str("200").unwrap(),
             closing_fee: SignedUint::from_str("50").unwrap(),
         };
-        let base_denom_price = Decimal::from_str("0.5").unwrap();
-        let unrealized_pnl = PnlValues {
-            price_pnl: SignedUint::from_str("-200").unwrap(),
-            accrued_funding: SignedUint::from_str("-120").unwrap(),
-            closing_fee: SignedUint::from_str("-30").unwrap(),
-            pnl: SignedUint::from_str("-350").unwrap(),
+        let unrealized_pnl = PnlAmounts {
+            price_pnl: SignedUint::from_str("-400").unwrap(),
+            accrued_funding: SignedUint::from_str("-240").unwrap(),
+            closing_fee: SignedUint::from_str("-60").unwrap(),
+            pnl: SignedUint::from_str("-700").unwrap(),
+            opening_fee: SignedUint::zero(),
         };
 
-        let balance =
-            Balance::compute_balance(&cash_flow, &unrealized_pnl, base_denom_price).unwrap();
+        let balance = Balance::compute_balance(&cash_flow, &unrealized_pnl).unwrap();
         let withdrawal_balance =
-            Balance::compute_withdrawal_balance(&cash_flow, &unrealized_pnl, base_denom_price)
-                .unwrap();
+            Balance::compute_withdrawal_balance(&cash_flow, &unrealized_pnl).unwrap();
         assert_ne!(balance, withdrawal_balance);
 
         let expected_accounting = Accounting {
@@ -348,8 +317,7 @@ mod tests {
             balance,
             withdrawal_balance,
         };
-        let actual_accounting =
-            Accounting::compute(&cash_flow, &unrealized_pnl, base_denom_price).unwrap();
+        let actual_accounting = Accounting::compute(&cash_flow, &unrealized_pnl).unwrap();
         assert_eq!(actual_accounting, expected_accounting);
     }
 }

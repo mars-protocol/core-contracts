@@ -52,7 +52,7 @@ pub fn deposit(
     )?;
 
     // increment total liquidity and deposit shares
-    vs.total_liquidity = vs.total_liquidity.checked_add(amount)?;
+    vs.total_balance = vs.total_balance.checked_add(amount.into())?;
     vs.total_shares = vs.total_shares.checked_add(shares)?;
     VAULT_STATE.save(deps.storage, &vs)?;
 
@@ -166,7 +166,7 @@ pub fn withdraw(
     )?;
 
     // decrement total liquidity and deposit shares
-    vs.total_liquidity = vs.total_liquidity.checked_sub(total_unlocked_amount)?;
+    vs.total_balance = vs.total_balance.checked_sub(total_unlocked_amount.into())?;
     vs.total_shares = vs.total_shares.checked_sub(total_unlocked_shares)?;
     VAULT_STATE.save(deps.storage, &vs)?;
 
@@ -208,11 +208,11 @@ pub fn compute_global_withdrawal_balance(
 ) -> ContractResult<Uint128> {
     let base_denom_price = oracle.query_price(&deps.querier, base_denom, action.clone())?.price;
 
-    let global_acc_data =
+    let (global_acc_data, _) =
         compute_total_accounting_data(deps, oracle, current_time, base_denom_price, action)?;
 
     let global_withdrawal_balance =
-        global_acc_data.withdrawal_balance.total.checked_add(vs.total_liquidity.into())?;
+        global_acc_data.withdrawal_balance.total.checked_add(vs.total_balance)?;
     let global_withdrawal_balance = max(global_withdrawal_balance, SignedUint::zero());
 
     Ok(global_withdrawal_balance.abs)

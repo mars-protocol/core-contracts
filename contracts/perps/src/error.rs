@@ -4,6 +4,7 @@ use cosmwasm_std::{
 };
 use cw_utils::PaymentError;
 use mars_owner::OwnerError;
+use mars_types::error::MarsError;
 
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum ContractError {
@@ -33,6 +34,9 @@ pub enum ContractError {
 
     #[error(transparent)]
     Payment(#[from] PaymentError),
+
+    #[error(transparent)]
+    Mars(#[from] MarsError),
 
     #[error("denom `{denom}` is already enabled")]
     DenomEnabled {

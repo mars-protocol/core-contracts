@@ -43,7 +43,7 @@ import {
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
   ArrayOfPerpVaultUnlock,
-  VaultState,
+  VaultResponse,
 } from './MarsPerps.types'
 import { MarsPerpsQueryClient, MarsPerpsClient } from './MarsPerps.client'
 export const marsPerpsQueryKeys = {
@@ -75,11 +75,11 @@ export const marsPerpsQueryKeys = {
         args,
       },
     ] as const,
-  vaultState: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+  vault: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
     [
       {
         ...marsPerpsQueryKeys.address(contractAddress)[0],
-        method: 'vault_state',
+        method: 'vault',
         args,
       },
     ] as const,
@@ -594,14 +594,24 @@ export function useMarsPerpsDenomStateQuery<TData = DenomStateResponse>({
     },
   )
 }
-export interface MarsPerpsVaultStateQuery<TData> extends MarsPerpsReactQuery<VaultState, TData> {}
-export function useMarsPerpsVaultStateQuery<TData = VaultState>({
+export interface MarsPerpsVaultQuery<TData> extends MarsPerpsReactQuery<VaultResponse, TData> {
+  args: {
+    action?: ActionKind
+  }
+}
+export function useMarsPerpsVaultQuery<TData = VaultResponse>({
   client,
+  args,
   options,
-}: MarsPerpsVaultStateQuery<TData>) {
-  return useQuery<VaultState, Error, TData>(
-    marsPerpsQueryKeys.vaultState(client?.contractAddress),
-    () => (client ? client.vaultState() : Promise.reject(new Error('Invalid client'))),
+}: MarsPerpsVaultQuery<TData>) {
+  return useQuery<VaultResponse, Error, TData>(
+    marsPerpsQueryKeys.vault(client?.contractAddress, args),
+    () =>
+      client
+        ? client.vault({
+            action: args.action,
+          })
+        : Promise.reject(new Error('Invalid client')),
     {
       ...options,
       enabled: !!client && (options?.enabled != undefined ? options.enabled : true),

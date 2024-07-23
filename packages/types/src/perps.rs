@@ -6,6 +6,7 @@ use mars_owner::OwnerUpdate;
 
 use crate::{
     adapters::{oracle::OracleBase, params::ParamsBase},
+    error::MarsError,
     math::SignedDecimal,
     oracle::ActionKind,
     signed_uint::SignedUint,
@@ -85,8 +86,53 @@ impl From<Config<Addr>> for Config<String> {
 #[cw_serde]
 #[derive(Default)]
 pub struct VaultState {
-    pub total_liquidity: Uint128,
+    /// Value of the total balance in the base denom. This is the total amount
+    /// of the base denom deposited to the vault by liquidity providers.
+    /// The value is updated when a user deposits or withdraws from the vault.
+    /// The value can be negative if the liquidity providers withdraw more than
+    /// the total balance. This can happen if the vault earns a profit from trading.
+    pub total_balance: SignedUint,
+
+    /// Total shares minted to liquidity providers
     pub total_shares: Uint128,
+}
+
+#[cw_serde]
+#[derive(Default)]
+pub struct VaultResponse {
+    /// Value of the total balance in the base denom. This is the total amount
+    /// of the base denom deposited to the vault by liquidity providers.
+    /// The value is updated when a user deposits or withdraws from the vault.
+    /// The value can be negative if the liquidity providers withdraw more than
+    /// the total balance. This can happen if the vault earns a profit from trading.
+    pub total_balance: SignedUint,
+
+    /// Total shares minted to liquidity providers.
+    pub total_shares: Uint128,
+
+    /// Total withdrawal balance in the base denom aggregated across all markets.
+    /// `total_withdrawal_balance = max(total_balance + accounting.withdrawal_balance.total, 0)`
+    /// See [`Accounting`] for more details regarding the calculation of `accounting.withdrawal_balance.total`.
+    pub total_withdrawal_balance: Uint128,
+
+    /// Vault share price is calculated directly from the total withdrawal balance and the shares supply.
+    /// `share_price = total_withdrawal_balance / total_shares`
+    /// None if `total_shares` is zero.
+    pub share_price: Option<Decimal>,
+
+    /// Total liquidity in the base denom aggregated across all markets.
+    /// `total_liquidity = max(total_balance + accounting.liquidity.total, 0)`
+    /// See [`Accounting`] for more details regarding the calculation of `accounting.liquidity.total`.
+    pub total_liquidity: Uint128,
+
+    /// Positive total unrealized PnL that the vault owes to the users.
+    /// `total_debt = max(total_unrealized_pnl, 0)`
+    pub total_debt: Uint128,
+
+    /// Collateralization ratio of the vault.
+    /// `collateralization_ratio = total_liquidity / total_debt`
+    /// None if `total_debt` is zero.
+    pub collateralization_ratio: Option<Decimal>,
 }
 
 /// Unlock state for a single user
@@ -187,6 +233,16 @@ pub struct CashFlow {
     pub opening_fee: SignedUint,
     pub closing_fee: SignedUint,
     pub accrued_funding: SignedUint,
+}
+
+impl CashFlow {
+    pub fn total(&self) -> Result<SignedUint, MarsError> {
+        Ok(self
+            .price_pnl
+            .checked_add(self.opening_fee)?
+            .checked_add(self.closing_fee)?
+            .checked_add(self.accrued_funding)?)
+    }
 }
 
 /// Amount of money denominated in the base denom (e.g. UUSDC) used for accounting
@@ -361,6 +417,24 @@ impl PnlAmounts {
             pnl: PnL::from_signed_uint(base_denom, self.pnl),
         }
     }
+
+    pub fn from_pnl_values(
+        pnl_values: PnlValues,
+        base_denom_price: Decimal,
+    ) -> Result<Self, MarsError> {
+        let price_pnl = pnl_values.price_pnl.checked_div_floor(base_denom_price.into())?;
+        let accrued_funding =
+            pnl_values.accrued_funding.checked_div_floor(base_denom_price.into())?;
+        let closing_fee = pnl_values.closing_fee.checked_div_floor(base_denom_price.into())?;
+        let pnl = price_pnl.checked_add(accrued_funding)?.checked_add(closing_fee)?;
+        Ok(PnlAmounts {
+            price_pnl,
+            accrued_funding,
+            opening_fee: SignedUint::zero(),
+            closing_fee,
+            pnl,
+        })
+    }
 }
 
 impl PnL {
@@ -489,8 +563,10 @@ pub enum QueryMsg {
     #[returns(Config<String>)]
     Config {},
 
-    #[returns(VaultState)]
-    VaultState {},
+    #[returns(VaultResponse)]
+    Vault {
+        action: Option<ActionKind>,
+    },
 
     #[returns(DenomStateResponse)]
     DenomState {

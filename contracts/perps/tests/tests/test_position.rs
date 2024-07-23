@@ -2119,16 +2119,11 @@ fn close_all_positions(
         accounting,
         Accounting {
             cash_flow: expected_cash_flow.clone(),
-            balance: Balance::compute_balance(
-                &expected_cash_flow,
-                &PnlValues::default(),
-                usdc_price
-            )
-            .unwrap(),
+            balance: Balance::compute_balance(&expected_cash_flow, &PnlAmounts::default(),)
+                .unwrap(),
             withdrawal_balance: Balance::compute_withdrawal_balance(
                 &expected_cash_flow,
-                &PnlValues::default(),
-                usdc_price
+                &PnlAmounts::default(),
             )
             .unwrap()
         }
