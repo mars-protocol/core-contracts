@@ -170,10 +170,12 @@ impl Perps {
         &self,
         querier: &QuerierWrapper,
         denom: impl Into<String>,
+        action: ActionKind,
     ) -> StdResult<PerpDenomState> {
         let res: PerpDenomState = querier.query_wasm_smart(
             self.address(),
             &QueryMsg::PerpDenomState {
+                action,
                 denom: denom.into(),
             },
         )?;

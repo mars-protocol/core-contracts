@@ -123,7 +123,21 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         } => to_json_binary(&query::denom_states(deps.storage, start_after, limit)?),
         QueryMsg::PerpDenomState {
             denom,
-        } => to_json_binary(&query::perp_denom_state(deps, env.block.time.seconds(), denom)?),
+            action,
+        } => {
+            to_json_binary(&query::perp_denom_state(deps, env.block.time.seconds(), action, denom)?)
+        }
+        QueryMsg::PerpDenomStates {
+            action,
+            start_after,
+            limit,
+        } => to_json_binary(&query::perp_denom_states(
+            deps,
+            env.block.time.seconds(),
+            action,
+            start_after,
+            limit,
+        )?),
         QueryMsg::PerpVaultPosition {
             user_address,
             account_id,

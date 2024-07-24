@@ -4,6 +4,7 @@ use std::mem::take;
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Empty, Timestamp, Uint128};
 use cw_multi_test::{App, AppResponse, BankSudo, BasicApp, Executor, SudoMsg};
+use cw_paginate::PaginationResponse;
 use mars_oracle_osmosis::OsmosisPriceSourceUnchecked;
 use mars_owner::{OwnerResponse, OwnerUpdate};
 use mars_types::{
@@ -310,13 +311,33 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_perp_denom_state(&self, denom: &str) -> PerpDenomState {
+    pub fn query_perp_denom_state(&self, denom: &str, action: ActionKind) -> PerpDenomState {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.perps.clone(),
                 &perps::QueryMsg::PerpDenomState {
                     denom: denom.to_string(),
+                    action,
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_perp_denom_states(
+        &self,
+        action: ActionKind,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> PaginationResponse<PerpDenomState> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.clone(),
+                &perps::QueryMsg::PerpDenomStates {
+                    action,
+                    start_after,
+                    limit,
                 },
             )
             .unwrap()

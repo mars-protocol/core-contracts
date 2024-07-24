@@ -33,6 +33,8 @@ import {
   OwnerResponse,
   PerpDenomState,
   PnlValues,
+  PaginationResponseForPerpDenomState,
+  Metadata,
   NullablePerpVaultPosition,
   PerpVaultPosition,
   PerpVaultUnlock,
@@ -50,7 +52,22 @@ export interface MarsPerpsReadOnlyInterface {
   config: () => Promise<ConfigForString>
   vault: ({ action }: { action?: ActionKind }) => Promise<VaultResponse>
   denomState: ({ denom }: { denom: string }) => Promise<DenomStateResponse>
-  perpDenomState: ({ denom }: { denom: string }) => Promise<PerpDenomState>
+  perpDenomState: ({
+    action,
+    denom,
+  }: {
+    action: ActionKind
+    denom: string
+  }) => Promise<PerpDenomState>
+  perpDenomStates: ({
+    action,
+    limit,
+    startAfter,
+  }: {
+    action: ActionKind
+    limit?: number
+    startAfter?: string
+  }) => Promise<PaginationResponseForPerpDenomState>
   denomStates: ({
     limit,
     startAfter,
@@ -136,6 +153,7 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
     this.vault = this.vault.bind(this)
     this.denomState = this.denomState.bind(this)
     this.perpDenomState = this.perpDenomState.bind(this)
+    this.perpDenomStates = this.perpDenomStates.bind(this)
     this.denomStates = this.denomStates.bind(this)
     this.perpVaultPosition = this.perpVaultPosition.bind(this)
     this.deposit = this.deposit.bind(this)
@@ -174,10 +192,34 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
       },
     })
   }
-  perpDenomState = async ({ denom }: { denom: string }): Promise<PerpDenomState> => {
+  perpDenomState = async ({
+    action,
+    denom,
+  }: {
+    action: ActionKind
+    denom: string
+  }): Promise<PerpDenomState> => {
     return this.client.queryContractSmart(this.contractAddress, {
       perp_denom_state: {
+        action,
         denom,
+      },
+    })
+  }
+  perpDenomStates = async ({
+    action,
+    limit,
+    startAfter,
+  }: {
+    action: ActionKind
+    limit?: number
+    startAfter?: string
+  }): Promise<PaginationResponseForPerpDenomState> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      perp_denom_states: {
+        action,
+        limit,
+        start_after: startAfter,
       },
     })
   }

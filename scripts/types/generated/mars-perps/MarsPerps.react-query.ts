@@ -34,6 +34,8 @@ import {
   OwnerResponse,
   PerpDenomState,
   PnlValues,
+  PaginationResponseForPerpDenomState,
+  Metadata,
   NullablePerpVaultPosition,
   PerpVaultPosition,
   PerpVaultUnlock,
@@ -96,6 +98,14 @@ export const marsPerpsQueryKeys = {
       {
         ...marsPerpsQueryKeys.address(contractAddress)[0],
         method: 'perp_denom_state',
+        args,
+      },
+    ] as const,
+  perpDenomStates: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+    [
+      {
+        ...marsPerpsQueryKeys.address(contractAddress)[0],
+        method: 'perp_denom_states',
         args,
       },
     ] as const,
@@ -544,9 +554,39 @@ export function useMarsPerpsDenomStatesQuery<TData = ArrayOfDenomStateResponse>(
     },
   )
 }
+export interface MarsPerpsPerpDenomStatesQuery<TData>
+  extends MarsPerpsReactQuery<PaginationResponseForPerpDenomState, TData> {
+  args: {
+    action: ActionKind
+    limit?: number
+    startAfter?: string
+  }
+}
+export function useMarsPerpsPerpDenomStatesQuery<TData = PaginationResponseForPerpDenomState>({
+  client,
+  args,
+  options,
+}: MarsPerpsPerpDenomStatesQuery<TData>) {
+  return useQuery<PaginationResponseForPerpDenomState, Error, TData>(
+    marsPerpsQueryKeys.perpDenomStates(client?.contractAddress, args),
+    () =>
+      client
+        ? client.perpDenomStates({
+            action: args.action,
+            limit: args.limit,
+            startAfter: args.startAfter,
+          })
+        : Promise.reject(new Error('Invalid client')),
+    {
+      ...options,
+      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
+    },
+  )
+}
 export interface MarsPerpsPerpDenomStateQuery<TData>
   extends MarsPerpsReactQuery<PerpDenomState, TData> {
   args: {
+    action: ActionKind
     denom: string
   }
 }
@@ -560,6 +600,7 @@ export function useMarsPerpsPerpDenomStateQuery<TData = PerpDenomState>({
     () =>
       client
         ? client.perpDenomState({
+            action: args.action,
             denom: args.denom,
           })
         : Promise.reject(new Error('Invalid client')),

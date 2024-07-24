@@ -577,6 +577,15 @@ pub enum QueryMsg {
     #[returns(PerpDenomState)]
     PerpDenomState {
         denom: String,
+        action: ActionKind,
+    },
+
+    /// Query a single perp denom state with current calculated PnL, funding etc.
+    #[returns(cw_paginate::PaginationResponse<PerpDenomState>)]
+    PerpDenomStates {
+        action: ActionKind,
+        start_after: Option<String>,
+        limit: Option<u32>,
     },
 
     /// List all denoms enabled for trading

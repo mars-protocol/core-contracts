@@ -108,7 +108,15 @@ export type QueryMsg =
     }
   | {
       perp_denom_state: {
+        action: ActionKind
         denom: string
+      }
+    }
+  | {
+      perp_denom_states: {
+        action: ActionKind
+        limit?: number | null
+        start_after?: string | null
       }
     }
   | {
@@ -273,6 +281,13 @@ export interface PnlValues {
   closing_fee: SignedUint
   pnl: SignedUint
   price_pnl: SignedUint
+}
+export interface PaginationResponseForPerpDenomState {
+  data: PerpDenomState[]
+  metadata: Metadata
+}
+export interface Metadata {
+  has_more: boolean
 }
 export type NullablePerpVaultPosition = PerpVaultPosition | null
 export interface PerpVaultPosition {

@@ -1,6 +1,7 @@
 use std::{cmp::max, collections::HashMap};
 
 use cosmwasm_std::{coin, Addr, Decimal, Deps, Order, StdResult, Storage, Uint128};
+use cw_paginate::{paginate_map_query, PaginationResponse};
 use cw_storage_plus::Bound;
 use mars_types::{
     oracle::ActionKind,
@@ -119,26 +120,31 @@ pub fn denom_states(
 pub fn perp_denom_state(
     deps: Deps,
     current_time: u64,
+    action: ActionKind,
     denom: String,
 ) -> ContractResult<PerpDenomState> {
     let ds = DENOM_STATES.load(deps.storage, &denom)?;
     let cfg = CONFIG.load(deps.storage)?;
-    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
-    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
-    let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-    let (pnl_values, curr_funding) =
-        ds.compute_pnl(current_time, denom_price, base_denom_price, perp_params.closing_fee_rate)?;
-    Ok(PerpDenomState {
-        denom,
-        enabled: ds.enabled,
-        long_oi: ds.long_oi,
-        short_oi: ds.short_oi,
-        total_entry_cost: ds.total_entry_cost,
-        total_entry_funding: ds.total_entry_funding,
-        rate: curr_funding.last_funding_rate,
-        pnl_values,
-        funding: ds.funding,
+    let base_denom_price = cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action)?.price;
+
+    get_perp_denom_state(deps, &cfg, current_time, denom, ds, base_denom_price)
+}
+
+pub fn perp_denom_states(
+    deps: Deps,
+    current_time: u64,
+    action: ActionKind,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> ContractResult<PaginationResponse<PerpDenomState>> {
+    let cfg = CONFIG.load(deps.storage)?;
+    let base_denom_price = cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action)?.price;
+
+    let start = start_after.as_ref().map(|start_after| Bound::exclusive(start_after.as_str()));
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+
+    paginate_map_query(&DENOM_STATES, deps.storage, start, Some(limit), |denom, ds| {
+        get_perp_denom_state(deps, &cfg, current_time, denom, ds, base_denom_price)
     })
 }
 
@@ -708,4 +714,29 @@ fn calculate_fee(
     // ceil in favor of the contract
     let price = denom_exec_price.checked_div(base_denom_price)?;
     Ok(size.abs.checked_mul_ceil(price.checked_mul(rate)?)?)
+}
+
+fn get_perp_denom_state(
+    deps: Deps,
+    cfg: &Config<Addr>,
+    current_time: u64,
+    denom: String,
+    ds: DenomState,
+    base_denom_price: Decimal,
+) -> ContractResult<PerpDenomState> {
+    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
+    let (pnl_values, curr_funding) =
+        ds.compute_pnl(current_time, denom_price, base_denom_price, perp_params.closing_fee_rate)?;
+    Ok(PerpDenomState {
+        denom: denom.clone(),
+        enabled: ds.enabled,
+        long_oi: ds.long_oi,
+        short_oi: ds.short_oi,
+        total_entry_cost: ds.total_entry_cost,
+        total_entry_funding: ds.total_entry_funding,
+        rate: curr_funding.last_funding_rate,
+        pnl_values,
+        funding: ds.funding,
+    })
 }
