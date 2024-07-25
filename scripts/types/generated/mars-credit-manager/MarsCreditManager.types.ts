@@ -156,8 +156,8 @@ export type Action =
       swap_exact_in: {
         coin_in: ActionCoin
         denom_out: string
+        min_receive: Uint128
         route?: SwapperRoute | null
-        slippage: Decimal
       }
     }
   | {
@@ -310,7 +310,9 @@ export type CallbackMsg =
     }
   | {
       assert_deposit_caps: {
-        denoms: string[]
+        denoms: {
+          [k: string]: Uint128 | null
+        }
       }
     }
   | {
@@ -391,8 +393,8 @@ export type CallbackMsg =
         account_id: string
         coin_in: ActionCoin
         denom_out: string
+        min_receive: Uint128
         route?: SwapperRoute | null
-        slippage: Decimal
       }
     }
   | {

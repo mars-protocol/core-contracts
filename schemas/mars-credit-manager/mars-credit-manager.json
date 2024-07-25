@@ -735,7 +735,7 @@
                 "required": [
                   "coin_in",
                   "denom_out",
-                  "slippage"
+                  "min_receive"
                 ],
                 "properties": {
                   "coin_in": {
@@ -743,6 +743,9 @@
                   },
                   "denom_out": {
                     "type": "string"
+                  },
+                  "min_receive": {
+                    "$ref": "#/definitions/Uint128"
                   },
                   "route": {
                     "anyOf": [
@@ -753,9 +756,6 @@
                         "type": "null"
                       }
                     ]
-                  },
-                  "slippage": {
-                    "$ref": "#/definitions/Decimal"
                   }
                 },
                 "additionalProperties": false
@@ -1260,11 +1260,17 @@
                 ],
                 "properties": {
                   "denoms": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "uniqueItems": true
+                    "type": "object",
+                    "additionalProperties": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/Uint128"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
                   }
                 },
                 "additionalProperties": false
@@ -1609,7 +1615,7 @@
                   "account_id",
                   "coin_in",
                   "denom_out",
-                  "slippage"
+                  "min_receive"
                 ],
                 "properties": {
                   "account_id": {
@@ -1621,6 +1627,9 @@
                   "denom_out": {
                     "type": "string"
                   },
+                  "min_receive": {
+                    "$ref": "#/definitions/Uint128"
+                  },
                   "route": {
                     "anyOf": [
                       {
@@ -1630,9 +1639,6 @@
                         "type": "null"
                       }
                     ]
-                  },
-                  "slippage": {
-                    "$ref": "#/definitions/Decimal"
                   }
                 },
                 "additionalProperties": false
