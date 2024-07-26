@@ -13,10 +13,7 @@ use test_case::test_case;
 
 use super::{
     helpers::{AccountToFund, MockEnv},
-    vault_helpers::{
-        assert_vault_err, execute_bind_credit_manager_account, execute_deposit, execute_redeem,
-        execute_unlock,
-    },
+    vault_helpers::{assert_vault_err, execute_deposit, execute_redeem, execute_unlock},
 };
 use crate::tests::{
     helpers::deploy_managed_vault,
@@ -41,8 +38,15 @@ fn redeem_invalid_funds() {
     let credit_manager = mock.rover.clone();
 
     let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
-    execute_bind_credit_manager_account(&mut mock, &credit_manager, &managed_vault_addr, "2024")
-        .unwrap();
+
+    mock.create_credit_account_v2(
+        &fund_manager,
+        AccountKind::FundManager {
+            vault_addr: managed_vault_addr.to_string(),
+        },
+        None,
+    )
+    .unwrap();
 
     let res = execute_redeem(
         &mut mock,
@@ -401,10 +405,17 @@ fn redeem_succeded(
         actions.push(Action::Lend(uusdc_info.to_action_coin(lend_amt)));
         fund_acc_amt += lend_amt;
     }
+    let estimate_res = mock.query_swap_estimate_with_optional_route(
+        &uusdc_info.to_coin(swap_amt),
+        &uosmo_info.denom,
+        None,
+    );
+    let min_receive =
+        estimate_res.amount * (Decimal::one() - Decimal::from_atomics(6u128, 1).unwrap());
     actions.push(Action::SwapExactIn {
         coin_in: uusdc_info.to_action_coin(swap_amt),
         denom_out: uosmo_info.denom.clone(),
-        slippage: Decimal::from_atomics(6u128, 1).unwrap(),
+        min_receive,
         route: None,
     });
     fund_acc_amt += swap_amt;
