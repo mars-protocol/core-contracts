@@ -23,8 +23,6 @@ const protocolAdminAddr = 'osmo14w4x949nwcrqgfe53pxs3k7x53p0gvlrq34l5n'
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
 const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
 
-const defaultCreditLine = '100000000000000'
-
 // ----------------------------------- Markets -----------------------------------
 
 export const atomOsmoPoolAsset: AssetConfig = {
@@ -1041,14 +1039,6 @@ export const osmosisMainnetConfig: DeploymentConfig = {
     name: 'osmosis',
     routes: swapperRoutes,
   },
-  creditLineCoins: [
-    // AXL and stAtom has borrowing disabled
-    { denom: osmo, creditLine: defaultCreditLine },
-    { denom: atom, creditLine: defaultCreditLine },
-    { denom: wbtc, creditLine: defaultCreditLine },
-    { denom: axlUSDC, creditLine: defaultCreditLine },
-    { denom: weth, creditLine: '1000000000000000000000' },
-  ],
   maxValueForBurn: '10000',
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',

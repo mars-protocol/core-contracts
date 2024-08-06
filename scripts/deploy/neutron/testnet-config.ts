@@ -34,20 +34,6 @@ const astroportIncentives = 'neutron1slxs8heecwyw0n6zmj7unj3nenrfhk2zpagfz2lt87d
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
 const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
 
-// Pyth configuration
-const pythAddr = 'neutron15ldst8t80982akgr8w8ekcytejzkmfpgdkeq4xgtge48qs7435jqp87u3t'
-const pythAtomID = 'b00b60f88b03a6a625a8d1c048c3f66653edf217439983d037e7222c4e612819'
-const pythUsdcID = 'eaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a'
-const pythNtrnID = 'a8e6517966a52cb1df864b2764f3629fde3f21d2b640b5c572fcd654cbccd65e'
-const pythBtcID = 'e62df6c8b4a85fe1a67db44dc12de5db330f7ac66b72dc658afedf0f4a415b43'
-const pythEthID = 'ff61491a931112ddf1bd8147cd1b641375f79f5825126d665480874634fd0ace'
-const pythInjID = '7a5bc1d2b56ad029048cd63964b3ad2776eadf812edc1a43a31406cb54bff592'
-const pythDydxID = '6489800bb8974169adfe35937bf6736507097d13c190d760c557108c7e93a81b'
-const pythTiaID = '09f7c1d7dfbb7df2b8fe3d3d87ee94a2259d212da4f30c1f0540d066dfa44723'
-const pythSolID = 'ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d'
-
-const defaultCreditLine = '100000000000000'
-
 // IBC config for rewards-collector. See https://rest-palvus.pion-1.ntrn.tech/neutron-org/neutron/feerefunder/params
 export const neutronIbcConfig: NeutronIbcConfig = {
   source_port: 'transfer',
@@ -69,13 +55,10 @@ export const neutronIbcConfig: NeutronIbcConfig = {
 export const ntrnOracle: OracleConfig = {
   denom: 'untrn',
   price_source: {
-    pyth: {
-      contract_addr: pythAddr,
-      price_feed_id: pythNtrnID,
+    slinky: {
+      base_symbol: 'NTRN',
       denom_decimals: 6,
-      max_staleness: 300, // 5 minutes
-      max_confidence: '0.1',
-      max_deviation: '0.15',
+      max_blocks_old: 5,
     },
   },
 }
@@ -83,13 +66,10 @@ export const ntrnOracle: OracleConfig = {
 export const atomOracle: OracleConfig = {
   denom: atomDenom,
   price_source: {
-    pyth: {
-      contract_addr: pythAddr,
-      price_feed_id: pythAtomID,
+    slinky: {
+      base_symbol: 'ATOM',
       denom_decimals: 6,
-      max_staleness: 300, // 5 minutes
-      max_confidence: '0.1',
-      max_deviation: '0.15',
+      max_blocks_old: 5,
     },
   },
 }
@@ -97,13 +77,10 @@ export const atomOracle: OracleConfig = {
 export const nobleUSDCOracle: OracleConfig = {
   denom: nobleUsdcDenom,
   price_source: {
-    pyth: {
-      contract_addr: pythAddr,
-      price_feed_id: pythUsdcID,
+    slinky: {
+      base_symbol: 'USDT', // TODO: change to USDC when available on Slinky
       denom_decimals: 6,
-      max_staleness: 300, // 5 minutes
-      max_confidence: '0.1',
-      max_deviation: '0.15',
+      max_blocks_old: 5,
     },
   },
 }
@@ -111,13 +88,10 @@ export const nobleUSDCOracle: OracleConfig = {
 export const btcOracle: OracleConfig = {
   denom: btcDenom,
   price_source: {
-    pyth: {
-      contract_addr: pythAddr,
-      price_feed_id: pythBtcID,
+    slinky: {
+      base_symbol: 'BTC',
       denom_decimals: 8,
-      max_staleness: 300, // 5 minutes
-      max_confidence: '0.1',
-      max_deviation: '0.15',
+      max_blocks_old: 5,
     },
   },
 }
@@ -125,13 +99,10 @@ export const btcOracle: OracleConfig = {
 export const ethOracle: OracleConfig = {
   denom: ethDenom,
   price_source: {
-    pyth: {
-      contract_addr: pythAddr,
-      price_feed_id: pythEthID,
+    slinky: {
+      base_symbol: 'ETH',
       denom_decimals: 18,
-      max_staleness: 300, // 5 minutes
-      max_confidence: '0.1',
-      max_deviation: '0.15',
+      max_blocks_old: 5,
     },
   },
 }
@@ -139,13 +110,10 @@ export const ethOracle: OracleConfig = {
 export const injOracle: OracleConfig = {
   denom: injDenom,
   price_source: {
-    pyth: {
-      contract_addr: pythAddr,
-      price_feed_id: pythInjID,
+    slinky: {
+      base_symbol: 'INJ',
       denom_decimals: 18,
-      max_staleness: 300, // 5 minutes
-      max_confidence: '0.1',
-      max_deviation: '0.15',
+      max_blocks_old: 5,
     },
   },
 }
@@ -153,13 +121,10 @@ export const injOracle: OracleConfig = {
 export const dydxOracle: OracleConfig = {
   denom: dydxDenom,
   price_source: {
-    pyth: {
-      contract_addr: pythAddr,
-      price_feed_id: pythDydxID,
+    slinky: {
+      base_symbol: 'DYDX',
       denom_decimals: 18,
-      max_staleness: 300, // 5 minutes
-      max_confidence: '0.1',
-      max_deviation: '0.15',
+      max_blocks_old: 5,
     },
   },
 }
@@ -167,13 +132,10 @@ export const dydxOracle: OracleConfig = {
 export const tiaOracle: OracleConfig = {
   denom: tiaDenom,
   price_source: {
-    pyth: {
-      contract_addr: pythAddr,
-      price_feed_id: pythTiaID,
+    slinky: {
+      base_symbol: 'TIA',
       denom_decimals: 6,
-      max_staleness: 300, // 5 minutes
-      max_confidence: '0.1',
-      max_deviation: '0.15',
+      max_blocks_old: 5,
     },
   },
 }
@@ -181,13 +143,10 @@ export const tiaOracle: OracleConfig = {
 export const solOracle: OracleConfig = {
   denom: solDenom,
   price_source: {
-    pyth: {
-      contract_addr: pythAddr,
-      price_feed_id: pythSolID,
+    slinky: {
+      base_symbol: 'SOL',
       denom_decimals: 9,
-      max_staleness: 300, // 5 minutes
-      max_confidence: '0.1',
-      max_deviation: '0.15',
+      max_blocks_old: 5,
     },
   },
 }
@@ -693,11 +652,6 @@ export const neutronTestnetConfig: DeploymentConfig = {
     name: 'astroport',
     routes: [atomUsdcRoute, atomMarsRoute, ntrnUsdcRoute, ntrnMarsRoute, usdcMarsRoute],
   },
-  creditLineCoins: [
-    { denom: 'untrn', creditLine: defaultCreditLine },
-    { denom: nobleUsdcDenom, creditLine: defaultCreditLine },
-    { denom: atomDenom, creditLine: defaultCreditLine },
-  ],
   maxValueForBurn: '10000',
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',

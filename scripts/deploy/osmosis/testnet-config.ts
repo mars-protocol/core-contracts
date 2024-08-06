@@ -20,8 +20,6 @@ const protocolAdminAddr = 'osmo14w4x949nwcrqgfe53pxs3k7x53p0gvlrq34l5n'
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
 const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
 
-const defaultCreditLine = '100000000000'
-
 export const osmoAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
@@ -278,11 +276,6 @@ export const osmosisTestnetConfig: DeploymentConfig = {
       { denom_in: uosmo, denom_out: aUSDC, route: [{ pool_id: 5, token_out_denom: aUSDC }] },
     ],
   },
-  creditLineCoins: [
-    { denom: uosmo, creditLine: defaultCreditLine },
-    { denom: aUSDC, creditLine: defaultCreditLine },
-    { denom: usdcOsmo, creditLine: defaultCreditLine },
-  ],
   maxValueForBurn: '10000',
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',

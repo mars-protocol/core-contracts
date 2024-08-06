@@ -78,7 +78,6 @@ export interface DeploymentConfig {
     name: string
     routes: SwapRoute[]
   }
-  creditLineCoins: { denom: string; creditLine: String }[]
   maxValueForBurn: string
   maxUnlockingPositions: string
   maxSlippage: string

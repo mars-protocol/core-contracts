@@ -1,14 +1,14 @@
 {
-  "addressProvider": "neutron1p2m7lkghwaqe8qmual6c8xnmuu4l5939uwge8rrk6ka4galmyukssr50s4",
-  "redBank": "neutron1s9qr0f6xgx5x8w04njskdaa0qrwvmyljhaak0w8cv45ksekradrs0zr67q",
-  "incentives": "neutron1d3ecll6csrjk8ms7t9kegxf6gvszen73sw9zeff4tagpjh9gydaqrqe8ts",
-  "oracle": "neutron1sc3z8h3ldgjvrwmmxagqf8vr9nhtav20704ym2u6g9ldhtj5hd4sp5e3fm",
-  "rewardsCollector": "neutron1l5pqh58hgthsmzz2c36r3a4w54y7r6w8pflpsds6uhfcn94c7xrszgyxz8",
-  "swapper": "neutron1lmqhusxc0nqpxedygz6wkzq5kn6gwn82922qudn0rt27cclmmacscyg5cn",
-  "params": "neutron1gcqdwvtychwr06h8fkxylzmvq3c07ms84jwjggywzje233ldpk7qajt9v9",
-  "zapper": "neutron1svpun2fmatjjz5xsl9vtphf824787t0kjjdajl4gf2932mkags3qe3yqmc",
-  "health": "neutron1kgkr4mct6t02dgn8n3memxx07txeq0hsfkh74cawd9deksvxc87sp0tmug",
-  "creditManager": "neutron1h68z6an3fat36lanxz68hexsmthhjzj50fwr76znmdx8evarmhgqc0ezvv",
-  "accountNft": "neutron1ruku7ulmy0xt03drzhea4thrxsgfakjq4yfvhcdrydzwccrszn9snl7vzr",
-  "perps": "neutron19arerrgxjeuzzza67yayyqmeu54smqyqdpaet4a0xwtrlj5sp2kq3nh707"
+  "addressProvider": "neutron1u03k5pskp2c04t6zs08233pn0pzdqgslshevjk2jddt2hzpr38asvl39d0",
+  "redBank": "neutron16flhnf5g6j38u60wlr0vhkuvq8h983f9uz0ye6rm7uc79mm64t0q5n2q7e",
+  "incentives": "neutron1ua2dg9r2rv8j28kasya5y8m7rpjldxnvgc27pqc6njdem6dfzdzq95ls90",
+  "oracle": "neutron14z5wj7r6y59pnm0w5yfxmsf3887j7ehagvawwhxg3c35j7q6kz5q98ya6r",
+  "rewardsCollector": "neutron12km8m9k3v706fqjyxkzyjuzv2plm9pe5979d0es6sf4qlm8036aq66au33",
+  "swapper": "neutron1aj20ug73pudwjh3cg9vhfn43ah843qxcfxg24vlu7tfk9etnza0qga4h8f",
+  "params": "neutron143puvxcsmnzajmuzjrx5glpj5s6xv54ssfylapvqf5q3repxzxxs97r6tw",
+  "zapper": "neutron13hskrfefshcw3qhdwvspux89scnhtruh667pjg2fma4ts7ytl57qm4xvgg",
+  "health": "neutron12mprhmjtjn27wsgv53nrw20w3lhln32zctqyxc6ld568tw498s2qggykep",
+  "creditManager": "neutron1t8slk0zg0te8uzqr86nqpjdluwa0gqtazvz7z3ft74qd8m0e5z6q2c59aw",
+  "accountNft": "neutron1mlhxekyehrmut5svc4up7ds4c54nw2fathqjvp7c68x4zatn3r6s8hv42z",
+  "perps": "neutron1zfy8eue38ad3255huafjpjnq00qrewhtc9e684yfqhhptcf6wx4q3p4t34"
 }

@@ -398,7 +398,6 @@ export const neutronMainnetConfig: DeploymentConfig = {
     name: 'astroport',
     routes: [atomUsdcRoute, atomMarsRoute, ntrnUsdcRoute, ntrnMarsRoute, usdcMarsRoute],
   },
-  creditLineCoins: [],
   maxValueForBurn: '10000',
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',
