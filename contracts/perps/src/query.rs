@@ -5,6 +5,7 @@ use cw_paginate::{paginate_map_query, PaginationResponse};
 use cw_storage_plus::Bound;
 use mars_types::{
     oracle::ActionKind,
+    params::PerpParams,
     perps::{
         Accounting, Config, DenomState, DenomStateResponse, PerpDenomState, PerpPosition,
         PerpVaultDeposit, PerpVaultPosition, PerpVaultUnlock, PnlAmounts, PnlValues,
@@ -362,16 +363,11 @@ pub fn positions(
         .map(|(account_id, denom)| Bound::exclusive((account_id.as_str(), denom.as_str())));
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
 
-    // cache the denom state here so that we don't repetitively recalculate them
-    let mut denoms: HashMap<String, DenomState> = HashMap::new();
-
-    // cache the prices here so that we don't repetitively query them
-    let mut prices: HashMap<String, Decimal> = HashMap::new();
+    // cache the price, params, denom state here so that we don't repetitively query/recalculate them
+    let mut cache: HashMap<String, (Decimal, PerpParams, DenomState)> = HashMap::new();
 
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-
-    let perp_params = cfg.params.query_perp_params(&deps.querier, &cfg.base_denom)?;
 
     POSITIONS
         .range(deps.storage, start, None, Order::Ascending)
@@ -379,52 +375,38 @@ pub fn positions(
         .map(|item| {
             let ((account_id, denom), position) = item?;
 
-            // if price is already in the cache, simply read it
-            // otherwise, query it, and insert into the cache
-            let current_price = if let Some(price) = prices.get(&denom) {
-                *price
-            } else {
-                let price =
-                    cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
-                prices.insert(denom.clone(), price);
-                price
-            };
+            // if price, params, denom state are already in the cache, simply read it
+            // otherwise, query/recalculate it, and insert into the cache
+            let (current_price, perp_params, funding, skew) =
+                if let Some((price, params, ds)) = cache.get(&denom) {
+                    (*price, params.clone(), ds.funding.clone(), ds.skew()?)
+                } else {
+                    let price =
+                        cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+                    let params = cfg.params.query_perp_params(&deps.querier, &denom)?;
 
-            // if denom state is already in the cache, simply read it
-            // otherwise, recalculate it, and insert into the cache
-            let (pnl_amounts, skew, skew_scale) = if let Some(curr_ds) = denoms.get(&denom) {
-                let pnl_amounts = position.compute_pnl(
-                    &curr_ds.funding,
-                    curr_ds.skew()?,
-                    current_price,
-                    base_denom_price,
-                    perp_params.opening_fee_rate,
-                    perp_params.closing_fee_rate,
-                    PositionModification::None,
-                )?;
-                (pnl_amounts, curr_ds.skew()?, curr_ds.funding.skew_scale)
-            } else {
-                let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
-                let curr_funding =
-                    ds.current_funding(current_time, current_price, base_denom_price)?;
-                let pnl_amounts = position.compute_pnl(
-                    &curr_funding,
-                    ds.skew()?,
-                    current_price,
-                    base_denom_price,
-                    perp_params.opening_fee_rate,
-                    perp_params.closing_fee_rate,
-                    PositionModification::None,
-                )?;
-                let skew = ds.skew()?;
-                let skew_scale = curr_funding.skew_scale;
-                ds.funding = curr_funding;
-                denoms.insert(denom.clone(), ds);
-                (pnl_amounts, skew, skew_scale)
-            };
+                    let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
+                    let curr_funding = ds.current_funding(current_time, price, base_denom_price)?;
+                    let skew = ds.skew()?;
+                    ds.funding = curr_funding.clone();
+
+                    cache.insert(denom.clone(), (price, params.clone(), ds));
+
+                    (price, params, curr_funding, skew)
+                };
+
+            let pnl_amounts = position.compute_pnl(
+                &funding,
+                skew,
+                current_price,
+                base_denom_price,
+                perp_params.opening_fee_rate,
+                perp_params.closing_fee_rate,
+                PositionModification::None,
+            )?;
 
             let exit_exec_price =
-                closing_execution_price(skew, skew_scale, position.size, current_price)?;
+                closing_execution_price(skew, funding.skew_scale, position.size, current_price)?;
 
             Ok(PositionResponse {
                 account_id,
@@ -433,7 +415,7 @@ pub fn positions(
                     base_denom: cfg.base_denom.clone(),
                     size: position.size,
                     entry_price: position.entry_price,
-                    current_price: position.entry_exec_price,
+                    current_price,
                     entry_exec_price: position.entry_exec_price,
                     current_exec_price: exit_exec_price,
                     unrealised_pnl: pnl_amounts,

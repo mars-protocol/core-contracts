@@ -198,3 +198,66 @@ fn perp_denom_states() {
     assert_eq!(perp_denom_states_res.data, vec![expected_perp_denom_state1.clone()]);
     assert!(perp_denom_states_res.metadata.has_more);
 }
+
+#[test]
+fn perp_positions() {
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(
+        &[&credit_manager],
+        1_000_000_000_000_000u128,
+        &["uosmo", "uatom", "utia", "uusdc"],
+    );
+
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.8").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("12.5").unwrap()).unwrap();
+    mock.set_price(&owner, "utia", Decimal::from_str("6.2").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
+        .unwrap();
+
+    // init denoms
+    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.init_denom(&owner, "utia", Decimal::from_str("3").unwrap(), Uint128::new(1200000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("uatom"),
+        },
+    );
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("utia"),
+        },
+    );
+
+    // open few positions
+    let size = SignedUint::from_str("50").unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[]).unwrap();
+
+    let size = SignedUint::from_str("70").unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[]).unwrap();
+
+    let size = SignedUint::from_str("40").unwrap();
+    mock.execute_perp_order(&credit_manager, "2", "utia", size, None, &[]).unwrap();
+
+    let acc_1_atom_position = mock.query_position("1", "uatom").position.unwrap();
+    let acc_2_atom_position = mock.query_position("2", "uatom").position.unwrap();
+    let acc_2_tia_position = mock.query_position("2", "utia").position.unwrap();
+
+    let positions = mock.query_positions(None, None);
+    assert_eq!(positions.len(), 3);
+    assert_eq!(positions[0].clone().position.unwrap(), acc_1_atom_position);
+    assert_eq!(positions[1].clone().position.unwrap(), acc_2_atom_position);
+    assert_eq!(positions[2].clone().position.unwrap(), acc_2_tia_position);
+}
