@@ -24,8 +24,8 @@ fn perp_position_when_usdc_in_account() {
     let atom_info = uatom_info();
     let usdc_info = coin_info("uusdc");
 
-    let osmo_coin_deposited = osmo_info.to_coin(10000);
-    let usdc_coin_deposited = usdc_info.to_coin(1000);
+    let osmo_coin_deposited = osmo_info.to_coin(1000000);
+    let usdc_coin_deposited = usdc_info.to_coin(100000);
 
     let cm_user = Addr::unchecked("user");
 
@@ -38,7 +38,7 @@ fn perp_position_when_usdc_in_account() {
         &cm_user,
     );
 
-    let perp_size = SignedUint::from_str("200").unwrap();
+    let perp_size = SignedUint::from_str("20000").unwrap();
 
     // check perp data before any action
     let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);

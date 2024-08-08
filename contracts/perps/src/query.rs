@@ -303,9 +303,11 @@ pub fn position(
                     if new_size.negative != position.size.negative && !new_size.is_zero() {
                         PositionModification::Flip(new_size, position.size)
                     } else if new_size.abs > position.size.abs {
-                        PositionModification::Increase(order_size_checked)
+                        let q_change = new_size.checked_sub(position.size)?;
+                        PositionModification::Increase(q_change)
                     } else {
-                        PositionModification::Decrease(order_size_checked)
+                        let q_change = position.size.checked_sub(new_size)?;
+                        PositionModification::Decrease(q_change)
                     }
                 }
                 None => PositionModification::None,
