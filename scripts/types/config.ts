@@ -94,6 +94,7 @@ export interface DeploymentConfig {
     cooldownPeriod: number
     maxPositions: number
     denoms: PerpDenom[]
+    protocolFeeRate: Decimal
   }
 }
 

@@ -30,6 +30,9 @@ pub struct Config<T> {
     /// Adapter for interacting with the Mars params contract
     pub params: ParamsBase<T>,
 
+    /// Address provider returns addresses for all protocol contracts
+    pub address_provider: T,
+
     /// The token used to settle perp trades.
     ///
     /// Typically, this is be a stablecoin such as USDC (more precisely, the IBC
@@ -54,17 +57,22 @@ pub struct Config<T> {
 
     /// The maximum number of positions that can be opened by a single user
     pub max_positions: u8,
+
+    /// The percentage of fees that is directed to the protocol
+    pub protocol_fee_rate: Decimal,
 }
 
 impl Config<String> {
     pub fn check(self, api: &dyn Api) -> StdResult<Config<Addr>> {
         Ok(Config {
+            address_provider: api.addr_validate(&self.address_provider)?,
             credit_manager: api.addr_validate(&self.credit_manager)?,
             oracle: self.oracle.check(api)?,
             params: self.params.check(api)?,
             base_denom: self.base_denom,
             cooldown_period: self.cooldown_period,
             max_positions: self.max_positions,
+            protocol_fee_rate: self.protocol_fee_rate,
         })
     }
 }
@@ -72,12 +80,14 @@ impl Config<String> {
 impl From<Config<Addr>> for Config<String> {
     fn from(cfg: Config<Addr>) -> Self {
         Config {
+            address_provider: cfg.address_provider.into(),
             credit_manager: cfg.credit_manager.into(),
             oracle: cfg.oracle.into(),
             params: cfg.params.into(),
             base_denom: cfg.base_denom,
             cooldown_period: cfg.cooldown_period,
             max_positions: cfg.max_positions,
+            protocol_fee_rate: cfg.protocol_fee_rate,
         }
     }
 }

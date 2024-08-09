@@ -484,9 +484,11 @@ export class Deployer {
         base_denom: this.config.perps.baseDenom,
         cooldown_period: cooldownPeriodUpdated,
         max_positions: this.config.perps.maxPositions,
+        protocol_fee_rate: this.config.perps.protocolFeeRate,
         credit_manager: this.storage.addresses.creditManager!,
         oracle: this.storage.addresses.oracle!,
         params: this.storage.addresses.params!,
+        address_provider: this.storage.addresses.addressProvider!,
       }
       await this.instantiate('perps', this.storage.codeIds.perps!, msg)
     } else {

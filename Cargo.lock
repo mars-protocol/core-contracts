@@ -2505,6 +2505,7 @@ dependencies = [
  "mars-oracle-osmosis",
  "mars-owner 2.0.0",
  "mars-params",
+ "mars-testing",
  "mars-types",
  "schemars",
  "serde",

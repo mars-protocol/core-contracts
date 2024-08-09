@@ -10,10 +10,10 @@ import { StdFee } from '@cosmjs/amino'
 import {
   OracleBaseForString,
   ParamsBaseForString,
+  Decimal,
   InstantiateMsg,
   ExecuteMsg,
   OwnerUpdate,
-  Decimal,
   Uint128,
   ActionKind,
   SignedUint,

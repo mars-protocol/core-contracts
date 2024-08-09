@@ -7,13 +7,16 @@
 
 export type OracleBaseForString = string
 export type ParamsBaseForString = string
+export type Decimal = string
 export interface InstantiateMsg {
+  address_provider: string
   base_denom: string
   cooldown_period: number
   credit_manager: string
   max_positions: number
   oracle: OracleBaseForString
   params: ParamsBaseForString
+  protocol_fee_rate: Decimal
 }
 export type ExecuteMsg =
   | {
@@ -81,7 +84,6 @@ export type OwnerUpdate =
       }
     }
   | 'clear_emergency_owner'
-export type Decimal = string
 export type Uint128 = string
 export type ActionKind = 'default' | 'liquidation'
 export interface SignedUint {
@@ -194,12 +196,14 @@ export type QueryMsg =
       }
     }
 export interface ConfigForString {
+  address_provider: string
   base_denom: string
   cooldown_period: number
   credit_manager: string
   max_positions: number
   oracle: OracleBaseForString
   params: ParamsBaseForString
+  protocol_fee_rate: Decimal
 }
 export interface Accounting {
   balance: Balance

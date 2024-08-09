@@ -8,14 +8,20 @@
     "description": "The perp protocol's global configuration",
     "type": "object",
     "required": [
+      "address_provider",
       "base_denom",
       "cooldown_period",
       "credit_manager",
       "max_positions",
       "oracle",
-      "params"
+      "params",
+      "protocol_fee_rate"
     ],
     "properties": {
+      "address_provider": {
+        "description": "Address provider returns addresses for all protocol contracts",
+        "type": "string"
+      },
       "base_denom": {
         "description": "The token used to settle perp trades.\n\nTypically, this is be a stablecoin such as USDC (more precisely, the IBC voucher denom of USDC).\n\nLiquidity providers deposit this token to the vault. Traders deposit this token as collateral when opening perp positions.\n\nWhen closing a winning perp position (one that has a positive unrealized PnL), this token (of the amount corresponding to the PnL) is transferred from the vault to the user's credit account, together with the originally deposited collateral.\n\nConversely, when closing a losing position, this token (of amount corresponding to the PnL) is transferred from the user's position to the vault. The remaining amount is refunded to the uesr's credit account.",
         "type": "string"
@@ -51,10 +57,22 @@
             "$ref": "#/definitions/ParamsBase_for_String"
           }
         ]
+      },
+      "protocol_fee_rate": {
+        "description": "The percentage of fees that is directed to the protocol",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Decimal"
+          }
+        ]
       }
     },
     "additionalProperties": false,
     "definitions": {
+      "Decimal": {
+        "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+        "type": "string"
+      },
       "OracleBase_for_String": {
         "type": "string"
       },
@@ -953,14 +971,20 @@
       "description": "The perp protocol's global configuration",
       "type": "object",
       "required": [
+        "address_provider",
         "base_denom",
         "cooldown_period",
         "credit_manager",
         "max_positions",
         "oracle",
-        "params"
+        "params",
+        "protocol_fee_rate"
       ],
       "properties": {
+        "address_provider": {
+          "description": "Address provider returns addresses for all protocol contracts",
+          "type": "string"
+        },
         "base_denom": {
           "description": "The token used to settle perp trades.\n\nTypically, this is be a stablecoin such as USDC (more precisely, the IBC voucher denom of USDC).\n\nLiquidity providers deposit this token to the vault. Traders deposit this token as collateral when opening perp positions.\n\nWhen closing a winning perp position (one that has a positive unrealized PnL), this token (of the amount corresponding to the PnL) is transferred from the vault to the user's credit account, together with the originally deposited collateral.\n\nConversely, when closing a losing position, this token (of amount corresponding to the PnL) is transferred from the user's position to the vault. The remaining amount is refunded to the uesr's credit account.",
           "type": "string"
@@ -996,10 +1020,22 @@
               "$ref": "#/definitions/ParamsBase_for_String"
             }
           ]
+        },
+        "protocol_fee_rate": {
+          "description": "The percentage of fees that is directed to the protocol",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
         }
       },
       "additionalProperties": false,
       "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
         "OracleBase_for_String": {
           "type": "string"
         },

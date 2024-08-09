@@ -6,6 +6,8 @@ use cosmwasm_std::{
 };
 use cw_utils::{may_pay, must_pay};
 use mars_types::{
+    address_provider,
+    address_provider::MarsAddressType,
     oracle::ActionKind,
     perps::{CashFlow, Config, DenomState, PnL, PnlAmounts, Position},
     signed_uint::SignedUint,
@@ -98,6 +100,12 @@ pub fn open_position(
         });
     }
 
+    let rewards_collector_addr = address_provider::helpers::query_contract_addr(
+        deps.as_ref(),
+        &cfg.address_provider,
+        MarsAddressType::RewardsCollector,
+    )?;
+
     // Params for the given market
     let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
 
@@ -133,13 +141,28 @@ pub fn open_position(
     // Funding rates and index is updated to the current block time (using old size).
     ds.open_position(env.block.time.seconds(), size, denom_price, base_denom_price)?;
 
+    let mut res = Response::new();
+    let mut msgs: Vec<CosmosMsg> = vec![];
+
+    let mut realized_pnl = PnlAmounts::default();
+
     // update realized PnL with opening fee
     if !opening_fee_amt.is_zero() {
-        let mut realized_pnl =
-            REALIZED_PNL.may_load(deps.storage, (&account_id, &denom))?.unwrap_or_default();
         let mut tcf = TOTAL_CASH_FLOW.may_load(deps.storage)?.unwrap_or_default();
 
-        apply_opening_fee_to_realized_pnl(&mut realized_pnl, &mut ds, &mut tcf, opening_fee_amt)?;
+        // Create unrealized pnl
+        let unrealized_pnl = PnlAmounts::from_opening_fee(opening_fee_amt)?;
+
+        res = apply_pnl_and_fees(
+            &cfg,
+            &rewards_collector_addr,
+            &mut ds,
+            &mut tcf,
+            &mut realized_pnl,
+            &unrealized_pnl,
+            res,
+            &mut msgs,
+        )?;
 
         REALIZED_PNL.save(deps.storage, (&account_id, &denom), &realized_pnl)?;
         TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
@@ -162,11 +185,12 @@ pub fn open_position(
                 .funding
                 .last_funding_accrued_per_unit_in_base_denom,
             initial_skew,
-            realized_pnl: PnlAmounts::from_opening_fee(opening_fee_amt)?,
+            realized_pnl,
         },
     )?;
 
-    Ok(Response::new()
+    Ok(res
+        .add_messages(msgs)
         .add_attribute("action", "open_position")
         .add_attribute("account_id", account_id)
         .add_attribute("denom", denom)
@@ -219,6 +243,12 @@ fn update_position_state(
         REALIZED_PNL.may_load(deps.storage, (&account_id, &denom))?.unwrap_or_default();
     let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
     let mut tcf = TOTAL_CASH_FLOW.may_load(deps.storage)?.unwrap_or_default();
+
+    let rewards_collector_addr = address_provider::helpers::query_contract_addr(
+        deps.as_ref(),
+        &cfg.address_provider,
+        MarsAddressType::RewardsCollector,
+    )?;
 
     let entry_size = position.size;
 
@@ -344,11 +374,21 @@ fn update_position_state(
     // Convert PnL amounts to coins
     let pnl = pnl_amounts.to_coins(&cfg.base_denom).pnl;
 
+    let mut res = Response::new();
     let mut msgs = vec![];
 
-    apply_payment_to_cm_if_needed(cfg, &mut msgs, paid_amount, &pnl)?;
+    apply_payment_to_cm_if_needed(&cfg, &mut msgs, paid_amount, &pnl)?;
 
-    apply_new_amounts_to_realized_pnl(&mut realized_pnl, &mut ds, &mut tcf, &pnl_amounts)?;
+    res = apply_pnl_and_fees(
+        &cfg,
+        &rewards_collector_addr,
+        &mut ds,
+        &mut tcf,
+        &mut realized_pnl,
+        &pnl_amounts,
+        res,
+        &mut msgs,
+    )?;
 
     // Modify or delete position states
     let method = if new_size.is_zero() {
@@ -387,7 +427,7 @@ fn update_position_state(
     DENOM_STATES.save(deps.storage, &denom, &ds)?;
     TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
 
-    Ok(Response::new()
+    Ok(res
         .add_messages(msgs)
         .add_attribute("action", method)
         .add_attribute("account_id", account_id)
@@ -399,30 +439,79 @@ fn update_position_state(
         .add_attribute("realised_pnl", pnl.to_string()))
 }
 
-/// Update realized PnL accumulators with opening fee
-fn apply_opening_fee_to_realized_pnl(
-    realized_pnl: &mut PnlAmounts,
+fn apply_pnl_and_fees(
+    cfg: &Config<Addr>,
+    rewards_collector: &Addr,
     ds: &mut DenomState,
     tcf: &mut CashFlow,
-    opening_fee_amt: Uint128,
-) -> ContractResult<()> {
-    realized_pnl.add_opening_fee(opening_fee_amt)?;
-    ds.cash_flow.add_opening_fee(opening_fee_amt)?;
-    tcf.add_opening_fee(opening_fee_amt)?;
-    Ok(())
-}
+    realized_pnl: &mut PnlAmounts,
+    unrealized_pnl: &PnlAmounts,
+    response: Response,
+    msgs: &mut Vec<CosmosMsg>,
+) -> ContractResult<Response> {
+    // Update realized pnl with total fees
+    realized_pnl.add(unrealized_pnl)?;
 
-/// Update realized PnL accumulators with new PnL amounts
-fn apply_new_amounts_to_realized_pnl(
-    realized_pnl: &mut PnlAmounts,
-    ds: &mut DenomState,
-    tcf: &mut CashFlow,
-    pnl_amouts: &PnlAmounts,
-) -> ContractResult<()> {
-    realized_pnl.add(pnl_amouts)?;
-    ds.cash_flow.add(pnl_amouts)?;
-    tcf.add(pnl_amouts)?;
-    Ok(())
+    // Protocol fee is calculated on the opening and closing fee charged to the user
+    // The calculation is rounded up in favour of the protocol
+    // Absolute values are used, as unrealized opening/closing fee are a cost (negative) to
+    // the user, but a revenue (positive) to the protocol
+    let protocol_opening_fee =
+        unrealized_pnl.opening_fee.abs.checked_mul_ceil(cfg.protocol_fee_rate)?;
+    let protocol_closing_fee =
+        unrealized_pnl.closing_fee.abs.checked_mul_ceil(cfg.protocol_fee_rate)?;
+
+    let total_protocol_fee = protocol_opening_fee + protocol_closing_fee;
+
+    if !total_protocol_fee.is_zero() {
+        // Create message to send protocol fee to rewards collector
+        let msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: rewards_collector.into(),
+            amount: coins(total_protocol_fee.u128(), &cfg.base_denom),
+        });
+
+        msgs.push(msg);
+    }
+
+    // Example calculation for pnl without protocol fee:
+    // opening_fee = -2
+    // closing_fee = -4
+    // price_pnl = 10
+    // funding = -1
+    // pnl = opening_fee + closing_fee + funding + price_pnl = -3
+    //
+    // protocol_fee_rate = 50%
+    //
+    // opening_fee = -1
+    // closing_fee = -2
+    // price_pnl = 10
+    // funding = -1
+    // protocol_opening_fee = 1
+    // protocol_closing_fee = 2
+    // total_protocol_fee = 3
+    // pnl_without_protocol = -6
+    //
+    // pnl - protocol_opening_fee - protocol_closing_fee = -3 - 1 - 2 = -6 which is equal to pnl_without_protocol
+
+    let pnl_without_protocol_fee = PnlAmounts {
+        opening_fee: unrealized_pnl.opening_fee.checked_add(protocol_opening_fee.into())?,
+        closing_fee: unrealized_pnl.closing_fee.checked_add(protocol_closing_fee.into())?,
+        pnl: unrealized_pnl
+            .pnl
+            .checked_sub(protocol_opening_fee.into())?
+            .checked_sub(protocol_closing_fee.into())?,
+        ..unrealized_pnl.clone()
+    };
+
+    // Apply pnl to denom cash flow (without protocol fee)
+    ds.cash_flow.add(&pnl_without_protocol_fee)?;
+
+    // Apply pnl to total cash flow (without protocol fee)
+    tcf.add(&pnl_without_protocol_fee)?;
+
+    Ok(response
+        .add_attribute("protocol_opening_fee", protocol_opening_fee.to_string())
+        .add_attribute("protocol_closing_fee", protocol_closing_fee.to_string()))
 }
 
 /// Compute how many coins should be sent to the credit account.
@@ -515,6 +604,7 @@ pub fn close_all_positions(
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
 
+    let mut res = Response::new();
     let mut pnl_amounts_accumulator = PnlAmounts::default();
     for (denom, position) in account_positions {
         let mut realized_pnl =
@@ -544,9 +634,19 @@ pub fn close_all_positions(
             perp_params.closing_fee_rate,
             PositionModification::Decrease(position.size),
         )?;
+
         pnl_amounts_accumulator.add(&pnl_amounts)?;
 
-        apply_new_amounts_to_realized_pnl(&mut realized_pnl, &mut ds, &mut tcf, &pnl_amounts)?;
+        res = apply_pnl_and_fees(
+            &cfg,
+            &cfg.credit_manager,
+            &mut ds,
+            &mut tcf,
+            &mut realized_pnl,
+            &pnl_amounts,
+            res,
+            &mut vec![],
+        )?;
 
         // Remove the position
         POSITIONS.remove(deps.storage, (&account_id, &denom));
@@ -561,11 +661,11 @@ pub fn close_all_positions(
 
     let mut msgs = vec![];
 
-    apply_payment_to_cm_if_needed(cfg, &mut msgs, paid_amount, &pnl)?;
+    apply_payment_to_cm_if_needed(&cfg, &mut msgs, paid_amount, &pnl)?;
 
     TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
 
-    Ok(Response::new()
+    Ok(res
         .add_messages(msgs)
         .add_attribute("action", "close_all_positions")
         .add_attribute("account_id", account_id)
@@ -573,7 +673,7 @@ pub fn close_all_positions(
 }
 
 fn apply_payment_to_cm_if_needed(
-    cfg: Config<Addr>,
+    cfg: &Config<Addr>,
     msgs: &mut Vec<CosmosMsg>,
     paid_amount: Uint128,
     pnl: &PnL,
@@ -582,8 +682,8 @@ fn apply_payment_to_cm_if_needed(
     if !payment_amount.is_zero() {
         // send coins to credit manager
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: cfg.credit_manager.into(),
-            amount: coins(payment_amount.u128(), cfg.base_denom),
+            to_address: cfg.credit_manager.clone().into(),
+            amount: coins(payment_amount.u128(), &cfg.base_denom),
         });
         msgs.push(send_msg);
     }

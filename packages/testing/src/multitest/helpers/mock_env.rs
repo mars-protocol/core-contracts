@@ -66,6 +66,7 @@ use mars_types::{
         QueryMsg::{UserCollateral, UserDebt},
         UserCollateralResponse, UserDebtResponse,
     },
+    rewards_collector,
     signed_uint::SignedUint,
     swapper::{
         EstimateExactInSwapResponse, InstantiateMsg as SwapperInstantiateMsg,
@@ -84,7 +85,10 @@ use super::{
     mock_red_bank_contract, mock_rover_contract, mock_swapper_contract, mock_v2_zapper_contract,
     mock_vault_contract, AccountToFund, CoinInfo, VaultTestInfo, ASTRO_LP_DENOM,
 };
-use crate::multitest::modules::token_factory::{CustomApp, TokenFactory};
+use crate::{
+    integration::mock_contracts::mock_rewards_collector_osmosis_contract,
+    multitest::modules::token_factory::{CustomApp, TokenFactory},
+};
 
 pub const DEFAULT_RED_BANK_COIN_BALANCE: Uint128 = Uint128::new(1_000_000);
 
@@ -1198,6 +1202,7 @@ impl MockEnvBuilder {
         let health_contract = self.get_health_contract().into();
         let params = self.get_params_contract().into();
 
+        self.deploy_rewards_collector();
         self.deploy_astroport_incentives();
 
         let addr = self
@@ -1352,6 +1357,7 @@ impl MockEnvBuilder {
     fn deploy_perps_contract(&mut self, cm_addr: &Addr) -> Perps {
         let contract_code_id = self.app.store_code(mock_perps_contract());
         let owner = self.get_owner();
+        let address_provider = self.get_address_provider();
 
         let addr = self
             .app
@@ -1359,12 +1365,14 @@ impl MockEnvBuilder {
                 contract_code_id,
                 owner.clone(),
                 &PerpsInstantiateMsg {
+                    address_provider: address_provider.into(),
                     credit_manager: cm_addr.to_string(),
                     oracle: self.oracle.clone().unwrap().into(),
                     params: self.params.clone().unwrap().into(),
                     base_denom: "uusdc".to_string(),
                     cooldown_period: 360,
                     max_positions: 4,
+                    protocol_fee_rate: Decimal::percent(0),
                 },
                 &[],
                 "mock-perps-contract",
@@ -1550,6 +1558,38 @@ impl MockEnvBuilder {
             .unwrap();
 
         vault_addr
+    }
+
+    fn deploy_rewards_collector(&mut self) -> Addr {
+        let code_id = self.app.store_code(mock_rewards_collector_osmosis_contract());
+        let owner = self.get_owner();
+        let address_provider = self.get_address_provider();
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                code_id,
+                owner.clone(),
+                &rewards_collector::InstantiateMsg {
+                    owner: owner.clone().to_string(),
+                    address_provider: address_provider.to_string(),
+                    safety_tax_rate: Default::default(),
+                    safety_fund_denom: "safety-fund-denom".to_string(),
+                    fee_collector_denom: "fee-collector-denom".to_string(),
+                    channel_id: "".to_string(),
+                    timeout_seconds: 1,
+                    slippage_tolerance: Default::default(),
+                    neutron_ibc_config: None,
+                },
+                &[],
+                "mock-rewards-collector",
+                None,
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::RewardsCollector, addr.clone());
+
+        addr
     }
 
     fn deploy_swapper(&mut self) -> Swapper {
