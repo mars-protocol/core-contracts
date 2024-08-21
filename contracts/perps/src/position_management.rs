@@ -580,6 +580,12 @@ pub fn close_all_positions(
     // Only the credit manager contract can adjust positions
     ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
 
+    let rewards_collector_addr = address_provider::helpers::query_contract_addr(
+        deps.as_ref(),
+        &cfg.address_provider,
+        MarsAddressType::RewardsCollector,
+    )?;
+
     // Read all positions for the account
     let account_positions: Vec<_> = {
         // Collect all positions for the account to avoid problems with mutable/immutable borrows in the same scope
@@ -604,6 +610,7 @@ pub fn close_all_positions(
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
 
+    let mut msgs = vec![];
     let mut res = Response::new();
     let mut pnl_amounts_accumulator = PnlAmounts::default();
     for (denom, position) in account_positions {
@@ -639,13 +646,13 @@ pub fn close_all_positions(
 
         res = apply_pnl_and_fees(
             &cfg,
-            &cfg.credit_manager,
+            &rewards_collector_addr,
             &mut ds,
             &mut tcf,
             &mut realized_pnl,
             &pnl_amounts,
             res,
-            &mut vec![],
+            &mut msgs,
         )?;
 
         // Remove the position
@@ -658,8 +665,6 @@ pub fn close_all_positions(
 
     // Convert PnL amounts to coins
     let pnl = pnl_amounts_accumulator.to_coins(&cfg.base_denom).pnl;
-
-    let mut msgs = vec![];
 
     apply_payment_to_cm_if_needed(&cfg, &mut msgs, paid_amount, &pnl)?;
 
