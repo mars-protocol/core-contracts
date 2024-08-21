@@ -44,7 +44,7 @@ pub fn max_swap_prop_test_runner(cases: u32, kind: &SwapKind) {
                 let to_denom = h.asset_params.keys().nth(1).unwrap();
 
                 let max_swap = h
-                    .max_swap_amount_estimate(from_denom, to_denom, kind, Decimal::zero())
+                    .max_swap_amount_estimate(from_denom, to_denom, kind, Decimal::zero(), false)
                     .unwrap();
 
                 let health_before = h.compute_health().unwrap();

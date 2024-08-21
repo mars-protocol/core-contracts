@@ -12,7 +12,7 @@ export default function usePositions(accountId: string) {
       const result = await clients?.creditManager.positions({ accountId })
       if (chainConfig.addresses?.perps) return result
 
-      return { ...result, perps: [] }
+      return { ...result, perps: [], account_kind: 'default', staked_astro_lps: [] }
     },
     {
       revalidateOnFocus: false,

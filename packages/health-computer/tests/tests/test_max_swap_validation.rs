@@ -67,7 +67,13 @@ fn missing_price_data() {
     };
 
     let err: HealthError = h
-        .max_swap_amount_estimate(&udai.denom, &umars.denom, &SwapKind::Default, Decimal::zero())
+        .max_swap_amount_estimate(
+            &udai.denom,
+            &umars.denom,
+            &SwapKind::Default,
+            Decimal::zero(),
+            false,
+        )
         .unwrap_err();
     assert_eq!(err, HealthError::MissingPrice(udai.denom));
 }
@@ -124,7 +130,13 @@ fn missing_params() {
     };
 
     let res = h
-        .max_swap_amount_estimate(&umars.denom, &udai.denom, &SwapKind::Default, Decimal::zero())
+        .max_swap_amount_estimate(
+            &umars.denom,
+            &udai.denom,
+            &SwapKind::Default,
+            Decimal::zero(),
+            false,
+        )
         .unwrap();
     assert_eq!(res, Uint128::zero());
 }
@@ -168,7 +180,7 @@ fn deposit_not_present() {
     };
 
     let max_withdraw_amount = h
-        .max_swap_amount_estimate("xyz", &udai.denom, &SwapKind::Default, Decimal::zero())
+        .max_swap_amount_estimate("xyz", &udai.denom, &SwapKind::Default, Decimal::zero(), false)
         .unwrap();
     assert_eq!(max_withdraw_amount, Uint128::zero());
 }
@@ -229,7 +241,13 @@ fn zero_when_unhealthy() {
     let health = h.compute_health().unwrap();
     assert!(health.max_ltv_health_factor < Some(Decimal::one()));
     let max_swap_amount = h
-        .max_swap_amount_estimate(&udai.denom, &umars.denom, &SwapKind::Default, Decimal::zero())
+        .max_swap_amount_estimate(
+            &udai.denom,
+            &umars.denom,
+            &SwapKind::Default,
+            Decimal::zero(),
+            false,
+        )
         .unwrap();
     assert_eq!(Uint128::zero(), max_swap_amount);
 }
@@ -279,7 +297,13 @@ fn no_debts() {
     };
 
     let max_swap_amount = h
-        .max_swap_amount_estimate(&ustars.denom, &umars.denom, &SwapKind::Default, Decimal::zero())
+        .max_swap_amount_estimate(
+            &ustars.denom,
+            &umars.denom,
+            &SwapKind::Default,
+            Decimal::zero(),
+            false,
+        )
         .unwrap();
     assert_eq!(deposit_amount, max_swap_amount);
 }
@@ -334,7 +358,13 @@ fn should_allow_max_swap() {
 
     // Max when debt value is smaller than collateral value - withdraw denom value
     let max_swap_amount = h
-        .max_swap_amount_estimate(&udai.denom, &umars.denom, &SwapKind::Default, Decimal::zero())
+        .max_swap_amount_estimate(
+            &udai.denom,
+            &umars.denom,
+            &SwapKind::Default,
+            Decimal::zero(),
+            false,
+        )
         .unwrap();
     assert_eq!(deposit_amount, max_swap_amount);
 }
@@ -420,11 +450,23 @@ fn hls_with_max_withdraw() {
     };
 
     let max_before = h
-        .max_swap_amount_estimate(&ustars.denom, &uatom.denom, &SwapKind::Default, Decimal::zero())
+        .max_swap_amount_estimate(
+            &ustars.denom,
+            &uatom.denom,
+            &SwapKind::Default,
+            Decimal::zero(),
+            false,
+        )
         .unwrap();
     h.kind = AccountKind::HighLeveredStrategy;
     let max_after = h
-        .max_swap_amount_estimate(&ustars.denom, &uatom.denom, &SwapKind::Default, Decimal::zero())
+        .max_swap_amount_estimate(
+            &ustars.denom,
+            &uatom.denom,
+            &SwapKind::Default,
+            Decimal::zero(),
+            false,
+        )
         .unwrap();
     assert!(max_after > max_before)
 }

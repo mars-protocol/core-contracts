@@ -36,10 +36,17 @@ pub fn max_swap_estimate_js(
     to_denom: String,
     kind: SwapKind,
     slippage: Number,
+    is_repaying_debt: bool,
 ) -> String {
-    c.max_swap_amount_estimate(&from_denom, &to_denom, &kind, slippage.as_decimal())
-        .unwrap()
-        .to_string()
+    c.max_swap_amount_estimate(
+        &from_denom,
+        &to_denom,
+        &kind,
+        slippage.as_decimal(),
+        is_repaying_debt,
+    )
+    .unwrap()
+    .to_string()
 }
 
 #[wasm_bindgen]

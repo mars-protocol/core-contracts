@@ -13,6 +13,7 @@ export function max_swap_estimate_js(
   f: number,
   g: number,
   h: number,
+  i: number,
 ): void
 export function liquidation_price_js(a: number, b: number, c: number, d: number, e: number): void
 export function max_perp_size_estimate_js(

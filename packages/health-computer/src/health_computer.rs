@@ -124,75 +124,77 @@ impl HealthComputer {
             return Ok(Uint128::zero());
         };
 
-        let params = self
-            .asset_params
-            .get(withdraw_denom)
-            .ok_or(MissingAssetParams(withdraw_denom.to_string()))?;
+        let params = self.asset_params.get(withdraw_denom);
 
-        // If no debt or coin is blacklisted (meaning does not contribute to max ltv hf),
-        // the total amount deposited can be withdrawn
-        if (self.positions.debts.is_empty() && self.positions.perps.is_empty())
-            || !params.credit_manager.whitelisted
-        {
-            return Ok(withdraw_coin.amount);
-        }
+        match params {
+            None => Ok(withdraw_coin.amount),
+            Some(params) => {
+                // If no debt or coin is blacklisted (meaning does not contribute to max ltv hf),
+                // the total amount deposited can be withdrawn
+                if (self.positions.debts.is_empty() && self.positions.perps.is_empty())
+                    || !params.credit_manager.whitelisted
+                {
+                    return Ok(withdraw_coin.amount);
+                }
 
-        // withdraw denom max ltv adjusted value = total max ltv adjusted value - debt value - perp_denominator + perp_numerator
-        let total_max_ltv_adjusted_value =
-            self.total_collateral_value()?.max_ltv_adjusted_collateral;
-        let debt_value = self.spot_debt_value()?;
+                // withdraw denom max ltv adjusted value = total max ltv adjusted value - debt value - perp_denominator + perp_numerator
+                let total_max_ltv_adjusted_value =
+                    self.total_collateral_value()?.max_ltv_adjusted_collateral;
+                let debt_value = self.spot_debt_value()?;
 
-        let withdraw_denom_price = *self
-            .oracle_prices
-            .get(withdraw_denom)
-            .ok_or(MissingPrice(withdraw_denom.to_string()))?;
+                let withdraw_denom_price = *self
+                    .oracle_prices
+                    .get(withdraw_denom)
+                    .ok_or(MissingPrice(withdraw_denom.to_string()))?;
 
-        let withdraw_denom_max_ltv = match self.kind {
-            AccountKind::Default => params.max_loan_to_value,
-            AccountKind::FundManager {
-                ..
-            } => params.max_loan_to_value,
-            AccountKind::HighLeveredStrategy => {
-                params
-                    .credit_manager
-                    .hls
-                    .as_ref()
-                    .ok_or(MissingHLSParams(withdraw_denom.to_string()))?
-                    .max_loan_to_value
+                let withdraw_denom_max_ltv = match self.kind {
+                    AccountKind::Default => params.max_loan_to_value,
+                    AccountKind::FundManager {
+                        ..
+                    } => params.max_loan_to_value,
+                    AccountKind::HighLeveredStrategy => {
+                        params
+                            .credit_manager
+                            .hls
+                            .as_ref()
+                            .ok_or(MissingHLSParams(withdraw_denom.to_string()))?
+                            .max_loan_to_value
+                    }
+                };
+
+                let PerpHealthFactorValues {
+                    max_ltv_denominator: perp_denominator,
+                    max_ltv_numerator: perp_numerator,
+                    ..
+                } = self.perp_health_factor_values(&self.positions.perps)?;
+
+                let one = Uint128::one();
+                let numerator = total_max_ltv_adjusted_value.checked_add(perp_numerator)?;
+                let denominator = debt_value.checked_add(perp_denominator)?;
+
+                if !numerator.is_zero() && !denominator.is_zero() {
+                    let hf = Decimal::checked_from_ratio(numerator, denominator)?;
+
+                    if hf.le(&Decimal::one()) {
+                        return Ok(Uint128::zero());
+                    }
+                }
+
+                // The max withdraw amount is calculated as:
+                // withdraw denom max ltv adjusted value = total max ltv adjusted value  + perp_numerator - debt value - perp_denominator
+                let max_withdraw_value = total_max_ltv_adjusted_value
+                    .checked_add(perp_numerator)?
+                    .checked_sub(debt_value)?
+                    .checked_sub(perp_denominator)?
+                    .checked_sub(one)?;
+
+                // The above is the raw value, now we need to factor in price and LTV impact
+                let max_withdraw_amount = max_withdraw_value
+                    .checked_div_floor(withdraw_denom_price.checked_mul(withdraw_denom_max_ltv)?)?;
+
+                Ok(min(max_withdraw_amount, withdraw_coin.amount))
             }
-        };
-
-        let PerpHealthFactorValues {
-            max_ltv_denominator: perp_denominator,
-            max_ltv_numerator: perp_numerator,
-            ..
-        } = self.perp_health_factor_values(&self.positions.perps)?;
-
-        let one = Uint128::one();
-        let numerator = total_max_ltv_adjusted_value.checked_add(perp_numerator)?;
-        let denominator = debt_value.checked_add(perp_denominator)?;
-
-        if !numerator.is_zero() && !denominator.is_zero() {
-            let hf = Decimal::checked_from_ratio(numerator, denominator)?;
-
-            if hf.le(&Decimal::one()) {
-                return Ok(Uint128::zero());
-            }
         }
-
-        // The max withdraw amount is calculated as:
-        // withdraw denom max ltv adjusted value = total max ltv adjusted value  + perp_numerator - debt value - perp_denominator
-        let max_withdraw_value = total_max_ltv_adjusted_value
-            .checked_add(perp_numerator)?
-            .checked_sub(debt_value)?
-            .checked_sub(perp_denominator)?
-            .checked_sub(one)?;
-
-        // The above is the raw value, now we need to factor in price and LTV impact
-        let max_withdraw_amount = max_withdraw_value
-            .checked_div_floor(withdraw_denom_price.checked_mul(withdraw_denom_max_ltv)?)?;
-
-        Ok(min(max_withdraw_amount, withdraw_coin.amount))
     }
 
     pub fn max_swap_amount_estimate(
@@ -201,15 +203,18 @@ impl HealthComputer {
         to_denom: &str,
         kind: &SwapKind,
         slippage: Decimal,
+        is_repaying_debt: bool,
     ) -> HealthResult<Uint128> {
         // Both deposits and lends should be considered, as the funds can automatically be un-lent and
         // and also used to swap.
         let from_coin = self.get_coin_from_deposits_and_lends(from_denom)?;
 
         // If no debt the total amount deposited can be swapped (only for default swaps)
-        if kind == &SwapKind::Default
+        // If repaying debt, the total amount deposited can be swapped
+        if (kind == &SwapKind::Default
             && self.positions.debts.is_empty()
-            && self.positions.perps.is_empty()
+            && self.positions.perps.is_empty())
+            || is_repaying_debt
         {
             return Ok(from_coin.amount);
         }
@@ -246,13 +251,8 @@ impl HealthComputer {
         let from_ltv = self.get_coin_max_ltv(from_denom)?;
         let to_ltv = self.get_coin_max_ltv(to_denom)?;
 
-        // Don't allow swapping when one of the assets is not whitelisted
-        if from_ltv == Decimal::zero() || to_ltv == Decimal::zero() {
-            return Ok(Uint128::zero());
-        }
-
-        let from_price =
-            self.oracle_prices.get(from_denom).ok_or(MissingPrice(from_denom.to_string()))?;
+        let zero = Decimal::zero();
+        let from_price = self.oracle_prices.get(from_denom).unwrap_or(&zero);
 
         // An asset that has a price of 1 and max ltv of 0.5 has a collateral_value of 0.5.
         // Swapping that asset for an asset with the same price, but 0.8 max ltv results in a collateral_value of 0.8.
@@ -260,6 +260,12 @@ impl HealthComputer {
         // the collateral value will increase and we can allow the full balance to be swapped.
         // The ltv_out is adjusted for slippage, as the swap_out_value can drop by the slippage.
         let to_ltv_slippage_corrected = to_ltv.checked_mul(Decimal::one() - slippage)?;
+
+        // The "trade any asset" feature allows for either or both of the assets to have an ltv of 0.
+        // The following statement catches the cases where:
+        // - If both assets ltv are 0, the full balance can be swapped
+        // - If the from_ltv is 0 the ltv will increase, so the full balance can be swapped
+        // - If the to_ltv is 0, the ltv will decrease, so we can rely on the extensive calculation below
         let swappable_amount = if to_ltv_slippage_corrected >= from_ltv {
             from_coin.amount
         } else {
@@ -1206,24 +1212,32 @@ impl HealthComputer {
     }
 
     fn get_coin_max_ltv(&self, denom: &str) -> HealthResult<Decimal> {
-        let params = self.asset_params.get(denom).ok_or(MissingAssetParams(denom.to_string()))?;
+        let params = self.asset_params.get(denom);
 
-        // If the coin has been de-listed, drop MaxLTV to zero
-        if !params.credit_manager.whitelisted {
-            return Ok(Decimal::zero());
-        }
+        match params {
+            Some(params) => {
+                // If the coin has been de-listed, drop MaxLTV to zero
+                if !params.credit_manager.whitelisted {
+                    return Ok(Decimal::zero());
+                }
 
-        match self.kind {
-            AccountKind::Default => Ok(params.max_loan_to_value),
-            AccountKind::FundManager {
-                ..
-            } => Ok(params.max_loan_to_value),
-            AccountKind::HighLeveredStrategy => Ok(params
-                .credit_manager
-                .hls
-                .as_ref()
-                .ok_or(MissingHLSParams(denom.to_string()))?
-                .max_loan_to_value),
+                match self.kind {
+                    AccountKind::Default => Ok(params.max_loan_to_value),
+                    AccountKind::FundManager {
+                        ..
+                    } => Ok(params.max_loan_to_value),
+                    AccountKind::HighLeveredStrategy => Ok(params
+                        .credit_manager
+                        .hls
+                        .as_ref()
+                        .ok_or(MissingHLSParams(denom.to_string()))?
+                        .max_loan_to_value),
+                }
+            }
+            None => {
+                // If the asset is not listed, set MaxLtv to zero
+                Ok(Decimal::zero())
+            }
         }
     }
 

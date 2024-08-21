@@ -70,7 +70,7 @@ fn missing_price_data() {
 }
 
 #[test]
-fn missing_params() {
+fn allow_when_not_listed() {
     let umars = umars_info();
     let udai = udai_info();
 
@@ -119,8 +119,8 @@ fn missing_params() {
         perps_data,
     };
 
-    let err: HealthError = h.max_withdraw_amount_estimate(&umars.denom).unwrap_err();
-    assert_eq!(err, HealthError::MissingAssetParams(umars.denom));
+    let amount = h.max_withdraw_amount_estimate(&umars.denom).unwrap();
+    assert_eq!(amount, Uint128::new(1200));
 }
 
 #[test]
