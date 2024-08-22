@@ -4,7 +4,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use mars_types::{
     adapters::vault::VAULT_REQUEST_REPLY_ID,
-    credit_manager::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
+    credit_manager::{ExecuteMsg, InstantiateMsg, QueryMsg},
     oracle::ActionKind,
 };
 
@@ -12,7 +12,6 @@ use crate::{
     error::{ContractError, ContractResult},
     execute::{create_credit_account, dispatch_actions, execute_callback},
     instantiate::store_config,
-    migrations,
     query::{
         query_accounts, query_all_coin_balances, query_all_debt_shares,
         query_all_total_debt_shares, query_all_vault_positions, query_all_vault_utilizations,
@@ -50,12 +49,8 @@ pub fn execute(
 ) -> ContractResult<Response> {
     match msg {
         ExecuteMsg::CreateCreditAccount(kind) => {
-            create_credit_account(&mut deps, info.sender, kind, None).map(|res| res.1)
+            create_credit_account(&mut deps, info.sender, kind).map(|res| res.1)
         }
-        ExecuteMsg::CreateCreditAccountV2 {
-            kind,
-            account_id,
-        } => create_credit_account(&mut deps, info.sender, kind, account_id).map(|res| res.1),
         ExecuteMsg::UpdateConfig {
             updates,
         } => update_config(deps, env, info, updates),
@@ -145,12 +140,4 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         } => to_json_binary(&query_vault_bindings(deps, start_after, limit)?),
     };
     res.map_err(Into::into)
-}
-
-#[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> ContractResult<Response> {
-    match msg {
-        MigrateMsg::V1_0_0ToV2_0_0(updates) => migrations::v2_0_0::migrate(deps, env, updates),
-        MigrateMsg::V2_0_2ToV2_0_3 {} => migrations::v2_0_3::migrate(deps),
-    }
 }

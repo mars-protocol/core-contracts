@@ -93,7 +93,7 @@ pub fn open_position(
     }
 
     // each account can only have one position for a denom at the same time
-    if positions.get(&denom).is_some() {
+    if positions.contains_key(&denom) {
         return Err(ContractError::PositionExists {
             account_id,
             denom,

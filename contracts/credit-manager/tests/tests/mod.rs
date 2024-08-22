@@ -25,7 +25,6 @@ mod test_liquidate_lend;
 mod test_liquidate_staked_astro_lp;
 mod test_liquidate_vault;
 mod test_liquidation_pricing;
-mod test_migration_v2;
 mod test_no_health_check;
 mod test_perp;
 mod test_perp_vault;
