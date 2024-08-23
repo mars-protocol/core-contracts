@@ -70,6 +70,7 @@ export type ExecuteMsg =
         limit?: number | null
         start_after_collateral_denom?: string | null
         start_after_incentive_denom?: string | null
+        start_after_kind?: IncentiveKind | null
       }
     }
 export type OwnerUpdate =
@@ -235,6 +236,7 @@ export type SwapperRoute =
   | {
       osmo: OsmoRoute
     }
+export type IncentiveKind = 'red_bank' | 'perp_vault'
 export interface UpdateConfig {
   address_provider?: string | null
   channel_id?: string | null

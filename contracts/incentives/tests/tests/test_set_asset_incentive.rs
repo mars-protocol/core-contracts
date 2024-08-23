@@ -9,7 +9,11 @@ use mars_incentives::{
     ContractError,
 };
 use mars_testing::MockEnvParams;
-use mars_types::{incentives::ExecuteMsg, red_bank::Market};
+use mars_types::{
+    incentives::{ExecuteMsg, IncentiveKind},
+    keys::{IncentiveId, IncentiveIdKey, IncentiveKindKey},
+    red_bank::Market,
+};
 use mars_utils::error::ValidationError;
 
 use super::helpers::{
@@ -24,7 +28,8 @@ fn invalid_denom_for_incentives() {
 
     let info = mock_info("owner", &[]);
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "adfnjg&akjsfn!".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "adfnjg&akjsfn!".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::new(100),
         start_time: 1682000400,
@@ -50,7 +55,8 @@ fn cannot_set_new_asset_incentive_with_time_earlier_than_current_time() {
     th_whitelist_denom(deps.as_mut(), "umars");
 
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::from(420u128),
         start_time: env.block.time.seconds() - 1u64,
@@ -74,7 +80,8 @@ fn cannot_set_new_asset_incentive_with_emission_less_than_minimum() {
     th_whitelist_denom(deps.as_mut(), "umars");
 
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::zero(),
         start_time: env.block.time.seconds(),
@@ -95,7 +102,8 @@ fn cannot_set_new_asset_incentive_with_zero_duration() {
     th_whitelist_denom(deps.as_mut(), "umars");
 
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::from(1000000u32),
         start_time: env.block.time.seconds(),
@@ -119,7 +127,8 @@ fn cannot_set_new_asset_incentive_with_duration_not_divisibible_by_epoch() {
     th_whitelist_denom(deps.as_mut(), "umars");
 
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::from(1000000u32),
         start_time: env.block.time.seconds(),
@@ -138,7 +147,8 @@ fn cannot_set_new_asset_incentive_with_too_few_funds() {
     th_whitelist_denom(deps.as_mut(), "umars");
 
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::from(1000000u32),
         start_time: env.block.time.seconds(),
@@ -157,7 +167,8 @@ fn cannot_set_new_asset_incentive_with_wrong_denom() {
     th_whitelist_denom(deps.as_mut(), "umars");
 
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::from(1000000u32),
         start_time: env.block.time.seconds(),
@@ -176,7 +187,8 @@ fn cannot_set_new_asset_incentive_with_two_denoms() {
     th_whitelist_denom(deps.as_mut(), "umars");
 
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::from(1000000u32),
         start_time: env.block.time.seconds(),
@@ -207,7 +219,8 @@ fn set_new_correct_asset_incentive_works() {
         ..Default::default()
     });
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::new(100),
         start_time: block_time.seconds(),
@@ -219,7 +232,7 @@ fn set_new_correct_asset_incentive_works() {
         res.attributes,
         vec![
             attr("action", "set_asset_incentive"),
-            attr("collateral_denom", "uosmo"),
+            attr("denom", "uosmo"),
             attr("incentive_denom", "umars"),
             attr("emission_per_second", "100"),
             attr("start_time", block_time.seconds().to_string()),
@@ -227,9 +240,15 @@ fn set_new_correct_asset_incentive_works() {
         ]
     );
 
-    let incentive_state = INCENTIVE_STATES.load(deps.as_ref().storage, ("uosmo", "umars")).unwrap();
-    let emission_per_second =
-        EMISSIONS.load(deps.as_ref().storage, ("uosmo", "umars", block_time.seconds())).unwrap();
+    let kind_key = IncentiveKindKey::try_from(&IncentiveKind::RedBank).unwrap();
+    let incentive_id = IncentiveId::create(IncentiveKind::RedBank, "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
+
+    let incentive_state =
+        INCENTIVE_STATES.load(deps.as_ref().storage, (&kind_key, "uosmo", "umars")).unwrap();
+    let emission_per_second = EMISSIONS
+        .load(deps.as_ref().storage, (&incentive_id_key, "umars", block_time.seconds()))
+        .unwrap();
 
     assert_eq!(incentive_state.index, Decimal::zero());
     assert_eq!(incentive_state.last_updated, 1_000_000);
@@ -261,7 +280,8 @@ fn can_only_set_new_incentive_with_start_time_multiple_of_epoch_duration_from_cu
 
     // First set one incentive schedule
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::from(100u32),
         start_time: env.block.time.seconds(),
@@ -272,7 +292,8 @@ fn can_only_set_new_incentive_with_start_time_multiple_of_epoch_duration_from_cu
 
     // Then try to set another incentive schedule with start time not multiple of epoch duration
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::from(100u32),
         start_time: env.block.time.seconds() + 1,
@@ -290,7 +311,8 @@ fn can_only_set_new_incentive_with_start_time_multiple_of_epoch_duration_from_cu
 
     // Set another incentive schedule with start time multiple of epoch duration, should work
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::from(100u32),
         start_time: env.block.time.seconds() + epoch_duration,
@@ -321,7 +343,8 @@ fn set_asset_incentive_merges_schedules() {
     let info = mock_info("user1", &[coin(base_eps * incentive_duration as u128, "umars")]);
     let start_time = env.block.time.seconds();
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::new(base_eps),
         start_time,
@@ -332,7 +355,7 @@ fn set_asset_incentive_merges_schedules() {
         res.attributes,
         vec![
             attr("action", "set_asset_incentive"),
-            attr("collateral_denom", "uosmo"),
+            attr("denom", "uosmo"),
             attr("incentive_denom", "umars"),
             attr("emission_per_second", base_eps.to_string()),
             attr("start_time", start_time.to_string()),
@@ -346,11 +369,15 @@ fn set_asset_incentive_merges_schedules() {
         .range(&deps.storage, None, None, cosmwasm_std::Order::Ascending)
         .collect::<StdResult<Vec<_>>>()
         .unwrap();
+
+    let incentive_id = IncentiveId::create(IncentiveKind::RedBank, "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
+
     assert!(emissions.len() == 5);
     for (i, emission) in emissions.iter().enumerate() {
         assert_eq!(
             emission.0,
-            ("uosmo".to_string(), "umars".to_string(), start_time + i as u64 * epoch_duration)
+            (incentive_id_key.clone(), "umars".to_string(), start_time + i as u64 * epoch_duration)
         );
         assert_eq!(emission.1, Uint128::new(base_eps));
     }
@@ -360,7 +387,8 @@ fn set_asset_incentive_merges_schedules() {
     let new_eps = 200u128;
     let info = mock_info("user2", &[coin(new_eps * incentive_duration as u128, "umars")]);
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::new(new_eps),
         start_time: start_time + epoch_duration,
@@ -371,7 +399,7 @@ fn set_asset_incentive_merges_schedules() {
         res.attributes,
         vec![
             attr("action", "set_asset_incentive"),
-            attr("collateral_denom", "uosmo"),
+            attr("denom", "uosmo"),
             attr("incentive_denom", "umars"),
             attr("emission_per_second", new_eps.to_string()),
             attr("start_time", (start_time + epoch_duration).to_string()),
@@ -402,7 +430,8 @@ fn set_asset_incentive_merges_schedules() {
     let new_eps = 300u128;
     let info = mock_info("user3", &[coin(new_eps * incentive_duration as u128, "umars")]);
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::new(new_eps),
         start_time: start_time + epoch_duration * 4,
@@ -413,7 +442,7 @@ fn set_asset_incentive_merges_schedules() {
         res.attributes,
         vec![
             attr("action", "set_asset_incentive"),
-            attr("collateral_denom", "uosmo"),
+            attr("denom", "uosmo"),
             attr("incentive_denom", "umars"),
             attr("emission_per_second", new_eps.to_string()),
             attr("start_time", (start_time + epoch_duration * 4).to_string()),
@@ -466,7 +495,8 @@ fn incorrect_denom_deposit() {
     let info = mock_info("user1", &[coin(total_emissions, false_incentive_denom)]);
     let start_time = env.block.time.seconds();
     let msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: collateral_denom.to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: collateral_denom.to_string(),
         incentive_denom: incentive_denom.to_string(),
         emission_per_second: emission_per_second.into(),
         start_time,

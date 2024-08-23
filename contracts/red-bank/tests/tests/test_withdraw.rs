@@ -25,6 +25,7 @@ use mars_types::{
     address_provider::MarsAddressType,
     error::MarsError,
     incentives,
+    incentives::IncentiveKind,
     keys::{UserId, UserIdKey},
     params::AssetParams,
     red_bank::{Collateral, Debt, ExecuteMsg, Market},
@@ -194,8 +195,9 @@ fn withdrawing_partially() {
                     user_addr: Addr::unchecked(MarsAddressType::RewardsCollector.to_string()),
                     account_id: None,
                     denom: denom.to_string(),
-                    user_amount_scaled_before: Uint128::zero(),
-                    total_amount_scaled_before: initial_market.collateral_total_scaled,
+                    kind: IncentiveKind::RedBank,
+                    user_amount: Uint128::zero(),
+                    total_amount: initial_market.collateral_total_scaled,
                 })
                 .unwrap(),
                 funds: vec![],
@@ -206,8 +208,9 @@ fn withdrawing_partially() {
                     user_addr: withdrawer_addr.clone(),
                     account_id: None,
                     denom: denom.to_string(),
-                    user_amount_scaled_before: initial_deposit_amount_scaled,
-                    total_amount_scaled_before: initial_market.collateral_total_scaled
+                    kind: IncentiveKind::RedBank,
+                    user_amount: initial_deposit_amount_scaled,
+                    total_amount: initial_market.collateral_total_scaled
                         + expected_rewards_amount_scaled,
                 })
                 .unwrap(),
@@ -318,8 +321,9 @@ fn withdrawing_completely() {
                     user_addr: Addr::unchecked(MarsAddressType::RewardsCollector.to_string()),
                     account_id: None,
                     denom: denom.to_string(),
-                    user_amount_scaled_before: Uint128::zero(),
-                    total_amount_scaled_before: initial_market.collateral_total_scaled,
+                    kind: IncentiveKind::RedBank,
+                    user_amount: Uint128::zero(),
+                    total_amount: initial_market.collateral_total_scaled,
                 })
                 .unwrap(),
                 funds: vec![],
@@ -330,8 +334,9 @@ fn withdrawing_completely() {
                     user_addr: withdrawer_addr.clone(),
                     account_id: None,
                     denom: denom.to_string(),
-                    user_amount_scaled_before: withdrawer_balance_scaled,
-                    total_amount_scaled_before: initial_market.collateral_total_scaled
+                    kind: IncentiveKind::RedBank,
+                    user_amount: withdrawer_balance_scaled,
+                    total_amount: initial_market.collateral_total_scaled
                         + expected_rewards_amount_scaled,
                 })
                 .unwrap(),
@@ -430,8 +435,9 @@ fn withdrawing_to_another_user() {
                     user_addr: Addr::unchecked(MarsAddressType::RewardsCollector.to_string()),
                     account_id: None,
                     denom: denom.to_string(),
-                    user_amount_scaled_before: Uint128::zero(),
-                    total_amount_scaled_before: initial_market.collateral_total_scaled,
+                    kind: IncentiveKind::RedBank,
+                    user_amount: Uint128::zero(),
+                    total_amount: initial_market.collateral_total_scaled,
                 })
                 .unwrap(),
                 funds: vec![],
@@ -442,8 +448,9 @@ fn withdrawing_to_another_user() {
                     user_addr: withdrawer_addr.clone(),
                     account_id: None,
                     denom: denom.to_string(),
-                    user_amount_scaled_before: withdrawer_balance_scaled,
-                    total_amount_scaled_before: initial_market.collateral_total_scaled
+                    kind: IncentiveKind::RedBank,
+                    user_amount: withdrawer_balance_scaled,
+                    total_amount: initial_market.collateral_total_scaled
                         + expected_rewards_amount_scaled,
                 })
                 .unwrap(),
@@ -744,9 +751,10 @@ fn withdrawing_if_health_factor_met() {
                     user_addr: withdrawer_addr.clone(),
                     account_id: None,
                     denom: denoms[2].to_string(),
-                    user_amount_scaled_before: collaterals[2].amount_scaled,
+                    kind: IncentiveKind::RedBank,
+                    user_amount: collaterals[2].amount_scaled,
                     // NOTE: Protocol rewards accrued is zero, so here it's initial total supply
-                    total_amount_scaled_before: markets[2].collateral_total_scaled,
+                    total_amount: markets[2].collateral_total_scaled,
                 })
                 .unwrap(),
                 funds: vec![],

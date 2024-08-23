@@ -3,6 +3,7 @@ use cosmwasm_std::{
 };
 use mars_types::{
     incentives,
+    incentives::IncentiveKind,
     keys::{UserId, UserIdKey},
     red_bank::{Collateral, Debt, Market},
 };
@@ -187,9 +188,10 @@ impl<'a> User<'a> {
             msg: to_json_binary(&incentives::ExecuteMsg::BalanceChange {
                 user_addr: self.address().clone(),
                 account_id,
+                kind: IncentiveKind::RedBank,
                 denom: market.denom.clone(),
-                user_amount_scaled_before,
-                total_amount_scaled_before: market.collateral_total_scaled,
+                user_amount: user_amount_scaled_before,
+                total_amount: market.collateral_total_scaled,
             })?,
             funds: vec![],
         }

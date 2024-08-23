@@ -5,74 +5,110 @@ use mars_incentives::state::{
     INCENTIVE_STATES,
 };
 use mars_testing::{mock_env, MockEnvParams};
-use mars_types::incentives::{
-    ActiveEmission, EmissionResponse, IncentiveState, IncentiveStateResponse,
-    PaginatedStakedLpResponse, QueryMsg, StakedLpPositionResponse,
+use mars_types::{
+    incentives::{
+        ActiveEmission, EmissionResponse, IncentiveKind, IncentiveState, IncentiveStateResponse,
+        PaginatedStakedLpResponse, QueryMsg, StakedLpPositionResponse,
+    },
+    keys::{IncentiveId, IncentiveIdKey, IncentiveKindKey},
 };
 use test_case::test_case;
 
 use super::helpers::{th_query, th_query_with_env, th_setup};
 
-#[test]
-fn query_incentive_state() {
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
+fn query_incentive_state(kind: &IncentiveKind) {
     let mut deps = th_setup();
-
+    let kind_key = IncentiveKindKey::try_from(kind).unwrap();
     // incentives
     let uosmo_incentive = IncentiveState {
         index: Decimal::one(),
         last_updated: 150,
     };
-    INCENTIVE_STATES.save(deps.as_mut().storage, ("uosmo", "umars"), &uosmo_incentive).unwrap();
+    INCENTIVE_STATES
+        .save(deps.as_mut().storage, (&kind_key, "uosmo", "umars"), &uosmo_incentive)
+        .unwrap();
     let uatom_incentive = IncentiveState {
         index: Decimal::one(),
         last_updated: 1000,
     };
-    INCENTIVE_STATES.save(deps.as_mut().storage, ("uatom", "umars"), &uatom_incentive).unwrap();
+    INCENTIVE_STATES
+        .save(deps.as_mut().storage, (&kind_key, "uatom", "umars"), &uatom_incentive)
+        .unwrap();
     let uusdc_incentive = IncentiveState {
         index: Decimal::from_ratio(120u128, 50u128),
         last_updated: 120000,
     };
-    INCENTIVE_STATES.save(deps.as_mut().storage, ("uusdc", "umars"), &uusdc_incentive).unwrap();
+    INCENTIVE_STATES
+        .save(deps.as_mut().storage, (&kind_key, "uusdc", "umars"), &uusdc_incentive)
+        .unwrap();
 
     let res: IncentiveStateResponse = th_query(
         deps.as_ref(),
         QueryMsg::IncentiveState {
-            collateral_denom: "uatom".to_string(),
+            kind: kind.clone(),
+            denom: "uatom".to_string(),
             incentive_denom: "umars".to_string(),
         },
     );
     assert_eq!(
         res,
-        IncentiveStateResponse::from("uatom".to_string(), "umars".to_string(), uatom_incentive)
+        IncentiveStateResponse::from(
+            kind.clone(),
+            "uatom".to_string(),
+            "umars".to_string(),
+            uatom_incentive
+        )
     );
 }
 
-#[test]
-fn query_incentive_states() {
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
+fn query_incentive_states(kind: &IncentiveKind) {
     let mut deps = th_setup();
-
+    let kind_key = IncentiveKindKey::try_from(kind).unwrap();
     // incentives
     let uosmo_incentive = IncentiveState {
         index: Decimal::one(),
         last_updated: 150,
     };
-    INCENTIVE_STATES.save(deps.as_mut().storage, ("uosmo", "umars"), &uosmo_incentive).unwrap();
+    INCENTIVE_STATES
+        .save(deps.as_mut().storage, (&kind_key, "uosmo", "umars"), &uosmo_incentive)
+        .unwrap();
     let uatom_incentive = IncentiveState {
         index: Decimal::one(),
         last_updated: 1000,
     };
-    INCENTIVE_STATES.save(deps.as_mut().storage, ("uatom", "umars"), &uatom_incentive).unwrap();
+    INCENTIVE_STATES
+        .save(deps.as_mut().storage, (&kind_key, "uatom", "umars"), &uatom_incentive)
+        .unwrap();
     let uusdc_incentive = IncentiveState {
         index: Decimal::from_ratio(120u128, 50u128),
         last_updated: 120000,
     };
-    INCENTIVE_STATES.save(deps.as_mut().storage, ("uusdc", "umars"), &uusdc_incentive).unwrap();
+    INCENTIVE_STATES
+        .save(deps.as_mut().storage, (&kind_key, "uusdc", "umars"), &uusdc_incentive)
+        .unwrap();
 
     // NOTE: responses are ordered alphabetically by denom
     let res: Vec<IncentiveStateResponse> = th_query(
         deps.as_ref(),
         QueryMsg::IncentiveStates {
-            start_after_collateral_denom: None,
+            start_after_kind: None,
+            start_after_denom: None,
             start_after_incentive_denom: None,
             limit: None,
         },
@@ -80,13 +116,24 @@ fn query_incentive_states() {
     assert_eq!(
         res,
         vec![
-            IncentiveStateResponse::from("uatom".to_string(), "umars".to_string(), uatom_incentive),
             IncentiveStateResponse::from(
+                kind.clone(),
+                "uatom".to_string(),
+                "umars".to_string(),
+                uatom_incentive
+            ),
+            IncentiveStateResponse::from(
+                kind.clone(),
                 "uosmo".to_string(),
                 "umars".to_string(),
                 uosmo_incentive.clone()
             ),
-            IncentiveStateResponse::from("uusdc".to_string(), "umars".to_string(), uusdc_incentive),
+            IncentiveStateResponse::from(
+                kind.clone(),
+                "uusdc".to_string(),
+                "umars".to_string(),
+                uusdc_incentive
+            ),
         ]
     );
 
@@ -94,7 +141,8 @@ fn query_incentive_states() {
     let res: Vec<IncentiveStateResponse> = th_query(
         deps.as_ref(),
         QueryMsg::IncentiveStates {
-            start_after_collateral_denom: Some("uatom".to_string()),
+            start_after_kind: Some(kind.clone()),
+            start_after_denom: Some("uatom".to_string()),
             start_after_incentive_denom: None,
             limit: Some(1),
         },
@@ -102,6 +150,7 @@ fn query_incentive_states() {
     assert_eq!(
         res,
         vec![IncentiveStateResponse::from(
+            kind.clone(),
             "uosmo".to_string(),
             "umars".to_string(),
             uosmo_incentive
@@ -109,20 +158,31 @@ fn query_incentive_states() {
     );
 }
 
-#[test]
-fn query_emission() {
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
+fn query_emission(kind: &IncentiveKind) {
     let mut deps = th_setup();
-
-    EMISSIONS.save(deps.as_mut().storage, ("uosmo", "umars", 604800), &Uint128::new(100)).unwrap();
+    let incentive_id = IncentiveId::create(kind.clone(), "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
     EMISSIONS
-        .save(deps.as_mut().storage, ("uosmo", "umars", 604800 * 2), &Uint128::new(50))
+        .save(deps.as_mut().storage, (&incentive_id_key, "umars", 604800), &Uint128::new(100))
+        .unwrap();
+    EMISSIONS
+        .save(deps.as_mut().storage, (&incentive_id_key, "umars", 604800 * 2), &Uint128::new(50))
         .unwrap();
 
     // Query before emission start
     let res: Uint128 = th_query(
         deps.as_ref(),
         QueryMsg::Emission {
-            collateral_denom: "uosmo".to_string(),
+            kind: kind.clone(),
+            denom: "uosmo".to_string(),
             incentive_denom: "umars".to_string(),
             timestamp: 0,
         },
@@ -133,7 +193,8 @@ fn query_emission() {
     let res: Uint128 = th_query(
         deps.as_ref(),
         QueryMsg::Emission {
-            collateral_denom: "uosmo".to_string(),
+            kind: kind.clone(),
+            denom: "uosmo".to_string(),
             incentive_denom: "umars".to_string(),
             timestamp: 604800,
         },
@@ -144,7 +205,8 @@ fn query_emission() {
     let res: Uint128 = th_query(
         deps.as_ref(),
         QueryMsg::Emission {
-            collateral_denom: "uosmo".to_string(),
+            kind: kind.clone(),
+            denom: "uosmo".to_string(),
             incentive_denom: "umars".to_string(),
             timestamp: 604800 * 2,
         },
@@ -155,7 +217,8 @@ fn query_emission() {
     let res: Uint128 = th_query(
         deps.as_ref(),
         QueryMsg::Emission {
-            collateral_denom: "uosmo".to_string(),
+            kind: kind.clone(),
+            denom: "uosmo".to_string(),
             incentive_denom: "umars".to_string(),
             timestamp: 604800 * 2 - 1,
         },
@@ -166,7 +229,8 @@ fn query_emission() {
     let res: Uint128 = th_query(
         deps.as_ref(),
         QueryMsg::Emission {
-            collateral_denom: "uosmo".to_string(),
+            kind: kind.clone(),
+            denom: "uosmo".to_string(),
             incentive_denom: "umars".to_string(),
             timestamp: 604800 * 2 + 100,
         },
@@ -177,7 +241,8 @@ fn query_emission() {
     let res: Uint128 = th_query(
         deps.as_ref(),
         QueryMsg::Emission {
-            collateral_denom: "uosmo".to_string(),
+            kind: kind.clone(),
+            denom: "uosmo".to_string(),
             incentive_denom: "umars".to_string(),
             timestamp: 604800 * 3 - 1,
         },
@@ -188,7 +253,8 @@ fn query_emission() {
     let res: Uint128 = th_query(
         deps.as_ref(),
         QueryMsg::Emission {
-            collateral_denom: "uosmo".to_string(),
+            kind: kind.clone(),
+            denom: "uosmo".to_string(),
             incentive_denom: "umars".to_string(),
             timestamp: 604800 * 3,
         },
@@ -196,20 +262,33 @@ fn query_emission() {
     assert_eq!(res, Uint128::zero());
 }
 
-#[test]
-fn query_emissions() {
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
+fn query_emissions(kind: &IncentiveKind) {
     let mut deps = th_setup();
-
-    EMISSIONS.save(deps.as_mut().storage, ("uusdc", "umars", 0), &Uint128::new(200)).unwrap();
-    EMISSIONS.save(deps.as_mut().storage, ("uusdc", "umars", 604800), &Uint128::new(100)).unwrap();
+    let incentive_id = IncentiveId::create(kind.clone(), "uusdc".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
     EMISSIONS
-        .save(deps.as_mut().storage, ("uusdc", "umars", 604800 * 2), &Uint128::new(50))
+        .save(deps.as_mut().storage, (&incentive_id_key, "umars", 0), &Uint128::new(200))
+        .unwrap();
+    EMISSIONS
+        .save(deps.as_mut().storage, (&incentive_id_key, "umars", 604800), &Uint128::new(100))
+        .unwrap();
+    EMISSIONS
+        .save(deps.as_mut().storage, (&incentive_id_key, "umars", 604800 * 2), &Uint128::new(50))
         .unwrap();
 
     let res: Vec<EmissionResponse> = th_query(
         deps.as_ref(),
         QueryMsg::Emissions {
-            collateral_denom: "uusdc".to_string(),
+            kind: kind.clone(),
+            denom: "uusdc".to_string(),
             incentive_denom: "umars".to_string(),
             start_after_timestamp: None,
             limit: None,
@@ -227,7 +306,8 @@ fn query_emissions() {
     let res: Vec<EmissionResponse> = th_query(
         deps.as_ref(),
         QueryMsg::Emissions {
-            collateral_denom: "uusdc".to_string(),
+            kind: kind.clone(),
+            denom: "uusdc".to_string(),
             incentive_denom: "umars".to_string(),
             start_after_timestamp: Some(100),
             limit: None,
@@ -244,7 +324,8 @@ fn query_emissions() {
     let res: Vec<EmissionResponse> = th_query(
         deps.as_ref(),
         QueryMsg::Emissions {
-            collateral_denom: "uusdc".to_string(),
+            kind: kind.clone(),
+            denom: "uusdc".to_string(),
             incentive_denom: "umars".to_string(),
             start_after_timestamp: Some(604800),
             limit: Some(1),
@@ -268,12 +349,14 @@ fn query_emissions() {
 #[test_case(604800 * 3 + 100 => Vec::<(String, Uint128)>::new() ; "query after emission end time")]
 fn query_active_emissions(query_at_time: u64) -> Vec<(String, Uint128)> {
     let mut deps = th_setup();
-
+    let kind_key = IncentiveKindKey::try_from(&IncentiveKind::RedBank).unwrap();
+    let incentive_id = IncentiveId::create(IncentiveKind::RedBank, "uusdc".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
     // Setup incentive states
     INCENTIVE_STATES
         .save(
             deps.as_mut().storage,
-            ("uusdc", "uosmo"),
+            (&kind_key, "uusdc", "uosmo"),
             &IncentiveState {
                 index: Decimal::zero(),
                 last_updated: 0,
@@ -283,7 +366,7 @@ fn query_active_emissions(query_at_time: u64) -> Vec<(String, Uint128)> {
     INCENTIVE_STATES
         .save(
             deps.as_mut().storage,
-            ("uusdc", "umars"),
+            (&kind_key, "uusdc", "umars"),
             &IncentiveState {
                 index: Decimal::zero(),
                 last_updated: 0,
@@ -292,12 +375,14 @@ fn query_active_emissions(query_at_time: u64) -> Vec<(String, Uint128)> {
         .unwrap();
 
     // Setup emissions
-    EMISSIONS.save(deps.as_mut().storage, ("uusdc", "uosmo", 604800), &Uint128::new(100)).unwrap();
     EMISSIONS
-        .save(deps.as_mut().storage, ("uusdc", "umars", 604800 * 2), &Uint128::new(50))
+        .save(deps.as_mut().storage, (&incentive_id_key, "uosmo", 604800), &Uint128::new(100))
         .unwrap();
     EMISSIONS
-        .save(deps.as_mut().storage, ("uusdc", "uosmo", 604800 * 2), &Uint128::new(100))
+        .save(deps.as_mut().storage, (&incentive_id_key, "umars", 604800 * 2), &Uint128::new(50))
+        .unwrap();
+    EMISSIONS
+        .save(deps.as_mut().storage, (&incentive_id_key, "uosmo", 604800 * 2), &Uint128::new(100))
         .unwrap();
 
     th_query_with_env::<Vec<ActiveEmission>>(
@@ -307,7 +392,8 @@ fn query_active_emissions(query_at_time: u64) -> Vec<(String, Uint128)> {
             ..Default::default()
         }),
         QueryMsg::ActiveEmissions {
-            collateral_denom: "uusdc".to_string(),
+            kind: IncentiveKind::RedBank,
+            denom: "uusdc".to_string(),
         },
     )
     .into_iter()

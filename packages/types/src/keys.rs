@@ -2,6 +2,8 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, StdError, StdResult};
 use cw_storage_plus::{Key, KeyDeserialize, Prefixer, PrimaryKey};
 
+use crate::incentives::IncentiveKind;
+
 #[cw_serde]
 pub struct UserId {
     pub addr: Addr,
@@ -127,5 +129,121 @@ mod test {
         let dir = k.0.prefix();
         assert_eq!(2, dir.len());
         assert_eq!(dir, vec![user_key_bytes, b"uosmo"]);
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IncentiveKindKey(pub Vec<u8>);
+
+impl TryFrom<IncentiveKindKey> for IncentiveKind {
+    type Error = StdError;
+
+    fn try_from(key: IncentiveKindKey) -> Result<Self, Self::Error> {
+        let incentive_kind: Self = serde_json_wasm::from_slice(&key.0).map_err(|_| {
+            StdError::generic_err("Failed to deserialize IncentiveKind from JSON string")
+        })?;
+        Ok(incentive_kind)
+    }
+}
+
+impl TryFrom<&IncentiveKind> for IncentiveKindKey {
+    type Error = StdError;
+
+    fn try_from(incentive_kind: &IncentiveKind) -> Result<Self, Self::Error> {
+        let bytes = serde_json_wasm::to_vec(&incentive_kind).map_err(|_| {
+            StdError::generic_err("Failed to serialize IncentiveKind to JSON string")
+        })?;
+        Ok(Self(bytes))
+    }
+}
+
+impl<'a> PrimaryKey<'a> for &IncentiveKindKey {
+    type Prefix = ();
+    type SubPrefix = ();
+    type Suffix = Self;
+    type SuperSuffix = Self;
+
+    fn key(&self) -> Vec<Key> {
+        vec![Key::Ref(&self.0)]
+    }
+}
+
+impl<'a> Prefixer<'a> for &IncentiveKindKey {
+    fn prefix(&self) -> Vec<Key> {
+        vec![Key::Ref(&self.0)]
+    }
+}
+
+impl KeyDeserialize for &IncentiveKindKey {
+    type Output = IncentiveKindKey;
+
+    #[inline(always)]
+    fn from_vec(value: Vec<u8>) -> StdResult<Self::Output> {
+        Ok(IncentiveKindKey(value))
+    }
+}
+
+#[cw_serde]
+pub struct IncentiveId {
+    pub kind: IncentiveKind,
+    pub collateral_denom: String,
+}
+
+impl IncentiveId {
+    pub fn create(kind: IncentiveKind, collateral_denom: String) -> Self {
+        Self {
+            kind,
+            collateral_denom,
+        }
+    }
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct IncentiveIdKey(pub Vec<u8>);
+
+impl TryFrom<IncentiveIdKey> for IncentiveId {
+    type Error = StdError;
+
+    fn try_from(key: IncentiveIdKey) -> Result<Self, Self::Error> {
+        let user_id: Self = serde_json_wasm::from_slice(&key.0).map_err(|_| {
+            StdError::generic_err("Failed to deserialize IncentiveId from JSON string")
+        })?;
+        Ok(user_id)
+    }
+}
+
+impl TryFrom<IncentiveId> for IncentiveIdKey {
+    type Error = StdError;
+
+    fn try_from(user_id: IncentiveId) -> Result<Self, Self::Error> {
+        let bytes = serde_json_wasm::to_vec(&user_id)
+            .map_err(|_| StdError::generic_err("Failed to serialize IncentiveId to JSON string"))?;
+        Ok(Self(bytes))
+    }
+}
+
+impl<'a> PrimaryKey<'a> for &IncentiveIdKey {
+    type Prefix = ();
+    type SubPrefix = ();
+    type Suffix = Self;
+    type SuperSuffix = Self;
+
+    fn key(&self) -> Vec<Key> {
+        vec![Key::Ref(&self.0)]
+    }
+}
+
+impl<'a> Prefixer<'a> for &IncentiveIdKey {
+    fn prefix(&self) -> Vec<Key> {
+        vec![Key::Ref(&self.0)]
+    }
+}
+
+impl KeyDeserialize for &IncentiveIdKey {
+    type Output = IncentiveIdKey;
+
+    #[inline(always)]
+    fn from_vec(value: Vec<u8>) -> StdResult<Self::Output> {
+        Ok(IncentiveIdKey(value))
     }
 }

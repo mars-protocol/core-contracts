@@ -3,9 +3,11 @@ use cosmwasm_std::{
     StdError, StdResult, Uint128,
 };
 use mars_types::{
+    address_provider,
+    address_provider::MarsAddressType,
     error::MarsError,
-    incentives::IncentiveState,
-    keys::{UserId, UserIdKey},
+    incentives::{IncentiveKind, IncentiveState},
+    keys::{IncentiveId, IncentiveIdKey, IncentiveKindKey, UserId, UserIdKey},
 };
 use mars_utils::helpers::validate_native_denom;
 
@@ -14,7 +16,7 @@ use crate::{
     helpers::{
         compute_user_accrued_rewards, compute_user_unclaimed_rewards, update_incentive_index,
     },
-    query::query_red_bank_address,
+    query::query_address,
     state,
     state::{
         CONFIG, EMISSIONS, EPOCH_DURATION, INCENTIVE_STATES, USER_ASSET_INDICES,
@@ -28,7 +30,8 @@ pub fn execute_claim_rewards(
     env: Env,
     info: MessageInfo,
     account_id: Option<String>,
-    start_after_collateral_denom: Option<String>,
+    start_after_kind: Option<IncentiveKind>,
+    start_after_denom: Option<String>,
     start_after_incentive_denom: Option<String>,
     limit: Option<u32>,
 ) -> Result<Response, ContractError> {
@@ -36,8 +39,6 @@ pub fn execute_claim_rewards(
     let acc_id = account_id.clone().unwrap_or("".to_string());
     let user_id = UserId::credit_manager(user_addr.clone(), acc_id.clone());
     let user_id_key: UserIdKey = user_id.try_into()?;
-
-    let red_bank_addr = query_red_bank_address(deps.as_ref())?;
 
     let mut response = Response::new();
     let base_event = Event::new("mars/incentives/claim_rewards")
@@ -52,30 +53,45 @@ pub fn execute_claim_rewards(
 
     let asset_incentives = state::paginate_incentive_states(
         deps.storage,
-        start_after_collateral_denom,
+        start_after_kind,
+        start_after_denom,
         start_after_incentive_denom,
         limit,
     )?;
 
+    let config = CONFIG.load(deps.storage)?;
     let mut total_unclaimed_rewards = Coins::default();
 
-    for ((collateral_denom, incentive_denom), _) in asset_incentives {
+    let addresses = address_provider::helpers::query_contract_addrs(
+        deps.as_ref(),
+        &config.address_provider,
+        vec![MarsAddressType::RedBank, MarsAddressType::Perps],
+    )?;
+    let red_bank_addr = &addresses[&MarsAddressType::RedBank];
+    let perps_addr = &addresses[&MarsAddressType::Perps];
+
+    for ((kind_key, denom, incentive_denom), _) in asset_incentives {
         let querier = deps.querier;
         let unclaimed_rewards = compute_user_unclaimed_rewards(
             &mut deps.branch().storage.into(),
             &querier,
             &env.block,
-            &red_bank_addr,
+            red_bank_addr,
+            perps_addr,
             &user_addr,
             &account_id,
-            &collateral_denom,
+            &kind_key.clone().try_into()?,
+            &denom,
             &incentive_denom,
         )?;
+
+        let incentive_id = IncentiveId::create(kind_key.try_into()?, denom);
+        let incentive_id_key = IncentiveIdKey::try_from(incentive_id)?;
 
         // clear unclaimed rewards
         USER_UNCLAIMED_REWARDS.save(
             deps.storage,
-            (&user_id_key, &collateral_denom, &incentive_denom),
+            (&user_id_key, &incentive_id_key, &incentive_denom),
             &Uint128::zero(),
         )?;
 
@@ -104,13 +120,14 @@ pub fn execute_set_asset_incentive(
     mut deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    collateral_denom: String,
+    kind: &IncentiveKind,
+    denom: String,
     incentive_denom: String,
     emission_per_second: Uint128,
     start_time: u64,
     duration: u64,
 ) -> Result<Response, ContractError> {
-    validate_native_denom(&collateral_denom)?;
+    validate_native_denom(&denom)?;
     validate_native_denom(&incentive_denom)?;
 
     // Check that the incentive denom is whitelisted
@@ -130,26 +147,38 @@ pub fn execute_set_asset_incentive(
         &info,
         epoch_duration,
         current_time,
-        &collateral_denom,
+        kind,
+        &denom,
         &incentive_denom,
         emission_per_second,
         start_time,
         duration,
     )?;
 
-    // Update current incentive index
-    let total_collateral = helpers::query_red_bank_total_collateral(
+    let addresses = address_provider::helpers::query_contract_addrs(
         deps.as_ref(),
         &config.address_provider,
-        &collateral_denom,
+        vec![MarsAddressType::RedBank, MarsAddressType::Perps],
     )?;
+    let red_bank_addr = &addresses[&MarsAddressType::RedBank];
+    let perps_addr = &addresses[&MarsAddressType::Perps];
+
+    let total_amount =
+        helpers::query_total_amount(&deps.querier, red_bank_addr, perps_addr, kind, &denom)?;
+
     update_incentive_index(
         &mut deps.branch().storage.into(),
-        &collateral_denom,
+        kind,
+        &denom,
         &incentive_denom,
-        total_collateral,
+        total_amount,
         current_time,
     )?;
+
+    let kind_key = IncentiveKindKey::try_from(kind)?;
+
+    let incentive_id = IncentiveId::create(kind.clone(), denom.clone());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id)?;
 
     // To simplify the logic and prevent too much gas usage, we split the new schedule into separate
     // schedules that are exactly one epoch long. This way we can easily merge them with existing
@@ -159,7 +188,7 @@ pub fn execute_set_asset_incentive(
     while epoch_start_time < start_time + duration {
         // Check if an schedule exists for the current epoch. If it does, merge the new schedule
         // with the existing schedule. Else add a new schedule.
-        let key = (collateral_denom.as_str(), incentive_denom.as_str(), epoch_start_time);
+        let key = (&incentive_id_key, incentive_denom.as_str(), epoch_start_time);
         let existing_schedule = EMISSIONS.may_load(deps.storage, key)?;
         if let Some(existing_schedule) = existing_schedule {
             EMISSIONS.save(deps.storage, key, &(existing_schedule + emission_per_second))?;
@@ -171,7 +200,7 @@ pub fn execute_set_asset_incentive(
     }
 
     // Set up the incentive state if it doesn't exist
-    INCENTIVE_STATES.update(deps.storage, (&collateral_denom, &incentive_denom), |old| {
+    INCENTIVE_STATES.update(deps.storage, (&kind_key, &denom, &incentive_denom), |old| {
         Ok::<_, StdError>(old.unwrap_or_else(|| IncentiveState {
             index: Decimal::zero(),
             last_updated: current_time,
@@ -180,7 +209,7 @@ pub fn execute_set_asset_incentive(
 
     let response = Response::new().add_attributes(vec![
         attr("action", "set_asset_incentive"),
-        attr("collateral_denom", collateral_denom),
+        attr("denom", denom),
         attr("incentive_denom", incentive_denom),
         attr("emission_per_second", emission_per_second),
         attr("start_time", start_time.to_string()),
@@ -195,13 +224,15 @@ pub fn execute_balance_change(
     info: MessageInfo,
     user_addr: Addr,
     account_id: Option<String>,
-    collateral_denom: String,
-    user_amount_scaled_before: Uint128,
-    total_amount_scaled_before: Uint128,
+    kind: IncentiveKind,
+    denom: String,
+    user_amount: Uint128,
+    total_amount: Uint128,
 ) -> Result<Response, ContractError> {
-    // this method can only be invoked by the Red Bank contract
-    let red_bank_addr = query_red_bank_address(deps.as_ref())?;
-    if info.sender != red_bank_addr {
+    // this method can only be invoked by the correct contract
+    let address_type = kind.get_address_type();
+    let addr = query_address(deps.as_ref(), address_type)?;
+    if info.sender != addr {
         return Err(MarsError::Unauthorized {}.into());
     }
 
@@ -212,32 +243,40 @@ pub fn execute_balance_change(
 
     let base_event = Event::new("mars/incentives/balance_change")
         .add_attribute("action", "balance_change")
-        .add_attribute("denom", collateral_denom.clone())
+        .add_attribute("kind", kind.to_string())
+        .add_attribute("denom", denom.clone())
         .add_attribute("user", user_addr.to_string());
     let base_event = if account_id.is_some() {
         base_event.add_attribute("account_id", &acc_id)
     } else {
         base_event
     };
+
     let mut events = vec![base_event];
 
+    let kind_key = IncentiveKindKey::try_from(&kind)?;
+
+    let incentive_id = IncentiveId::create(kind.clone(), denom.clone());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id)?;
+
     let incentive_states = INCENTIVE_STATES
-        .prefix(&collateral_denom)
+        .prefix((&kind_key, &denom))
         .range(deps.storage, None, None, Order::Ascending)
         .collect::<StdResult<Vec<_>>>()?;
 
     for (incentive_denom, _) in incentive_states {
         let incentive_state = update_incentive_index(
             &mut deps.branch().storage.into(),
-            &collateral_denom,
+            &kind,
+            &denom,
             &incentive_denom,
-            total_amount_scaled_before,
+            total_amount,
             env.block.time.seconds(),
         )?;
 
         // Check if user has accumulated uncomputed rewards (which means index is not up to date)
         let user_asset_index_key =
-            USER_ASSET_INDICES.key((&user_id_key.clone(), &collateral_denom, &incentive_denom));
+            USER_ASSET_INDICES.key((&user_id_key.clone(), &incentive_id_key, &incentive_denom));
 
         let user_asset_index =
             user_asset_index_key.may_load(deps.storage)?.unwrap_or_else(Decimal::zero);
@@ -246,11 +285,8 @@ pub fn execute_balance_change(
 
         if user_asset_index != incentive_state.index {
             // Compute user accrued rewards and update state
-            accrued_rewards = compute_user_accrued_rewards(
-                user_amount_scaled_before,
-                user_asset_index,
-                incentive_state.index,
-            )?;
+            accrued_rewards =
+                compute_user_accrued_rewards(user_amount, user_asset_index, incentive_state.index)?;
 
             // Store user accrued rewards as unclaimed
             if !accrued_rewards.is_zero() {
@@ -258,7 +294,8 @@ pub fn execute_balance_change(
                     deps.storage,
                     &user_addr,
                     &acc_id,
-                    &collateral_denom,
+                    &kind,
+                    &denom,
                     &incentive_denom,
                     accrued_rewards,
                 )?;

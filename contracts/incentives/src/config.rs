@@ -1,6 +1,11 @@
 use cosmwasm_std::{DepsMut, Env, Event, MessageInfo, Order, Response, StdResult};
 use mars_owner::OwnerUpdate;
-use mars_types::incentives::WhitelistEntry;
+use mars_types::{
+    address_provider,
+    address_provider::MarsAddressType,
+    incentives::WhitelistEntry,
+    keys::{IncentiveId, IncentiveIdKey},
+};
 use mars_utils::helpers::{option_string_to_addr, validate_native_denom};
 
 use crate::{
@@ -54,6 +59,14 @@ pub fn execute_update_whitelist(
 
     let config = CONFIG.load(deps.storage)?;
 
+    let addresses = address_provider::helpers::query_contract_addrs(
+        deps.as_ref(),
+        &config.address_provider,
+        vec![MarsAddressType::RedBank, MarsAddressType::Perps],
+    )?;
+    let red_bank_addr = &addresses[&MarsAddressType::RedBank];
+    let perps_addr = &addresses[&MarsAddressType::Perps];
+
     // Add add_denoms and remove_denoms to a set to check for duplicates
     let denoms = add_denoms.iter().map(|entry| &entry.denom).chain(remove_denoms.iter());
     let mut denoms_set = std::collections::HashSet::new();
@@ -88,30 +101,39 @@ pub fn execute_update_whitelist(
         let keys = INCENTIVE_STATES
             .keys(deps.storage, None, None, Order::Ascending)
             .filter(|res| {
-                res.as_ref().map_or_else(|_| false, |(_, incentive_denom)| incentive_denom == denom)
+                res.as_ref()
+                    .map_or_else(|_| false, |(_, _, incentive_denom)| incentive_denom == denom)
             })
             .collect::<StdResult<Vec<_>>>()?;
-        for (collateral_denom, incentive_denom) in keys {
-            let total_collateral = helpers::query_red_bank_total_collateral(
-                deps.as_ref(),
-                &config.address_provider,
+        for (kind_key, collateral_denom, incentive_denom) in keys {
+            let kind = kind_key.clone().try_into()?;
+            let total_collateral = helpers::query_total_amount(
+                &deps.querier,
+                red_bank_addr,
+                perps_addr,
+                &kind,
                 &collateral_denom,
             )?;
+
             update_incentive_index(
                 &mut deps.branch().storage.into(),
+                &kind,
                 &collateral_denom,
                 &incentive_denom,
                 total_collateral,
                 env.block.time.seconds(),
             )?;
 
+            let incentive_id = IncentiveId::create(kind, collateral_denom);
+            let incentive_id_key = IncentiveIdKey::try_from(incentive_id)?;
+
             // Remove any incentive emissions
             let emissions = EMISSIONS
-                .prefix((&collateral_denom, &incentive_denom))
+                .prefix((&incentive_id_key, &incentive_denom))
                 .range(deps.storage, None, None, Order::Ascending)
                 .collect::<StdResult<Vec<_>>>()?;
             for (start_time, _) in emissions {
-                EMISSIONS.remove(deps.storage, (&collateral_denom, &incentive_denom, start_time));
+                EMISSIONS.remove(deps.storage, (&incentive_id_key, &incentive_denom, start_time));
             }
         }
 

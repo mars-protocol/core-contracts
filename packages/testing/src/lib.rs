@@ -29,3 +29,4 @@ pub use mars_mock_querier::MarsMockQuerier;
 pub use mocks::*;
 
 pub mod integration;
+mod perps_querier;

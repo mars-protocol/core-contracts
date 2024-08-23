@@ -43,11 +43,11 @@ pub fn execute(
             user_addr,
             account_id,
             denom,
-            user_amount_scaled_before,
+            user_amount,
             ..
-        } => balance_change(deps, info, user_addr, account_id, denom, user_amount_scaled_before),
+        } => balance_change(deps, info, user_addr, account_id, denom, user_amount),
         incentives::ExecuteMsg::SetAssetIncentive {
-            collateral_denom,
+            denom,
             incentive_denom,
             emission_per_second,
             start_time,
@@ -55,7 +55,7 @@ pub fn execute(
         } => set_incentive_rewards(
             deps,
             info,
-            collateral_denom,
+            denom,
             incentive_denom,
             emission_per_second,
             start_time,

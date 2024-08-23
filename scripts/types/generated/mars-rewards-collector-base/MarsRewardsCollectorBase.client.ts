@@ -20,6 +20,7 @@ import {
   LiquidateRequestForVaultBaseForString,
   VaultPositionType,
   SwapperRoute,
+  IncentiveKind,
   UpdateConfig,
   ActionCoin,
   SignedUint,
@@ -132,10 +133,12 @@ export interface MarsRewardsCollectorBaseInterface
       limit,
       startAfterCollateralDenom,
       startAfterIncentiveDenom,
+      startAfterKind,
     }: {
       limit?: number
       startAfterCollateralDenom?: string
       startAfterIncentiveDenom?: string
+      startAfterKind?: IncentiveKind
     },
     fee?: number | StdFee | 'auto',
     memo?: string,
@@ -323,10 +326,12 @@ export class MarsRewardsCollectorBaseClient
       limit,
       startAfterCollateralDenom,
       startAfterIncentiveDenom,
+      startAfterKind,
     }: {
       limit?: number
       startAfterCollateralDenom?: string
       startAfterIncentiveDenom?: string
+      startAfterKind?: IncentiveKind
     },
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,
@@ -340,6 +345,7 @@ export class MarsRewardsCollectorBaseClient
           limit,
           start_after_collateral_denom: startAfterCollateralDenom,
           start_after_incentive_denom: startAfterIncentiveDenom,
+          start_after_kind: startAfterKind,
         },
       },
       fee,

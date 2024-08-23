@@ -12,6 +12,7 @@ use mars_types::{
     adapters::{oracle::OracleBase, params::ParamsBase},
     address_provider,
     address_provider::MarsAddressType,
+    incentives,
     oracle::{self, ActionKind},
     params::{self, ExecuteMsg::UpdatePerpParams, PerpParamsUpdate},
     perps::{
@@ -25,7 +26,8 @@ use mars_types::{
 
 use super::{
     contracts::{mock_oracle_contract, mock_perps_contract},
-    mock_address_provider_contract, mock_credit_manager_contract, mock_params_contract,
+    mock_address_provider_contract, mock_credit_manager_contract, mock_incentives_contract,
+    mock_params_contract,
 };
 
 pub const ONE_HOUR_SEC: u64 = 3600u64;
@@ -565,26 +567,24 @@ impl MockEnvBuilder {
         let credit_manager_contract = self.deploy_credit_manager();
         let rewards_collector_contract =
             self.deploy_rewards_collector(address_provider_contract.as_str());
+        let perps_contract = self.deploy_perps(
+            address_provider_contract.as_str(),
+            credit_manager_contract.as_str(),
+            oracle_contract.as_str(),
+            params_contract.as_str(),
+        );
+        let incentives_contract = self.deploy_incentives(&address_provider_contract);
 
-        let code_id = self.app.store_code(mock_perps_contract());
-        let perps_contract = self.app.instantiate_contract(
-            code_id,
-            self.deployer.clone(),
-            &perps::InstantiateMsg {
-                address_provider: address_provider_contract.to_string(),
-                credit_manager: credit_manager_contract.to_string(),
-                oracle: OracleBase::new(oracle_contract.to_string()),
-                params: ParamsBase::new(params_contract.to_string()),
-                base_denom: self.perps_base_denom.clone(),
-                cooldown_period: self.cooldown_period,
-                max_positions: self.max_positions,
-                protocol_fee_rate: self.protocol_fee_rate,
-                target_vault_collaterization_ratio: self.target_vault_collaterization_ratio,
-            },
-            &[],
-            "mock-perps",
-            None,
-        )?;
+        self.update_address_provider(
+            &address_provider_contract,
+            MarsAddressType::Incentives,
+            &incentives_contract,
+        );
+        self.update_address_provider(
+            &address_provider_contract,
+            MarsAddressType::Perps,
+            &perps_contract,
+        );
 
         Ok(MockEnv {
             app: take(&mut self.app),
@@ -666,6 +666,57 @@ impl MockEnvBuilder {
         addr
     }
 
+    fn deploy_incentives(&mut self, address_provider_addr: &Addr) -> Addr {
+        let code_id = self.app.store_code(mock_incentives_contract());
+
+        self.app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &incentives::InstantiateMsg {
+                    owner: self.deployer.to_string(),
+                    address_provider: address_provider_addr.to_string(),
+                    epoch_duration: 604800,
+                    max_whitelisted_denoms: 10,
+                },
+                &[],
+                "incentives",
+                None,
+            )
+            .unwrap()
+    }
+
+    fn deploy_perps(
+        &mut self,
+        address_provider: &str,
+        credit_manager: &str,
+        oracle: &str,
+        params: &str,
+    ) -> Addr {
+        let code_id = self.app.store_code(mock_perps_contract());
+
+        self.app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &perps::InstantiateMsg {
+                    address_provider: address_provider.to_string(),
+                    credit_manager: credit_manager.to_string(),
+                    oracle: OracleBase::new(oracle.to_string()),
+                    params: ParamsBase::new(params.to_string()),
+                    base_denom: self.perps_base_denom.clone(),
+                    cooldown_period: self.cooldown_period,
+                    max_positions: self.max_positions,
+                    protocol_fee_rate: self.protocol_fee_rate,
+                    target_vault_collaterization_ratio: self.target_vault_collaterization_ratio,
+                },
+                &[],
+                "mock-perps",
+                None,
+            )
+            .unwrap()
+    }
+
     fn deploy_credit_manager(&mut self) -> Addr {
         let contract = mock_credit_manager_contract();
         let code_id = self.app.store_code(contract);
@@ -741,6 +792,25 @@ impl MockEnvBuilder {
             self.address_provider = Some(addr);
         }
         self.address_provider.clone().unwrap()
+    }
+
+    fn update_address_provider(
+        &mut self,
+        address_provider_addr: &Addr,
+        address_type: MarsAddressType,
+        addr: &Addr,
+    ) {
+        self.app
+            .execute_contract(
+                self.deployer.clone(),
+                address_provider_addr.clone(),
+                &address_provider::ExecuteMsg::SetAddress {
+                    address_type,
+                    address: addr.to_string(),
+                },
+                &[],
+            )
+            .unwrap();
     }
 
     //--------------------------------------------------------------------------------------------------

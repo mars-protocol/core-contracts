@@ -115,6 +115,13 @@
             "enum": [
               "astroport_incentives"
             ]
+          },
+          {
+            "description": "Perps contract",
+            "type": "string",
+            "enum": [
+              "perps"
+            ]
           }
         ]
       },
@@ -326,6 +333,13 @@
             "enum": [
               "astroport_incentives"
             ]
+          },
+          {
+            "description": "Perps contract",
+            "type": "string",
+            "enum": [
+              "perps"
+            ]
           }
         ]
       }
@@ -404,6 +418,13 @@
               "type": "string",
               "enum": [
                 "astroport_incentives"
+              ]
+            },
+            {
+              "description": "Perps contract",
+              "type": "string",
+              "enum": [
+                "perps"
               ]
             }
           ]
@@ -487,6 +508,13 @@
               "enum": [
                 "astroport_incentives"
               ]
+            },
+            {
+              "description": "Perps contract",
+              "type": "string",
+              "enum": [
+                "perps"
+              ]
             }
           ]
         }
@@ -568,6 +596,13 @@
               "type": "string",
               "enum": [
                 "astroport_incentives"
+              ]
+            },
+            {
+              "description": "Perps contract",
+              "type": "string",
+              "enum": [
+                "perps"
               ]
             }
           ]

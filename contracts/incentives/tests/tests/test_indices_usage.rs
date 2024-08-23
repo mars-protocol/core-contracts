@@ -9,7 +9,11 @@ use mars_incentives::{
     },
     state::{CONFIG, EMISSIONS, EPOCH_DURATION, INCENTIVE_STATES},
 };
-use mars_types::incentives::{Config, IncentiveState};
+use mars_types::{
+    incentives::{Config, IncentiveKind, IncentiveState},
+    keys::{IncentiveId, IncentiveIdKey, IncentiveKindKey},
+};
+use test_case::test_case;
 
 fn store_config_with_epoch_duration(storage: &mut dyn Storage, epoch_duration: u64) {
     CONFIG
@@ -24,15 +28,23 @@ fn store_config_with_epoch_duration(storage: &mut dyn Storage, epoch_duration: u
     EPOCH_DURATION.save(storage, &epoch_duration).unwrap();
 }
 
-#[test]
-fn update_incentive_index_if_zero_emission() {
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
+fn update_incentive_index_if_zero_emission(kind: &IncentiveKind) {
     let mut storage = MockStorage::default();
     let start_time = 0;
     let ai = IncentiveState {
         index: Decimal::one(),
         last_updated: 0,
     };
-    INCENTIVE_STATES.save(&mut storage, ("uosmo", "umars"), &ai).unwrap();
+    let kind_key = IncentiveKindKey::try_from(kind).unwrap();
+    INCENTIVE_STATES.save(&mut storage, (&kind_key, "uosmo", "umars"), &ai).unwrap();
     store_config_with_epoch_duration(&mut storage, 300);
 
     let current_block_time = start_time + 1;
@@ -42,6 +54,7 @@ fn update_incentive_index_if_zero_emission() {
     // only last_updated should be changed to current_block_time
     let ai = update_incentive_index(
         &mut (&storage as &dyn Storage).into(),
+        kind,
         "uosmo",
         "umars",
         Uint128::new(100),
@@ -51,8 +64,15 @@ fn update_incentive_index_if_zero_emission() {
     assert_eq!(ai, expected_ai);
 }
 
-#[test]
-fn update_incentive_index_if_zero_amount() {
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
+fn update_incentive_index_if_zero_amount(kind: &IncentiveKind) {
     let mut storage = MockStorage::default();
 
     let start_time = 0;
@@ -60,9 +80,15 @@ fn update_incentive_index_if_zero_amount() {
         index: Decimal::one(),
         last_updated: 0,
     };
-    INCENTIVE_STATES.save(&mut storage, ("uosmo", "umars"), &ai).unwrap();
+    let kind_key = IncentiveKindKey::try_from(kind).unwrap();
+    let incentive_id = IncentiveId::create(kind.clone(), "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
+
+    INCENTIVE_STATES.save(&mut storage, (&kind_key, "uosmo", "umars"), &ai).unwrap();
     store_config_with_epoch_duration(&mut storage, 300);
-    EMISSIONS.save(&mut storage, ("uosmo", "umars", start_time), &Uint128::new(50)).unwrap();
+    EMISSIONS
+        .save(&mut storage, (&incentive_id_key, "umars", start_time), &Uint128::new(50))
+        .unwrap();
 
     let current_block_time = start_time + 1;
     let expected_ai = ai.clone();
@@ -70,6 +96,7 @@ fn update_incentive_index_if_zero_amount() {
     // No update should occur because total_collateral is zero
     let ai = update_incentive_index(
         &mut (&storage as &dyn Storage).into(),
+        kind,
         "uosmo",
         "umars",
         Uint128::zero(),
@@ -79,8 +106,15 @@ fn update_incentive_index_if_zero_amount() {
     assert_eq!(ai, expected_ai);
 }
 
-#[test]
-fn update_incentive_index_if_current_block_lt_start_time() {
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
+fn update_incentive_index_if_current_block_lt_start_time(kind: &IncentiveKind) {
     let mut storage = MockStorage::default();
 
     let start_time = 10;
@@ -88,9 +122,15 @@ fn update_incentive_index_if_current_block_lt_start_time() {
         index: Decimal::one(),
         last_updated: 0,
     };
-    INCENTIVE_STATES.save(&mut storage, ("uosmo", "umars"), &ai).unwrap();
+    let kind_key = IncentiveKindKey::try_from(kind).unwrap();
+    let incentive_id = IncentiveId::create(kind.clone(), "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
+
+    INCENTIVE_STATES.save(&mut storage, (&kind_key, "uosmo", "umars"), &ai).unwrap();
     store_config_with_epoch_duration(&mut storage, 300);
-    EMISSIONS.save(&mut storage, ("uosmo", "umars", start_time), &Uint128::new(50)).unwrap();
+    EMISSIONS
+        .save(&mut storage, (&incentive_id_key, "umars", start_time), &Uint128::new(50))
+        .unwrap();
 
     let current_block_time = start_time - 1;
     let mut expected_ai = ai.clone();
@@ -99,6 +139,7 @@ fn update_incentive_index_if_current_block_lt_start_time() {
     // only last_updated should be changed to current_block_time
     let ai = update_incentive_index(
         &mut (&storage as &dyn Storage).into(),
+        kind,
         "uosmo",
         "umars",
         Uint128::new(100),
@@ -108,8 +149,15 @@ fn update_incentive_index_if_current_block_lt_start_time() {
     assert_eq!(ai, expected_ai);
 }
 
-#[test]
-fn update_incentive_index_if_current_block_eq_start_time() {
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
+fn update_incentive_index_if_current_block_eq_start_time(kind: &IncentiveKind) {
     let mut storage = MockStorage::default();
 
     let start_time = 10;
@@ -117,9 +165,15 @@ fn update_incentive_index_if_current_block_eq_start_time() {
         index: Decimal::one(),
         last_updated: 0,
     };
-    INCENTIVE_STATES.save(&mut storage, ("uosmo", "umars"), &ai).unwrap();
+    let kind_key = IncentiveKindKey::try_from(kind).unwrap();
+    let incentive_id = IncentiveId::create(kind.clone(), "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
+
+    INCENTIVE_STATES.save(&mut storage, (&kind_key, "uosmo", "umars"), &ai).unwrap();
     store_config_with_epoch_duration(&mut storage, 300);
-    EMISSIONS.save(&mut storage, ("uosmo", "umars", start_time), &Uint128::new(50)).unwrap();
+    EMISSIONS
+        .save(&mut storage, (&incentive_id_key, "umars", start_time), &Uint128::new(50))
+        .unwrap();
 
     let current_block_time = start_time;
     let mut expected_ai = ai.clone();
@@ -128,6 +182,7 @@ fn update_incentive_index_if_current_block_eq_start_time() {
     // only last_updated should be changed to current_block_time
     let ai = update_incentive_index(
         &mut (&storage as &dyn Storage).into(),
+        kind,
         "uosmo",
         "umars",
         Uint128::new(100),
@@ -137,8 +192,15 @@ fn update_incentive_index_if_current_block_eq_start_time() {
     assert_eq!(ai, expected_ai);
 }
 
-#[test]
-fn update_incentive_index_if_current_block_gt_start_time() {
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
+fn update_incentive_index_if_current_block_gt_start_time(kind: &IncentiveKind) {
     let mut storage = MockStorage::default();
 
     let total_amount = Uint128::new(100);
@@ -149,9 +211,13 @@ fn update_incentive_index_if_current_block_gt_start_time() {
         index: Decimal::one(),
         last_updated: 0,
     };
-    INCENTIVE_STATES.save(&mut storage, ("uosmo", "umars"), &ai).unwrap();
+    let kind_key = IncentiveKindKey::try_from(kind).unwrap();
+    let incentive_id = IncentiveId::create(kind.clone(), "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
+
+    INCENTIVE_STATES.save(&mut storage, (&kind_key, "uosmo", "umars"), &ai).unwrap();
     store_config_with_epoch_duration(&mut storage, 300);
-    EMISSIONS.save(&mut storage, ("uosmo", "umars", start_time), &eps).unwrap();
+    EMISSIONS.save(&mut storage, (&incentive_id_key, "umars", start_time), &eps).unwrap();
 
     let current_block_time = start_time + 1;
     let mut expected_ai = ai.clone();
@@ -160,6 +226,7 @@ fn update_incentive_index_if_current_block_gt_start_time() {
 
     let ai = update_incentive_index(
         &mut (&storage as &dyn Storage).into(),
+        kind,
         "uosmo",
         "umars",
         total_amount,
@@ -174,6 +241,7 @@ fn update_incentive_index_if_current_block_gt_start_time() {
     expected_ai.last_updated = current_block_time;
     let ai = update_incentive_index(
         &mut (&storage as &dyn Storage).into(),
+        kind,
         "uosmo",
         "umars",
         total_amount,
@@ -183,8 +251,15 @@ fn update_incentive_index_if_current_block_gt_start_time() {
     assert_eq!(ai, expected_ai);
 }
 
-#[test]
-fn update_incentive_index_if_last_updated_eq_end_time() {
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
+fn update_incentive_index_if_last_updated_eq_end_time(kind: &IncentiveKind) {
     let mut storage = MockStorage::default();
 
     let start_time = 10;
@@ -194,9 +269,15 @@ fn update_incentive_index_if_last_updated_eq_end_time() {
         index: Decimal::one(),
         last_updated: end_time,
     };
-    INCENTIVE_STATES.save(&mut storage, ("uosmo", "umars"), &ai).unwrap();
+    let kind_key = IncentiveKindKey::try_from(kind).unwrap();
+    let incentive_id = IncentiveId::create(kind.clone(), "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
+
+    INCENTIVE_STATES.save(&mut storage, (&kind_key, "uosmo", "umars"), &ai).unwrap();
     store_config_with_epoch_duration(&mut storage, 300);
-    EMISSIONS.save(&mut storage, ("uosmo", "umars", start_time), &Uint128::new(50)).unwrap();
+    EMISSIONS
+        .save(&mut storage, (&incentive_id_key, "umars", start_time), &Uint128::new(50))
+        .unwrap();
 
     let current_block_time = end_time + 1;
     let mut expected_ai = ai.clone();
@@ -205,6 +286,7 @@ fn update_incentive_index_if_last_updated_eq_end_time() {
     // only last_updated should be changed to current_block_time
     let ai = update_incentive_index(
         &mut (&storage as &dyn Storage).into(),
+        kind,
         "uosmo",
         "umars",
         Uint128::new(100),
@@ -214,8 +296,15 @@ fn update_incentive_index_if_last_updated_eq_end_time() {
     assert_eq!(ai, expected_ai);
 }
 
-#[test]
-fn update_incentive_index_if_last_updated_lt_end_time() {
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
+fn update_incentive_index_if_last_updated_lt_end_time(kind: &IncentiveKind) {
     let mut storage = MockStorage::default();
 
     let start_time = 10;
@@ -226,9 +315,16 @@ fn update_incentive_index_if_last_updated_lt_end_time() {
         index: Decimal::one(),
         last_updated,
     };
-    INCENTIVE_STATES.save(&mut storage, ("uosmo", "umars"), &ai).unwrap();
+
+    let kind_key = IncentiveKindKey::try_from(kind).unwrap();
+    let incentive_id = IncentiveId::create(kind.clone(), "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
+
+    INCENTIVE_STATES.save(&mut storage, (&kind_key, "uosmo", "umars"), &ai).unwrap();
     store_config_with_epoch_duration(&mut storage, duration);
-    EMISSIONS.save(&mut storage, ("uosmo", "umars", start_time), &Uint128::new(20)).unwrap();
+    EMISSIONS
+        .save(&mut storage, (&incentive_id_key, "umars", start_time), &Uint128::new(20))
+        .unwrap();
 
     let current_block_time = end_time;
     let mut expected_ai = ai.clone();
@@ -237,6 +333,7 @@ fn update_incentive_index_if_last_updated_lt_end_time() {
 
     let ai = update_incentive_index(
         &mut (&storage as &dyn Storage).into(),
+        kind,
         "uosmo",
         "umars",
         Uint128::new(100),
@@ -246,20 +343,33 @@ fn update_incentive_index_if_last_updated_lt_end_time() {
     assert_eq!(ai, expected_ai);
 }
 
-#[test]
-fn update_incentive_index_if_not_updated_till_finished() {
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
+fn update_incentive_index_if_not_updated_till_finished(kind: &IncentiveKind) {
     let mut storage = MockStorage::default();
 
     let start_time = 10;
     let duration = 300; // 5 min
     let end_time = start_time + duration;
+    let kind_key = IncentiveKindKey::try_from(kind).unwrap();
+    let incentive_id = IncentiveId::create(kind.clone(), "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
+
     let ai = IncentiveState {
         index: Decimal::one(),
         last_updated: 0,
     };
-    INCENTIVE_STATES.save(&mut storage, ("uosmo", "umars"), &ai).unwrap();
+    INCENTIVE_STATES.save(&mut storage, (&kind_key, "uosmo", "umars"), &ai).unwrap();
     store_config_with_epoch_duration(&mut storage, duration);
-    EMISSIONS.save(&mut storage, ("uosmo", "umars", start_time), &Uint128::new(20)).unwrap();
+    EMISSIONS
+        .save(&mut storage, (&incentive_id_key, "umars", start_time), &Uint128::new(20))
+        .unwrap();
 
     let current_block_time = end_time + 10;
     let mut expected_ai = ai.clone();
@@ -268,6 +378,7 @@ fn update_incentive_index_if_not_updated_till_finished() {
 
     let ai = update_incentive_index(
         &mut (&storage as &dyn Storage).into(),
+        kind,
         "uosmo",
         "umars",
         Uint128::new(100),
@@ -277,10 +388,17 @@ fn update_incentive_index_if_not_updated_till_finished() {
     assert_eq!(ai, expected_ai);
 }
 
-#[test]
+#[test_case(
+    &IncentiveKind::RedBank;
+    "RedBank"
+)]
+#[test_case(
+    &IncentiveKind::PerpVault;
+    "PerpVault"
+)]
 /// Tests that update_incentive_index only reads the relevant schedules (i.e. those that are
 /// active at the current block time).
-fn update_incentive_index_only_uses_relevant_schedules() {
+fn update_incentive_index_only_uses_relevant_schedules(kind: &IncentiveKind) {
     let mut storage = MockStorage::default();
 
     let start_time = 10;
@@ -289,13 +407,17 @@ fn update_incentive_index_only_uses_relevant_schedules() {
         index: Decimal::zero(),
         last_updated: 0,
     };
-    INCENTIVE_STATES.save(&mut storage, ("uosmo", "umars"), &ai).unwrap();
+    let kind_key = IncentiveKindKey::try_from(kind).unwrap();
+    let incentive_id = IncentiveId::create(kind.clone(), "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
+
+    INCENTIVE_STATES.save(&mut storage, (&kind_key, "uosmo", "umars"), &ai).unwrap();
     store_config_with_epoch_duration(&mut storage, duration);
     for i in 0..5 {
         EMISSIONS
             .save(
                 &mut storage,
-                ("uosmo", "umars", start_time + duration * i as u64),
+                (&incentive_id_key, "umars", start_time + duration * i as u64),
                 &Uint128::new(20),
             )
             .unwrap();
@@ -305,6 +427,7 @@ fn update_incentive_index_only_uses_relevant_schedules() {
 
     let ai = update_incentive_index(
         &mut MaybeMutStorage::Mutable(&mut storage),
+        kind,
         "uosmo",
         "umars",
         Uint128::new(100),
@@ -316,12 +439,15 @@ fn update_incentive_index_only_uses_relevant_schedules() {
     assert_eq!(ai.last_updated, current_block_time);
 
     // Check that the state is saved
-    let stored_ai = INCENTIVE_STATES.load(&storage, ("uosmo", "umars")).unwrap();
+    let stored_ai = INCENTIVE_STATES.load(&storage, (&kind_key, "uosmo", "umars")).unwrap();
     assert_eq!(stored_ai, ai);
+
+    let incentive_id = IncentiveId::create(kind.clone(), "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
 
     // Check that previous epoch schedules were removed and that future schedules were not updated
     for i in 0..5 {
-        let key = ("uosmo", "umars", start_time + duration * i as u64);
+        let key = (&incentive_id_key, "umars", start_time + duration * i as u64);
         if i < 2 {
             assert!(EMISSIONS.may_load(&storage, key).unwrap().is_none());
         } else {

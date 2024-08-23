@@ -5,16 +5,15 @@ use std::{
 
 use astroport_v5::incentives::ExecuteMsg;
 use cosmwasm_std::{
-    coin, to_json_binary, Addr, BlockInfo, Coin, CosmosMsg, Decimal, Deps, MessageInfo, Order,
+    coin, to_json_binary, Addr, BlockInfo, Coin, CosmosMsg, Decimal, MessageInfo, Order,
     OverflowError, OverflowOperation, QuerierWrapper, StdError, StdResult, Storage, Uint128,
     WasmMsg,
 };
 use cw_storage_plus::Bound;
 use mars_types::{
-    address_provider::{self, MarsAddressType},
-    incentives::IncentiveState,
-    keys::{UserId, UserIdKey},
-    red_bank,
+    incentives::{IncentiveKind, IncentiveState},
+    keys::{IncentiveId, IncentiveIdKey, IncentiveKindKey, UserId, UserIdKey},
+    perps, red_bank,
 };
 
 use crate::{
@@ -59,13 +58,14 @@ impl MaybeMutStorage<'_> {
 /// - duration is a multiple of epoch duration
 /// - enough tokens are sent to cover the entire duration
 /// - start_time is a multiple of epoch duration away from any other existing incentive
-///  for the same collateral denom and incentive denom tuple
+///  for the same denom and incentive denom tuple
 pub fn validate_incentive_schedule(
     storage: &dyn Storage,
     info: &MessageInfo,
     epoch_duration: u64,
     current_time: u64,
-    collateral_denom: &str,
+    kind: &IncentiveKind,
+    denom: &str,
     incentive_denom: &str,
     emission_per_second: Uint128,
     start_time: u64,
@@ -108,11 +108,15 @@ pub fn validate_incentive_schedule(
             expected: coin(total_emission.u128(), incentive_denom),
         });
     }
+
+    let incentive_id = IncentiveId::create(kind.clone(), denom.to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id)?;
+
     // Start time must be a multiple of epoch duration away from any other existing incentive
-    // for the same collateral denom and incentive denom tuple. We do this so we have exactly one
+    // for the same denom and incentive denom tuple. We do this so we have exactly one
     // incentive schedule per epoch, to limit gas usage.
     let old_schedule = EMISSIONS
-        .prefix((collateral_denom, incentive_denom))
+        .prefix((&incentive_id_key, incentive_denom))
         .range(storage, None, None, Order::Ascending)
         .next()
         .transpose()?;
@@ -129,54 +133,108 @@ pub fn validate_incentive_schedule(
     Ok(())
 }
 
-/// Queries the total scaled collateral for a given collateral denom from the red bank contract
-pub fn query_red_bank_total_collateral(
-    deps: Deps,
-    address_provider: &Addr,
-    collateral_denom: &str,
+/// Queries the total amount for a given denom for the incentive kind
+pub fn query_total_amount(
+    querier: &QuerierWrapper,
+    red_bank_addr: &Addr,
+    perps_addr: &Addr,
+    kind: &IncentiveKind,
+    denom: &str,
 ) -> StdResult<Uint128> {
-    let red_bank_addr = address_provider::helpers::query_contract_addr(
-        deps,
-        address_provider,
-        MarsAddressType::RedBank,
-    )?;
-    let market: red_bank::Market = deps.querier.query_wasm_smart(
-        red_bank_addr,
-        &red_bank::QueryMsg::Market {
-            denom: collateral_denom.to_string(),
-        },
-    )?;
-    Ok(market.collateral_total_scaled)
+    let kind_key = IncentiveKindKey::try_from(kind)?;
+
+    match kind_key.clone().try_into()? {
+        IncentiveKind::RedBank => {
+            let market: red_bank::MarketV2Response = querier.query_wasm_smart(
+                red_bank_addr,
+                &red_bank::QueryMsg::MarketV2 {
+                    denom: denom.to_string(),
+                },
+            )?;
+            Ok(market.market.collateral_total_scaled)
+        }
+        IncentiveKind::PerpVault => {
+            let vault: perps::VaultResponse = querier.query_wasm_smart(
+                perps_addr,
+                &perps::QueryMsg::Vault {
+                    action: None,
+                },
+            )?;
+            Ok(vault.total_shares)
+        }
+    }
 }
 
-/// Updates the incentive index for a collateral denom and incentive denom tuple. This function
-/// should be called every time a user's collateral balance changes, when a new incentive schedule
+pub fn query_user_amount(
+    querier: &QuerierWrapper,
+    red_bank_addr: &Addr,
+    perps_addr: &Addr,
+    user_addr: &Addr,
+    account_id: Option<String>,
+    kind: IncentiveKind,
+    denom: &str,
+) -> StdResult<Uint128> {
+    match kind {
+        IncentiveKind::RedBank => {
+            let user_collateral: red_bank::UserCollateralResponse = querier.query_wasm_smart(
+                red_bank_addr,
+                &red_bank::QueryMsg::UserCollateral {
+                    user: user_addr.to_string(),
+                    account_id: account_id.clone(),
+                    denom: denom.to_string(),
+                },
+            )?;
+            Ok(user_collateral.amount_scaled)
+        }
+        IncentiveKind::PerpVault => {
+            let position: perps::PerpVaultPosition = querier.query_wasm_smart(
+                perps_addr,
+                &perps::QueryMsg::PerpVaultPosition {
+                    user_address: user_addr.to_string(),
+                    account_id,
+                    action: None,
+                },
+            )?;
+
+            Ok(position.deposit.shares)
+        }
+    }
+}
+
+/// Updates the incentive index for a denom and incentive denom tuple. This function
+/// should be called every time a user's amount changes, when a new incentive schedule
 /// is added, or when a user claims rewards.
 pub fn update_incentive_index(
     storage: &mut MaybeMutStorage,
-    collateral_denom: &str,
+    kind: &IncentiveKind,
+    denom: &str,
     incentive_denom: &str,
-    total_collateral: Uint128,
+    total_amount: Uint128,
     current_block_time: u64,
 ) -> StdResult<IncentiveState> {
     let epoch_duration = EPOCH_DURATION.load(storage.to_storage())?;
 
+    let kind_key = IncentiveKindKey::try_from(kind)?;
+
     let mut incentive_state = INCENTIVE_STATES
-        .may_load(storage.to_storage(), (collateral_denom, incentive_denom))?
+        .may_load(storage.to_storage(), (&kind_key, denom, incentive_denom))?
         .unwrap_or_else(|| IncentiveState {
             index: Decimal::zero(),
             last_updated: current_block_time,
         });
 
-    // If incentive state is already up to date or there is no collateral, no need to update
-    if incentive_state.last_updated == current_block_time || total_collateral.is_zero() {
+    // If incentive state is already up to date or there is no amount, no need to update
+    if incentive_state.last_updated == current_block_time || total_amount.is_zero() {
         return Ok(incentive_state);
     }
+
+    let incentive_id = IncentiveId::create(kind.clone(), denom.to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id)?;
 
     // Range over the emissions for all relevant epochs (those which have a start time before the
     // current block time)
     let emissions = EMISSIONS
-        .prefix((collateral_denom, incentive_denom))
+        .prefix((&incentive_id_key, incentive_denom))
         .range(
             storage.to_storage(),
             None,
@@ -192,7 +250,7 @@ pub fn update_incentive_index(
         incentive_state.index = compute_incentive_index(
             incentive_state.index,
             emission_per_second,
-            total_collateral,
+            total_amount,
             time_start,
             time_end,
         )?;
@@ -200,7 +258,7 @@ pub fn update_incentive_index(
         // If incentive schedule is over, remove it from storage
         if let MaybeMutStorage::Mutable(storage) = storage {
             if end_time_sec <= current_block_time {
-                EMISSIONS.remove(*storage, (collateral_denom, incentive_denom, start_time));
+                EMISSIONS.remove(*storage, (&incentive_id_key, incentive_denom, start_time));
             }
         }
     }
@@ -210,7 +268,7 @@ pub fn update_incentive_index(
 
     // Save updated index if storage is mutable
     if let MaybeMutStorage::Mutable(storage) = storage {
-        INCENTIVE_STATES.save(*storage, (collateral_denom, incentive_denom), &incentive_state)?;
+        INCENTIVE_STATES.save(*storage, (&kind_key, denom, incentive_denom), &incentive_state)?;
     }
 
     Ok(incentive_state)
@@ -296,11 +354,11 @@ pub fn compute_astro_incentive_index(
     Ok(new_index)
 }
 
-/// Computes the new incentive index for a given collateral denom and incentive denom tuple
+/// Computes the new incentive index for a given denom and incentive denom tuple
 pub fn compute_incentive_index(
     previous_index: Decimal,
     emission_per_second: Uint128,
-    total_amount_scaled: Uint128,
+    total_amount: Uint128,
     time_start: u64,
     time_end: u64,
 ) -> StdResult<Decimal> {
@@ -315,7 +373,7 @@ pub fn compute_incentive_index(
     let emission_for_elapsed_seconds =
         emission_per_second.checked_mul(Uint128::from(seconds_elapsed))?;
     let new_index =
-        previous_index + Decimal::from_ratio(emission_for_elapsed_seconds, total_amount_scaled);
+        previous_index + Decimal::from_ratio(emission_for_elapsed_seconds, total_amount);
     Ok(new_index)
 }
 
@@ -323,12 +381,12 @@ pub fn compute_incentive_index(
 /// user current index.
 /// incentive index should be up to date.
 pub fn compute_user_accrued_rewards(
-    user_amount_scaled: Uint128,
+    user_amount: Uint128,
     user_asset_index: Decimal,
     asset_incentive_index: Decimal,
 ) -> StdResult<Uint128> {
-    let result = (user_amount_scaled * asset_incentive_index)
-        .checked_sub(user_amount_scaled * user_asset_index)?;
+    let result =
+        (user_amount * asset_incentive_index).checked_sub(user_amount * user_asset_index)?;
     Ok(result)
 }
 
@@ -340,61 +398,60 @@ pub fn compute_user_unclaimed_rewards(
     querier: &QuerierWrapper,
     block: &BlockInfo,
     red_bank_addr: &Addr,
+    perps_addr: &Addr,
     user_addr: &Addr,
     account_id: &Option<String>,
-    collateral_denom: &str,
+    kind: &IncentiveKind,
+    denom: &str,
     incentive_denom: &str,
 ) -> StdResult<Uint128> {
     let acc_id = account_id.clone().unwrap_or("".to_string());
     let user_id = UserId::credit_manager(user_addr.clone(), acc_id);
     let user_id_key: UserIdKey = user_id.try_into()?;
+    let incentive_id = IncentiveId::create(kind.clone(), denom.to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id)?;
 
     let mut unclaimed_rewards = USER_UNCLAIMED_REWARDS
-        .may_load(storage.to_storage(), (&user_id_key, collateral_denom, incentive_denom))?
+        .may_load(storage.to_storage(), (&user_id_key, &incentive_id_key, incentive_denom))?
         .unwrap_or_else(Uint128::zero);
 
     // Get asset user balances and total supply
-    let collateral: red_bank::UserCollateralResponse = querier.query_wasm_smart(
+    let user_amount = query_user_amount(
+        querier,
         red_bank_addr,
-        &red_bank::QueryMsg::UserCollateral {
-            user: user_addr.to_string(),
-            account_id: account_id.clone(),
-            denom: collateral_denom.to_string(),
-        },
+        perps_addr,
+        user_addr,
+        account_id.clone(),
+        kind.clone(),
+        denom,
     )?;
-    let market: red_bank::Market = querier.query_wasm_smart(
-        red_bank_addr,
-        &red_bank::QueryMsg::Market {
-            denom: collateral_denom.to_string(),
-        },
-    )?;
+
+    let total_amount = query_total_amount(querier, red_bank_addr, perps_addr, kind, denom)?;
 
     // If user's balance is 0 there should be no rewards to accrue, so we don't care about
     // updating indexes. If the user's balance changes, the indexes will be updated correctly at
     // that point in time.
-    if collateral.amount_scaled.is_zero() {
+    if user_amount.is_zero() {
         return Ok(unclaimed_rewards);
     }
 
     let incentive_state = update_incentive_index(
         storage,
-        collateral_denom,
+        kind,
+        denom,
         incentive_denom,
-        market.collateral_total_scaled,
+        total_amount,
         block.time.seconds(),
     )?;
 
     let user_asset_index = USER_ASSET_INDICES
-        .may_load(storage.to_storage(), (&user_id_key, collateral_denom, incentive_denom))?
+        .may_load(storage.to_storage(), (&user_id_key, &incentive_id_key, incentive_denom))?
         .unwrap_or_else(Decimal::zero);
 
     if user_asset_index != incentive_state.index {
         // Compute user accrued rewards and update user index
-        let asset_accrued_rewards = compute_user_accrued_rewards(
-            collateral.amount_scaled,
-            user_asset_index,
-            incentive_state.index,
-        )?;
+        let asset_accrued_rewards =
+            compute_user_accrued_rewards(user_amount, user_asset_index, incentive_state.index)?;
         unclaimed_rewards += asset_accrued_rewards;
     }
 
@@ -403,7 +460,7 @@ pub fn compute_user_unclaimed_rewards(
         if user_asset_index != incentive_state.index {
             USER_ASSET_INDICES.save(
                 *storage,
-                (&user_id_key, collateral_denom, incentive_denom),
+                (&user_id_key, &incentive_id_key, incentive_denom),
                 &incentive_state.index,
             )?
         }

@@ -72,7 +72,8 @@ pub fn execute(
             remove_denoms,
         } => config::execute_update_whitelist(deps, env, info, add_denoms, remove_denoms),
         ExecuteMsg::SetAssetIncentive {
-            collateral_denom,
+            kind,
+            denom,
             incentive_denom,
             emission_per_second,
             start_time,
@@ -81,7 +82,8 @@ pub fn execute(
             deps,
             env,
             info,
-            collateral_denom,
+            &kind,
+            denom,
             incentive_denom,
             emission_per_second,
             start_time,
@@ -90,9 +92,10 @@ pub fn execute(
         ExecuteMsg::BalanceChange {
             user_addr,
             account_id,
+            kind,
             denom,
-            user_amount_scaled_before,
-            total_amount_scaled_before,
+            user_amount,
+            total_amount,
         } => {
             MIGRATION_GUARD.assert_unlocked(deps.storage)?;
             mars_incentives::execute_balance_change(
@@ -101,9 +104,10 @@ pub fn execute(
                 info,
                 user_addr,
                 account_id,
+                kind,
                 denom,
-                user_amount_scaled_before,
-                total_amount_scaled_before,
+                user_amount,
+                total_amount,
             )
         }
         ExecuteMsg::ClaimStakedAstroLpRewards {
@@ -118,7 +122,8 @@ pub fn execute(
         ),
         ExecuteMsg::ClaimRewards {
             account_id,
-            start_after_collateral_denom,
+            start_after_kind,
+            start_after_denom,
             start_after_incentive_denom,
             limit,
         } => {
@@ -128,7 +133,8 @@ pub fn execute(
                 env,
                 info,
                 account_id,
-                start_after_collateral_denom,
+                start_after_kind,
+                start_after_denom,
                 start_after_incentive_denom,
                 limit,
             )
@@ -152,7 +158,7 @@ pub fn execute(
             max_whitelisted_denoms,
         )?),
         ExecuteMsg::UpdateOwner(update) => config::update_owner(deps, info, update),
-        ExecuteMsg::Migrate(msg) => migrations::v2_0_0::execute_migration(deps, info, msg),
+        ExecuteMsg::Migrate(msg) => migrations::v2_0_1::execute_migration(deps, info, msg),
     }
 }
 
@@ -173,25 +179,27 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 
         QueryMsg::Config {} => to_json_binary(&query::query_config(deps)?),
         QueryMsg::IncentiveState {
-            collateral_denom,
+            kind,
+            denom,
             incentive_denom,
-        } => {
-            to_json_binary(&query::query_incentive_state(deps, collateral_denom, incentive_denom)?)
-        }
+        } => to_json_binary(&query::query_incentive_state(deps, kind, denom, incentive_denom)?),
         QueryMsg::IncentiveStates {
-            start_after_collateral_denom,
+            start_after_kind,
+            start_after_denom,
             start_after_incentive_denom,
             limit,
         } => to_json_binary(&query::query_incentive_states(
             deps,
-            start_after_collateral_denom,
+            start_after_kind,
+            start_after_denom,
             start_after_incentive_denom,
             limit,
         )?),
         QueryMsg::UserUnclaimedRewards {
             user,
             account_id,
-            start_after_collateral_denom,
+            start_after_kind,
+            start_after_denom,
             start_after_incentive_denom,
             limit,
         } => to_json_binary(&query::query_user_unclaimed_rewards(
@@ -199,36 +207,42 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
             env,
             user,
             account_id,
-            start_after_collateral_denom,
+            start_after_kind,
+            start_after_denom,
             start_after_incentive_denom,
             limit,
         )?),
         QueryMsg::Whitelist {} => to_json_binary(&query::query_whitelist(deps)?),
         QueryMsg::Emission {
-            collateral_denom,
+            kind,
+            denom,
             incentive_denom,
             timestamp,
         } => to_json_binary(&query::query_emission(
             deps,
-            &collateral_denom,
+            &kind,
+            &denom,
             &incentive_denom,
             timestamp,
         )?),
         QueryMsg::Emissions {
-            collateral_denom,
+            kind,
+            denom,
             incentive_denom,
             start_after_timestamp,
             limit,
         } => to_json_binary(&query::query_emissions(
             deps,
-            collateral_denom,
+            &kind,
+            denom,
             incentive_denom,
             start_after_timestamp,
             limit,
         )?),
         QueryMsg::ActiveEmissions {
-            collateral_denom,
-        } => to_json_binary(&query::query_active_emissions(deps, env, &collateral_denom)?),
+            kind,
+            denom,
+        } => to_json_binary(&query::query_active_emissions(deps, env, &kind, &denom)?),
         QueryMsg::StakedAstroLpPositions {
             account_id,
             start_after,
@@ -250,8 +264,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 /// MIGRATION
-
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, env: Env, msg: Empty) -> Result<Response, ContractError> {
-    migrations::v2_0_0::migrate(deps, env, msg)
+    migrations::v2_0_1::migrate(deps, env, msg)
 }

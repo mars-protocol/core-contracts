@@ -14,6 +14,7 @@ use mars_testing::{
 use mars_types::{
     address_provider::MarsAddressType,
     incentives,
+    incentives::IncentiveKind,
     params::{AssetParams, CmSettings, LiquidationBonus, RedBankSettings},
     red_bank::{
         ExecuteMsg, InitOrUpdateAssetParams, InterestRateModel, Market, QueryMsg,
@@ -1014,8 +1015,9 @@ fn expected_messages(
                 user_addr: user_addr.clone(),
                 account_id: None,
                 denom: collateral_market.denom.clone(),
-                user_amount_scaled_before: user_collateral_scaled,
-                total_amount_scaled_before: collateral_market.collateral_total_scaled,
+                kind: IncentiveKind::RedBank,
+                user_amount: user_collateral_scaled,
+                total_amount: collateral_market.collateral_total_scaled,
             })
             .unwrap(),
             funds: vec![],
@@ -1026,8 +1028,9 @@ fn expected_messages(
                 user_addr: recipient_addr.clone(),
                 account_id: None,
                 denom: collateral_market.denom.clone(),
-                user_amount_scaled_before: recipient_collateral_scaled,
-                total_amount_scaled_before: collateral_market.collateral_total_scaled,
+                kind: IncentiveKind::RedBank,
+                user_amount: recipient_collateral_scaled,
+                total_amount: collateral_market.collateral_total_scaled,
             })
             .unwrap(),
             funds: vec![],
@@ -1038,8 +1041,9 @@ fn expected_messages(
                 user_addr: Addr::unchecked(MarsAddressType::RewardsCollector.to_string()),
                 account_id: None,
                 denom: collateral_market.denom.clone(),
-                user_amount_scaled_before: Uint128::zero(),
-                total_amount_scaled_before: collateral_market.collateral_total_scaled,
+                kind: IncentiveKind::RedBank,
+                user_amount: Uint128::zero(),
+                total_amount: collateral_market.collateral_total_scaled,
             })
             .unwrap(),
             funds: vec![],
@@ -1050,8 +1054,9 @@ fn expected_messages(
                 user_addr: Addr::unchecked(MarsAddressType::RewardsCollector.to_string()),
                 account_id: None,
                 denom: debt_market.denom.clone(),
-                user_amount_scaled_before: Uint128::zero(),
-                total_amount_scaled_before: debt_market.collateral_total_scaled,
+                kind: IncentiveKind::RedBank,
+                user_amount: Uint128::zero(),
+                total_amount: debt_market.collateral_total_scaled,
             })
             .unwrap(),
             funds: vec![],

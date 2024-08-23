@@ -9,10 +9,11 @@ use cw_storage_plus::Bound;
 use mars_types::{
     address_provider::{self, MarsAddressType},
     incentives::{
-        ActiveEmission, ConfigResponse, EmissionResponse, IncentiveStateResponse,
+        ActiveEmission, ConfigResponse, EmissionResponse, IncentiveKind, IncentiveStateResponse,
         PaginatedLpRewardsResponse, PaginatedStakedLpResponse, StakedLpPositionResponse,
         WhitelistEntry,
     },
+    keys::{IncentiveId, IncentiveIdKey, IncentiveKindKey},
 };
 
 use crate::{
@@ -30,15 +31,17 @@ use crate::{
 pub fn query_active_emissions(
     deps: Deps,
     env: Env,
-    collateral_denom: &str,
+    kind: &IncentiveKind,
+    denom: &str,
 ) -> StdResult<Vec<ActiveEmission>> {
+    let kind_key = IncentiveKindKey::try_from(kind)?;
     Ok(INCENTIVE_STATES
-        .prefix(collateral_denom)
+        .prefix((&kind_key, denom))
         .keys(deps.storage, None, None, Order::Ascending)
         .map(|incentive_denom| {
             let incentive_denom = incentive_denom?;
             let emission =
-                query_emission(deps, collateral_denom, &incentive_denom, env.block.time.seconds())?;
+                query_emission(deps, kind, denom, &incentive_denom, env.block.time.seconds())?;
 
             Ok::<ActiveEmission, _>((incentive_denom, emission).into())
         })
@@ -63,31 +66,39 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
 
 pub fn query_incentive_state(
     deps: Deps,
-    collateral_denom: String,
+    kind: IncentiveKind,
+    denom: String,
     incentive_denom: String,
 ) -> StdResult<IncentiveStateResponse> {
-    let incentive_state =
-        INCENTIVE_STATES.load(deps.storage, (&collateral_denom, &incentive_denom))?;
-    Ok(IncentiveStateResponse::from(collateral_denom, incentive_denom, incentive_state))
+    let incentive_state = INCENTIVE_STATES
+        .load(deps.storage, (&IncentiveKindKey::try_from(&kind)?, &denom, &incentive_denom))?;
+    Ok(IncentiveStateResponse::from(kind, denom, incentive_denom, incentive_state))
 }
 
 pub fn query_incentive_states(
     deps: Deps,
-    start_after_collateral_denom: Option<String>,
+    kind: Option<IncentiveKind>,
+    start_after_denom: Option<String>,
     start_after_incentive_denom: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<Vec<IncentiveStateResponse>> {
     let incentive_states = state::paginate_incentive_states(
         deps.storage,
-        start_after_collateral_denom,
+        kind,
+        start_after_denom,
         start_after_incentive_denom,
         limit,
     )?;
 
     incentive_states
         .into_iter()
-        .map(|((collateral_denom, incentive_denom), ai)| {
-            Ok(IncentiveStateResponse::from(collateral_denom, incentive_denom, ai))
+        .map(|((kind, denom, incentive_denom), incentive_state)| {
+            Ok(IncentiveStateResponse::from(
+                kind.try_into()?,
+                denom,
+                incentive_denom,
+                incentive_state,
+            ))
         })
         .collect()
 }
@@ -227,31 +238,43 @@ pub fn query_user_unclaimed_rewards(
     env: Env,
     user: String,
     account_id: Option<String>,
-    start_after_collateral_denom: Option<String>,
+    start_after_kind: Option<IncentiveKind>,
+    start_after_denom: Option<String>,
     start_after_incentive_denom: Option<String>,
     limit: Option<u32>,
 ) -> Result<Vec<Coin>, ContractError> {
     let user_addr = deps.api.addr_validate(&user)?;
-    let red_bank_addr = query_red_bank_address(deps)?;
+    let config = CONFIG.load(deps.storage)?;
+
+    let addresses = address_provider::helpers::query_contract_addrs(
+        deps,
+        &config.address_provider,
+        vec![MarsAddressType::RedBank, MarsAddressType::Perps],
+    )?;
+    let red_bank_addr = &addresses[&MarsAddressType::RedBank];
+    let perps_addr = &addresses[&MarsAddressType::Perps];
 
     let incentive_states = state::paginate_incentive_states(
         deps.storage,
-        start_after_collateral_denom,
+        start_after_kind,
+        start_after_denom,
         start_after_incentive_denom,
         limit,
     )?;
 
     let mut total_unclaimed_rewards = Coins::default();
 
-    for ((collateral_denom, incentive_denom), _) in incentive_states {
+    for ((kind_key, denom, incentive_denom), _) in incentive_states {
         let unclaimed_rewards = compute_user_unclaimed_rewards(
             &mut deps.storage.into(),
             &deps.querier,
             &env.block,
-            &red_bank_addr,
+            red_bank_addr,
+            perps_addr,
             &user_addr,
             &account_id,
-            &collateral_denom,
+            &IncentiveKind::try_from(kind_key)?,
+            &denom,
             &incentive_denom,
         )?;
 
@@ -264,13 +287,9 @@ pub fn query_user_unclaimed_rewards(
     Ok(total_unclaimed_rewards.into())
 }
 
-pub fn query_red_bank_address(deps: Deps) -> StdResult<Addr> {
+pub fn query_address(deps: Deps, address_type: MarsAddressType) -> StdResult<Addr> {
     let config = CONFIG.load(deps.storage)?;
-    address_provider::helpers::query_contract_addr(
-        deps,
-        &config.address_provider,
-        MarsAddressType::RedBank,
-    )
+    address_provider::helpers::query_contract_addr(deps, &config.address_provider, address_type)
 }
 
 pub fn query_whitelist(deps: Deps) -> StdResult<Vec<WhitelistEntry>> {
@@ -289,13 +308,16 @@ pub fn query_whitelist(deps: Deps) -> StdResult<Vec<WhitelistEntry>> {
 
 pub fn query_emission(
     deps: Deps,
-    collateral_denom: &str,
+    kind: &IncentiveKind,
+    denom: &str,
     incentive_denom: &str,
     timestamp: u64,
 ) -> StdResult<Uint128> {
     let epoch_duration = EPOCH_DURATION.load(deps.storage)?;
+    let incentive_id = IncentiveId::create(kind.clone(), denom.to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id)?;
     let emission = EMISSIONS
-        .prefix((collateral_denom, incentive_denom))
+        .prefix((&incentive_id_key, incentive_denom))
         .range(
             deps.storage,
             Some(Bound::inclusive(timestamp.saturating_sub(epoch_duration - 1))),
@@ -312,15 +334,18 @@ pub fn query_emission(
 
 pub fn query_emissions(
     deps: Deps,
-    collateral_denom: String,
+    kind: &IncentiveKind,
+    denom: String,
     incentive_denom: String,
     start_after_timestamp: Option<u64>,
     limit: Option<u32>,
 ) -> StdResult<Vec<EmissionResponse>> {
+    let incentive_id = IncentiveId::create(kind.clone(), denom);
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id)?;
     let min = start_after_timestamp.map(Bound::exclusive);
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
     let emissions = EMISSIONS
-        .prefix((&collateral_denom, &incentive_denom))
+        .prefix((&incentive_id_key, &incentive_denom))
         .range(deps.storage, min, None, Order::Ascending)
         .take(limit)
         .collect::<StdResult<Vec<_>>>()?;

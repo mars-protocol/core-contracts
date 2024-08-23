@@ -17,6 +17,7 @@ use mars_types::{
     address_provider::MarsAddressType,
     error::MarsError,
     incentives,
+    incentives::IncentiveKind,
     keys::{UserId, UserIdKey},
     params::{AssetParams, CmSettings, LiquidationBonus, RedBankSettings},
     red_bank::{Collateral, ExecuteMsg, Market},
@@ -319,9 +320,10 @@ fn depositing_without_existing_position() {
                 user_addr: depositor_addr.clone(),
                 account_id: None,
                 denom: initial_market.denom.clone(),
-                user_amount_scaled_before: Uint128::zero(),
+                kind: IncentiveKind::RedBank,
+                user_amount: Uint128::zero(),
                 // NOTE: Protocol rewards accrued is zero, so here it's initial total supply
-                total_amount_scaled_before: initial_market.collateral_total_scaled,
+                total_amount: initial_market.collateral_total_scaled,
             })
             .unwrap(),
             funds: vec![]
@@ -403,7 +405,7 @@ fn depositing_with_existing_position() {
     .unwrap();
 
     // NOTE: For this particular test, the borrow interest accrued was so low that the accrued
-    // protocol reward is rounded down to zero. Therefore we don't expect a message to update the
+    // protocol reward is rounded down to zero. Therefore, we don't expect a message to update the
     // index of the reward collector.
     assert_eq!(
         res.messages,
@@ -413,9 +415,10 @@ fn depositing_with_existing_position() {
                 user_addr: depositor_addr.clone(),
                 account_id: None,
                 denom: initial_market.denom.clone(),
-                user_amount_scaled_before: collateral_amount_scaled,
+                kind: IncentiveKind::RedBank,
+                user_amount: collateral_amount_scaled,
                 // NOTE: Protocol rewards accrued is zero, so here it's initial total supply
-                total_amount_scaled_before: initial_market.collateral_total_scaled,
+                total_amount: initial_market.collateral_total_scaled,
             })
             .unwrap(),
             funds: vec![]
@@ -488,8 +491,9 @@ fn depositing_on_behalf_of() {
                     user_addr: Addr::unchecked(MarsAddressType::RewardsCollector.to_string()),
                     account_id: None,
                     denom: initial_market.denom.clone(),
-                    user_amount_scaled_before: Uint128::zero(),
-                    total_amount_scaled_before: initial_market.collateral_total_scaled,
+                    kind: IncentiveKind::RedBank,
+                    user_amount: Uint128::zero(),
+                    total_amount: initial_market.collateral_total_scaled,
                 })
                 .unwrap(),
                 funds: vec![]
@@ -500,10 +504,11 @@ fn depositing_on_behalf_of() {
                     user_addr: on_behalf_of_addr.clone(),
                     account_id: None,
                     denom: initial_market.denom.clone(),
-                    user_amount_scaled_before: Uint128::zero(),
+                    kind: IncentiveKind::RedBank,
+                    user_amount: Uint128::zero(),
                     // NOTE: New collateral shares were minted to the rewards collector first, so
                     // for the depositor this should be initial total supply + rewards shares minted
-                    total_amount_scaled_before: initial_market.collateral_total_scaled
+                    total_amount: initial_market.collateral_total_scaled
                         + expected_reward_amount_scaled,
                 })
                 .unwrap(),

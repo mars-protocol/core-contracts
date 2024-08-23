@@ -1,5 +1,6 @@
 use cosmwasm_std::{assert_approx_eq, coin, Addr, Decimal, Uint128};
 use mars_testing::integration::mock_env::MockEnvBuilder;
+use mars_types::incentives::IncentiveKind;
 
 use crate::helpers::default_asset_params;
 
@@ -28,6 +29,7 @@ fn rewards_claim() {
     incentives.whitelist_incentive_denoms(&mut mock_env, &[("umars", 3)]);
     incentives.init_asset_incentive_from_current_block(
         &mut mock_env,
+        &IncentiveKind::RedBank,
         "uusdc",
         "umars",
         10,
@@ -82,6 +84,7 @@ fn rewards_claim_for_credit_account() {
     incentives.whitelist_incentive_denoms(&mut mock_env, &[("umars", 3)]);
     incentives.init_asset_incentive_from_current_block(
         &mut mock_env,
+        &IncentiveKind::RedBank,
         "uusdc",
         "umars",
         10,
@@ -268,6 +271,7 @@ fn emissions_rates() {
     incentives.whitelist_incentive_denoms(&mut mock_env, &[("umars", 3)]);
     incentives.init_asset_incentive_from_current_block(
         &mut mock_env,
+        &IncentiveKind::RedBank,
         "uusdc",
         "umars",
         5,
@@ -307,6 +311,7 @@ fn emissions_rates() {
 
     incentives.init_asset_incentive_from_current_block(
         &mut mock_env,
+        &IncentiveKind::RedBank,
         "uosmo",
         "umars",
         10,
@@ -362,6 +367,7 @@ fn no_incentives_accrued_after_withdraw() {
     incentives.whitelist_incentive_denoms(&mut mock_env, &[("umars", 3)]);
     incentives.init_asset_incentive_from_current_block(
         &mut mock_env,
+        &IncentiveKind::RedBank,
         "uusdc",
         "umars",
         5,
@@ -443,6 +449,7 @@ fn multiple_assets() {
     incentives.whitelist_incentive_denoms(&mut mock_env, &[("umars", 3)]);
     incentives.init_asset_incentive_from_current_block(
         &mut mock_env,
+        &IncentiveKind::RedBank,
         "uusdc",
         "umars",
         5,
@@ -450,6 +457,7 @@ fn multiple_assets() {
     );
     incentives.init_asset_incentive_from_current_block(
         &mut mock_env,
+        &IncentiveKind::RedBank,
         "uatom",
         "umars",
         10,
@@ -457,6 +465,7 @@ fn multiple_assets() {
     );
     incentives.init_asset_incentive_from_current_block(
         &mut mock_env,
+        &IncentiveKind::RedBank,
         "uosmo",
         "umars",
         3,
@@ -520,6 +529,7 @@ fn multiple_users() {
     incentives.whitelist_incentive_denoms(&mut mock_env, &[("umars", 3)]);
     incentives.init_asset_incentive_from_current_block(
         &mut mock_env,
+        &IncentiveKind::RedBank,
         "uusdc",
         "umars",
         5,
@@ -632,6 +642,7 @@ fn rewards_distributed_among_users_and_rewards_collector() {
     incentives.whitelist_incentive_denoms(&mut mock_env, &[("umars", 3)]);
     incentives.init_asset_incentive_from_current_block(
         &mut mock_env,
+        &IncentiveKind::RedBank,
         "uusdc",
         "umars",
         umars_eps_for_uusdc,
@@ -639,6 +650,7 @@ fn rewards_distributed_among_users_and_rewards_collector() {
     );
     incentives.init_asset_incentive_from_current_block(
         &mut mock_env,
+        &IncentiveKind::RedBank,
         "uosmo",
         "umars",
         umars_eps_for_uosmo,
@@ -646,6 +658,7 @@ fn rewards_distributed_among_users_and_rewards_collector() {
     );
     incentives.init_asset_incentive_from_current_block(
         &mut mock_env,
+        &IncentiveKind::RedBank,
         "uatom",
         "umars",
         umars_eps_for_uatom,

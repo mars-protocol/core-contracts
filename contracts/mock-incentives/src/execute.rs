@@ -52,13 +52,13 @@ pub fn balance_change(
     user_addr: Addr,
     account_id: Option<String>,
     denom: String,
-    user_amount_scaled_before: Uint128,
+    user_collateral: Uint128,
 ) -> StdResult<Response> {
     let mut unclaimed = query_unclaimed_rewards(deps.as_ref(), user_addr.as_str(), &account_id)?;
 
     unclaimed.push(Coin {
         denom,
-        amount: user_amount_scaled_before,
+        amount: user_collateral,
     });
 
     UNCLAIMED_REWARDS.save(

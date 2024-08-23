@@ -8,7 +8,12 @@ use cosmwasm_std::{
 use ica_oracle::msg::RedemptionRateResponse;
 use mars_oracle_osmosis::DowntimeDetector;
 use mars_oracle_wasm::slinky::CurrencyPairExt;
-use mars_types::{address_provider, incentives, oracle, params::AssetParams, red_bank};
+use mars_types::{
+    address_provider, incentives, oracle,
+    params::AssetParams,
+    perps::{PerpVaultPosition, VaultResponse},
+    red_bank,
+};
 use neutron_sdk::bindings::{
     marketmap::types::Market,
     oracle::{query::GetPriceResponse, types::CurrencyPair},
@@ -30,6 +35,7 @@ use crate::{
     oracle_querier::OracleQuerier,
     osmosis_querier::{OsmosisQuerier, PriceKey},
     params_querier::ParamsQuerier,
+    perps_querier::PerpsQuerier,
     pyth_querier::PythQuerier,
     red_bank_querier::RedBankQuerier,
     redemption_rate_querier::RedemptionRateQuerier,
@@ -48,6 +54,7 @@ pub struct MarsMockQuerier {
     params_querier: ParamsQuerier,
     cosmwasm_pool_queries: CosmWasmPoolQuerier,
     slinky_querier: SlinkyQuerier,
+    perps_querier: PerpsQuerier,
 }
 
 impl Querier for MarsMockQuerier {
@@ -98,6 +105,7 @@ impl MarsMockQuerier {
             params_querier: ParamsQuerier::default(),
             cosmwasm_pool_queries: CosmWasmPoolQuerier::default(),
             slinky_querier: SlinkyQuerier::default(),
+            perps_querier: PerpsQuerier::default(),
         }
     }
 
@@ -281,6 +289,18 @@ impl MarsMockQuerier {
         self.slinky_querier.prices.remove(&cp.key());
     }
 
+    pub fn set_perp_vault_position(
+        &mut self,
+        user: impl Into<String>,
+        vault_position: PerpVaultPosition,
+    ) {
+        self.perps_querier.vault_positions.insert(user.into(), vault_position);
+    }
+
+    pub fn set_perp_vault_state(&mut self, vault_res: VaultResponse) {
+        self.perps_querier.vault = vault_res;
+    }
+
     fn handle_query(&self, request: &QueryRequest<Empty>) -> QuerierResult {
         match &request {
             QueryRequest::Wasm(WasmQuery::Smart {
@@ -342,6 +362,11 @@ impl MarsMockQuerier {
                 // Params Queries
                 if let Ok(params_query) = from_json::<mars_types::params::QueryMsg>(msg) {
                     return self.params_querier.handle_query(params_query);
+                }
+
+                // Params Queries
+                if let Ok(perps_query) = from_json::<mars_types::perps::QueryMsg>(msg) {
+                    return self.perps_querier.handle_query(perps_query);
                 }
 
                 // CosmWasm pool Queries

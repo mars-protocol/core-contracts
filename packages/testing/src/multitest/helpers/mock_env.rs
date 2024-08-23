@@ -49,6 +49,7 @@ use mars_types::{
     },
     incentives::{
         ExecuteMsg::{BalanceChange, SetAssetIncentive},
+        IncentiveKind,
         QueryMsg::{StakedAstroLpPosition, StakedAstroLpRewards, UserUnclaimedRewards},
         StakedLpPositionResponse,
     },
@@ -440,7 +441,7 @@ impl MockEnv {
         )
     }
 
-    pub fn add_incentive_reward(&mut self, account_id: &str, coin: Coin) {
+    pub fn add_incentive_reward(&mut self, account_id: &str, kind: &IncentiveKind, coin: Coin) {
         // Register reward in mock contract
         self.app
             .execute_contract(
@@ -449,9 +450,10 @@ impl MockEnv {
                 &BalanceChange {
                     user_addr: self.rover.clone(),
                     account_id: Some(account_id.to_string()),
+                    kind: kind.clone(),
                     denom: coin.denom.clone(),
-                    user_amount_scaled_before: coin.amount,
-                    total_amount_scaled_before: Default::default(),
+                    user_amount: coin.amount,
+                    total_amount: Default::default(),
                 },
                 &[],
             )
@@ -473,7 +475,8 @@ impl MockEnv {
                 self.rover.clone(),
                 self.incentives.addr.clone(),
                 &SetAssetIncentive {
-                    collateral_denom: lp_denom.to_string(),
+                    kind: IncentiveKind::RedBank,
+                    denom: lp_denom.to_string(),
                     incentive_denom: coin.denom.clone(),
                     // Emision per second is used for amount
                     emission_per_second: coin.amount,
@@ -601,7 +604,8 @@ impl MockEnv {
                 &UserUnclaimedRewards {
                     user: self.rover.to_string(),
                     account_id: Some(account_id.to_string()),
-                    start_after_collateral_denom: None,
+                    start_after_kind: None,
+                    start_after_denom: None,
                     start_after_incentive_denom: None,
                     limit: None,
                 },

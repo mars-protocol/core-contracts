@@ -1,9 +1,15 @@
 use std::cmp::max;
 
-use cosmwasm_std::{coins, BankMsg, Deps, DepsMut, MessageInfo, Response, StdError, Uint128};
+use cosmwasm_std::{
+    coins, to_json_binary, Addr, BankMsg, CosmosMsg, Deps, DepsMut, MessageInfo, Response,
+    StdError, Uint128, WasmMsg,
+};
 use cw_utils::must_pay;
 use mars_types::{
     adapters::oracle::Oracle,
+    address_provider,
+    address_provider::MarsAddressType,
+    incentives::{ExecuteMsg, IncentiveKind},
     oracle::ActionKind,
     perps::{UnlockState, VaultState},
     signed_uint::SignedUint,
@@ -12,7 +18,10 @@ use mars_types::{
 use crate::{
     denom::compute_total_accounting_data,
     error::{ContractError, ContractResult},
-    state::{decrease_deposit_shares, increase_deposit_shares, CONFIG, UNLOCKS, VAULT_STATE},
+    state::{
+        decrease_deposit_shares, increase_deposit_shares, CONFIG, DEPOSIT_SHARES, UNLOCKS,
+        VAULT_STATE,
+    },
     utils::create_user_id_key,
 };
 
@@ -33,9 +42,30 @@ pub fn deposit(
         return Err(ContractError::SenderIsNotCreditManager);
     }
 
-    let user_id_key = create_user_id_key(&info.sender, account_id)?;
+    let user_id_key = create_user_id_key(&info.sender, account_id.clone())?;
 
     let mut vs = VAULT_STATE.load(deps.storage)?;
+
+    let user_shares_before =
+        DEPOSIT_SHARES.may_load(deps.storage, &user_id_key)?.unwrap_or_else(Uint128::zero);
+
+    let total_vault_shares_before = vs.total_shares;
+
+    let incentives_addr = address_provider::helpers::query_contract_addr(
+        deps.as_ref(),
+        &cfg.address_provider,
+        MarsAddressType::Incentives,
+    )?;
+
+    // todo: Test this
+    let msg = build_incentives_balance_changed_msg(
+        &incentives_addr,
+        &info.sender,
+        account_id,
+        &cfg.base_denom,
+        user_shares_before,
+        total_vault_shares_before,
+    )?;
 
     // find the deposit amount
     let amount = must_pay(&info, &cfg.base_denom)?;
@@ -60,6 +90,7 @@ pub fn deposit(
     increase_deposit_shares(deps.storage, &user_id_key, shares)?;
 
     Ok(Response::new()
+        .add_message(msg)
         .add_attribute("action", "deposit")
         .add_attribute("denom", cfg.base_denom)
         .add_attribute("amount", amount)
@@ -129,7 +160,7 @@ pub fn withdraw(
         return Err(ContractError::SenderIsNotCreditManager);
     }
 
-    let user_id_key = create_user_id_key(&info.sender, account_id)?;
+    let user_id_key = create_user_id_key(&info.sender, account_id.clone())?;
 
     let unlocks = UNLOCKS.load(deps.storage, &user_id_key)?;
 
@@ -151,6 +182,29 @@ pub fn withdraw(
 
     let mut vs = VAULT_STATE.load(deps.storage)?;
 
+    let user_shares_before =
+        DEPOSIT_SHARES.may_load(deps.storage, &user_id_key)?.unwrap_or_else(Uint128::zero);
+
+    let total_vault_shares_before = vs.total_shares;
+
+    let incentives_addr = address_provider::helpers::query_contract_addr(
+        deps.as_ref(),
+        &cfg.address_provider,
+        MarsAddressType::Incentives,
+    )?;
+
+    let mut msgs = vec![];
+
+    // todo: test this
+    msgs.push(build_incentives_balance_changed_msg(
+        &incentives_addr,
+        &info.sender,
+        account_id,
+        &cfg.base_denom,
+        user_shares_before,
+        total_vault_shares_before,
+    )?);
+
     // compute the total shares to be withdrawn
     let total_unlocked_shares = unlocked.into_iter().map(|us| us.shares).sum::<Uint128>();
 
@@ -170,15 +224,17 @@ pub fn withdraw(
     vs.total_shares = vs.total_shares.checked_sub(total_unlocked_shares)?;
     VAULT_STATE.save(deps.storage, &vs)?;
 
+    msgs.push(CosmosMsg::from(BankMsg::Send {
+        to_address: info.sender.into(),
+        amount: coins(total_unlocked_amount.u128(), &cfg.base_denom),
+    }));
+
     Ok(Response::new()
+        .add_messages(msgs)
         .add_attribute("action", "withdraw")
         .add_attribute("denom", &cfg.base_denom)
         .add_attribute("shares", total_unlocked_shares)
-        .add_attribute("amount", total_unlocked_amount)
-        .add_message(BankMsg::Send {
-            to_address: info.sender.into(),
-            amount: coins(total_unlocked_amount.u128(), cfg.base_denom),
-        }))
+        .add_attribute("amount", total_unlocked_amount))
 }
 
 /// Compute the counterparty vault's net asset value (NAV), denominated in the
@@ -272,4 +328,31 @@ pub fn shares_to_amount(
     }
 
     available_liquidity.checked_multiply_ratio(shares, vs.total_shares).map_err(Into::into)
+}
+
+/// For internal use by the struct only.
+///
+/// Create an execute message to inform the incentive contract to update the user's index upon a
+/// change in the user's vault collateral amount.
+fn build_incentives_balance_changed_msg(
+    incentives_addr: &Addr,
+    user_addr: &Addr,
+    account_id: Option<String>,
+    collateral_denom: &str,
+    user_amount: Uint128,
+    total_amount: Uint128,
+) -> ContractResult<CosmosMsg> {
+    Ok(WasmMsg::Execute {
+        contract_addr: incentives_addr.into(),
+        msg: to_json_binary(&ExecuteMsg::BalanceChange {
+            user_addr: user_addr.clone(),
+            account_id,
+            kind: IncentiveKind::PerpVault,
+            denom: collateral_denom.to_string(),
+            user_amount,
+            total_amount,
+        })?,
+        funds: vec![],
+    }
+    .into())
 }

@@ -1,9 +1,13 @@
+use std::fmt;
+
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use cw_paginate::PaginationResponse;
 use mars_owner::OwnerUpdate;
 
-use crate::credit_manager::ActionCoin;
+use crate::{
+    address_provider::MarsAddressType, credit_manager::ActionCoin, keys::IncentiveKindKey,
+};
 
 /// Global configuration
 #[cw_serde]
@@ -18,7 +22,7 @@ pub struct Config {
 /// Incentive Metadata for a given incentive
 #[cw_serde]
 pub struct IncentiveState {
-    /// An index that represents how many incentive tokens have been distributed per unit of collateral
+    /// An index that represents how many incentive tokens have been distributed per unit of asset
     pub index: Decimal,
     /// Last time (in seconds) index was updated
     pub last_updated: u64,
@@ -27,11 +31,13 @@ pub struct IncentiveState {
 /// Incentive Metadata for a given incentive denom
 #[cw_serde]
 pub struct IncentiveStateResponse {
-    /// The denom for which users get the incentive if they provide collateral in the Red Bank
-    pub collateral_denom: String,
+    /// The kind of incentive, e.g. RedBank or PerpVault.
+    pub kind: IncentiveKind,
+    /// The denom for which users get the incentive
+    pub denom: String,
     /// The denom of the token these incentives are paid with
     pub incentive_denom: String,
-    /// An index that represents how many incentive tokens have been distributed per unit of collateral
+    /// An index that represents how many incentive tokens have been distributed per unit
     pub index: Decimal,
     /// Last time (in seconds) index was updated
     pub last_updated: u64,
@@ -39,12 +45,14 @@ pub struct IncentiveStateResponse {
 
 impl IncentiveStateResponse {
     pub fn from(
-        collateral_denom: impl Into<String>,
+        kind: IncentiveKind,
+        denom: impl Into<String>,
         incentive_denom: impl Into<String>,
         is: IncentiveState,
     ) -> Self {
         Self {
-            collateral_denom: collateral_denom.into(),
+            kind,
+            denom: denom.into(),
             incentive_denom: incentive_denom.into(),
             index: is.index,
             last_updated: is.last_updated,
@@ -106,10 +114,13 @@ pub enum ExecuteMsg {
         /// tokens will be trapped forever in the contract.
         remove_denoms: Vec<String>,
     },
-    /// Add incentives for a given collateral denom and incentive denom pair
+
+    /// Add incentives for a given denom and incentive denom pair
     SetAssetIncentive {
-        /// The denom of the collatearal token to receive incentives
-        collateral_denom: String,
+        /// The kind of incentive, e.g. RedBank or PerpVault.
+        kind: IncentiveKind,
+        /// The denom of the token to receive incentives
+        denom: String,
         /// The denom of the token to give incentives with
         incentive_denom: String,
         /// How many `incentive_denom` tokens will be assigned per second to be distributed among
@@ -130,12 +141,14 @@ pub enum ExecuteMsg {
         user_addr: Addr,
         /// Credit account id (Rover)
         account_id: Option<String>,
+        /// The kind of incentive, e.g. RedBank or PerpVault.
+        kind: IncentiveKind,
         /// Denom of the asset of which deposited balance is changed
         denom: String,
-        /// The user's scaled collateral amount up to the instant before the change
-        user_amount_scaled_before: Uint128,
-        /// The market's total scaled collateral amount up to the instant before the change
-        total_amount_scaled_before: Uint128,
+        /// The user's amount up to the instant before the change
+        user_amount: Uint128,
+        /// The total amount up to the instant before the change
+        total_amount: Uint128,
     },
 
     /// Claim rewards. MARS rewards accrued by the user will be staked into xMARS before
@@ -143,10 +156,12 @@ pub enum ExecuteMsg {
     ClaimRewards {
         /// Credit account id (Rover)
         account_id: Option<String>,
-        /// Start pagination after this collateral denom
-        start_after_collateral_denom: Option<String>,
+        /// Start pagination after incentive kind to claim rewards for
+        start_after_kind: Option<IncentiveKind>,
+        /// Start pagination after this denom
+        start_after_denom: Option<String>,
         /// Start pagination after this incentive denom. If supplied you must also supply
-        /// start_after_collateral_denom.
+        /// start_after_denom.
         start_after_incentive_denom: Option<String>,
         /// The maximum number of results to return. If not set, 5 is used. If larger than 10,
         /// 10 is used.
@@ -188,18 +203,22 @@ pub enum ExecuteMsg {
     UpdateOwner(OwnerUpdate),
 
     // Manages migration. It is used to handle migration in batches to avoid out of gas errors.
-    Migrate(MigrateV1ToV2),
+    Migrate(MigrateV2ToV2_0_1),
 }
 
-/// Migrate from V1 to V2, only owner can call
+/// Migrate from V2 to V2_0_1, only owner can call
 #[cw_serde]
-pub enum MigrateV1ToV2 {
-    /// Migrate users indexes and unclaimed rewards in batches
-    UsersIndexesAndRewards {
+pub enum MigrateV2ToV2_0_1 {
+    /// Migrate users unclaimed rewards
+    UserUnclaimedRewards {
+        limit: u32,
+    },
+    /// Migrate users asset indices
+    UserAssetIndices {
         limit: u32,
     },
     /// Clears old V1 state once all batches are migrated or after a certain time
-    ClearV1State {},
+    ClearV2State {},
 }
 
 #[cw_serde]
@@ -214,22 +233,26 @@ pub enum QueryMsg {
         lp_denom: String,
     },
 
-    /// Query all active incentive emissions for a collateral denom
+    /// Query all active incentive emissions for a denom
     #[returns(Vec<ActiveEmission>)]
     ActiveEmissions {
-        /// The denom of the token that users supply as collateral to receive incentives
-        collateral_denom: String,
+        /// The kind of incentive, e.g. RedBank or PerpVault.
+        kind: IncentiveKind,
+        /// The denom of the token that users supply to receive incentives
+        denom: String,
     },
 
     /// Query contract config
     #[returns(ConfigResponse)]
     Config {},
 
-    /// Query info about the state of an incentive for a given collateral and incentive denom pair
+    /// Query info about the state of an incentive for a given denom and incentive denom pair
     #[returns(IncentiveStateResponse)]
     IncentiveState {
-        /// The denom of the token that users supply as collateral to receive incentives
-        collateral_denom: String,
+        /// The kind of incentive, e.g. RedBank or PerpVault.
+        kind: IncentiveKind,
+        /// The denom of the token that users supply to receive incentives
+        denom: String,
         /// The denom of the token which is used to give incentives with
         incentive_denom: String,
     },
@@ -237,36 +260,42 @@ pub enum QueryMsg {
     /// Enumerate incentive states with pagination
     #[returns(Vec<IncentiveStateResponse>)]
     IncentiveStates {
-        /// Start pagination after this collateral denom
-        start_after_collateral_denom: Option<String>,
+        /// The kind of incentive, e.g. RedBank or PerpVault.
+        start_after_kind: Option<IncentiveKind>,
+        /// Start pagination after this denom
+        start_after_denom: Option<String>,
         /// Start pagination after this incentive denom. If supplied you must also supply
-        /// start_after_collateral_denom.
+        /// start_after_denom.
         start_after_incentive_denom: Option<String>,
         /// The maximum number of results to return. If not set, 5 is used. If larger than 10,
         /// 10 is used.
         limit: Option<u32>,
     },
 
-    /// Queries the planned emission rate for a given collateral and incentive denom tuple at the
+    /// Queries the planned emission rate for a given denom and incentive denom tuple at the
     /// specified unix timestamp. The emission rate returned is the amount of incentive tokens
-    /// that will be emitted per second for each unit of collateral supplied during the epoch.
+    /// that will be emitted per second for each unit of asset supplied during the epoch.
     /// NB: that the returned value can change if someone adds incentives to the contract.
     #[returns(Uint128)]
     Emission {
-        /// The denom of the token that users supply as collateral to receive incentives
-        collateral_denom: String,
+        /// The kind of incentive, e.g. RedBank or PerpVault.
+        kind: IncentiveKind,
+        /// The denom of the token that users supply to receive incentives
+        denom: String,
         /// The denom of the token which is used to give incentives with
         incentive_denom: String,
         /// The unix timestamp in second to query the emission rate at.
         timestamp: u64,
     },
 
-    /// Enumerate all incentive emission rates with pagination for a specified collateral and
-    /// indentive denom pair
+    /// Enumerate all incentive emission rates with pagination for a specified denom and
+    /// incentive denom pair
     #[returns(Vec<EmissionResponse>)]
     Emissions {
-        /// The denom of the token that users supply as collateral to receive incentives
-        collateral_denom: String,
+        /// The kind of incentive, e.g. RedBank or PerpVault.
+        kind: IncentiveKind,
+        /// The denom of the token that users supply to receive incentives
+        denom: String,
         /// The denom of the token which is used to give incentives with
         incentive_denom: String,
         /// Start pagination after this timestamp
@@ -304,10 +333,12 @@ pub enum QueryMsg {
         user: String,
         /// Credit account id (Rover)
         account_id: Option<String>,
-        /// Start pagination after this collateral denom
-        start_after_collateral_denom: Option<String>,
+        /// The kind of incentive, e.g. RedBank or PerpVault.
+        start_after_kind: Option<IncentiveKind>,
+        /// Start pagination after this denom
+        start_after_denom: Option<String>,
         /// Start pagination after this incentive denom. If supplied you must also supply
-        /// start_after_collateral_denom.
+        /// start_after_denom.
         start_after_incentive_denom: Option<String>,
         /// The maximum number of results to return. If not set, 5 is used. If larger than 10,
         /// 10 is used.
@@ -320,12 +351,14 @@ pub enum QueryMsg {
     Whitelist {},
 }
 
+pub type IncentiveStateKey = (IncentiveKindKey, String, String);
+
 #[cw_serde]
 pub struct EmissionResponse {
     /// The unix timestamp in seconds at which the emission epoch starts
     pub epoch_start: u64,
     /// The emission rate returned is the amount of incentive tokens that will be emitted per
-    /// second for each unit of collateral supplied during the epoch.
+    /// second for each unit supplied during the epoch.
     pub emission_rate: Uint128,
 }
 
@@ -392,6 +425,27 @@ impl From<LpModification> for String {
         match lp_modification {
             LpModification::Deposit => "Deposit".to_string(),
             LpModification::Withdraw => "Withdraw".to_string(),
+        }
+    }
+}
+
+#[cw_serde]
+pub enum IncentiveKind {
+    RedBank,
+    PerpVault,
+}
+
+impl fmt::Display for IncentiveKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl IncentiveKind {
+    pub fn get_address_type(&self) -> MarsAddressType {
+        match self {
+            IncentiveKind::RedBank => MarsAddressType::RedBank,
+            IncentiveKind::PerpVault => MarsAddressType::Perps,
         }
     }
 }
