@@ -145,6 +145,26 @@ pub enum ContractError {
     InvalidPositionFlip {
         reason: String,
     },
+
+    #[error("Position not found: account_id {account_id}, denom {denom}")]
+    PositionNotFound {
+        account_id: String,
+        denom: String,
+    },
+
+    #[error("Invalid deleverage position: {reason}")]
+    DeleverageInvalidPosition {
+        reason: String,
+    },
+
+    #[error("Reply id: {0} not valid")]
+    ReplyIdError(u64),
+
+    #[error("Invalid amount sent by credit manager after deleverage: expected {expected}, received {received}")]
+    InvalidFundsAfterDeleverage {
+        expected: Uint128,
+        received: Uint128,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

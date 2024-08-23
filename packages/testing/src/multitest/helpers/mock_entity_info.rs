@@ -207,9 +207,9 @@ pub fn generate_mock_vault(lockup: Option<Duration>) -> VaultTestInfo {
 pub fn default_perp_params(denom: &str) -> PerpParams {
     PerpParams {
         denom: denom.to_string(),
-        max_net_oi_value: Uint128::new(1_000_000_000),
-        max_long_oi_value: Uint128::new(1_000_000_000),
-        max_short_oi_value: Uint128::new(1_000_000_000),
+        max_net_oi_value: Uint128::new(1_000_000_000_000),
+        max_long_oi_value: Uint128::new(1_000_000_000_000),
+        max_short_oi_value: Uint128::new(1_000_000_000_000),
         closing_fee_rate: Decimal::from_str("0.01").unwrap(),
         opening_fee_rate: Decimal::from_str("0.01").unwrap(),
         liquidation_threshold: Decimal::from_str("0.90").unwrap(),

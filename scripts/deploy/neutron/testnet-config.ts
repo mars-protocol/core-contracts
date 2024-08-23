@@ -691,6 +691,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
     cooldownPeriod: 300, // 5 min
     maxPositions: 4,
     protocolFeeRate: '0.1',
+    targetCollaterizationRatio: '1.2',
     denoms: [
       atomPerpDenom,
       ntrnPerpDenom,

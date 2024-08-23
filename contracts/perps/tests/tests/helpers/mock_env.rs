@@ -50,6 +50,7 @@ pub struct MockEnvBuilder {
     max_positions: u8,
     protocol_fee_rate: Decimal,
     pub address_provider: Option<Addr>,
+    target_vault_collaterization_ratio: Decimal,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -64,6 +65,7 @@ impl MockEnv {
             max_positions: 4,
             protocol_fee_rate: Decimal::percent(0),
             address_provider: None,
+            target_vault_collaterization_ratio: Decimal::percent(125),
         }
     }
 
@@ -577,6 +579,7 @@ impl MockEnvBuilder {
                 cooldown_period: self.cooldown_period,
                 max_positions: self.max_positions,
                 protocol_fee_rate: self.protocol_fee_rate,
+                target_vault_collaterization_ratio: self.target_vault_collaterization_ratio,
             },
             &[],
             "mock-perps",
@@ -766,6 +769,11 @@ impl MockEnvBuilder {
 
     pub fn protocol_fee_rate(&mut self, rate: Decimal) -> &mut Self {
         self.protocol_fee_rate = rate;
+        self
+    }
+
+    pub fn target_vault_collaterization_ratio(&mut self, ratio: Decimal) -> &mut Self {
+        self.target_vault_collaterization_ratio = ratio;
         self
     }
 }

@@ -1,3 +1,4 @@
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, StdError, StdResult, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 use mars_owner::Owner;
@@ -5,6 +6,18 @@ use mars_types::{
     keys::UserIdKey,
     perps::{CashFlow, Config, DenomState, PnlAmounts, Position, UnlockState, VaultState},
 };
+
+#[cw_serde]
+pub struct DeleverageRequestTempStorage {
+    /// Denom of the requested coin from Credit Manager contract
+    pub denom: String,
+
+    /// Contract balance after deleverage in Perps contract
+    pub contract_balance: Uint128,
+
+    /// Requested amount of the denom from Credit Manager contract (to cover PnL loss)
+    pub requested_amount: Uint128,
+}
 
 pub const OWNER: Owner = Owner::new("owner");
 
@@ -32,6 +45,10 @@ pub const DENOM_CASH_FLOW: Map<&str, CashFlow> = Map::new("dcf");
 
 // total cash flow, accumulated across all denoms
 pub const TOTAL_CASH_FLOW: Item<CashFlow> = Item::new("tcf");
+
+// Temporary state to save variables to be used on reply handling
+pub const DELEVERAGE_REQUEST_TEMP_STORAGE: Item<DeleverageRequestTempStorage> =
+    Item::new("deleverage_req_temp_var");
 
 /// Increase the deposit shares of a depositor by the given amount.
 /// Return the updated deposit shares.

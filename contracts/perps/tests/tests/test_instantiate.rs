@@ -47,6 +47,7 @@ fn proper_initialization() {
             cooldown_period: 3688,
             max_positions: 9,
             protocol_fee_rate: Decimal::percent(25),
+            target_vault_collaterization_ratio: Decimal::percent(125)
         }
     );
 }

@@ -95,6 +95,7 @@ export interface DeploymentConfig {
     maxPositions: number
     denoms: PerpDenom[]
     protocolFeeRate: Decimal
+    targetCollaterizationRatio: Decimal
   }
 }
 

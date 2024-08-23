@@ -37,6 +37,7 @@ import {
   HealthState,
   LiquidateRequestForVaultBaseForAddr,
   ChangeExpected,
+  PnL,
   Coin,
   ActionCoin,
   SignedUint,
@@ -429,6 +430,18 @@ export interface MarsCreditManagerInterface extends MarsCreditManagerReadOnlyInt
     memo?: string,
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
+  updateBalanceAfterDeleverage: (
+    {
+      accountId,
+      pnl,
+    }: {
+      accountId: string
+      pnl: PnL
+    },
+    fee?: number | StdFee | 'auto',
+    memo?: string,
+    _funds?: Coin[],
+  ) => Promise<ExecuteResult>
 }
 export class MarsCreditManagerClient
   extends MarsCreditManagerQueryClient
@@ -449,6 +462,7 @@ export class MarsCreditManagerClient
     this.updateOwner = this.updateOwner.bind(this)
     this.updateNftConfig = this.updateNftConfig.bind(this)
     this.callback = this.callback.bind(this)
+    this.updateBalanceAfterDeleverage = this.updateBalanceAfterDeleverage.bind(this)
   }
   createCreditAccount = async (
     accountKind: AccountKind,
@@ -596,6 +610,32 @@ export class MarsCreditManagerClient
       this.contractAddress,
       {
         callback: callbackMsg,
+      },
+      fee,
+      memo,
+      _funds,
+    )
+  }
+  updateBalanceAfterDeleverage = async (
+    {
+      accountId,
+      pnl,
+    }: {
+      accountId: string
+      pnl: PnL
+    },
+    fee: number | StdFee | 'auto' = 'auto',
+    memo?: string,
+    _funds?: Coin[],
+  ): Promise<ExecuteResult> => {
+    return await this.client.execute(
+      this.sender,
+      this.contractAddress,
+      {
+        update_balance_after_deleverage: {
+          account_id: accountId,
+          pnl,
+        },
       },
       fee,
       memo,

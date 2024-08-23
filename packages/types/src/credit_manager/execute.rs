@@ -9,6 +9,7 @@ use crate::{
     account_nft::NftConfigUpdates,
     adapters::vault::{Vault, VaultPositionType, VaultUnchecked},
     health::{AccountKind, HealthState},
+    perps::PnL,
     signed_uint::SignedUint,
     swapper::SwapperRoute,
 };
@@ -48,6 +49,19 @@ pub enum ExecuteMsg {
     },
     /// Internal actions only callable by the contract itself
     Callback(CallbackMsg),
+
+    /// This is part of the deleveraging process initiated by the perps contract.
+    ///
+    /// Updates the account balance based on the specified PnL for the given account.
+    /// Depending on the PnL type:
+    /// - Profit: increases the account balance.
+    /// - Loss: decreases the account balance and borrows from the red-bank if necessary.
+    /// - Break-even: no action is taken.
+    /// If the total PnL results in a loss, the corresponding amount of coins must be sent to the perps contract.
+    UpdateBalanceAfterDeleverage {
+        account_id: String,
+        pnl: PnL,
+    },
 }
 
 #[cw_serde]

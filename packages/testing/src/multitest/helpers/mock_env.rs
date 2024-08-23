@@ -60,7 +60,10 @@ use mars_types::{
         InstantiateMsg as ParamsInstantiateMsg, PerpParamsUpdate, QueryMsg as ParamsQueryMsg,
         VaultConfig, VaultConfigUnchecked, VaultConfigUpdate,
     },
-    perps::{self, Config, InstantiateMsg as PerpsInstantiateMsg, PositionResponse, TradingFee},
+    perps::{
+        self, Config, InstantiateMsg as PerpsInstantiateMsg, PnL, PositionResponse, TradingFee,
+        VaultResponse,
+    },
     red_bank::{
         self, InitOrUpdateAssetParams, InterestRateModel,
         QueryMsg::{UserCollateral, UserDebt},
@@ -120,6 +123,7 @@ pub struct MockEnvBuilder {
     pub max_slippage: Option<Decimal>,
     pub health_contract: Option<HealthContract>,
     pub evil_vault: Option<String>,
+    pub target_vault_collaterization_ratio: Option<Decimal>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -146,6 +150,7 @@ impl MockEnv {
             max_slippage: None,
             health_contract: None,
             evil_vault: None,
+            target_vault_collaterization_ratio: None,
         }
     }
 
@@ -173,6 +178,15 @@ impl MockEnv {
 
     pub fn query_block_time(&self) -> u64 {
         self.app.block_info().time.seconds()
+    }
+
+    pub fn fund_addr(&mut self, addr: &Addr, funds: Vec<Coin>) {
+        self.app
+            .sudo(SudoMsg::Bank(BankSudo::Mint {
+                to_address: addr.to_string(),
+                amount: funds,
+            }))
+            .unwrap();
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -256,6 +270,24 @@ impl MockEnv {
                 updates,
             },
             &[],
+        )
+    }
+
+    pub fn update_balance_after_deleverage(
+        &mut self,
+        sender: &Addr,
+        funds: &[Coin],
+        account_id: &str,
+        pnl: PnL,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.rover.clone(),
+            &ExecuteMsg::UpdateBalanceAfterDeleverage {
+                account_id: account_id.to_string(),
+                pnl,
+            },
+            funds,
         )
     }
 
@@ -493,6 +525,18 @@ impl MockEnv {
                 account_id: Some(account_id.to_string()),
             },
             &[coin.clone()],
+        )
+    }
+
+    pub fn deleverage(&mut self, account_id: &str, denom: &str) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            self.rover.clone(),
+            self.perps.address().clone(),
+            &perps::ExecuteMsg::Deleverage {
+                account_id: account_id.to_string(),
+                denom: denom.to_string(),
+            },
+            &[],
         )
     }
 
@@ -1012,6 +1056,18 @@ impl MockEnv {
     pub fn query_perp_config(&self) -> Config<String> {
         self.app.wrap().query_wasm_smart(self.perps.address(), &perps::QueryMsg::Config {}).unwrap()
     }
+
+    pub fn query_perp_vault(&self) -> VaultResponse {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.address(),
+                &perps::QueryMsg::Vault {
+                    action: None,
+                },
+            )
+            .unwrap()
+    }
 }
 
 impl MockEnvBuilder {
@@ -1350,6 +1406,7 @@ impl MockEnvBuilder {
         let contract_code_id = self.app.store_code(mock_perps_contract());
         let owner = self.get_owner();
         let address_provider = self.get_address_provider();
+        let target_vault_collaterization_ratio = self.get_target_vault_collaterization_ratio();
 
         let addr = self
             .app
@@ -1365,6 +1422,7 @@ impl MockEnvBuilder {
                     cooldown_period: 360,
                     max_positions: 4,
                     protocol_fee_rate: Decimal::percent(0),
+                    target_vault_collaterization_ratio,
                 },
                 &[],
                 "mock-perps-contract",
@@ -1677,12 +1735,26 @@ impl MockEnvBuilder {
         self.max_slippage.unwrap_or_else(|| Decimal::percent(99))
     }
 
+    fn get_target_vault_collaterization_ratio(&self) -> Decimal {
+        self.target_vault_collaterization_ratio.unwrap_or_else(|| Decimal::percent(125))
+    }
+
     //--------------------------------------------------------------------------------------------------
     // Setter functions
     //--------------------------------------------------------------------------------------------------
 
     pub fn fund_account(mut self, account: AccountToFund) -> Self {
         self.accounts_to_fund.push(account);
+        self
+    }
+
+    pub fn fund_accounts(mut self, addrs: Vec<Addr>, coins: Vec<Coin>) -> Self {
+        for addr in addrs {
+            self.accounts_to_fund.push(AccountToFund {
+                addr,
+                funds: coins.clone(),
+            });
+        }
         self
     }
 
@@ -1748,6 +1820,11 @@ impl MockEnvBuilder {
 
     pub fn evil_vault(mut self, credit_account: &str) -> Self {
         self.evil_vault = Some(credit_account.to_string());
+        self
+    }
+
+    pub fn target_vault_collaterization_ratio(mut self, ratio: Decimal) -> Self {
+        self.target_vault_collaterization_ratio = Some(ratio);
         self
     }
 }

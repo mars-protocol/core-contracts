@@ -124,6 +124,7 @@ pub fn mock_perps_contract() -> Box<dyn Contract<Empty>> {
         mars_perps::contract::execute,
         mars_perps::contract::instantiate,
         mars_perps::contract::query,
-    );
+    )
+    .with_reply(mars_perps::contract::reply);
     Box::new(contract)
 }

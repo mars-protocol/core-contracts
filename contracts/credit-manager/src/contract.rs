@@ -12,6 +12,7 @@ use crate::{
     error::{ContractError, ContractResult},
     execute::{create_credit_account, dispatch_actions, execute_callback},
     instantiate::store_config,
+    perp::update_balance_after_deleverage,
     query::{
         query_accounts, query_all_coin_balances, query_all_debt_shares,
         query_all_total_debt_shares, query_all_vault_positions, query_all_vault_utilizations,
@@ -68,6 +69,17 @@ pub fn execute(
         ExecuteMsg::RepayFromWallet {
             account_id,
         } => repay_from_wallet(deps, env, info, account_id),
+        ExecuteMsg::UpdateBalanceAfterDeleverage {
+            account_id,
+            pnl,
+        } => update_balance_after_deleverage(
+            deps,
+            env,
+            info,
+            account_id,
+            pnl,
+            ActionKind::Liquidation,
+        ),
     }
 }
 

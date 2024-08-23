@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
 };
 use mars_owner::OwnerInit;
 use mars_types::{
@@ -8,7 +8,11 @@ use mars_types::{
 };
 
 use crate::{
-    denom_management, error::ContractResult, initialize, position_management, query, state::OWNER,
+    deleverage::{self, handle_deleverage_request_reply, DELEVERAGE_REQUEST_REPLY_ID},
+    denom_management,
+    error::{ContractError, ContractResult},
+    initialize, position_management, query,
+    state::OWNER,
     vault,
 };
 
@@ -99,6 +103,18 @@ pub fn execute(
             size,
             reduce_only,
         ),
+        ExecuteMsg::Deleverage {
+            account_id,
+            denom,
+        } => deleverage::deleverage(deps, env, account_id, denom),
+    }
+}
+
+#[entry_point]
+pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> ContractResult<Response> {
+    match reply.id {
+        DELEVERAGE_REQUEST_REPLY_ID => handle_deleverage_request_reply(deps, env, reply),
+        id => Err(ContractError::ReplyIdError(id)),
     }
 }
 

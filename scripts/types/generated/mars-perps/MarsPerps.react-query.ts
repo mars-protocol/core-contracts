@@ -687,6 +687,29 @@ export function useMarsPerpsOwnerQuery<TData = OwnerResponse>({
     },
   )
 }
+export interface MarsPerpsDeleverageMutation {
+  client: MarsPerpsClient
+  msg: {
+    accountId: string
+    denom: string
+  }
+  args?: {
+    fee?: number | StdFee | 'auto'
+    memo?: string
+    funds?: Coin[]
+  }
+}
+export function useMarsPerpsDeleverageMutation(
+  options?: Omit<
+    UseMutationOptions<ExecuteResult, Error, MarsPerpsDeleverageMutation>,
+    'mutationFn'
+  >,
+) {
+  return useMutation<ExecuteResult, Error, MarsPerpsDeleverageMutation>(
+    ({ client, msg, args: { fee, memo, funds } = {} }) => client.deleverage(msg, fee, memo, funds),
+    options,
+  )
+}
 export interface MarsPerpsCloseAllPositionsMutation {
   client: MarsPerpsClient
   msg: {

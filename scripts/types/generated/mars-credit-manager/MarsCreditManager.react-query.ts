@@ -38,6 +38,7 @@ import {
   HealthState,
   LiquidateRequestForVaultBaseForAddr,
   ChangeExpected,
+  PnL,
   Coin,
   ActionCoin,
   SignedUint,
@@ -603,6 +604,30 @@ export function useMarsCreditManagerAccountKindQuery<TData = AccountKind>({
       ...options,
       enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
     },
+  )
+}
+export interface MarsCreditManagerUpdateBalanceAfterDeleverageMutation {
+  client: MarsCreditManagerClient
+  msg: {
+    accountId: string
+    pnl: PnL
+  }
+  args?: {
+    fee?: number | StdFee | 'auto'
+    memo?: string
+    funds?: Coin[]
+  }
+}
+export function useMarsCreditManagerUpdateBalanceAfterDeleverageMutation(
+  options?: Omit<
+    UseMutationOptions<ExecuteResult, Error, MarsCreditManagerUpdateBalanceAfterDeleverageMutation>,
+    'mutationFn'
+  >,
+) {
+  return useMutation<ExecuteResult, Error, MarsCreditManagerUpdateBalanceAfterDeleverageMutation>(
+    ({ client, msg, args: { fee, memo, funds } = {} }) =>
+      client.updateBalanceAfterDeleverage(msg, fee, memo, funds),
+    options,
   )
 }
 export interface MarsCreditManagerCallbackMutation {

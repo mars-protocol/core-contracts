@@ -28,6 +28,7 @@ mod test_liquidation_pricing;
 mod test_no_health_check;
 mod test_perp;
 mod test_perp_vault;
+mod test_perps_deleverage;
 mod test_reclaim;
 mod test_reentrancy_guard;
 mod test_refund_balances;

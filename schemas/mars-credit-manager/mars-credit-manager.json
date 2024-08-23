@@ -292,6 +292,32 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "This is part of the deleveraging process initiated by the perps contract.\n\nUpdates the account balance based on the specified PnL for the given account. Depending on the PnL type: - Profit: increases the account balance. - Loss: decreases the account balance and borrows from the red-bank if necessary. - Break-even: no action is taken. If the total PnL results in a loss, the corresponding amount of coins must be sent to the perps contract.",
+        "type": "object",
+        "required": [
+          "update_balance_after_deleverage"
+        ],
+        "properties": {
+          "update_balance_after_deleverage": {
+            "type": "object",
+            "required": [
+              "account_id",
+              "pnl"
+            ],
+            "properties": {
+              "account_id": {
+                "type": "string"
+              },
+              "pnl": {
+                "$ref": "#/definitions/PnL"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -2425,6 +2451,41 @@
       },
       "PerpsBase_for_String": {
         "type": "string"
+      },
+      "PnL": {
+        "description": "The profit-and-loss of a perp position, denominated in the base currency.",
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "break_even"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "profit"
+            ],
+            "properties": {
+              "profit": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "loss"
+            ],
+            "properties": {
+              "loss": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "RedBankUnchecked": {
         "type": "string"

@@ -1,4 +1,6 @@
-use cosmwasm_std::{coin, Coin, CosmosMsg, DepsMut, Response, Uint128};
+use cosmwasm_std::{
+    coin, ensure_eq, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128,
+};
 use mars_types::{
     oracle::ActionKind,
     perps::{PnL, PnlAmounts},
@@ -7,10 +9,12 @@ use mars_types::{
 
 use crate::{
     borrow,
-    error::ContractResult,
+    error::{ContractError, ContractResult},
     state::{COIN_BALANCES, PERPS},
     utils::{decrement_coin_balance, increment_coin_balance},
 };
+
+// TODO: we should probably use Liquidation pricing for borrow whenever we use Perps in context of liquidation or deleverage.
 
 /// Deduct payment from the user’s account. If the user doesn’t have enough USDC, it is borrowed
 fn deduct_payment(
@@ -72,6 +76,7 @@ pub fn execute_perp_order(
             let pnl = position.unrealised_pnl.to_coins(&position.base_denom).pnl;
             let pnl_string = pnl.to_string();
             let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
+            let funds = funds.map_or_else(Vec::new, |c| vec![c]);
 
             msgs.push(perps.execute_perp_order(
                 account_id,
@@ -95,19 +100,21 @@ pub fn execute_perp_order(
             // Open new position
             let opening_fee = perps.query_opening_fee(&deps.querier, denom, order_size)?;
             let fee = opening_fee.fee;
-            let mut response = Response::new();
-            let borrow_msg_opt = deduct_payment(&mut deps, account_id, &fee)?;
-            if let Some(borrow_msg) = borrow_msg_opt {
-                response = response.add_message(borrow_msg);
-            }
 
-            let msg = perps.execute_perp_order(
-                account_id,
-                denom,
-                order_size,
-                reduce_only,
-                vec![fee.clone()],
-            )?;
+            let mut response = Response::new();
+
+            let funds = if !fee.amount.is_zero() {
+                let borrow_msg_opt = deduct_payment(&mut deps, account_id, &fee)?;
+                if let Some(borrow_msg) = borrow_msg_opt {
+                    response = response.add_message(borrow_msg);
+                }
+                vec![fee.clone()]
+            } else {
+                vec![]
+            };
+
+            let msg =
+                perps.execute_perp_order(account_id, denom, order_size, reduce_only, funds)?;
 
             response
                 .add_message(msg)
@@ -151,6 +158,7 @@ pub fn close_all_perps(
 
     let pnl = pnl_amounts_accumulator.to_coins(&base_denom).pnl;
     let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
+    let funds = funds.map_or_else(Vec::new, |c| vec![c]);
 
     // Close all perp positions at once
     let perps = PERPS.load(deps.storage)?;
@@ -174,7 +182,7 @@ fn update_state_based_on_pnl(
     deps: &mut DepsMut,
     account_id: &str,
     pnl: PnL,
-) -> ContractResult<(Vec<Coin>, Vec<CosmosMsg>)> {
+) -> ContractResult<(Option<Coin>, Vec<CosmosMsg>)> {
     let res = match pnl {
         PnL::Loss(coin) => {
             let borrow_msg_opt = deduct_payment(deps, account_id, &coin)?;
@@ -183,14 +191,55 @@ fn update_state_based_on_pnl(
                 cosmos_msgs.push(borrow_msg);
             }
 
-            (vec![coin], cosmos_msgs)
+            (Some(coin), cosmos_msgs)
         }
         PnL::Profit(coin) => {
             increment_coin_balance(deps.storage, account_id, &coin)?;
 
-            (vec![], vec![])
+            (None, vec![])
         }
-        _ => (vec![], vec![]),
+        _ => (None, vec![]),
     };
     Ok(res)
+}
+
+pub fn update_balance_after_deleverage(
+    mut deps: DepsMut,
+    _env: Env,
+    info: MessageInfo,
+    account_id: String,
+    pnl: PnL,
+    _action: ActionKind,
+) -> ContractResult<Response> {
+    let perps = PERPS.load(deps.storage)?;
+
+    // Only the perps contract can update the balances after deleverage
+    ensure_eq!(
+        &info.sender,
+        perps.address(),
+        ContractError::Unauthorized {
+            user: info.sender.to_string(),
+            action: "update balances after deleverage".to_string()
+        }
+    );
+
+    let pnl_string = pnl.to_string();
+    let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, &account_id, pnl)?;
+
+    // Amount sent will be validated in the perps contract in reply entry point
+    if let Some(f) = funds {
+        if !f.amount.is_zero() {
+            let send_msg = CosmosMsg::Bank(BankMsg::Send {
+                to_address: perps.address().into(),
+                amount: vec![f],
+            });
+            msgs.push(send_msg);
+        }
+    }
+
+    Ok(Response::new()
+        .add_messages(msgs)
+        .add_attribute("action", "update_balance_after_deleverage")
+        .add_attribute("account_id", account_id)
+        .add_attribute("realised_pnl", pnl_string))
 }

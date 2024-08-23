@@ -493,6 +493,18 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     memo?: string,
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
+  deleverage: (
+    {
+      accountId,
+      denom,
+    }: {
+      accountId: string
+      denom: string
+    },
+    fee?: number | StdFee | 'auto',
+    memo?: string,
+    _funds?: Coin[],
+  ) => Promise<ExecuteResult>
 }
 export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsInterface {
   client: SigningCosmWasmClient
@@ -512,6 +524,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     this.withdraw = this.withdraw.bind(this)
     this.executePerpOrder = this.executePerpOrder.bind(this)
     this.closeAllPositions = this.closeAllPositions.bind(this)
+    this.deleverage = this.deleverage.bind(this)
   }
   updateOwner = async (
     ownerUpdate: OwnerUpdate,
@@ -728,6 +741,32 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
         close_all_positions: {
           account_id: accountId,
           action,
+        },
+      },
+      fee,
+      memo,
+      _funds,
+    )
+  }
+  deleverage = async (
+    {
+      accountId,
+      denom,
+    }: {
+      accountId: string
+      denom: string
+    },
+    fee: number | StdFee | 'auto' = 'auto',
+    memo?: string,
+    _funds?: Coin[],
+  ): Promise<ExecuteResult> => {
+    return await this.client.execute(
+      this.sender,
+      this.contractAddress,
+      {
+        deleverage: {
+          account_id: accountId,
+          denom,
         },
       },
       fee,

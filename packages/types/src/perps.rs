@@ -60,6 +60,9 @@ pub struct Config<T> {
 
     /// The percentage of fees that is directed to the protocol
     pub protocol_fee_rate: Decimal,
+
+    /// The target collateralization ratio of the vault
+    pub target_vault_collaterization_ratio: Decimal,
 }
 
 impl Config<String> {
@@ -73,6 +76,7 @@ impl Config<String> {
             cooldown_period: self.cooldown_period,
             max_positions: self.max_positions,
             protocol_fee_rate: self.protocol_fee_rate,
+            target_vault_collaterization_ratio: self.target_vault_collaterization_ratio,
         })
     }
 }
@@ -88,6 +92,7 @@ impl From<Config<Addr>> for Config<String> {
             cooldown_period: cfg.cooldown_period,
             max_positions: cfg.max_positions,
             protocol_fee_rate: cfg.protocol_fee_rate,
+            target_vault_collaterization_ratio: cfg.target_vault_collaterization_ratio,
         }
     }
 }
@@ -448,12 +453,11 @@ impl PnlAmounts {
 }
 
 impl PnL {
-    pub fn to_signed_decimal(&self) -> StdResult<SignedDecimal> {
+    pub fn to_signed_uint(&self) -> StdResult<SignedUint> {
         let value = match self {
-            PnL::Profit(c) => SignedDecimal::from_str(c.amount.to_string().as_str())?,
-            PnL::Loss(c) => SignedDecimal::zero()
-                .checked_sub(SignedDecimal::from_str(c.amount.to_string().as_str())?)?,
-            PnL::BreakEven => SignedDecimal::zero(),
+            PnL::Profit(c) => SignedUint::from_str(c.amount.to_string().as_str())?,
+            PnL::Loss(c) => SignedUint::zero().checked_sub(c.amount.into())?,
+            PnL::BreakEven => SignedUint::zero(),
         };
         Ok(value)
     }
@@ -561,6 +565,17 @@ pub enum ExecuteMsg {
     CloseAllPositions {
         account_id: String,
         action: Option<ActionKind>,
+    },
+
+    /// Deleveraging a vault by closing a position for an account.
+    /// This process helps to increase the Collateralization Ratio (CR) of the vault and/or decrease the maximum Open Interest (max OI) values
+    /// (`long_oi_value` and `short_oi_value`).
+    ///
+    /// The highest unrealized PnL should be closed first. In cases where the maximum OI is exceeded, prioritize closing
+    /// the most profitable position that contributes to the exceeded OI (e.g., if long OI is exceeded, close the most profitable long position).
+    Deleverage {
+        account_id: String,
+        denom: String,
     },
 }
 

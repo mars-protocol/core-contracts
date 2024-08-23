@@ -1,14 +1,15 @@
 use std::{cmp::Ordering, collections::HashMap};
 
 use cosmwasm_std::{
-    coins, ensure_eq, Addr, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Order, Response,
-    StdError, Uint128,
+    coins, ensure_eq, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Order,
+    Response, StdError, Uint128,
 };
 use cw_utils::{may_pay, must_pay};
 use mars_types::{
     address_provider,
     address_provider::MarsAddressType,
     oracle::ActionKind,
+    params::PerpParams,
     perps::{CashFlow, Config, DenomState, PnL, PnlAmounts, Position},
     signed_uint::SignedUint,
 };
@@ -23,6 +24,10 @@ use crate::{
     utils::{ensure_max_position, ensure_min_position},
 };
 
+/// Executes a perpetual order for a specific account and denom.
+///
+/// Depending on whether a position exists and the reduce_only flag, this function either opens a new
+/// position, modifies an existing one, or returns an error if the operation is illegal.
 pub fn execute_perp_order(
     deps: DepsMut,
     env: Env,
@@ -59,7 +64,11 @@ pub fn execute_perp_order(
     }
 }
 
-pub fn open_position(
+/// Opens a new position for a specific account and denom.
+///
+/// This function checks if the account can open a new position, validates the position parameters,
+/// and then creates the new position, updating the necessary states and applying any opening fees.
+fn open_position(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -198,29 +207,11 @@ pub fn open_position(
         .add_attribute("entry_price", denom_price.to_string()))
 }
 
-pub fn close_position(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    account_id: String,
-    denom: String,
-) -> ContractResult<Response> {
-    let position = POSITIONS.load(deps.storage, (&account_id, &denom))?;
-    update_position_state(deps, env, info, position, account_id, denom, SignedUint::zero())
-}
-
-pub fn modify_position(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    account_id: String,
-    denom: String,
-    new_size: SignedUint,
-) -> ContractResult<Response> {
-    let position = POSITIONS.load(deps.storage, (&account_id, &denom))?;
-    update_position_state(deps, env, info, position, account_id, denom, new_size)
-}
-
+/// Updates the state of a position for a specific account.
+///
+/// This function adjusts the position size based on the provided new size and performs necessary updates
+/// to the position state, including PnL realization, funding rates, and accumulator updates. The function
+/// ensures that the position modifications adhere to the market parameters and the denom's current state.
 fn update_position_state(
     deps: DepsMut,
     env: Env,
@@ -230,15 +221,16 @@ fn update_position_state(
     denom: String,
     new_size: SignedUint,
 ) -> ContractResult<Response> {
-    // States
+    // Load the contract's configuration
     let cfg = CONFIG.load(deps.storage)?;
 
     // Only the credit manager contract can adjust positions
     ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
 
-    // Params for the given market
+    // Query the parameters for the given market (denom)
     let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
 
+    // Load relevant state variables
     let mut realized_pnl =
         REALIZED_PNL.may_load(deps.storage, (&account_id, &denom))?.unwrap_or_default();
     let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
@@ -252,12 +244,11 @@ fn update_position_state(
 
     let entry_size = position.size;
 
-    // Prices
+    // Query the current prices for the denom and the base denom
     let entry_price = position.entry_price;
     let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-    let position_value = new_size.abs.checked_mul_floor(denom_price)?;
 
     // When modifying a position, we must realise all PnL. The credit manager
     // may send no coin (in case the position is winning or breaking even) or
@@ -267,6 +258,7 @@ fn update_position_state(
     // skew _before_ modification
     let initial_skew = ds.skew()?;
 
+    // Determine the type of modification to the position based on the new size
     let modification = if new_size.is_zero() {
         // Close the position
 
@@ -283,84 +275,24 @@ fn update_position_state(
             });
         }
 
-        let is_flipped = new_size.negative != entry_size.negative;
+        // Validate and adjust the position's size
+        let modification =
+            adjust_position_with_validation(new_size, entry_size, denom_price, &perp_params, &ds)?;
 
-        match (is_flipped, new_size.abs.cmp(&entry_size.abs)) {
-            // Position is not changed
-            (false, Ordering::Equal) => {
-                return Err(ContractError::IllegalPositionModification {
-                    reason: "new_size is equal to old_size.".to_string(),
-                });
-            }
+        // Update the denoms accumulators.
+        // Funding rates and index is updated to the current block time (using old size).
+        ds.modify_position(
+            env.block.time.seconds(),
+            denom_price,
+            base_denom_price,
+            &position,
+            new_size,
+        )?;
 
-            // Position is decreasing
-            (false, Ordering::Less) => {
-                // Enforce min size when decreasing
-                ensure_min_position(position_value, &perp_params)?;
-
-                // Update the denoms accumulators.
-                // Funding rates and index is updated to the current block time (using old size).
-                ds.modify_position(
-                    env.block.time.seconds(),
-                    denom_price,
-                    base_denom_price,
-                    &position,
-                    new_size,
-                )?;
-
-                let q_change = entry_size.checked_sub(new_size)?;
-                PositionModification::Decrease(q_change)
-            }
-
-            // Position is increasing
-            (false, Ordering::Greater) => {
-                // Enforce position size cannot be too big when increasing
-                ensure_max_position(position_value, &perp_params)?;
-
-                // validate the position's size against OI limits
-                ds.validate_open_interest(new_size, entry_size, denom_price, &perp_params)?;
-
-                // Update the denoms accumulators.
-                // Funding rates and index is updated to the current block time (using old size).
-                ds.modify_position(
-                    env.block.time.seconds(),
-                    denom_price,
-                    base_denom_price,
-                    &position,
-                    new_size,
-                )?;
-
-                let q_change = new_size.checked_sub(entry_size)?;
-                PositionModification::Increase(q_change)
-            }
-
-            // Position is flipping
-            (true, _) => {
-                // Ensure min and max position size when flipping a position
-                ensure_min_position(position_value, &perp_params)?;
-                ensure_max_position(position_value, &perp_params)?;
-
-                // Ensure the position's size against OI limits
-                ds.validate_open_interest(new_size, entry_size, denom_price, &perp_params)?;
-
-                // Update the denoms accumulators.
-                // Funding rates and index is updated to the current block time (using old size).
-                ds.modify_position(
-                    env.block.time.seconds(),
-                    denom_price,
-                    base_denom_price,
-                    &position,
-                    new_size,
-                )?;
-
-                PositionModification::Flip(new_size, entry_size)
-            }
-        }
+        modification
     };
 
-    // REALISE PNL
-    // ===========
-    // compute the position's unrealized PnL
+    // Compute the position's unrealized PnL
     let pnl_amounts = position.compute_pnl(
         &ds.funding,
         initial_skew,
@@ -377,8 +309,10 @@ fn update_position_state(
     let mut res = Response::new();
     let mut msgs = vec![];
 
+    // Apply the payment to the credit manager if necessary
     apply_payment_to_cm_if_needed(&cfg, &mut msgs, paid_amount, &pnl)?;
 
+    // Update the realized PnL, denom state, and total cash flow based on the new amounts
     res = apply_pnl_and_fees(
         &cfg,
         &rewards_collector_addr,
@@ -390,14 +324,14 @@ fn update_position_state(
         &mut msgs,
     )?;
 
-    // Modify or delete position states
+    // Modify or delete the position state based on the new size
     let method = if new_size.is_zero() {
-        // Delete the position and related state when position size modified to zero.
+        // Delete the position if the new size is zero
         POSITIONS.remove(deps.storage, (&account_id, &denom));
 
         "close_position"
     } else {
-        // Save updated position
+        // Save the updated position state
         let mut realized_pnl = position.realized_pnl;
         realized_pnl.add(&pnl_amounts)?;
 
@@ -422,11 +356,12 @@ fn update_position_state(
         "modify_position"
     };
 
-    // Save updated states
+    // Save the updated state variables
     REALIZED_PNL.save(deps.storage, (&account_id, &denom), &realized_pnl)?;
     DENOM_STATES.save(deps.storage, &denom, &ds)?;
     TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
 
+    // Return the response with the appropriate attributes
     Ok(res
         .add_messages(msgs)
         .add_attribute("action", method)
@@ -439,7 +374,65 @@ fn update_position_state(
         .add_attribute("realised_pnl", pnl.to_string()))
 }
 
-fn apply_pnl_and_fees(
+/// Adjusts the position size with validation and determines the type of position modification.
+///
+/// This function takes the new position size and validates it against the current position size,
+/// market parameters, and open interest limits. Depending on whether the new size is an increase,
+/// decrease, or flip of the position, it returns the appropriate `PositionModification`.
+fn adjust_position_with_validation(
+    new_size: SignedUint,
+    entry_size: SignedUint,
+    denom_price: Decimal,
+    perp_params: &PerpParams,
+    ds: &DenomState,
+) -> Result<PositionModification, ContractError> {
+    let is_flipped = new_size.negative != entry_size.negative;
+    let position_value = new_size.abs.checked_mul_floor(denom_price)?;
+    let modification = match (is_flipped, new_size.abs.cmp(&entry_size.abs)) {
+        // Position is not changed
+        (false, Ordering::Equal) => {
+            return Err(ContractError::IllegalPositionModification {
+                reason: "new_size is equal to old_size.".to_string(),
+            });
+        }
+
+        // Position is decreasing
+        (false, Ordering::Less) => {
+            // Enforce min size when decreasing
+            ensure_min_position(position_value, perp_params)?;
+
+            let q_change = entry_size.checked_sub(new_size)?;
+            PositionModification::Decrease(q_change)
+        }
+
+        // Position is increasing
+        (false, Ordering::Greater) => {
+            // Enforce position size cannot be too big when increasing
+            ensure_max_position(position_value, perp_params)?;
+
+            // validate the position's size against OI limits
+            ds.validate_open_interest(new_size, entry_size, denom_price, perp_params)?;
+
+            let q_change = new_size.checked_sub(entry_size)?;
+            PositionModification::Increase(q_change)
+        }
+
+        // Position is flipping
+        (true, _) => {
+            // Ensure min and max position size when flipping a position
+            ensure_min_position(position_value, perp_params)?;
+            ensure_max_position(position_value, perp_params)?;
+
+            // Ensure the position's size against OI limits
+            ds.validate_open_interest(new_size, entry_size, denom_price, perp_params)?;
+
+            PositionModification::Flip(new_size, entry_size)
+        }
+    };
+    Ok(modification)
+}
+
+pub fn apply_pnl_and_fees(
     cfg: &Config<Addr>,
     rewards_collector: &Addr,
     ds: &mut DenomState,

@@ -15,7 +15,8 @@
       "max_positions",
       "oracle",
       "params",
-      "protocol_fee_rate"
+      "protocol_fee_rate",
+      "target_vault_collaterization_ratio"
     ],
     "properties": {
       "address_provider": {
@@ -60,6 +61,14 @@
       },
       "protocol_fee_rate": {
         "description": "The percentage of fees that is directed to the protocol",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Decimal"
+          }
+        ]
+      },
+      "target_vault_collaterization_ratio": {
+        "description": "The target collateralization ratio of the vault",
         "allOf": [
           {
             "$ref": "#/definitions/Decimal"
@@ -312,6 +321,32 @@
                     "type": "null"
                   }
                 ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Deleveraging a vault by closing a position for an account. This process helps to increase the Collateralization Ratio (CR) of the vault and/or decrease the maximum Open Interest (max OI) values (`long_oi_value` and `short_oi_value`).\n\nThe highest unrealized PnL should be closed first. In cases where the maximum OI is exceeded, prioritize closing the most profitable position that contributes to the exceeded OI (e.g., if long OI is exceeded, close the most profitable long position).",
+        "type": "object",
+        "required": [
+          "deleverage"
+        ],
+        "properties": {
+          "deleverage": {
+            "type": "object",
+            "required": [
+              "account_id",
+              "denom"
+            ],
+            "properties": {
+              "account_id": {
+                "type": "string"
+              },
+              "denom": {
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -978,7 +1013,8 @@
         "max_positions",
         "oracle",
         "params",
-        "protocol_fee_rate"
+        "protocol_fee_rate",
+        "target_vault_collaterization_ratio"
       ],
       "properties": {
         "address_provider": {
@@ -1023,6 +1059,14 @@
         },
         "protocol_fee_rate": {
           "description": "The percentage of fees that is directed to the protocol",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "target_vault_collaterization_ratio": {
+          "description": "The target collateralization ratio of the vault",
           "allOf": [
             {
               "$ref": "#/definitions/Decimal"

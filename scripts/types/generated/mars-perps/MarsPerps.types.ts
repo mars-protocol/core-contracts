@@ -17,6 +17,7 @@ export interface InstantiateMsg {
   oracle: OracleBaseForString
   params: ParamsBaseForString
   protocol_fee_rate: Decimal
+  target_vault_collaterization_ratio: Decimal
 }
 export type ExecuteMsg =
   | {
@@ -67,6 +68,12 @@ export type ExecuteMsg =
       close_all_positions: {
         account_id: string
         action?: ActionKind | null
+      }
+    }
+  | {
+      deleverage: {
+        account_id: string
+        denom: string
       }
     }
 export type OwnerUpdate =
@@ -204,6 +211,7 @@ export interface ConfigForString {
   oracle: OracleBaseForString
   params: ParamsBaseForString
   protocol_fee_rate: Decimal
+  target_vault_collaterization_ratio: Decimal
 }
 export interface Accounting {
   balance: Balance
