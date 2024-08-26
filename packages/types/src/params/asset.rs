@@ -18,6 +18,7 @@ use crate::error::MarsError;
 #[cw_serde]
 pub struct CmSettings<T> {
     pub whitelisted: bool,
+    pub withdraw_enabled: bool,
     pub hls: Option<HlsParamsBase<T>>,
 }
 
@@ -25,6 +26,7 @@ pub struct CmSettings<T> {
 pub struct RedBankSettings {
     pub deposit_enabled: bool,
     pub borrow_enabled: bool,
+    pub withdraw_enabled: bool,
 }
 
 /// The LB will depend on the Health Factor and a couple other parameters as follows:
@@ -83,6 +85,7 @@ impl From<AssetParams> for AssetParamsUnchecked {
             denom: p.denom,
             credit_manager: CmSettings {
                 whitelisted: p.credit_manager.whitelisted,
+                withdraw_enabled: p.credit_manager.withdraw_enabled,
                 hls: p.credit_manager.hls.map(Into::into),
             },
             red_bank: p.red_bank,
@@ -121,6 +124,7 @@ impl AssetParamsUnchecked {
             denom: self.denom.clone(),
             credit_manager: CmSettings {
                 whitelisted: self.credit_manager.whitelisted,
+                withdraw_enabled: self.credit_manager.withdraw_enabled,
                 hls,
             },
             red_bank: self.red_bank.clone(),

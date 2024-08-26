@@ -123,7 +123,8 @@
     "CmSettings_for_Addr": {
       "type": "object",
       "required": [
-        "whitelisted"
+        "whitelisted",
+        "withdraw_enabled"
       ],
       "properties": {
         "hls": {
@@ -137,6 +138,9 @@
           ]
         },
         "whitelisted": {
+          "type": "boolean"
+        },
+        "withdraw_enabled": {
           "type": "boolean"
         }
       },
@@ -802,13 +806,17 @@
       "type": "object",
       "required": [
         "borrow_enabled",
-        "deposit_enabled"
+        "deposit_enabled",
+        "withdraw_enabled"
       ],
       "properties": {
         "borrow_enabled": {
           "type": "boolean"
         },
         "deposit_enabled": {
+          "type": "boolean"
+        },
+        "withdraw_enabled": {
           "type": "boolean"
         }
       },

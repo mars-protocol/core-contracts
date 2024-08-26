@@ -90,9 +90,16 @@ export type CmEmergencyUpdate =
   | {
       disallow_coin: string
     }
-export type RedBankEmergencyUpdate = {
-  disable_borrowing: string
-}
+  | {
+      disable_withdraw: string
+    }
+export type RedBankEmergencyUpdate =
+  | {
+      disable_borrowing: string
+    }
+  | {
+      disable_withdraw: string
+    }
 export interface AssetParamsBaseForString {
   close_factor: Decimal
   credit_manager: CmSettingsForString
@@ -107,6 +114,7 @@ export interface AssetParamsBaseForString {
 export interface CmSettingsForString {
   hls?: HlsParamsBaseForString | null
   whitelisted: boolean
+  withdraw_enabled: boolean
 }
 export interface HlsParamsBaseForString {
   correlations: HlsAssetTypeForString[]
@@ -122,6 +130,7 @@ export interface LiquidationBonus {
 export interface RedBankSettings {
   borrow_enabled: boolean
   deposit_enabled: boolean
+  withdraw_enabled: boolean
 }
 export interface VaultConfigBaseForString {
   addr: string
@@ -232,6 +241,7 @@ export interface AssetParamsBaseForAddr {
 export interface CmSettingsForAddr {
   hls?: HlsParamsBaseForAddr | null
   whitelisted: boolean
+  withdraw_enabled: boolean
 }
 export interface HlsParamsBaseForAddr {
   correlations: HlsAssetTypeForAddr[]

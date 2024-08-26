@@ -451,6 +451,7 @@ export class Deployer {
             credit_manager: {
               hls: assetConfig.credit_manager.hls,
               whitelisted: assetConfig.credit_manager.whitelisted,
+              withdraw_enabled: assetConfig.credit_manager.withdraw_enabled,
             },
             denom: assetConfig.denom,
             liquidation_bonus: assetConfig.liquidation_bonus,
@@ -460,6 +461,7 @@ export class Deployer {
             red_bank: {
               borrow_enabled: assetConfig.red_bank.borrow_enabled,
               deposit_enabled: assetConfig.red_bank.deposit_enabled,
+              withdraw_enabled: assetConfig.red_bank.withdraw_enabled,
             },
             deposit_cap: assetConfig.deposit_cap,
             close_factor: assetConfig.close_factor,

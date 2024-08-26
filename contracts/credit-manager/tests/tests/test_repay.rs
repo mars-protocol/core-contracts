@@ -90,6 +90,7 @@ fn raises_when_repaying_what_is_not_owed() {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     };
@@ -156,6 +157,7 @@ fn raises_when_not_enough_assets_to_repay() {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     };

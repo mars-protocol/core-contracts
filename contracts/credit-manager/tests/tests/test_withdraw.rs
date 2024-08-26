@@ -32,6 +32,61 @@ fn only_owner_of_token_can_withdraw() {
 }
 
 #[test]
+fn withdraw_disabled() {
+    let mut coin_info = uosmo_info();
+    coin_info.withdraw_enabled = false;
+    let user = Addr::unchecked("user");
+    let mut mock = MockEnv::new()
+        .set_params(&[coin_info.clone()])
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: coins(300, coin_info.denom.clone()),
+        })
+        .build()
+        .unwrap();
+    let account_id = mock.create_credit_account(&user).unwrap();
+
+    // Standard withdraw
+    let res = mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Action::Deposit(coin_info.to_coin(300)),
+            Action::Withdraw(coin_info.to_action_coin(400)),
+        ],
+        &[coin(300, coin_info.denom.clone())],
+    );
+
+    assert_err(
+        res,
+        ContractError::WithdrawNotEnabled {
+            denom: coin_info.denom.clone(),
+        },
+    );
+
+    // Withdraw to wallet
+    let res = mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Action::Deposit(coin_info.to_coin(300)),
+            Action::WithdrawToWallet {
+                coin: coin_info.to_action_coin(400),
+                recipient: user.to_string(),
+            },
+        ],
+        &[coin(300, coin_info.denom.clone())],
+    );
+
+    assert_err(
+        res,
+        ContractError::WithdrawNotEnabled {
+            denom: coin_info.denom.clone(),
+        },
+    );
+}
+
+#[test]
 fn withdraw_nothing() {
     let coin_info = uosmo_info();
     let user = Addr::unchecked("user");

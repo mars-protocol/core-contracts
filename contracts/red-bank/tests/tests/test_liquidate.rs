@@ -1220,10 +1220,12 @@ fn _default_asset_params_with(
         denom: denom.to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
+            withdraw_enabled: true,
             hls: None,
         },
         red_bank: RedBankSettings {
             deposit_enabled: true,
+            withdraw_enabled: true,
             borrow_enabled: true,
         },
         max_loan_to_value,

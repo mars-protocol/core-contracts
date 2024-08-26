@@ -121,6 +121,7 @@ fn adds_vault_base_denoms_to_oracle_and_red_bank() {
             denom: vault_base_token.to_string(),
             credit_manager: CmSettings {
                 whitelisted: true,
+                withdraw_enabled: true,
                 hls: Some(HlsParamsUnchecked {
                     max_loan_to_value: Decimal::from_str("0.8").unwrap(),
                     liquidation_threshold: Decimal::from_str("0.9").unwrap(),
@@ -128,6 +129,7 @@ fn adds_vault_base_denoms_to_oracle_and_red_bank() {
                 }),
             },
             red_bank: RedBankSettings {
+                withdraw_enabled: true,
                 deposit_enabled: false,
                 borrow_enabled: false,
             },
@@ -187,6 +189,7 @@ fn whitelisted_coins_work() {
     let mut asset_params = AssetParamsUnchecked {
         denom: umars.to_string(),
         credit_manager: CmSettings {
+            withdraw_enabled: true,
             whitelisted: false,
             hls: Some(HlsParamsUnchecked {
                 max_loan_to_value: Decimal::from_str("0.8").unwrap(),
@@ -195,6 +198,7 @@ fn whitelisted_coins_work() {
             }),
         },
         red_bank: RedBankSettings {
+            withdraw_enabled: true,
             deposit_enabled: false,
             borrow_enabled: false,
         },
@@ -297,6 +301,7 @@ fn vault_whitelist_affects_max_ltv() {
         params: AssetParamsUnchecked {
             denom: vault_base_token.to_string(),
             credit_manager: CmSettings {
+                withdraw_enabled: true,
                 whitelisted: true,
                 hls: Some(HlsParamsUnchecked {
                     max_loan_to_value: Decimal::from_str("0.8").unwrap(),
@@ -305,6 +310,7 @@ fn vault_whitelist_affects_max_ltv() {
                 }),
             },
             red_bank: RedBankSettings {
+                withdraw_enabled: true,
                 deposit_enabled: false,
                 borrow_enabled: false,
             },

@@ -333,10 +333,12 @@ export const ntrnAsset: AssetConfig = {
   symbol: 'NTRN',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '5000000000000',
   reserve_factor: '0.1',
@@ -363,10 +365,12 @@ export const atomAsset: AssetConfig = {
   symbol: 'ATOM',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '150000000000',
   reserve_factor: '0.1',
@@ -393,10 +397,12 @@ export const nobleUSDCAsset: AssetConfig = {
   symbol: 'nobleUSDC',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '500000000000',
   reserve_factor: '0.1',
@@ -423,10 +429,12 @@ export const pclLpMarsUsdcAsset: AssetConfig = {
   symbol: 'PCL_LP_MARS_USDC',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '1000000000000000000',
   reserve_factor: '0.1',
@@ -453,10 +461,12 @@ export const pclLpMarsAsset: AssetConfig = {
   symbol: 'PCL_LP_MARS',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '500000000000',
   reserve_factor: '0.1',
@@ -483,10 +493,12 @@ export const pclLpUsdcAsset: AssetConfig = {
   symbol: 'PCL_LP_USDC',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '500000000000',
   reserve_factor: '0.1',

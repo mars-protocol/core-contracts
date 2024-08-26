@@ -23,6 +23,7 @@ const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
 export const osmoAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'OSMO',
   denom: uosmo,
@@ -38,6 +39,7 @@ export const osmoAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '2500000000000',
   reserve_factor: '0.2',
@@ -53,6 +55,7 @@ export const osmoAsset: AssetConfig = {
 export const atomAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'ATOM',
   denom: atom,
@@ -68,6 +71,7 @@ export const atomAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '100000000000',
   reserve_factor: '0.2',
@@ -83,6 +87,7 @@ export const atomAsset: AssetConfig = {
 export const USDCAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'aUSDC',
   denom: aUSDC,
@@ -98,6 +103,7 @@ export const USDCAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '500000000000',
   reserve_factor: '0.2',

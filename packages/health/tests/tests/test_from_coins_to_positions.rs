@@ -133,10 +133,12 @@ fn mock_setup() -> MarsMockQuerier {
             denom: "osmo".to_string(),
             credit_manager: CmSettings {
                 whitelisted: false,
+                withdraw_enabled: true,
                 hls: None,
             },
             red_bank: RedBankSettings {
                 deposit_enabled: false,
+                withdraw_enabled: true,
                 borrow_enabled: false,
             },
             max_loan_to_value: Decimal::from_atomics(50u128, 2).unwrap(),
@@ -163,10 +165,12 @@ fn mock_setup() -> MarsMockQuerier {
             denom: "atom".to_string(),
             credit_manager: CmSettings {
                 whitelisted: false,
+                withdraw_enabled: true,
                 hls: None,
             },
             red_bank: RedBankSettings {
                 deposit_enabled: false,
+                withdraw_enabled: true,
                 borrow_enabled: false,
             },
             max_loan_to_value: Decimal::from_atomics(70u128, 2).unwrap(),

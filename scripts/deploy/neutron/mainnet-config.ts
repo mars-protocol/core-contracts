@@ -279,10 +279,12 @@ export const ntrnAsset: AssetConfig = {
   symbol: 'NTRN',
   credit_manager: {
     whitelisted: false,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '5000000000000',
   reserve_factor: '0.1',
@@ -310,10 +312,12 @@ export const atomAsset: AssetConfig = {
   symbol: 'ATOM',
   credit_manager: {
     whitelisted: false,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '150000000000',
   reserve_factor: '0.1',
@@ -341,10 +345,12 @@ export const axlUSDCAsset: AssetConfig = {
   symbol: 'axlUSDC',
   credit_manager: {
     whitelisted: false,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '500000000000',
   reserve_factor: '0.1',

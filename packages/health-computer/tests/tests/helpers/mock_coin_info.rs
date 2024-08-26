@@ -30,10 +30,12 @@ pub fn umars_info() -> CoinInfo {
             },
             credit_manager: CmSettings {
                 whitelisted: true,
+                withdraw_enabled: true,
                 hls: None,
             },
             red_bank: RedBankSettings {
                 deposit_enabled: true,
+                withdraw_enabled: true,
                 borrow_enabled: true,
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
@@ -60,10 +62,12 @@ pub fn udai_info() -> CoinInfo {
             },
             credit_manager: CmSettings {
                 whitelisted: true,
+                withdraw_enabled: true,
                 hls: None,
             },
             red_bank: RedBankSettings {
                 deposit_enabled: true,
+                withdraw_enabled: true,
                 borrow_enabled: true,
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
@@ -90,10 +94,12 @@ pub fn uluna_info() -> CoinInfo {
             },
             credit_manager: CmSettings {
                 whitelisted: true,
+                withdraw_enabled: true,
                 hls: None,
             },
             red_bank: RedBankSettings {
                 deposit_enabled: true,
+                withdraw_enabled: true,
                 borrow_enabled: true,
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
@@ -120,6 +126,7 @@ pub fn ustars_info() -> CoinInfo {
             },
             credit_manager: CmSettings {
                 whitelisted: true,
+                withdraw_enabled: true,
                 hls: Some(HlsParams {
                     max_loan_to_value: Decimal::from_str("0.75").unwrap(),
                     liquidation_threshold: Decimal::from_str("0.8").unwrap(),
@@ -135,6 +142,7 @@ pub fn ustars_info() -> CoinInfo {
                 }),
             },
             red_bank: RedBankSettings {
+                withdraw_enabled: true,
                 deposit_enabled: true,
                 borrow_enabled: true,
             },
@@ -162,9 +170,11 @@ pub fn ujuno_info() -> CoinInfo {
             },
             credit_manager: CmSettings {
                 whitelisted: true,
+                withdraw_enabled: true,
                 hls: None,
             },
             red_bank: RedBankSettings {
+                withdraw_enabled: true,
                 deposit_enabled: true,
                 borrow_enabled: true,
             },
@@ -191,6 +201,7 @@ pub fn uatom_info() -> CoinInfo {
                 max_lb: Decimal::percent(10u64),
             },
             credit_manager: CmSettings {
+                withdraw_enabled: true,
                 whitelisted: true,
                 hls: Some(HlsParams {
                     max_loan_to_value: Decimal::from_str("0.71").unwrap(),
@@ -201,6 +212,7 @@ pub fn uatom_info() -> CoinInfo {
                 }),
             },
             red_bank: RedBankSettings {
+                withdraw_enabled: true,
                 deposit_enabled: true,
                 borrow_enabled: true,
             },
@@ -227,6 +239,7 @@ pub fn uusdc_info() -> CoinInfo {
                 max_lb: Decimal::percent(10u64),
             },
             credit_manager: CmSettings {
+                withdraw_enabled: true,
                 whitelisted: true,
                 hls: Some(HlsParams {
                     max_loan_to_value: Decimal::from_str("0.71").unwrap(),
@@ -237,6 +250,7 @@ pub fn uusdc_info() -> CoinInfo {
                 }),
             },
             red_bank: RedBankSettings {
+                withdraw_enabled: true,
                 deposit_enabled: false,
                 borrow_enabled: false,
             },
@@ -267,10 +281,12 @@ pub fn create_coin_info(
                 max_lb: Decimal::percent(10u64),
             },
             credit_manager: CmSettings {
+                withdraw_enabled: true,
                 whitelisted: true,
                 hls: None,
             },
             red_bank: RedBankSettings {
+                withdraw_enabled: true,
                 deposit_enabled: false,
                 borrow_enabled: false,
             },

@@ -62,6 +62,7 @@ export interface AssetParamsBaseForAddr {
 export interface CmSettingsForAddr {
   hls?: HlsParamsBaseForAddr | null
   whitelisted: boolean
+  withdraw_enabled: boolean
 }
 export interface HlsParamsBaseForAddr {
   correlations: HlsAssetTypeForAddr[]
@@ -77,6 +78,7 @@ export interface LiquidationBonus {
 export interface RedBankSettings {
   borrow_enabled: boolean
   deposit_enabled: boolean
+  withdraw_enabled: boolean
 }
 export interface PerpsData {
   denom_states: {

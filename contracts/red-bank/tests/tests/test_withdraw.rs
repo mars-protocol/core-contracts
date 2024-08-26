@@ -50,6 +50,9 @@ fn setup_test() -> TestSuite {
 
     let mut deps = th_setup(&[coin(initial_liquidity.u128(), denom)]);
 
+    // Set default params
+    deps.querier.set_redbank_params(denom, th_default_asset_params());
+
     let market = Market {
         denom: denom.to_string(),
         reserve_factor: Decimal::from_ratio(1u128, 10u128),
@@ -71,6 +74,45 @@ fn setup_test() -> TestSuite {
         withdrawer_addr: Addr::unchecked("larry"),
         initial_market: market,
     }
+}
+
+#[test]
+fn withdraw_disabled() {
+    let TestSuite {
+        mut deps,
+        denom,
+        withdrawer_addr,
+        ..
+    } = setup_test();
+
+    // give withdrawer a small collateral position
+    set_collateral(deps.as_mut(), &withdrawer_addr, denom, Uint128::new(200), false);
+
+    // Disable withdraw
+    let mut params = th_default_asset_params();
+    params.red_bank.withdraw_enabled = false;
+    deps.querier.set_redbank_params(denom, params);
+
+    let err = execute(
+        deps.as_mut(),
+        mock_env(),
+        mock_info(withdrawer_addr.as_str(), &[]),
+        ExecuteMsg::Withdraw {
+            denom: denom.to_string(),
+            amount: Some(Uint128::from(2000u128)),
+            recipient: None,
+            account_id: None,
+            liquidation_related: None,
+        },
+    )
+    .unwrap_err();
+
+    assert_eq!(
+        err,
+        ContractError::WithdrawNotEnabled {
+            denom: denom.to_string()
+        }
+    )
 }
 
 #[test]

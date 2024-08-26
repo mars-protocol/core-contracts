@@ -23,6 +23,7 @@ pub fn coin_info(denom: &str) -> CoinInfo {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     }
@@ -42,6 +43,7 @@ pub fn uusdc_info() -> CoinInfo {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     }
@@ -61,6 +63,7 @@ pub fn uosmo_info() -> CoinInfo {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     }
@@ -84,6 +87,7 @@ pub fn uatom_info_with_cf(close_factor: Decimal) -> CoinInfo {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: Some(HlsParamsUnchecked {
             max_loan_to_value: Decimal::from_str("0.86").unwrap(),
             liquidation_threshold: Decimal::from_str("0.93").unwrap(),
@@ -121,6 +125,7 @@ pub fn ujake_info_with_cf(close_factor: Decimal) -> CoinInfo {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: Some(HlsParamsUnchecked {
             max_loan_to_value: Decimal::from_str("0.7").unwrap(),
             liquidation_threshold: Decimal::from_str("0.8").unwrap(),
@@ -144,6 +149,7 @@ pub fn blacklisted_coin_info() -> CoinInfo {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: false,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     }
@@ -163,6 +169,7 @@ pub fn lp_token_info() -> CoinInfo {
         },
         protocol_liquidation_fee: Decimal::percent(40u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: Some(HlsParamsUnchecked {
             max_loan_to_value: Decimal::from_str("0.75").unwrap(),
             liquidation_threshold: Decimal::from_str("0.82").unwrap(),

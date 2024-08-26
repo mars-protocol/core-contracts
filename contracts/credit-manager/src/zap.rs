@@ -11,7 +11,7 @@ use crate::{
     state::{COIN_BALANCES, ZAPPER},
     utils::{
         assert_coin_is_whitelisted, assert_coins_are_whitelisted, assert_slippage,
-        decrement_coin_balance, update_balance_msg, update_balances_msgs,
+        assert_withdraw_enabled, decrement_coin_balance, update_balance_msg, update_balances_msgs,
     },
 };
 
@@ -27,6 +27,10 @@ pub fn provide_liquidity(
 
     assert_coin_is_whitelisted(&mut deps, lp_token_out)?;
     assert_coins_are_whitelisted(&mut deps, coins_in.to_denoms())?;
+
+    for coin in coins_in.iter() {
+        assert_withdraw_enabled(deps.storage, &deps.querier, &coin.denom)?;
+    }
 
     // Decrement coin amounts in account for those sent to pool
     let mut updated_coins_in: Vec<Coin> = Vec::with_capacity(coins_in.len());

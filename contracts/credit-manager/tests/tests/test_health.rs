@@ -89,6 +89,7 @@ fn terra_ragnarok() {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     };
@@ -312,6 +313,7 @@ fn cannot_borrow_more_but_not_liquidatable() {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     };
@@ -328,6 +330,7 @@ fn cannot_borrow_more_but_not_liquidatable() {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     };
@@ -408,6 +411,7 @@ fn assets_and_ltv_lqdt_adjusted_value() {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     };
@@ -424,6 +428,7 @@ fn assets_and_ltv_lqdt_adjusted_value() {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     };
@@ -532,6 +537,7 @@ fn debt_value() {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     };
@@ -548,6 +554,7 @@ fn debt_value() {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     };
@@ -869,6 +876,7 @@ fn can_take_actions_if_ltv_does_not_weaken() {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     };
@@ -885,6 +893,7 @@ fn can_take_actions_if_ltv_does_not_weaken() {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
         close_factor: Decimal::percent(80),
     };

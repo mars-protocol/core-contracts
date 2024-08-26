@@ -71,10 +71,12 @@ fn setup_test() -> TestSuite {
             },
             credit_manager: CmSettings {
                 whitelisted: false,
+                withdraw_enabled: true,
                 hls: None,
             },
             red_bank: RedBankSettings {
                 deposit_enabled: true,
+                withdraw_enabled: true,
                 borrow_enabled: true,
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
@@ -186,11 +188,13 @@ fn depositing_to_disabled_market() {
         AssetParams {
             credit_manager: CmSettings {
                 whitelisted: false,
+                withdraw_enabled: true,
                 hls: None,
             },
             red_bank: RedBankSettings {
                 deposit_enabled: false,
                 borrow_enabled: true,
+                withdraw_enabled: true,
             },
             ..th_default_asset_params()
         },
@@ -242,11 +246,13 @@ fn depositing_above_cap(amount_to_deposit: u128, deposit_cap: u128, exp_ok: bool
         AssetParams {
             credit_manager: CmSettings {
                 whitelisted: false,
+                withdraw_enabled: true,
                 hls: None,
             },
             red_bank: RedBankSettings {
                 deposit_enabled: true,
                 borrow_enabled: true,
+                withdraw_enabled: true,
             },
             deposit_cap: Uint128::new(deposit_cap),
             ..th_default_asset_params()

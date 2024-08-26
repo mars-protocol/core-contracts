@@ -100,6 +100,68 @@ fn disallow_coin() {
 }
 
 #[test]
+fn disabled_withdraw_cm() {
+    let emergency_owner = Addr::unchecked("miles_morales");
+    let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();
+    let denom = "atom".to_string();
+
+    let params = default_asset_params(&denom);
+
+    mock.update_asset_params(
+        &mock.query_owner(),
+        AssetParamsUpdate::AddOrUpdate {
+            params,
+        },
+    )
+    .unwrap();
+
+    let params = mock.query_asset_params(&denom);
+
+    // Withdraw enabled should be true by default
+    assert!(params.credit_manager.withdraw_enabled);
+
+    mock.emergency_update(
+        &emergency_owner,
+        EmergencyUpdate::CreditManager(CmEmergencyUpdate::DisableWithdraw(denom.clone())),
+    )
+    .unwrap();
+
+    let params = mock.query_asset_params(&denom);
+    assert!(!params.credit_manager.withdraw_enabled);
+}
+
+#[test]
+fn disabled_withdraw_rb() {
+    let emergency_owner = Addr::unchecked("miles_morales");
+    let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();
+    let denom = "atom".to_string();
+
+    let params = default_asset_params(&denom);
+
+    mock.update_asset_params(
+        &mock.query_owner(),
+        AssetParamsUpdate::AddOrUpdate {
+            params,
+        },
+    )
+    .unwrap();
+
+    let params = mock.query_asset_params(&denom);
+
+    // Withdraw enabled should be true by default
+    assert!(params.red_bank.withdraw_enabled);
+
+    mock.emergency_update(
+        &emergency_owner,
+        EmergencyUpdate::RedBank(RedBankEmergencyUpdate::DisableWithdraw(denom.clone())),
+    )
+    .unwrap();
+
+    let params = mock.query_asset_params(&denom);
+    assert!(!params.red_bank.withdraw_enabled);
+}
+
+#[test]
 fn set_zero_max_ltv() {
     let emergency_owner = Addr::unchecked("miles_morales");
     let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();

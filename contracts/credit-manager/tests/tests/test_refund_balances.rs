@@ -1,5 +1,8 @@
 use cosmwasm_std::{coin, Addr, Uint128};
-use mars_types::credit_manager::Action::{Deposit, EnterVault, RefundAllCoinBalances};
+use mars_types::{
+    credit_manager::Action::{Deposit, EnterVault, RefundAllCoinBalances},
+    params::AssetParamsUpdate::AddOrUpdate,
+};
 
 use super::helpers::{
     locked_vault_info, lp_token_info, uatom_info, uosmo_info, AccountToFund, MockEnv,
@@ -41,6 +44,53 @@ fn refund_coin_balances_when_balances() {
     assert_eq!(osmo_balance.amount, Uint128::new(234));
     let atom_balance = mock.query_balance(&user, &uatom_info.denom);
     assert_eq!(atom_balance.amount, Uint128::new(25));
+}
+
+#[test]
+fn refund_coin_balances_with_frozen_balances() {
+    let uosmo_info = uosmo_info();
+    let uatom_info = uatom_info();
+
+    let user = Addr::unchecked("user");
+    let mut mock = MockEnv::new()
+        .set_params(&[uosmo_info.clone(), uatom_info.clone()])
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![coin(234, uosmo_info.denom.clone()), coin(25, uatom_info.denom.clone())],
+        })
+        .build()
+        .unwrap();
+
+    let mut asset_params = mock.query_asset_params(&uatom_info.denom);
+    // Freeze account
+    asset_params.credit_manager.withdraw_enabled = false;
+    mock.update_asset_params(AddOrUpdate {
+        params: asset_params.into(),
+    });
+
+    let account_id = mock.create_credit_account(&user).unwrap();
+    mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Deposit(uosmo_info.to_coin(234)),
+            Deposit(uatom_info.to_coin(25)),
+            RefundAllCoinBalances {},
+        ],
+        &[uosmo_info.to_coin(234), uatom_info.to_coin(25)],
+    )
+    .unwrap();
+
+    // Assert refunds have been issued
+    let res = mock.query_positions(&account_id);
+    assert_eq!(res.deposits.len(), 1);
+    assert_eq!(res.deposits[0].amount, Uint128::new(25));
+    assert_eq!(res.deposits[0].denom, uatom_info.denom);
+
+    let osmo_balance = mock.query_balance(&user, &uosmo_info.denom);
+    assert_eq!(osmo_balance.amount, Uint128::new(234));
+    let atom_balance = mock.query_balance(&user, &uatom_info.denom);
+    assert_eq!(atom_balance.amount, Uint128::new(0));
 }
 
 #[test]

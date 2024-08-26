@@ -146,10 +146,12 @@ fn atom_asset_params(denom: &str) -> (InitOrUpdateAssetParams, AssetParams) {
         denom: denom.to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
+            withdraw_enabled: true,
             hls: None,
         },
         red_bank: RedBankSettings {
             deposit_enabled: true,
+            withdraw_enabled: true,
             borrow_enabled: true,
         },
         max_loan_to_value: Decimal::percent(74),
@@ -181,10 +183,12 @@ fn osmo_asset_params(denom: &str) -> (InitOrUpdateAssetParams, AssetParams) {
         denom: denom.to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
+            withdraw_enabled: true,
             hls: None,
         },
         red_bank: RedBankSettings {
             deposit_enabled: true,
+            withdraw_enabled: true,
             borrow_enabled: true,
         },
         max_loan_to_value: Decimal::percent(73),

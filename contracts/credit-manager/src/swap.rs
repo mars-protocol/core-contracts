@@ -7,7 +7,7 @@ use mars_types::{
 use crate::{
     error::{ContractError, ContractResult},
     state::{COIN_BALANCES, SWAPPER},
-    utils::{decrement_coin_balance, update_balance_msg},
+    utils::{assert_withdraw_enabled, decrement_coin_balance, update_balance_msg},
 };
 
 pub fn swap_exact_in(
@@ -19,6 +19,9 @@ pub fn swap_exact_in(
     min_receive: Uint128,
     route: Option<SwapperRoute>,
 ) -> ContractResult<Response> {
+    // Prevent swapping the asset if withdraw is disabled
+    assert_withdraw_enabled(deps.storage, &deps.querier, &coin_in.denom)?;
+
     let coin_in_to_trade = Coin {
         denom: coin_in.denom.clone(),
         amount: match coin_in.amount {

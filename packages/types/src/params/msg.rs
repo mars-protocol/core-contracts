@@ -128,11 +128,13 @@ pub enum CmEmergencyUpdate {
     SetZeroMaxLtvOnVault(String),
     SetZeroDepositCapOnVault(String),
     DisallowCoin(String),
+    DisableWithdraw(String),
 }
 
 #[cw_serde]
 pub enum RedBankEmergencyUpdate {
     DisableBorrowing(String),
+    DisableWithdraw(String),
 }
 
 #[cw_serde]

@@ -109,6 +109,7 @@ fn random_coin_info() -> impl Strategy<Value = AssetParams> {
                 denom,
                 credit_manager: CmSettings {
                     whitelisted,
+                    withdraw_enabled: true,
                     hls: Some(HlsParams {
                         max_loan_to_value: hls_max_ltv,
                         liquidation_threshold: hls_liq_threshold,
@@ -116,6 +117,7 @@ fn random_coin_info() -> impl Strategy<Value = AssetParams> {
                     }),
                 },
                 red_bank: RedBankSettings {
+                    withdraw_enabled: true,
                     deposit_enabled: true,
                     borrow_enabled: true,
                 },

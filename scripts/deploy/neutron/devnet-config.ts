@@ -182,10 +182,12 @@ export const ntrnAsset: AssetConfig = {
   symbol: 'NTRN',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '5000000000000',
   reserve_factor: '0.1',
@@ -212,6 +214,7 @@ export const atomAsset: AssetConfig = {
   symbol: 'ATOM',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
     hls: {
       max_loan_to_value: '0.86',
       liquidation_threshold: '0.865',
@@ -221,6 +224,7 @@ export const atomAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '150000000000',
   reserve_factor: '0.1',
@@ -247,10 +251,12 @@ export const nobleUSDCAsset: AssetConfig = {
   symbol: 'nobleUSDC',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '500000000000',
   reserve_factor: '0.1',
@@ -277,6 +283,7 @@ export const dAtomAsset: AssetConfig = {
   symbol: 'ATOM',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
     hls: {
       max_loan_to_value: '0.86',
       liquidation_threshold: '0.865',
@@ -286,6 +293,7 @@ export const dAtomAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '50000000000',
   reserve_factor: '0.1',
@@ -312,10 +320,12 @@ export const dAtomUsdcLpAsset: AssetConfig = {
   symbol: 'PCL_LP_dATOM_USDC',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '1000000000000000000',
   reserve_factor: '0.1',
@@ -342,10 +352,12 @@ export const dAtomNtrnLpAsset: AssetConfig = {
   symbol: 'PCL_LP_dATOM_NTRN',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '1000000000000000000',
   reserve_factor: '0.1',
@@ -372,10 +384,12 @@ export const ntrnUsdcLpAsset: AssetConfig = {
   symbol: 'PCL_LP_NTRN_USDC',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '1000000000000000000',
   reserve_factor: '0.1',
@@ -402,6 +416,7 @@ export const dAtomAtomLpAsset: AssetConfig = {
   symbol: 'PCL_LP_dATOM_ATOM',
   credit_manager: {
     whitelisted: false,
+    withdraw_enabled: true,
     hls: {
       max_loan_to_value: '0.86',
       liquidation_threshold: '0.865',
@@ -411,6 +426,7 @@ export const dAtomAtomLpAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: false,
+    withdraw_enabled: true,
   },
   deposit_cap: '1000000000000000000',
   reserve_factor: '0.1',

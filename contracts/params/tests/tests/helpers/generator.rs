@@ -11,11 +11,13 @@ pub fn default_asset_params(denom: &str) -> AssetParamsUnchecked {
         denom: denom.to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
+            withdraw_enabled: true,
             hls: None,
         },
         red_bank: RedBankSettings {
             deposit_enabled: true,
             borrow_enabled: false,
+            withdraw_enabled: true,
         },
         max_loan_to_value: Decimal::from_str("0.6").unwrap(),
         liquidation_threshold: Decimal::from_str("0.7").unwrap(),

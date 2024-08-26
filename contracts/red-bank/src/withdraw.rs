@@ -6,6 +6,7 @@ use mars_utils::helpers::build_send_asset_msg;
 use crate::{
     error::ContractError,
     health::assert_below_liq_threshold_after_withdraw,
+    helpers::query_asset_params,
     interest_rates::{apply_accumulated_interests, update_interest_rates},
     state::{CONFIG, MARKETS},
     user::User,
@@ -39,6 +40,15 @@ pub fn withdraw(
     let oracle_addr = &addresses[&MarsAddressType::Oracle];
     let params_addr = &addresses[&MarsAddressType::Params];
     let credit_manager_addr = &addresses[&MarsAddressType::CreditManager];
+
+    // Query params to verify we can withdraw
+    let asset_params = query_asset_params(&deps.querier, params_addr, &denom)?;
+
+    if !asset_params.red_bank.withdraw_enabled {
+        return Err(ContractError::WithdrawNotEnabled {
+            denom,
+        });
+    }
 
     // Don't allow red-bank users to create alternative account ids.
     // Only allow credit-manager contract to create them.

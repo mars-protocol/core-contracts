@@ -1,8 +1,8 @@
 use std::{collections::HashSet, hash::Hash};
 
 use cosmwasm_std::{
-    to_json_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, QuerierWrapper, StdResult,
-    Storage, Uint128, WasmMsg,
+    ensure, to_json_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, QuerierWrapper,
+    StdResult, Storage, Uint128, WasmMsg,
 };
 use mars_types::{
     credit_manager::{ActionCoin, CallbackMsg, ChangeExpected, ExecuteMsg},
@@ -56,6 +56,26 @@ pub fn assert_slippage(storage: &dyn Storage, slippage: Decimal) -> ContractResu
             max_slippage,
         });
     }
+    Ok(())
+}
+
+pub fn assert_withdraw_enabled(
+    storage: &dyn Storage,
+    querier: &QuerierWrapper,
+    denom: &str,
+) -> ContractResult<()> {
+    let params = PARAMS.load(storage)?;
+    let params_opt = params.query_asset_params(querier, denom)?;
+
+    if let Some(params) = params_opt {
+        ensure!(
+            params.credit_manager.withdraw_enabled,
+            ContractError::WithdrawNotEnabled {
+                denom: denom.to_string(),
+            }
+        );
+    };
+
     Ok(())
 }
 

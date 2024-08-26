@@ -80,3 +80,39 @@ pub fn set_zero_deposit_cap(
 
     Ok(response)
 }
+
+pub fn disable_withdraw_rb(
+    deps: DepsMut,
+    info: MessageInfo,
+    denom: &str,
+) -> Result<Response, ContractError> {
+    OWNER.assert_emergency_owner(deps.storage, &info.sender)?;
+
+    let mut params = ASSET_PARAMS.load(deps.storage, denom)?;
+    params.red_bank.withdraw_enabled = false;
+    ASSET_PARAMS.save(deps.storage, denom, &params)?;
+
+    let response = Response::new()
+        .add_attribute("action", "emergency_disable_withdraw_rb")
+        .add_attribute("denom", denom.to_string());
+
+    Ok(response)
+}
+
+pub fn disable_withdraw_cm(
+    deps: DepsMut,
+    info: MessageInfo,
+    denom: &str,
+) -> Result<Response, ContractError> {
+    OWNER.assert_emergency_owner(deps.storage, &info.sender)?;
+
+    let mut params = ASSET_PARAMS.load(deps.storage, denom)?;
+    params.credit_manager.withdraw_enabled = false;
+    ASSET_PARAMS.save(deps.storage, denom, &params)?;
+
+    let response = Response::new()
+        .add_attribute("action", "emergency_disable_withdraw_cm")
+        .add_attribute("denom", denom.to_string());
+
+    Ok(response)
+}

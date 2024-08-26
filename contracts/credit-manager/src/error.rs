@@ -175,6 +175,11 @@ pub enum ContractError {
     #[error("{0}")]
     Version(#[from] VersionError),
 
+    #[error("Withdraw for {denom:?} not enabled")]
+    WithdrawNotEnabled {
+        denom: String,
+    },
+
     #[error("{0}")]
     Liquidation(#[from] LiquidationError),
 

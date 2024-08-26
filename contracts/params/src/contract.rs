@@ -9,7 +9,10 @@ use mars_types::params::{
 };
 
 use crate::{
-    emergency_powers::{disable_borrowing, disallow_coin, set_zero_deposit_cap, set_zero_max_ltv},
+    emergency_powers::{
+        disable_borrowing, disable_withdraw_cm, disable_withdraw_rb, disallow_coin,
+        set_zero_deposit_cap, set_zero_max_ltv,
+    },
     error::ContractResult,
     execute::{update_asset_params, update_config, update_perp_params, update_vault_config},
     query::{
@@ -66,12 +69,18 @@ pub fn execute(
                 RedBankEmergencyUpdate::DisableBorrowing(denom) => {
                     disable_borrowing(deps, info, &denom)
                 }
+                RedBankEmergencyUpdate::DisableWithdraw(denom) => {
+                    disable_withdraw_rb(deps, info, &denom)
+                }
             },
             EmergencyUpdate::CreditManager(rv_u) => match rv_u {
                 CmEmergencyUpdate::DisallowCoin(denom) => disallow_coin(deps, info, &denom),
                 CmEmergencyUpdate::SetZeroMaxLtvOnVault(v) => set_zero_max_ltv(deps, info, &v),
                 CmEmergencyUpdate::SetZeroDepositCapOnVault(v) => {
                     set_zero_deposit_cap(deps, info, &v)
+                }
+                CmEmergencyUpdate::DisableWithdraw(denom) => {
+                    disable_withdraw_cm(deps, info, &denom)
                 }
             },
         },

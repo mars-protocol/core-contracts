@@ -24,6 +24,7 @@ fn uses_liquidation_pricing() {
         params: AssetParamsUnchecked {
             denom: umars.to_string(),
             credit_manager: CmSettings {
+                withdraw_enabled: true,
                 whitelisted: false,
                 hls: Some(HlsParamsUnchecked {
                     max_loan_to_value: Decimal::from_str("0.8").unwrap(),
@@ -32,6 +33,7 @@ fn uses_liquidation_pricing() {
                 }),
             },
             red_bank: RedBankSettings {
+                withdraw_enabled: true,
                 deposit_enabled: false,
                 borrow_enabled: false,
             },
