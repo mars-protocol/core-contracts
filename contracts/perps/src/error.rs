@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError,
+    CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError, Decimal,
     DecimalRangeExceeded, DivideByZeroError, OverflowError, StdError, Uint128,
 };
 use cw_utils::PaymentError;
@@ -164,6 +164,12 @@ pub enum ContractError {
     InvalidFundsAfterDeleverage {
         expected: Uint128,
         received: Uint128,
+    },
+
+    #[error("Collateralization ratio of the vault below threshold: {current_cr} < {threshold_cr}")]
+    VaultUndercollateralized {
+        current_cr: Decimal,
+        threshold_cr: Decimal,
     },
 }
 

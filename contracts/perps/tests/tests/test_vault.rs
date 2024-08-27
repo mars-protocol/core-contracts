@@ -804,3 +804,95 @@ fn withdraw_profits_for_depositors() {
         }
     );
 }
+
+#[test]
+fn cannot_withdraw_if_cr_decreases_below_threshold() {
+    let cooldown_period = 86400u64;
+    let target_collateralization_ratio = Decimal::percent(130);
+    let mut mock = MockEnv::new()
+        .cooldown_period(cooldown_period)
+        .target_vault_collaterization_ratio(target_collateralization_ratio)
+        .build()
+        .unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let depositor_1 = "bob";
+    let depositor_2 = "dane";
+
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
+
+    // init denoms
+    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
+        .unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                closing_fee_rate: Decimal::percent(1),
+                opening_fee_rate: Decimal::percent(2),
+                ..default_perp_params("uatom")
+            },
+        },
+    );
+
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+
+    // deposit uusdc to vault
+    let depositor_1_amt = Uint128::new(1000u128);
+    let depositor_2_amt = Uint128::new(4000u128);
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor_1),
+        &[coin(depositor_1_amt.u128(), "uusdc")],
+    )
+    .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor_2),
+        &[coin(depositor_2_amt.u128(), "uusdc")],
+    )
+    .unwrap();
+
+    // check deposits
+    let deposit_1_before = mock.query_cm_deposit(depositor_1);
+    let deposit_2_before = mock.query_cm_deposit(depositor_2);
+
+    // unlocks
+    let unlock_current_time = mock.query_block_time();
+    mock.unlock_from_vault(&credit_manager, Some(depositor_1), deposit_1_before.shares).unwrap();
+    mock.unlock_from_vault(&credit_manager, Some(depositor_2), deposit_2_before.shares).unwrap();
+
+    // move time forward to pass cooldown period
+    mock.set_block_time(unlock_current_time + cooldown_period + 1);
+
+    // open a position
+    let size = SignedUint::from_str("100").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
+        .unwrap();
+
+    // check vault state
+    let vault = mock.query_vault();
+    assert!(vault.collateralization_ratio.is_none());
+
+    // increase uatom price to make the position profiting
+    mock.set_price(&owner, "uatom", Decimal::from_str("45").unwrap()).unwrap();
+
+    // check vault state
+    let vault = mock.query_vault();
+    assert!(vault.collateralization_ratio.unwrap() > target_collateralization_ratio);
+
+    // should fail because CR decreases below the threshold after withdrawal
+    let res = mock.withdraw_from_vault(&credit_manager, Some(depositor_1));
+    assert_err(
+        res,
+        ContractError::VaultUndercollateralized {
+            current_cr: Decimal::from_str("1.250260688216892596").unwrap(),
+            threshold_cr: target_collateralization_ratio,
+        },
+    );
+}

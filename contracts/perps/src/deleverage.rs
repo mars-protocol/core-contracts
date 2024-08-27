@@ -184,7 +184,11 @@ pub fn deleverage(
 }
 
 /// Queries the current collateralization ratio (CR) from the vault
-fn query_vault_cr(deps: Deps, current_time: u64, pricing: ActionKind) -> ContractResult<Decimal> {
+pub fn query_vault_cr(
+    deps: Deps,
+    current_time: u64,
+    pricing: ActionKind,
+) -> ContractResult<Decimal> {
     let vault_response = query::vault(deps, current_time, pricing)?;
 
     // If the vault response does not contain a CR, return the maximum Decimal value.

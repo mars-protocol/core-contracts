@@ -16,6 +16,7 @@ use mars_types::{
 };
 
 use crate::{
+    deleverage::query_vault_cr,
     denom::compute_total_accounting_data,
     error::{ContractError, ContractResult},
     state::{
@@ -223,6 +224,15 @@ pub fn withdraw(
     vs.total_balance = vs.total_balance.checked_sub(total_unlocked_amount.into())?;
     vs.total_shares = vs.total_shares.checked_sub(total_unlocked_shares)?;
     VAULT_STATE.save(deps.storage, &vs)?;
+
+    // check if the vault is undercollateralized after the withdrawal
+    let current_cr = query_vault_cr(deps.as_ref(), current_time, ActionKind::Default)?;
+    if current_cr < cfg.target_vault_collaterization_ratio {
+        return Err(ContractError::VaultUndercollateralized {
+            current_cr,
+            threshold_cr: cfg.target_vault_collaterization_ratio,
+        });
+    }
 
     msgs.push(CosmosMsg::from(BankMsg::Send {
         to_address: info.sender.into(),
