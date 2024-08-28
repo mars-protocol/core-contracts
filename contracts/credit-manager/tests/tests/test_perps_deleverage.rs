@@ -11,7 +11,7 @@ use mars_types::{
         Positions,
     },
     oracle::ActionKind,
-    params::PerpParamsUpdate,
+    params::{PerpParams, PerpParamsUpdate},
     perps::PnL,
     signed_uint::SignedUint,
 };
@@ -233,27 +233,23 @@ fn deleverage(
 
     // setup perp params
     // tia perp
+    let tia_perp_params = PerpParams {
+        max_funding_velocity: Decimal::from_str("36").unwrap(),
+        skew_scale: Uint128::new(4504227000000u128),
+        ..default_perp_params(&tia_info.denom)
+    };
     mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
-        params: default_perp_params(&tia_info.denom),
+        params: tia_perp_params,
     });
-    mock.init_perp_denom(
-        &contract_owner,
-        &tia_info.denom,
-        Decimal::from_str("36").unwrap(),
-        Uint128::new(4504227000000u128),
-    )
-    .unwrap();
     // atom perp
+    let mut atom_perp_params = PerpParams {
+        max_funding_velocity: Decimal::from_str("36").unwrap(),
+        skew_scale: Uint128::new(7227323000000u128),
+        ..default_perp_params(&atom_info.denom)
+    };
     mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
-        params: default_perp_params(&atom_info.denom),
+        params: atom_perp_params.clone(),
     });
-    mock.init_perp_denom(
-        &contract_owner,
-        &atom_info.denom,
-        Decimal::from_str("36").unwrap(),
-        Uint128::new(7227323000000u128),
-    )
-    .unwrap();
 
     // create credit accounts
     let vault_depositor_acc = mock.create_credit_account(&vault_depositor).unwrap();
@@ -312,7 +308,6 @@ fn deleverage(
     open_perp(&mut mock, &cm_user_4, &acc_4, &atom_info.denom, acc_4_atom_pos);
 
     // change OI values for atom
-    let mut atom_perp_params = default_perp_params(&atom_info.denom);
     let max_net_oi_value = min(atom_max_long_oi, atom_max_short_oi);
     atom_perp_params.max_net_oi_value = max_net_oi_value;
     atom_perp_params.max_long_oi_value = atom_max_long_oi;

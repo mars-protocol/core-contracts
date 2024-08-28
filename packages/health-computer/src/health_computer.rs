@@ -11,8 +11,8 @@ use mars_types::{
     health::{
         AccountKind, BorrowTarget, Health,
         HealthError::{
-            MissingAmount, MissingAssetParams, MissingDenomState, MissingHLSParams,
-            MissingPerpParams, MissingPrice, MissingVaultConfig, MissingVaultValues,
+            MissingAmount, MissingAssetParams, MissingHLSParams, MissingPerpParams, MissingPrice,
+            MissingVaultConfig, MissingVaultValues,
         },
         HealthResult, LiquidationPriceKind, SwapKind,
     },
@@ -560,16 +560,12 @@ impl HealthComputer {
         let base_denom_price =
             *self.oracle_prices.get(base_denom).ok_or(MissingPrice(base_denom.to_string()))?;
 
-        // Denom state
-        let denom_state =
-            self.perps_data.denom_states.get(denom).ok_or(MissingDenomState(denom.to_string()))?;
-
         // Perp market params
         let perp_params =
             self.perps_data.params.get(denom).ok_or(MissingPerpParams(denom.to_string()))?;
         let closing_fee_rate = perp_params.closing_fee_rate;
         let opening_fee_rate = perp_params.opening_fee_rate;
-        let skew_scale = denom_state.funding.skew_scale;
+        let skew_scale = perp_params.skew_scale;
         let ltv_base_denom = self.get_coin_max_ltv(base_denom)?;
         let ltv_p = perp_params.max_loan_to_value;
 
@@ -1187,10 +1183,8 @@ impl HealthComputer {
     fn get_perp_max_ltv(&self, denom: &str) -> HealthResult<Decimal> {
         let params =
             self.perps_data.params.get(denom).ok_or(MissingPerpParams(denom.to_string()))?;
-        let denom_state =
-            self.perps_data.denom_states.get(denom).ok_or(MissingDenomState(denom.to_string()))?;
 
-        if !denom_state.enabled {
+        if !params.enabled {
             return Ok(Decimal::zero());
         }
 
@@ -1201,10 +1195,7 @@ impl HealthComputer {
         let params =
             self.perps_data.params.get(denom).ok_or(MissingPerpParams(denom.to_string()))?;
 
-        let denom_state =
-            self.perps_data.denom_states.get(denom).ok_or(MissingDenomState(denom.to_string()))?;
-
-        if !denom_state.enabled {
+        if !params.enabled {
             return Ok(Decimal::zero());
         }
 

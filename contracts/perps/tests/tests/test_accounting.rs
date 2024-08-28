@@ -1,6 +1,6 @@
 use std::{cmp::max, str::FromStr};
 
-use cosmwasm_std::{coin, Coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Coin, Decimal};
 use mars_types::{
     params::{PerpParams, PerpParamsUpdate},
     perps::{Accounting, Balance, CashFlow, PerpPosition, PnL, PnlAmounts, VaultResponse},
@@ -29,26 +29,24 @@ fn accounting() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uosmo", Decimal::from_str("32").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
                 closing_fee_rate: Decimal::percent(1),
                 opening_fee_rate: Decimal::percent(2),
+                max_funding_velocity: Decimal::from_str("32").unwrap(),
                 ..default_perp_params("uosmo")
             },
         },
     );
-    mock.init_denom(&owner, "uatom", Decimal::from_str("30").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
                 closing_fee_rate: Decimal::percent(1),
                 opening_fee_rate: Decimal::percent(2),
+                max_funding_velocity: Decimal::from_str("30").unwrap(),
                 ..default_perp_params("uatom")
             },
         },

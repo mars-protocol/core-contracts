@@ -497,25 +497,6 @@ impl MockEnv {
             .unwrap();
     }
 
-    pub fn init_perp_denom(
-        &mut self,
-        sender: &Addr,
-        denom: &str,
-        max_funding_velocity: Decimal,
-        skew_scale: Uint128,
-    ) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            sender.clone(),
-            self.perps.address().clone(),
-            &perps::ExecuteMsg::InitDenom {
-                denom: denom.to_string(),
-                max_funding_velocity,
-                skew_scale,
-            },
-            &[],
-        )
-    }
-
     pub fn deposit_to_perp_vault(
         &mut self,
         account_id: &str,
@@ -1403,6 +1384,8 @@ impl MockEnvBuilder {
             )
             .unwrap();
 
+        self.set_address(MarsAddressType::Params, addr.clone());
+
         Params::new(addr)
     }
 
@@ -1433,6 +1416,8 @@ impl MockEnvBuilder {
                 Some(owner.to_string()),
             )
             .unwrap();
+
+        self.set_address(MarsAddressType::Perps, addr.clone());
 
         Perps::new(addr)
     }

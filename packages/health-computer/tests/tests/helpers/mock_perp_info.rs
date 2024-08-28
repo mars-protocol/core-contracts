@@ -1,11 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{Decimal, Uint128};
-use mars_types::{
-    math::SignedDecimal,
-    params::PerpParams,
-    perps::{Funding, PerpDenomState},
-};
+use mars_types::{math::SignedDecimal, params::PerpParams, perps::Funding};
 
 pub struct PerpInfo {
     pub denom: String,
@@ -16,6 +12,7 @@ pub struct PerpInfo {
 pub fn create_default_perp_info() -> PerpParams {
     PerpParams {
         denom: "default".to_string(),
+        enabled: true,
         max_net_oi_value: Uint128::new(1200),
         max_long_oi_value: Uint128::new(800),
         max_short_oi_value: Uint128::new(800),
@@ -25,20 +22,8 @@ pub fn create_default_perp_info() -> PerpParams {
         max_position_value: None,
         max_loan_to_value: Decimal::percent(75),
         liquidation_threshold: Decimal::percent(78),
-    }
-}
-
-pub fn create_perp_denom_state(
-    long_oi: Uint128,
-    short_oi: Uint128,
-    funding: Funding,
-) -> PerpDenomState {
-    PerpDenomState {
-        enabled: true,
-        long_oi,
-        short_oi,
-        funding,
-        ..Default::default()
+        max_funding_velocity: Decimal::from_str("36").unwrap(),
+        skew_scale: Uint128::new(1_000_000_000_000_000u128),
     }
 }
 
@@ -51,6 +36,7 @@ pub fn create_perp_info(
     PerpInfo {
         perp_params: PerpParams {
             denom: denom.clone(),
+            enabled: true,
             max_net_oi_value: Uint128::new(1200),
             max_long_oi_value: Uint128::new(800),
             max_short_oi_value: Uint128::new(800),
@@ -60,6 +46,8 @@ pub fn create_perp_info(
             max_position_value: None,
             max_loan_to_value: max_ltv,
             liquidation_threshold,
+            max_funding_velocity: Decimal::from_str("36").unwrap(),
+            skew_scale: Uint128::new(1_000_000_000_000_000u128),
         },
         denom,
         price,

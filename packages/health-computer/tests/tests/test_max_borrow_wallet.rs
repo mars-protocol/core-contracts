@@ -22,7 +22,6 @@ fn max_borrow_wallet_offset_good() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -63,7 +62,6 @@ fn max_borrow_wallet_offset_margin_of_error() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 

@@ -75,7 +75,6 @@ fn max_borrow_vault_offset_margin_of_error() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 

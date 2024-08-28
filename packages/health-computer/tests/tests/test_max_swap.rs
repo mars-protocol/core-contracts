@@ -28,7 +28,6 @@ fn max_swap_default() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -83,7 +82,6 @@ fn max_swap_margin() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -138,7 +136,6 @@ fn max_swap_repaying_debt() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -210,7 +207,6 @@ fn max_swap_from_ltv_zero() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -256,7 +252,6 @@ fn max_swap_both_ltv_zero() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 

@@ -30,7 +30,6 @@ fn missing_price_data() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -85,7 +84,6 @@ fn missing_params() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -180,7 +178,6 @@ fn missing_market_data_for_vault_base_token() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -234,7 +231,6 @@ fn missing_vault_value() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -292,7 +288,6 @@ fn missing_vault_config() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -336,7 +331,6 @@ fn missing_hls_params() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 

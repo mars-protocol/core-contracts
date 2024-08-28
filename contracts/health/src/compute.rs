@@ -79,9 +79,6 @@ pub fn compute_health(
     perp_denoms.into_iter().try_for_each(|denom| -> StdResult<()> {
         // Perp data
         let perp_params = q.params.query_perp_params(&deps.querier, denom)?;
-        let perp_denom_state =
-            q.perps.query_perp_denom_state(&deps.querier, denom, action.clone())?;
-        perps_data.denom_states.insert(denom.clone(), perp_denom_state);
         perps_data.params.insert(denom.clone(), perp_params);
         Ok(())
     })?;

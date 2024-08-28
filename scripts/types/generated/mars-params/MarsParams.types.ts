@@ -80,6 +80,9 @@ export type EmergencyUpdate =
   | {
       red_bank: RedBankEmergencyUpdate
     }
+  | {
+      perps: PerpsEmergencyUpdate
+    }
 export type CmEmergencyUpdate =
   | {
       set_zero_max_ltv_on_vault: string
@@ -100,6 +103,9 @@ export type RedBankEmergencyUpdate =
   | {
       disable_withdraw: string
     }
+export type PerpsEmergencyUpdate = {
+  disable_trading: string
+}
 export interface AssetParamsBaseForString {
   close_factor: Decimal
   credit_manager: CmSettingsForString
@@ -148,7 +154,9 @@ export interface Coin {
 export interface PerpParams {
   closing_fee_rate: Decimal
   denom: string
+  enabled: boolean
   liquidation_threshold: Decimal
+  max_funding_velocity: Decimal
   max_loan_to_value: Decimal
   max_long_oi_value: Uint128
   max_net_oi_value: Uint128
@@ -156,6 +164,7 @@ export interface PerpParams {
   max_short_oi_value: Uint128
   min_position_value: Uint128
   opening_fee_rate: Decimal
+  skew_scale: Uint128
 }
 export type QueryMsg =
   | {

@@ -75,6 +75,17 @@ pub(super) fn assert_max_size_gt_min(
     Ok(())
 }
 
+pub(super) fn assert_skew_scale(skew_scale: Uint128) -> Result<(), ValidationError> {
+    if skew_scale.is_zero() {
+        return Err(ValidationError::InvalidParam {
+            param_name: "skew_scale".to_string(),
+            invalid_value: skew_scale.to_string(),
+            predicate: "> 0".to_string(),
+        });
+    }
+    Ok(())
+}
+
 pub(super) fn assert_starting_lb_within_range(b: Decimal) -> Result<(), ValidationError> {
     if b > Decimal::percent(10) {
         return Err(ValidationError::InvalidParam {

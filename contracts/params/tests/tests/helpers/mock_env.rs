@@ -5,22 +5,30 @@ use cosmwasm_std::{Addr, Decimal};
 use cw_multi_test::{App, AppResponse, BasicApp, Executor};
 use cw_paginate::PaginationResponse;
 use mars_owner::{OwnerResponse, OwnerUpdate};
-use mars_types::params::{
-    AssetParams, AssetParamsUpdate, ConfigResponse, EmergencyUpdate, ExecuteMsg, InstantiateMsg,
-    PerpParams, PerpParamsUpdate, QueryMsg, VaultConfig, VaultConfigUpdate,
+use mars_types::{
+    adapters::{oracle::OracleBase, params::ParamsBase},
+    address_provider::{self, MarsAddressType},
+    params::{
+        AssetParams, AssetParamsUpdate, ConfigResponse, EmergencyUpdate, ExecuteMsg,
+        InstantiateMsg, PerpParams, PerpParamsUpdate, QueryMsg, VaultConfig, VaultConfigUpdate,
+    },
+    perps,
 };
 
-use super::contracts::mock_params_contract;
+use super::contracts::{mock_address_provider_contract, mock_params_contract, mock_perps_contract};
 
 pub struct MockEnv {
     pub app: BasicApp,
     pub params_contract: Addr,
+    pub address_provider_contract: Addr,
 }
 
 pub struct MockEnvBuilder {
     pub app: BasicApp,
+    pub deployer: Addr,
     pub target_health_factor: Option<Decimal>,
     pub emergency_owner: Option<String>,
+    pub address_provider: Option<Addr>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -28,8 +36,10 @@ impl MockEnv {
     pub fn new() -> MockEnvBuilder {
         MockEnvBuilder {
             app: App::default(),
+            deployer: Addr::unchecked("owner"),
             target_health_factor: None,
             emergency_owner: None,
+            address_provider: None,
         }
     }
 
@@ -240,19 +250,24 @@ impl MockEnv {
 
 impl MockEnvBuilder {
     pub fn build(&mut self) -> AnyResult<MockEnv> {
+        let address_provider_contract = self.get_address_provider();
+        self.deploy_perps(address_provider_contract.as_str());
+
         let code_id = self.app.store_code(mock_params_contract());
 
         let params_contract = self.app.instantiate_contract(
             code_id,
-            Addr::unchecked("owner"),
+            self.deployer.clone(),
             &InstantiateMsg {
-                owner: "owner".to_string(),
-                address_provider: "address_provider".to_string(),
+                owner: self.deployer.clone().to_string(),
+                address_provider: address_provider_contract.to_string(),
             },
             &[],
             "mock-params-contract",
             None,
         )?;
+
+        self.set_address(MarsAddressType::Params, params_contract.clone());
 
         if self.emergency_owner.is_some() {
             self.set_emergency_owner(&params_contract, &self.emergency_owner.clone().unwrap());
@@ -261,13 +276,88 @@ impl MockEnvBuilder {
         Ok(MockEnv {
             app: take(&mut self.app),
             params_contract,
+            address_provider_contract,
         })
+    }
+
+    fn deploy_address_provider(&mut self) -> Addr {
+        let contract = mock_address_provider_contract();
+        let code_id = self.app.store_code(contract);
+
+        self.app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &address_provider::InstantiateMsg {
+                    owner: self.deployer.clone().to_string(),
+                    prefix: "".to_string(),
+                },
+                &[],
+                "mock-address-provider",
+                None,
+            )
+            .unwrap()
+    }
+
+    fn deploy_perps(&mut self, address_provider: &str) -> Addr {
+        let code_id = self.app.store_code(mock_perps_contract());
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &perps::InstantiateMsg {
+                    address_provider: address_provider.to_string(),
+                    credit_manager: "credit_manager".to_string(),
+                    oracle: OracleBase::new("oracle".to_string()),
+                    params: ParamsBase::new("params".to_string()),
+                    base_denom: "uusdc".to_string(),
+                    cooldown_period: 0,
+                    max_positions: 4,
+                    protocol_fee_rate: Decimal::from_ratio(1u128, 100u128),
+                    target_vault_collaterization_ratio: Decimal::from_ratio(125u128, 100u128),
+                },
+                &[],
+                "mock-perps",
+                None,
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::Perps, addr.clone());
+
+        addr
+    }
+
+    fn set_address(&mut self, address_type: MarsAddressType, address: Addr) {
+        let address_provider_addr = self.get_address_provider();
+
+        self.app
+            .execute_contract(
+                self.deployer.clone(),
+                address_provider_addr,
+                &address_provider::ExecuteMsg::SetAddress {
+                    address_type,
+                    address: address.into(),
+                },
+                &[],
+            )
+            .unwrap();
+    }
+
+    fn get_address_provider(&mut self) -> Addr {
+        if self.address_provider.is_none() {
+            let addr = self.deploy_address_provider();
+
+            self.address_provider = Some(addr);
+        }
+        self.address_provider.clone().unwrap()
     }
 
     fn set_emergency_owner(&mut self, params_contract: &Addr, eo: &str) {
         self.app
             .execute_contract(
-                Addr::unchecked("owner"),
+                self.deployer.clone(),
                 params_contract.clone(),
                 &ExecuteMsg::UpdateOwner(OwnerUpdate::SetEmergencyOwner {
                     emergency_owner: eo.to_string(),

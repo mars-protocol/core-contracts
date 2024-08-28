@@ -300,6 +300,18 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "perps"
+            ],
+            "properties": {
+              "perps": {
+                "$ref": "#/definitions/PerpsEmergencyUpdate"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -499,13 +511,16 @@
         "required": [
           "closing_fee_rate",
           "denom",
+          "enabled",
           "liquidation_threshold",
+          "max_funding_velocity",
           "max_loan_to_value",
           "max_long_oi_value",
           "max_net_oi_value",
           "max_short_oi_value",
           "min_position_value",
-          "opening_fee_rate"
+          "opening_fee_rate",
+          "skew_scale"
         ],
         "properties": {
           "closing_fee_rate": {
@@ -520,8 +535,20 @@
             "description": "Perp denomination",
             "type": "string"
           },
+          "enabled": {
+            "description": "Whether the perp is enabled",
+            "type": "boolean"
+          },
           "liquidation_threshold": {
             "description": "LTV at which a position becomes liquidatable",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "max_funding_velocity": {
+            "description": "Determines the maximum rate at which funding can be adjusted",
             "allOf": [
               {
                 "$ref": "#/definitions/Decimal"
@@ -586,6 +613,14 @@
                 "$ref": "#/definitions/Decimal"
               }
             ]
+          },
+          "skew_scale": {
+            "description": "Determines the funding rate for a given level of skew. The lower the skew_scale the higher the funding rate.",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Uint128"
+              }
+            ]
           }
         },
         "additionalProperties": false
@@ -609,6 +644,22 @@
                   }
                 },
                 "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "PerpsEmergencyUpdate": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "disable_trading"
+            ],
+            "properties": {
+              "disable_trading": {
+                "type": "string"
               }
             },
             "additionalProperties": false
@@ -1243,13 +1294,16 @@
           "required": [
             "closing_fee_rate",
             "denom",
+            "enabled",
             "liquidation_threshold",
+            "max_funding_velocity",
             "max_loan_to_value",
             "max_long_oi_value",
             "max_net_oi_value",
             "max_short_oi_value",
             "min_position_value",
-            "opening_fee_rate"
+            "opening_fee_rate",
+            "skew_scale"
           ],
           "properties": {
             "closing_fee_rate": {
@@ -1264,8 +1318,20 @@
               "description": "Perp denomination",
               "type": "string"
             },
+            "enabled": {
+              "description": "Whether the perp is enabled",
+              "type": "boolean"
+            },
             "liquidation_threshold": {
               "description": "LTV at which a position becomes liquidatable",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "max_funding_velocity": {
+              "description": "Determines the maximum rate at which funding can be adjusted",
               "allOf": [
                 {
                   "$ref": "#/definitions/Decimal"
@@ -1328,6 +1394,14 @@
               "allOf": [
                 {
                   "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "skew_scale": {
+              "description": "Determines the funding rate for a given level of skew. The lower the skew_scale the higher the funding rate.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
                 }
               ]
             }
@@ -2004,13 +2078,16 @@
       "required": [
         "closing_fee_rate",
         "denom",
+        "enabled",
         "liquidation_threshold",
+        "max_funding_velocity",
         "max_loan_to_value",
         "max_long_oi_value",
         "max_net_oi_value",
         "max_short_oi_value",
         "min_position_value",
-        "opening_fee_rate"
+        "opening_fee_rate",
+        "skew_scale"
       ],
       "properties": {
         "closing_fee_rate": {
@@ -2025,8 +2102,20 @@
           "description": "Perp denomination",
           "type": "string"
         },
+        "enabled": {
+          "description": "Whether the perp is enabled",
+          "type": "boolean"
+        },
         "liquidation_threshold": {
           "description": "LTV at which a position becomes liquidatable",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "max_funding_velocity": {
+          "description": "Determines the maximum rate at which funding can be adjusted",
           "allOf": [
             {
               "$ref": "#/definitions/Decimal"
@@ -2089,6 +2178,14 @@
           "allOf": [
             {
               "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "skew_scale": {
+          "description": "Determines the funding rate for a given level of skew. The lower the skew_scale the higher the funding rate.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
             }
           ]
         }

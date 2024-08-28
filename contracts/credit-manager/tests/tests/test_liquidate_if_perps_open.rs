@@ -61,12 +61,6 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
     mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
         params: default_perp_params(&uatom_info.denom),
     });
-    let max_funding_velocity = Decimal::from_str("3").unwrap();
-    let skew_scale = Uint128::new(1000000u128);
-    mock.init_perp_denom(&contract_owner, &uosmo_info.denom, max_funding_velocity, skew_scale)
-        .unwrap();
-    mock.init_perp_denom(&contract_owner, &uatom_info.denom, max_funding_velocity, skew_scale)
-        .unwrap();
 
     // deposit to vault
     mock.update_credit_account(
@@ -247,12 +241,6 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
     mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
         params: default_perp_params(&uatom_info.denom),
     });
-    let max_funding_velocity = Decimal::from_str("3").unwrap();
-    let skew_scale = Uint128::new(1000000u128);
-    mock.init_perp_denom(&contract_owner, &uosmo_info.denom, max_funding_velocity, skew_scale)
-        .unwrap();
-    mock.init_perp_denom(&contract_owner, &uatom_info.denom, max_funding_velocity, skew_scale)
-        .unwrap();
 
     // deposit to vault
     mock.update_credit_account(
@@ -439,12 +427,6 @@ fn close_perps_with_profit() {
     mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
         params: default_perp_params(&utia_info.denom),
     });
-    let max_funding_velocity = Decimal::from_str("3").unwrap();
-    let skew_scale = Uint128::new(1000000u128);
-    mock.init_perp_denom(&contract_owner, &uosmo_info.denom, max_funding_velocity, skew_scale)
-        .unwrap();
-    mock.init_perp_denom(&contract_owner, &utia_info.denom, max_funding_velocity, skew_scale)
-        .unwrap();
 
     // deposit to vault
     mock.update_credit_account(
@@ -635,10 +617,6 @@ fn liquidation_uses_correct_price_kind_if_perps_open() {
     mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
         params: default_perp_params(&utia_info.denom),
     });
-    let max_funding_velocity = Decimal::from_str("3").unwrap();
-    let skew_scale = Uint128::new(1000000u128);
-    mock.init_perp_denom(&contract_owner, &utia_info.denom, max_funding_velocity, skew_scale)
-        .unwrap();
 
     // deposit to vault
     mock.update_credit_account(

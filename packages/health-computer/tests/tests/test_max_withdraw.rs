@@ -30,7 +30,6 @@ fn missing_price_data() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -84,7 +83,6 @@ fn allow_when_not_listed() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -134,7 +132,6 @@ fn deposit_not_present() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -183,7 +180,6 @@ fn blacklisted_assets_should_be_able_be_fully_withdrawn() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -247,7 +243,6 @@ fn zero_when_unhealthy() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -300,7 +295,6 @@ fn no_debts() {
         vault_configs: Default::default(),
     };
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -347,7 +341,6 @@ fn should_allow_max_withdraw() {
         vault_configs: Default::default(),
     };
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -423,7 +416,6 @@ fn hls_with_max_withdraw() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -481,7 +473,6 @@ fn max_when_perp_in_profit() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 

@@ -30,7 +30,6 @@ fn missing_borrow_denom_price_data() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -84,7 +83,6 @@ fn missing_borrow_denom_params() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -141,7 +139,6 @@ fn cannot_borrow_when_unhealthy() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -223,7 +220,6 @@ fn hls_influences_max_borrow() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 

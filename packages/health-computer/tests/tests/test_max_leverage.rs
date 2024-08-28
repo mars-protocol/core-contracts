@@ -13,9 +13,7 @@ use mars_types::{
 };
 
 use super::helpers::CoinInfo;
-use crate::tests::helpers::{
-    create_coin_info, create_default_funding, create_default_perp_info, create_perp_denom_state,
-};
+use crate::tests::helpers::{create_coin_info, create_default_funding, create_default_perp_info};
 
 #[test]
 fn currently_long_max_q_change() {
@@ -40,10 +38,7 @@ fn currently_long_max_q_change() {
         ..produce_eth_perp_params()
     };
 
-    let eth_denom_state = create_perp_denom_state(long_oi.abs, short_oi.abs, funding.clone());
-
     let perps_data = PerpsData {
-        denom_states: HashMap::from([(eth_perp_params.denom.clone(), eth_denom_state)]),
         params: HashMap::from([(eth_perp_params.denom.clone(), eth_perp_params.clone())]),
     };
 
@@ -178,10 +173,7 @@ fn max_position_size_zero_if_net_oi_exceeded() {
         ..produce_eth_perp_params()
     };
 
-    let eth_denom_state = create_perp_denom_state(long_oi.abs, short_oi.abs, funding.clone());
-
     let perps_data = PerpsData {
-        denom_states: HashMap::from([(eth_perp_params.denom.clone(), eth_denom_state)]),
         params: HashMap::from([(eth_perp_params.denom.clone(), eth_perp_params.clone())]),
     };
 
@@ -299,10 +291,7 @@ fn max_position_size_zero_if_long_oi_exceeded() {
         ..produce_eth_perp_params()
     };
 
-    let eth_denom_state = create_perp_denom_state(long_oi.abs, short_oi.abs, funding.clone());
-
     let perps_data = PerpsData {
-        denom_states: HashMap::from([(eth_perp_params.denom.clone(), eth_denom_state)]),
         params: HashMap::from([(eth_perp_params.denom.clone(), eth_perp_params.clone())]),
     };
 
@@ -420,10 +409,7 @@ fn existing_short_max_q_change() {
         ..produce_eth_perp_params()
     };
 
-    let eth_denom_state = create_perp_denom_state(long_oi.abs, short_oi.abs, funding.clone());
-
     let perps_data = PerpsData {
-        denom_states: HashMap::from([(eth_perp_params.denom.clone(), eth_denom_state)]),
         params: HashMap::from([(eth_perp_params.denom.clone(), eth_perp_params.clone())]),
     };
 
@@ -551,9 +537,7 @@ fn no_existing_perp_position() {
         ..produce_eth_perp_params()
     };
 
-    let eth_denom_state = create_perp_denom_state(long_oi.abs, short_oi.abs, funding);
     let perps_data = PerpsData {
-        denom_states: HashMap::from([(eth_perp_params.denom.clone(), eth_denom_state)]),
         params: HashMap::from([(eth_perp_params.denom.clone(), eth_perp_params.clone())]),
     };
 

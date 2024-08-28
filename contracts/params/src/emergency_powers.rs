@@ -1,8 +1,14 @@
-use cosmwasm_std::{Decimal, DepsMut, MessageInfo, Response, Uint128};
+use cosmwasm_std::{
+    to_json_binary, CosmosMsg, Decimal, DepsMut, MessageInfo, Response, Uint128, WasmMsg,
+};
+use mars_types::{
+    address_provider::{self, MarsAddressType},
+    perps::ExecuteMsg,
+};
 
 use crate::{
     error::ContractError,
-    state::{ASSET_PARAMS, OWNER, VAULT_CONFIGS},
+    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, PERP_PARAMS, VAULT_CONFIGS},
 };
 
 pub fn disable_borrowing(
@@ -112,6 +118,40 @@ pub fn disable_withdraw_cm(
 
     let response = Response::new()
         .add_attribute("action", "emergency_disable_withdraw_cm")
+        .add_attribute("denom", denom.to_string());
+
+    Ok(response)
+}
+
+pub fn disable_perp_trading(
+    deps: DepsMut,
+    info: MessageInfo,
+    denom: &str,
+) -> Result<Response, ContractError> {
+    OWNER.assert_emergency_owner(deps.storage, &info.sender)?;
+
+    let mut params = PERP_PARAMS.load(deps.storage, denom)?;
+    params.enabled = false;
+    PERP_PARAMS.save(deps.storage, denom, &params)?;
+
+    let current_addr = ADDRESS_PROVIDER.load(deps.storage)?;
+    let perps_addr = address_provider::helpers::query_contract_addr(
+        deps.as_ref(),
+        &current_addr,
+        MarsAddressType::Perps,
+    )?;
+
+    let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: perps_addr.to_string(),
+        msg: to_json_binary(&ExecuteMsg::UpdateParams {
+            params,
+        })?,
+        funds: vec![],
+    });
+
+    let response = Response::new()
+        .add_message(msg)
+        .add_attribute("action", "emergency_disable_perp_trading")
         .add_attribute("denom", denom.to_string());
 
     Ok(response)

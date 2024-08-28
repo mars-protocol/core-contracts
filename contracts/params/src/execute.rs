@@ -1,5 +1,9 @@
-use cosmwasm_std::{DepsMut, MessageInfo, Response};
-use mars_types::params::{AssetParamsUpdate, PerpParamsUpdate, VaultConfigUpdate};
+use cosmwasm_std::{to_json_binary, CosmosMsg, DepsMut, MessageInfo, Response, WasmMsg};
+use mars_types::{
+    address_provider::{self, MarsAddressType},
+    params::{AssetParamsUpdate, PerpParamsUpdate, VaultConfigUpdate},
+    perps::ExecuteMsg,
+};
 use mars_utils::helpers::option_string_to_addr;
 
 use crate::{
@@ -91,7 +95,24 @@ pub fn update_perp_params(
             let checked = params.check()?;
 
             PERP_PARAMS.save(deps.storage, &checked.denom, &checked)?;
+
+            let current_addr = ADDRESS_PROVIDER.load(deps.storage)?;
+            let perps_addr = address_provider::helpers::query_contract_addr(
+                deps.as_ref(),
+                &current_addr,
+                MarsAddressType::Perps,
+            )?;
+
+            let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: perps_addr.to_string(),
+                msg: to_json_binary(&ExecuteMsg::UpdateParams {
+                    params: checked,
+                })?,
+                funds: vec![],
+            });
+
             response = response
+                .add_message(msg)
                 .add_attribute("action_type", "add_or_update")
                 .add_attribute("denom", params.denom);
         }

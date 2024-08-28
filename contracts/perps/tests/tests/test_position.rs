@@ -49,9 +49,6 @@ fn random_user_cannot_modify_position() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
-
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -92,9 +89,15 @@ fn cannot_open_position_for_disabled_denom() {
     mock.set_price(&owner, "uatom", Decimal::from_str("7.2").unwrap()).unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
-    mock.disable_denom(&owner, "uatom").unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                enabled: false,
+                ..default_perp_params("uatom")
+            },
+        },
+    );
 
     let res = mock.execute_perp_order(
         &credit_manager,
@@ -132,9 +135,6 @@ fn cannot_modify_position_for_disabled_denom() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
-
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -151,7 +151,16 @@ fn cannot_modify_position_for_disabled_denom() {
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
 
-    mock.disable_denom(&owner, "uatom").unwrap();
+    let perp_params = mock.query_perp_params("uatom");
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                enabled: false,
+                ..perp_params
+            },
+        },
+    );
 
     // increase position
     let res = mock.execute_perp_order(
@@ -206,9 +215,6 @@ fn only_close_position_possible_for_disabled_denom() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
-
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -225,7 +231,16 @@ fn only_close_position_possible_for_disabled_denom() {
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
 
-    mock.disable_denom(&owner, "uatom").unwrap();
+    let perp_params = mock.query_perp_params("uatom");
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                enabled: false,
+                ..perp_params
+            },
+        },
+    );
 
     mock.set_price(&owner, "uatom", Decimal::from_str("10.2").unwrap()).unwrap();
 
@@ -244,8 +259,6 @@ fn only_one_position_possible_for_denom() {
     mock.set_price(&owner, "uatom", Decimal::from_str("7.2").unwrap()).unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -292,8 +305,6 @@ fn open_position_cannot_be_too_small() {
     mock.set_price(&owner, "uatom", Decimal::from_str("12.5").unwrap()).unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -337,24 +348,18 @@ fn max_open_perps_reached() {
     mock.set_price(&owner, "untrn", Decimal::from_str("1.5").unwrap()).unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
             params: default_perp_params("uatom"),
         },
     );
-    mock.init_denom(&owner, "utia", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
             params: default_perp_params("utia"),
         },
     );
-    mock.init_denom(&owner, "untrn", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -421,8 +426,6 @@ fn reduced_position_cannot_be_too_small() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -473,8 +476,6 @@ fn open_position_cannot_be_too_big() {
     mock.set_price(&owner, "uatom", Decimal::from_str("12.5").unwrap()).unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -525,8 +526,6 @@ fn increased_position_cannot_be_too_big() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -575,8 +574,6 @@ fn validate_opening_position() {
     mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     let max_net_oi = Uint128::new(2009);
     let max_long_oi = Uint128::new(6029);
     let max_short_oi = Uint128::new(5009);
@@ -698,8 +695,6 @@ fn error_when_new_size_equals_old_size() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     let max_net_oi = Uint128::new(509);
     let max_long_oi = Uint128::new(4009);
     let max_short_oi = Uint128::new(4209);
@@ -783,8 +778,6 @@ fn error_when_oi_limits_exceeded() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     let max_net_oi = Uint128::new(509);
     let max_long_oi = Uint128::new(4009);
     let max_short_oi = Uint128::new(4209);
@@ -961,8 +954,6 @@ fn modify_position_realises_pnl() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -1065,8 +1056,6 @@ fn shouldnt_open_when_reduce_only() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -1119,8 +1108,6 @@ fn should_open_when_reduce_only_false_or_none() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -1180,8 +1167,6 @@ fn should_reduce_when_reduce_only_true() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, denom, Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -1310,8 +1295,6 @@ fn shouldnt_increase_when_reduce_only_true() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, denom, Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -1441,8 +1424,6 @@ fn increase_when_reduce_only_false() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, denom, Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -1550,8 +1531,6 @@ fn flip_position_when_reduce_only_true() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, denom, Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -1680,8 +1659,6 @@ fn flip_position_when_reduce_only_false() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, denom, Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -1909,8 +1886,6 @@ fn query_position_fees(
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uosmo", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -2010,8 +1985,6 @@ fn close_all_positions(
             continue;
         }
         // init denoms
-        mock.init_denom(&owner, denom, Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-            .unwrap();
         mock.update_perp_params(
             &owner,
             PerpParamsUpdate::AddOrUpdate {

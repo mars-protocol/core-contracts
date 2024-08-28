@@ -22,7 +22,6 @@ fn max_borrow_deposit_offset_good() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -64,7 +63,6 @@ fn max_borrow_deposit_offset_margin_of_error() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 

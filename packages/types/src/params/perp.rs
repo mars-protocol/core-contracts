@@ -4,14 +4,17 @@ use mars_utils::helpers::{decimal_param_le_one, decimal_param_lt_one};
 
 use super::assertions::{
     assert_lqt_gt_max_ltv, assert_max_net_oi_le_max_oi_long, assert_max_net_oi_le_max_oi_short,
-    assert_max_size_gt_min,
+    assert_max_size_gt_min, assert_skew_scale,
 };
 use crate::error::MarsError;
 
 #[cw_serde]
+#[derive(Default)]
 pub struct PerpParams {
     /// Perp denomination
     pub denom: String,
+    /// Whether the perp is enabled
+    pub enabled: bool,
     /// The maximum net open interest value (in oracle uusd denomination)
     pub max_net_oi_value: Uint128,
     /// The maximum long open interest value (in oracle uusd denomination)
@@ -30,6 +33,11 @@ pub struct PerpParams {
     pub max_loan_to_value: Decimal,
     /// LTV at which a position becomes liquidatable
     pub liquidation_threshold: Decimal,
+    /// Determines the maximum rate at which funding can be adjusted
+    pub max_funding_velocity: Decimal,
+    /// Determines the funding rate for a given level of skew.
+    /// The lower the skew_scale the higher the funding rate.
+    pub skew_scale: Uint128,
 }
 
 impl PerpParams {
@@ -41,9 +49,11 @@ impl PerpParams {
         assert_max_net_oi_le_max_oi_long(self.max_long_oi_value, self.max_net_oi_value)?;
         assert_max_net_oi_le_max_oi_short(self.max_short_oi_value, self.max_net_oi_value)?;
         assert_max_size_gt_min(self.max_position_value, self.min_position_value)?;
+        assert_skew_scale(self.skew_scale)?;
 
         Ok(PerpParams {
             denom: self.denom.clone(),
+            enabled: self.enabled,
             max_net_oi_value: self.max_net_oi_value,
             max_long_oi_value: self.max_long_oi_value,
             max_short_oi_value: self.max_short_oi_value,
@@ -53,6 +63,8 @@ impl PerpParams {
             max_position_value: self.max_position_value,
             max_loan_to_value: self.max_loan_to_value,
             liquidation_threshold: self.liquidation_threshold,
+            max_funding_velocity: self.max_funding_velocity,
+            skew_scale: self.skew_scale,
         })
     }
 }

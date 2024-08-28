@@ -51,24 +51,6 @@ pub fn execute(
 ) -> ContractResult<Response> {
     match msg {
         ExecuteMsg::UpdateOwner(update) => OWNER.update(deps, info, update).map_err(Into::into),
-        ExecuteMsg::InitDenom {
-            denom,
-            max_funding_velocity,
-            skew_scale,
-        } => denom_management::init_denom(
-            deps.storage,
-            env,
-            &info.sender,
-            &denom,
-            max_funding_velocity,
-            skew_scale,
-        ),
-        ExecuteMsg::EnableDenom {
-            denom,
-        } => denom_management::enable_denom(deps.storage, env, &info.sender, &denom),
-        ExecuteMsg::DisableDenom {
-            denom,
-        } => denom_management::disable_denom(deps, env, &info.sender, &denom),
         ExecuteMsg::Deposit {
             account_id,
         } => vault::deposit(deps, info, env.block.time.seconds(), account_id),
@@ -107,6 +89,9 @@ pub fn execute(
             account_id,
             denom,
         } => deleverage::deleverage(deps, env, account_id, denom),
+        ExecuteMsg::UpdateParams {
+            params,
+        } => denom_management::update_params(deps, env, info.sender, params),
     }
 }
 

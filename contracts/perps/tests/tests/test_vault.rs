@@ -314,8 +314,6 @@ fn unlock_and_withdraw_if_zero_withdrawal_balance() {
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -388,8 +386,6 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -687,8 +683,6 @@ fn withdraw_profits_for_depositors() {
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -824,8 +818,6 @@ fn cannot_withdraw_if_cr_decreases_below_threshold() {
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {

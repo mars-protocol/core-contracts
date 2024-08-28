@@ -10,11 +10,14 @@ use mars_owner::{OwnerResponse, OwnerUpdate};
 use mars_testing::integration::mock_contracts::mock_rewards_collector_osmosis_contract;
 use mars_types::{
     adapters::{oracle::OracleBase, params::ParamsBase},
-    address_provider,
-    address_provider::MarsAddressType,
+    address_provider::{self, MarsAddressType},
     incentives,
     oracle::{self, ActionKind},
-    params::{self, ExecuteMsg::UpdatePerpParams, PerpParamsUpdate},
+    params::{
+        self, EmergencyUpdate,
+        ExecuteMsg::{self, UpdatePerpParams},
+        PerpParams, PerpParamsUpdate,
+    },
     perps::{
         self, Accounting, Config, DenomStateResponse, PerpDenomState, PerpVaultDeposit,
         PerpVaultPosition, PerpVaultUnlock, PnlAmounts, PnlValues, PositionFeesResponse,
@@ -53,6 +56,7 @@ pub struct MockEnvBuilder {
     protocol_fee_rate: Decimal,
     pub address_provider: Option<Addr>,
     target_vault_collaterization_ratio: Decimal,
+    pub emergency_owner: Option<String>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -68,6 +72,7 @@ impl MockEnv {
             protocol_fee_rate: Decimal::percent(0),
             address_provider: None,
             target_vault_collaterization_ratio: Decimal::percent(125),
+            emergency_owner: None,
         }
     }
 
@@ -126,47 +131,6 @@ impl MockEnv {
             sender.clone(),
             self.perps.clone(),
             &perps::ExecuteMsg::UpdateOwner(update),
-            &[],
-        )
-    }
-
-    pub fn init_denom(
-        &mut self,
-        sender: &Addr,
-        denom: &str,
-        max_funding_velocity: Decimal,
-        skew_scale: Uint128,
-    ) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            sender.clone(),
-            self.perps.clone(),
-            &perps::ExecuteMsg::InitDenom {
-                denom: denom.to_string(),
-                max_funding_velocity,
-                skew_scale,
-            },
-            &[],
-        )
-    }
-
-    pub fn enable_denom(&mut self, sender: &Addr, denom: &str) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            sender.clone(),
-            self.perps.clone(),
-            &perps::ExecuteMsg::EnableDenom {
-                denom: denom.to_string(),
-            },
-            &[],
-        )
-    }
-
-    pub fn disable_denom(&mut self, sender: &Addr, denom: &str) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            sender.clone(),
-            self.perps.clone(),
-            &perps::ExecuteMsg::DisableDenom {
-                denom: denom.to_string(),
-            },
             &[],
         )
     }
@@ -281,6 +245,30 @@ impl MockEnv {
         self.app
             .execute_contract(sender.clone(), self.params.clone(), &UpdatePerpParams(update), &[])
             .unwrap();
+    }
+
+    pub fn update_params(&mut self, sender: &Addr, params: PerpParams) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.perps.clone(),
+            &perps::ExecuteMsg::UpdateParams {
+                params,
+            },
+            &[],
+        )
+    }
+
+    pub fn emergency_params_update(
+        &mut self,
+        sender: &Addr,
+        update: EmergencyUpdate,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.params.clone(),
+            &mars_types::params::ExecuteMsg::EmergencyUpdate(update),
+            &[],
+        )
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -557,6 +545,18 @@ impl MockEnv {
             )
             .unwrap()
     }
+
+    pub fn query_perp_params(&self, denom: &str) -> PerpParams {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.params.clone(),
+                &mars_types::params::QueryMsg::PerpParams {
+                    denom: denom.to_string(),
+                },
+            )
+            .unwrap()
+    }
 }
 
 impl MockEnvBuilder {
@@ -585,6 +585,10 @@ impl MockEnvBuilder {
             MarsAddressType::Perps,
             &perps_contract,
         );
+
+        if self.emergency_owner.is_some() {
+            self.set_emergency_owner(&params_contract, &self.emergency_owner.clone().unwrap());
+        }
 
         Ok(MockEnv {
             app: take(&mut self.app),
@@ -813,6 +817,19 @@ impl MockEnvBuilder {
             .unwrap();
     }
 
+    fn set_emergency_owner(&mut self, params_contract: &Addr, eo: &str) {
+        self.app
+            .execute_contract(
+                self.deployer.clone(),
+                params_contract.clone(),
+                &ExecuteMsg::UpdateOwner(OwnerUpdate::SetEmergencyOwner {
+                    emergency_owner: eo.to_string(),
+                }),
+                &[],
+            )
+            .unwrap();
+    }
+
     //--------------------------------------------------------------------------------------------------
     // Setter functions
     //--------------------------------------------------------------------------------------------------
@@ -844,6 +861,11 @@ impl MockEnvBuilder {
 
     pub fn target_vault_collaterization_ratio(&mut self, ratio: Decimal) -> &mut Self {
         self.target_vault_collaterization_ratio = ratio;
+        self
+    }
+
+    pub fn emergency_owner(&mut self, eo: &str) -> &mut Self {
+        self.emergency_owner = Some(eo.to_string());
         self
     }
 }

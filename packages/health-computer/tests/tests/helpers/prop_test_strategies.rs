@@ -18,7 +18,7 @@ use mars_types::{
         AssetParams, CmSettings, HlsAssetType, HlsParams, LiquidationBonus, PerpParams,
         RedBankSettings, VaultConfig,
     },
-    perps::{Funding, PerpDenomState, PerpPosition, PnlAmounts, Position},
+    perps::{Funding, PerpPosition, PnlAmounts, Position},
     signed_uint::SignedUint,
 };
 use proptest::{
@@ -140,51 +140,41 @@ fn random_coin_info() -> impl Strategy<Value = AssetParams> {
 fn random_denoms_data(
 ) -> impl Strategy<Value = (HashMap<String, AssetParams>, PerpsData, HashMap<String, Decimal>)> {
     // Construct prices, perp_params, asset_params
-    vec(
-        (
-            random_coin_info(),
-            random_price(),
-            random_price(),
-            random_perp_info(),
-            random_perp_denom_state(),
-        ),
-        2..=8,
+    vec((random_coin_info(), random_price(), random_price(), random_perp_info()), 2..=8).prop_map(
+        |info| {
+            let mut asset_params = HashMap::new();
+            let mut prices = HashMap::new();
+            let mut perp_params: HashMap<String, PerpParams> = HashMap::new();
+
+            // Base denom
+            let usdc = uusdc_info();
+            prices.insert(usdc.denom.clone(), usdc.price);
+            asset_params.insert(usdc.denom.clone(), usdc.params);
+
+            for (coin_info, coin_price, perp_price, perp_info) in info {
+                // Coins
+                asset_params.insert(coin_info.denom.clone(), coin_info.clone());
+                prices.insert(coin_info.denom.clone(), coin_price);
+
+                // Perps
+                perp_params.insert(perp_info.denom.clone(), perp_info.clone());
+                prices.insert(perp_info.denom.clone(), perp_price);
+            }
+
+            (
+                asset_params,
+                PerpsData {
+                    params: perp_params,
+                },
+                prices,
+            )
+        },
     )
-    .prop_map(|info| {
-        let mut asset_params = HashMap::new();
-        let mut prices = HashMap::new();
-        let mut perp_params: HashMap<String, PerpParams> = HashMap::new();
-        let mut denom_states: HashMap<String, PerpDenomState> = HashMap::new();
-
-        // Base denom
-        let usdc = uusdc_info();
-        prices.insert(usdc.denom.clone(), usdc.price);
-        asset_params.insert(usdc.denom.clone(), usdc.params);
-
-        for (coin_info, coin_price, perp_price, perp_info, denom_state) in info {
-            // Coins
-            asset_params.insert(coin_info.denom.clone(), coin_info.clone());
-            prices.insert(coin_info.denom.clone(), coin_price);
-
-            // Perps
-            perp_params.insert(perp_info.denom.clone(), perp_info.clone());
-            prices.insert(perp_info.denom.clone(), perp_price);
-            denom_states.insert(perp_info.denom.clone(), denom_state);
-        }
-
-        (
-            asset_params,
-            PerpsData {
-                params: perp_params,
-                denom_states,
-            },
-            prices,
-        )
-    })
 }
 
 fn random_perp_info() -> impl Strategy<Value = PerpParams> {
     (
+        random_bool(),
         random_denom(),
         0..1000000000,
         0..1000000000,
@@ -198,6 +188,7 @@ fn random_perp_info() -> impl Strategy<Value = PerpParams> {
     )
         .prop_map(
             |(
+                enabled,
                 denom,
                 max_net_oi_value,
                 max_long_oi_value,
@@ -224,6 +215,7 @@ fn random_perp_info() -> impl Strategy<Value = PerpParams> {
 
                 PerpParams {
                     denom,
+                    enabled,
                     max_net_oi_value,
                     max_long_oi_value,
                     max_short_oi_value,
@@ -233,29 +225,10 @@ fn random_perp_info() -> impl Strategy<Value = PerpParams> {
                     max_position_value: Some(max_position_value),
                     max_loan_to_value,
                     liquidation_threshold,
+                    ..Default::default()
                 }
             },
         )
-}
-
-fn random_perp_denom_state() -> impl Strategy<Value = PerpDenomState> {
-    (
-        random_bool(),
-        random_uint128(0..=1000000000000),
-        random_uint128(0..=1000000000000),
-        random_signed_uint(0..=1000000000000),
-        random_signed_uint(0..=1000000000000),
-    )
-        .prop_map(|(enabled, long_oi, short_oi, total_entry_cost, total_entry_funding)| {
-            PerpDenomState {
-                enabled,
-                long_oi,
-                short_oi,
-                total_entry_cost,
-                total_entry_funding,
-                ..Default::default()
-            }
-        })
 }
 
 fn random_address() -> impl Strategy<Value = String> {
@@ -555,7 +528,6 @@ pub fn random_health_computer() -> impl Strategy<Value = HealthComputer> {
                 perps_data.clone()
             } else {
                 PerpsData {
-                    denom_states: Default::default(),
                     params: Default::default(),
                 }
             };

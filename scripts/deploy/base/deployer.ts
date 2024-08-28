@@ -35,10 +35,7 @@ import {
   ExecuteMsg as RedBankExecuteMsg,
   QueryMsg as RedBankQueryMsg,
 } from '../../types/generated/mars-red-bank/MarsRedBank.types'
-import {
-  InstantiateMsg as PerpsInstantiateMsg,
-  ExecuteMsg as PerpsExecuteMsg,
-} from '../../types/generated/mars-perps/MarsPerps.types'
+import { InstantiateMsg as PerpsInstantiateMsg } from '../../types/generated/mars-perps/MarsPerps.types'
 import {
   AddressResponseItem,
   InstantiateMsg as AddressProviderInstantiateMsg,
@@ -506,21 +503,6 @@ export class Deployer {
     }
     printBlue(`Initializing perp ${perpDenom.denom}...`)
 
-    const perpsMsg: PerpsExecuteMsg = {
-      init_denom: {
-        denom: perpDenom.denom,
-        max_funding_velocity: perpDenom.maxFundingVelocity,
-        skew_scale: perpDenom.skewScale,
-      },
-    }
-    await this.cwClient.execute(
-      this.deployerAddr,
-      this.storage.addresses['perps']!,
-      perpsMsg,
-      'auto',
-    )
-    printYellow(`${perpDenom.denom} initialized in perp contract`)
-
     const minPositionValue = minPositionVal?.toString() || perpDenom.minPositionValue
 
     const paramsMsg: ParamsExecuteMsg = {
@@ -528,6 +510,7 @@ export class Deployer {
         add_or_update: {
           params: {
             denom: perpDenom.denom,
+            enabled: true,
             max_net_oi_value: perpDenom.maxNetOiValue,
             max_long_oi_value: perpDenom.maxLongOiValue,
             max_short_oi_value: perpDenom.maxShortOiValue,
@@ -537,6 +520,8 @@ export class Deployer {
             max_loan_to_value: perpDenom.maxLoanToValue,
             max_position_value: perpDenom.maxPositionValue,
             min_position_value: minPositionValue,
+            max_funding_velocity: perpDenom.maxFundingVelocity,
+            skew_scale: perpDenom.skewScale,
           },
         },
       },

@@ -8,7 +8,7 @@ use super::helpers::{assert_err, MockEnv};
 fn address_provider_set_on_init() {
     let mock = MockEnv::new().build().unwrap();
     let config = mock.query_config();
-    assert_eq!(config.address_provider, "address_provider".to_string());
+    assert_eq!(config.address_provider, mock.address_provider_contract.to_string());
 }
 
 #[test]

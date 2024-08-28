@@ -9,6 +9,7 @@ use crate::{
     error::MarsError,
     math::SignedDecimal,
     oracle::ActionKind,
+    params::PerpParams,
     signed_uint::SignedUint,
 };
 
@@ -485,31 +486,6 @@ pub type InstantiateMsg = Config<String>;
 pub enum ExecuteMsg {
     UpdateOwner(OwnerUpdate),
 
-    /// Init a denom to be traded.
-    ///
-    /// Only callable by the owner.
-    InitDenom {
-        denom: String,
-        max_funding_velocity: Decimal,
-        skew_scale: Uint128,
-    },
-
-    /// Enable a denom to be traded.
-    ///
-    /// Only callable by the owner.
-    EnableDenom {
-        denom: String,
-    },
-
-    /// Disable a denom from being traded.
-    ///
-    /// Once disabled, perp positions with this denom can only be closed.
-    ///
-    /// Only callable by the owner.
-    DisableDenom {
-        denom: String,
-    },
-
     /// Provide liquidity of the base token to the vault.
     ///
     /// Must send exactly one coin of `base_denom`.
@@ -576,6 +552,11 @@ pub enum ExecuteMsg {
     Deleverage {
         account_id: String,
         denom: String,
+    },
+
+    /// Receive updated parameters from the params contract
+    UpdateParams {
+        params: PerpParams,
     },
 }
 

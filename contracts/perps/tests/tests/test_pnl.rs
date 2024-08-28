@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, Coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Coin, Decimal};
 use mars_types::{
     params::{PerpParams, PerpParamsUpdate},
     perps::{PerpPosition, PnL},
@@ -33,8 +33,6 @@ fn computing_total_pnl() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uosmo", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -44,8 +42,6 @@ fn computing_total_pnl() {
             },
         },
     );
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -55,8 +51,6 @@ fn computing_total_pnl() {
             },
         },
     );
-    mock.init_denom(&owner, "utia", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {

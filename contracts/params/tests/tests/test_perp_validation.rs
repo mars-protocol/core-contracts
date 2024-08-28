@@ -184,3 +184,27 @@ fn max_size_cannot_be_less_than_min() {
         })),
     );
 }
+
+#[test]
+fn skew_scale_cannot_be_zero() {
+    let mut mock = MockEnv::new().build().unwrap();
+    let denom = "btc/perp/usd".to_string();
+    let res = mock.update_perp_params(
+        &mock.query_owner(),
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                skew_scale: Uint128::zero(),
+                ..default_perp_params(&denom)
+            },
+        },
+    );
+
+    assert_err(
+        res,
+        ContractError::Mars(Validation(InvalidParam {
+            param_name: "skew_scale".to_string(),
+            invalid_value: "0".to_string(),
+            predicate: "> 0".to_string(),
+        })),
+    );
+}

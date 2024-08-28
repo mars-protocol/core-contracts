@@ -214,6 +214,7 @@ pub fn generate_mock_vault(lockup: Option<Duration>) -> VaultTestInfo {
 pub fn default_perp_params(denom: &str) -> PerpParams {
     PerpParams {
         denom: denom.to_string(),
+        enabled: true,
         max_net_oi_value: Uint128::new(1_000_000_000_000),
         max_long_oi_value: Uint128::new(1_000_000_000_000),
         max_short_oi_value: Uint128::new(1_000_000_000_000),
@@ -223,5 +224,7 @@ pub fn default_perp_params(denom: &str) -> PerpParams {
         max_loan_to_value: Decimal::from_str("0.82").unwrap(),
         max_position_value: None,
         min_position_value: Uint128::zero(),
+        max_funding_velocity: Decimal::from_str("3").unwrap(),
+        skew_scale: Uint128::new(1000000u128),
     }
 }

@@ -41,14 +41,14 @@ fn protocol_fee_sent_to_rewards_collector(
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uosmo", Decimal::from_str("32").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
                 closing_fee_rate,
                 opening_fee_rate,
+                max_funding_velocity: Decimal::from_str("32").unwrap(),
+                skew_scale: Uint128::new(1000000u128),
                 ..default_perp_params("uosmo")
             },
         },
@@ -137,16 +137,14 @@ fn close_all_positions_applies_fees() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, denom_1, Decimal::from_str("32").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
-    mock.init_denom(&owner, denom_2, Decimal::from_str("32").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
                 closing_fee_rate,
                 opening_fee_rate,
+                max_funding_velocity: Decimal::from_str("32").unwrap(),
+                skew_scale: Uint128::new(1000000u128),
                 ..default_perp_params(denom_1)
             },
         },
@@ -157,6 +155,8 @@ fn close_all_positions_applies_fees() {
             params: PerpParams {
                 closing_fee_rate,
                 opening_fee_rate,
+                max_funding_velocity: Decimal::from_str("32").unwrap(),
+                skew_scale: Uint128::new(1000000u128),
                 ..default_perp_params(denom_2)
             },
         },

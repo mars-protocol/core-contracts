@@ -4,14 +4,14 @@ use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Resp
 use cw2::set_contract_version;
 use mars_owner::OwnerInit::SetInitialOwner;
 use mars_types::params::{
-    CmEmergencyUpdate, EmergencyUpdate, ExecuteMsg, InstantiateMsg, QueryMsg,
+    CmEmergencyUpdate, EmergencyUpdate, ExecuteMsg, InstantiateMsg, PerpsEmergencyUpdate, QueryMsg,
     RedBankEmergencyUpdate,
 };
 
 use crate::{
     emergency_powers::{
-        disable_borrowing, disable_withdraw_cm, disable_withdraw_rb, disallow_coin,
-        set_zero_deposit_cap, set_zero_max_ltv,
+        disable_borrowing, disable_perp_trading, disable_withdraw_cm, disable_withdraw_rb,
+        disallow_coin, set_zero_deposit_cap, set_zero_max_ltv,
     },
     error::ContractResult,
     execute::{update_asset_params, update_config, update_perp_params, update_vault_config},
@@ -81,6 +81,11 @@ pub fn execute(
                 }
                 CmEmergencyUpdate::DisableWithdraw(denom) => {
                     disable_withdraw_cm(deps, info, &denom)
+                }
+            },
+            EmergencyUpdate::Perps(p_u) => match p_u {
+                PerpsEmergencyUpdate::DisableTrading(denom) => {
+                    disable_perp_trading(deps, info, &denom)
                 }
             },
         },

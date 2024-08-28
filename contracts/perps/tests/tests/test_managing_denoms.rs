@@ -1,11 +1,11 @@
 use std::{collections::HashMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
-use mars_owner::OwnerError;
 use mars_perps::{denom::SECONDS_IN_DAY, error::ContractError};
 use mars_types::{
+    error::MarsError,
     math::SignedDecimal,
-    params::PerpParamsUpdate,
+    params::{EmergencyUpdate, PerpParams, PerpParamsUpdate, PerpsEmergencyUpdate},
     perps::{DenomStateResponse, Funding},
     signed_uint::SignedUint,
 };
@@ -14,55 +14,26 @@ use super::helpers::MockEnv;
 use crate::tests::helpers::{assert_err, default_perp_params};
 
 #[test]
-fn non_owner_cannot_init_denom() {
+fn random_addr_cannot_update_params() {
     let mut mock = MockEnv::new().build().unwrap();
 
-    let res = mock.init_denom(&Addr::unchecked("dawid"), "uosmo", Decimal::one(), Uint128::one());
-    assert_err(res, ContractError::Owner(OwnerError::NotOwner {}));
-}
-
-#[test]
-fn denom_already_exists() {
-    let mut mock = MockEnv::new().build().unwrap();
-
-    let owner = mock.owner.clone();
-
-    mock.init_denom(&owner, "uosmo", Decimal::one(), Uint128::one()).unwrap();
-    let res = mock.init_denom(&owner, "uosmo", Decimal::one(), Uint128::one());
-    assert_err(
-        res,
-        ContractError::DenomAlreadyExists {
-            denom: "uosmo".to_string(),
-        },
-    );
-}
-
-#[test]
-fn skew_scale_cannot_be_zero() {
-    let mut mock = MockEnv::new().build().unwrap();
-
-    let owner = mock.owner.clone();
-
-    let res = mock.init_denom(&owner, "uosmo", Decimal::one(), Uint128::zero());
-    assert_err(
-        res,
-        ContractError::InvalidParam {
-            reason: "skew_scale cannot be zero".to_string(),
-        },
-    );
+    let res = mock.update_params(&Addr::unchecked("dawid"), default_perp_params("uosmo"));
+    assert_err(res, ContractError::Mars(MarsError::Unauthorized {}));
 }
 
 #[test]
 fn initialize_denom() {
     let mut mock = MockEnv::new().build().unwrap();
 
-    let owner = mock.owner.clone();
+    let params_addr = mock.params.clone();
 
-    mock.init_denom(
-        &owner,
-        "perp/osmo/usd",
-        Decimal::from_str("3").unwrap(),
-        Uint128::new(1000000u128),
+    mock.update_params(
+        &params_addr,
+        PerpParams {
+            max_funding_velocity: Decimal::from_str("3").unwrap(),
+            skew_scale: Uint128::new(1000000u128),
+            ..default_perp_params("perp/osmo/usd")
+        },
     )
     .unwrap();
 
@@ -86,108 +57,161 @@ fn initialize_denom() {
 }
 
 #[test]
-fn non_owner_cannot_enable_denom() {
-    let mut mock = MockEnv::new().build().unwrap();
-
-    let res = mock.enable_denom(&Addr::unchecked("pumpkin"), "perp/osmo/usd");
-    assert_err(res, ContractError::Owner(OwnerError::NotOwner {}));
-}
-
-#[test]
-fn cannot_enable_denom_if_not_found() {
+fn update_denom() {
     let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
+    let params_addr = mock.params.clone();
 
-    let res = mock.enable_denom(&owner, "perp/osmo/usd");
-    assert_err(
-        res,
-        ContractError::DenomNotFound {
-            denom: "perp/osmo/usd".to_string(),
-        },
-    );
-}
-
-#[test]
-fn owner_can_enable_denom() {
-    let mut mock = MockEnv::new().build().unwrap();
-
-    let owner = mock.owner.clone();
-
-    mock.init_denom(&owner, "perp/eth/eur", Decimal::zero(), Uint128::one()).unwrap();
-    mock.init_denom(&owner, "perp/btc/usd", Decimal::zero(), Uint128::one()).unwrap();
-
-    let dss = mock.query_denom_states(None, None);
-    assert_eq!(dss.len(), 2);
-    let dss = dss.into_map();
-    assert!(dss.get("perp/btc/usd").unwrap().enabled);
-    assert!(dss.get("perp/eth/eur").unwrap().enabled);
-}
-
-#[test]
-fn non_owner_cannot_disable_denom() {
-    let mut mock = MockEnv::new().build().unwrap();
-
-    let res = mock.disable_denom(&Addr::unchecked("jake"), "perp/btc/usd");
-    assert_err(res, ContractError::Owner(OwnerError::NotOwner {}));
-}
-
-#[test]
-fn cannot_disable_denom_if_not_found() {
-    let mut mock = MockEnv::new().build().unwrap();
-
-    let owner = mock.owner.clone();
-
-    let res = mock.disable_denom(&owner, "perp/osmo/usd");
-    assert_err(
-        res,
-        ContractError::DenomNotFound {
-            denom: "perp/osmo/usd".to_string(),
-        },
-    );
-}
-
-#[test]
-fn only_enabled_denom_can_be_disabled() {
-    let mut mock = MockEnv::new().build().unwrap();
-
-    let owner = mock.owner.clone();
-
-    mock.init_denom(&owner, "perp/osmo/usd", Decimal::zero(), Uint128::one()).unwrap();
     mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
     mock.set_price(&owner, "perp/osmo/usd", Decimal::from_str("1").unwrap()).unwrap();
 
-    mock.disable_denom(&owner, "perp/osmo/usd").unwrap();
-
-    let res = mock.disable_denom(&owner, "perp/osmo/usd");
-    assert_err(
-        res,
-        ContractError::DenomNotEnabled {
-            denom: "perp/osmo/usd".to_string(),
+    mock.update_params(
+        &params_addr,
+        PerpParams {
+            max_funding_velocity: Decimal::from_str("389").unwrap(),
+            skew_scale: Uint128::new(1234000u128),
+            ..default_perp_params("perp/osmo/usd")
         },
+    )
+    .unwrap();
+
+    let block_time = mock.query_block_time();
+
+    let ds = mock.query_denom_state("perp/osmo/usd");
+    assert_eq!(
+        ds,
+        DenomStateResponse {
+            denom: "perp/osmo/usd".to_string(),
+            enabled: true,
+            total_cost_base: SignedUint::zero(),
+            funding: Funding {
+                max_funding_velocity: Decimal::from_str("389").unwrap(),
+                skew_scale: Uint128::new(1234000u128),
+                last_funding_rate: SignedDecimal::zero(),
+                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
+            },
+            last_updated: block_time
+        }
+    );
+
+    mock.update_params(
+        &params_addr,
+        PerpParams {
+            enabled: false,
+            max_funding_velocity: Decimal::from_str("36").unwrap(),
+            skew_scale: Uint128::new(8976543u128),
+            ..default_perp_params("perp/osmo/usd")
+        },
+    )
+    .unwrap();
+
+    let ds = mock.query_denom_state("perp/osmo/usd");
+    assert_eq!(
+        ds,
+        DenomStateResponse {
+            denom: "perp/osmo/usd".to_string(),
+            enabled: false,
+            total_cost_base: SignedUint::zero(),
+            funding: Funding {
+                max_funding_velocity: Decimal::from_str("36").unwrap(),
+                skew_scale: Uint128::new(8976543u128),
+                last_funding_rate: SignedDecimal::zero(),
+                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
+            },
+            last_updated: block_time
+        }
     );
 }
 
 #[test]
-fn owner_can_disable_denom() {
-    let mut mock = MockEnv::new().build().unwrap();
+fn emergency_disable_trading() {
+    let emergency_owner = Addr::unchecked("miles_morales");
+    let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();
 
     let owner = mock.owner.clone();
 
-    mock.init_denom(&owner, "perp/eth/eur", Decimal::zero(), Uint128::one()).unwrap();
-    mock.init_denom(&owner, "perp/btc/usd", Decimal::zero(), Uint128::one()).unwrap();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("ueth"),
+        },
+    );
+    let ds = mock.query_denom_state("ueth");
+    assert!(ds.enabled);
 
-    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
-    mock.set_price(&owner, "perp/eth/eur", Decimal::from_str("1").unwrap()).unwrap();
-    mock.set_price(&owner, "perp/btc/usd", Decimal::from_str("1").unwrap()).unwrap();
+    mock.emergency_params_update(
+        &emergency_owner,
+        EmergencyUpdate::Perps(PerpsEmergencyUpdate::DisableTrading("ueth".to_string())),
+    )
+    .unwrap();
+    let ds = mock.query_denom_state("ueth");
+    assert!(!ds.enabled);
+}
 
-    mock.disable_denom(&owner, "perp/btc/usd").unwrap();
+#[test]
+fn paginate_denom_states() {
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let params_addr = mock.params.clone();
+
+    mock.update_params(
+        &params_addr,
+        PerpParams {
+            enabled: false,
+            max_funding_velocity: Decimal::from_str("389").unwrap(),
+            skew_scale: Uint128::new(1234000u128),
+            ..default_perp_params("perp/osmo/usd")
+        },
+    )
+    .unwrap();
+
+    mock.update_params(
+        &params_addr,
+        PerpParams {
+            enabled: true,
+            max_funding_velocity: Decimal::from_str("100").unwrap(),
+            skew_scale: Uint128::new(23400u128),
+            ..default_perp_params("perp/ntrn/usd")
+        },
+    )
+    .unwrap();
+
+    let block_time = mock.query_block_time();
 
     let dss = mock.query_denom_states(None, None);
     assert_eq!(dss.len(), 2);
     let dss = dss.into_map();
-    assert!(!dss.get("perp/btc/usd").unwrap().enabled);
-    assert!(dss.get("perp/eth/eur").unwrap().enabled);
+    assert_eq!(
+        dss.get("perp/osmo/usd").unwrap(),
+        &DenomStateResponse {
+            denom: "perp/osmo/usd".to_string(),
+            enabled: false,
+            total_cost_base: SignedUint::zero(),
+            funding: Funding {
+                max_funding_velocity: Decimal::from_str("389").unwrap(),
+                skew_scale: Uint128::new(1234000u128),
+                last_funding_rate: SignedDecimal::zero(),
+                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
+            },
+            last_updated: block_time
+        }
+    );
+    assert_eq!(
+        dss.get("perp/ntrn/usd").unwrap(),
+        &DenomStateResponse {
+            denom: "perp/ntrn/usd".to_string(),
+            enabled: true,
+            total_cost_base: SignedUint::zero(),
+            funding: Funding {
+                max_funding_velocity: Decimal::from_str("100").unwrap(),
+                skew_scale: Uint128::new(23400u128),
+                last_funding_rate: SignedDecimal::zero(),
+                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
+            },
+            last_updated: block_time
+        }
+    );
 }
 
 #[test]
@@ -213,12 +237,14 @@ fn funding_change_accordingly_to_denom_state_modification() {
     .unwrap();
 
     // prepare denom state
-    mock.init_denom(&owner, "ueth", Decimal::from_str("30").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("ueth"),
+            params: PerpParams {
+                max_funding_velocity: Decimal::from_str("30").unwrap(),
+                skew_scale: Uint128::new(1000000u128),
+                ..default_perp_params("ueth")
+            },
         },
     );
     mock.execute_perp_order(
@@ -230,7 +256,16 @@ fn funding_change_accordingly_to_denom_state_modification() {
         &[],
     )
     .unwrap();
-    mock.disable_denom(&owner, "ueth").unwrap();
+    let perp_params = mock.query_perp_params("ueth");
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                enabled: false,
+                ..perp_params
+            },
+        },
+    );
 
     // query denom state for h0
     let ds_h0 = mock.query_denom_state("ueth");
@@ -239,7 +274,16 @@ fn funding_change_accordingly_to_denom_state_modification() {
     mock.increment_by_time(SECONDS_IN_DAY);
 
     // enable denom
-    mock.enable_denom(&owner, "ueth").unwrap();
+    let perp_params = mock.query_perp_params("ueth");
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                enabled: true,
+                ..perp_params
+            },
+        },
+    );
 
     // Query state for h24.
     // Should be the same as h0 with last_updated changed and enabled set to true.
@@ -259,7 +303,16 @@ fn funding_change_accordingly_to_denom_state_modification() {
     mock.increment_by_time(SECONDS_IN_DAY);
 
     // disable denom
-    mock.disable_denom(&owner, "ueth").unwrap();
+    let perp_params = mock.query_perp_params("ueth");
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                enabled: false,
+                ..perp_params
+            },
+        },
+    );
 
     // Query state for h48.
     // When denom is disabled, funding should be updated accordingly.

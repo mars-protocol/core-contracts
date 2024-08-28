@@ -107,15 +107,18 @@ fn update_existing_perp_params() {
         PerpParamsUpdate::AddOrUpdate {
             params: PerpParams {
                 denom: denom0.clone(),
+                enabled: false,
                 max_net_oi_value: Uint128::new(888_999_000),
                 max_long_oi_value: Uint128::new(1_123_000_000),
                 max_short_oi_value: Uint128::new(1_321_000_000),
-                closing_fee_rate: Decimal::from_str("0.006").unwrap(),
-                opening_fee_rate: Decimal::from_str("0.004").unwrap(),
+                closing_fee_rate: Decimal::from_str("0.018").unwrap(),
+                opening_fee_rate: Decimal::from_str("0.016").unwrap(),
                 liquidation_threshold: Decimal::from_str("0.85").unwrap(),
                 max_loan_to_value: Decimal::from_str("0.8").unwrap(),
                 max_position_value: None,
                 min_position_value: Uint128::zero(),
+                max_funding_velocity: Decimal::from_str("36").unwrap(),
+                skew_scale: Uint128::new(7227323000000),
             },
         },
     )
@@ -125,12 +128,21 @@ fn update_existing_perp_params() {
     assert_eq!(1, all_perp_params.len());
 
     let perp_params = mock.query_perp_params(&denom0);
+    assert_ne!(perp_params.enabled, old_perp_params.enabled);
     assert_ne!(perp_params.max_net_oi_value, old_perp_params.max_net_oi_value);
     assert_ne!(perp_params.max_long_oi_value, old_perp_params.max_long_oi_value);
     assert_ne!(perp_params.max_short_oi_value, old_perp_params.max_short_oi_value);
+    assert_ne!(perp_params.closing_fee_rate, old_perp_params.closing_fee_rate);
+    assert_ne!(perp_params.opening_fee_rate, old_perp_params.opening_fee_rate);
+    assert_ne!(perp_params.max_funding_velocity, old_perp_params.max_funding_velocity);
+    assert_ne!(perp_params.skew_scale, old_perp_params.skew_scale);
     assert_eq!(perp_params.max_net_oi_value, Uint128::new(888_999_000));
     assert_eq!(perp_params.max_long_oi_value, Uint128::new(1_123_000_000));
     assert_eq!(perp_params.max_short_oi_value, Uint128::new(1_321_000_000));
+    assert_eq!(perp_params.closing_fee_rate, Decimal::from_str("0.018").unwrap());
+    assert_eq!(perp_params.opening_fee_rate, Decimal::from_str("0.016").unwrap());
+    assert_eq!(perp_params.max_funding_velocity, Decimal::from_str("36").unwrap());
+    assert_eq!(perp_params.skew_scale, Uint128::new(7227323000000));
 }
 
 #[test]

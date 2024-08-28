@@ -26,7 +26,6 @@ fn hls_deposit() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -119,7 +118,6 @@ fn hls_vault() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -180,7 +178,6 @@ fn hls_on_blacklisted_asset() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 
@@ -267,7 +264,6 @@ fn hls_on_blacklisted_vault() {
     };
 
     let perps_data = PerpsData {
-        denom_states: Default::default(),
         params: Default::default(),
     };
 

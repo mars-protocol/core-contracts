@@ -107,80 +107,6 @@
         "additionalProperties": false
       },
       {
-        "description": "Init a denom to be traded.\n\nOnly callable by the owner.",
-        "type": "object",
-        "required": [
-          "init_denom"
-        ],
-        "properties": {
-          "init_denom": {
-            "type": "object",
-            "required": [
-              "denom",
-              "max_funding_velocity",
-              "skew_scale"
-            ],
-            "properties": {
-              "denom": {
-                "type": "string"
-              },
-              "max_funding_velocity": {
-                "$ref": "#/definitions/Decimal"
-              },
-              "skew_scale": {
-                "$ref": "#/definitions/Uint128"
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "description": "Enable a denom to be traded.\n\nOnly callable by the owner.",
-        "type": "object",
-        "required": [
-          "enable_denom"
-        ],
-        "properties": {
-          "enable_denom": {
-            "type": "object",
-            "required": [
-              "denom"
-            ],
-            "properties": {
-              "denom": {
-                "type": "string"
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "description": "Disable a denom from being traded.\n\nOnce disabled, perp positions with this denom can only be closed.\n\nOnly callable by the owner.",
-        "type": "object",
-        "required": [
-          "disable_denom"
-        ],
-        "properties": {
-          "disable_denom": {
-            "type": "object",
-            "required": [
-              "denom"
-            ],
-            "properties": {
-              "denom": {
-                "type": "string"
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
         "description": "Provide liquidity of the base token to the vault.\n\nMust send exactly one coin of `base_denom`.\n\nThe deposited tokens will be used to settle perp trades. liquidity providers win if traders have negative PnLs, or loss if traders have positive PnLs.",
         "type": "object",
         "required": [
@@ -353,6 +279,28 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "Receive updated parameters from the params contract",
+        "type": "object",
+        "required": [
+          "update_params"
+        ],
+        "properties": {
+          "update_params": {
+            "type": "object",
+            "required": [
+              "params"
+            ],
+            "properties": {
+              "params": {
+                "$ref": "#/definitions/PerpParams"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -443,6 +391,125 @@
             ]
           }
         ]
+      },
+      "PerpParams": {
+        "type": "object",
+        "required": [
+          "closing_fee_rate",
+          "denom",
+          "enabled",
+          "liquidation_threshold",
+          "max_funding_velocity",
+          "max_loan_to_value",
+          "max_long_oi_value",
+          "max_net_oi_value",
+          "max_short_oi_value",
+          "min_position_value",
+          "opening_fee_rate",
+          "skew_scale"
+        ],
+        "properties": {
+          "closing_fee_rate": {
+            "description": "The fee paid by the user to close a position (as a percent)",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "denom": {
+            "description": "Perp denomination",
+            "type": "string"
+          },
+          "enabled": {
+            "description": "Whether the perp is enabled",
+            "type": "boolean"
+          },
+          "liquidation_threshold": {
+            "description": "LTV at which a position becomes liquidatable",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "max_funding_velocity": {
+            "description": "Determines the maximum rate at which funding can be adjusted",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "max_loan_to_value": {
+            "description": "Max loan to position value for the position.",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "max_long_oi_value": {
+            "description": "The maximum long open interest value (in oracle uusd denomination)",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Uint128"
+              }
+            ]
+          },
+          "max_net_oi_value": {
+            "description": "The maximum net open interest value (in oracle uusd denomination)",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Uint128"
+              }
+            ]
+          },
+          "max_position_value": {
+            "description": "The maximum value of a position (in oracle uusd denomination)",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Uint128"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "max_short_oi_value": {
+            "description": "The maximum short open interest value (in oracle uusd denomination)",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Uint128"
+              }
+            ]
+          },
+          "min_position_value": {
+            "description": "The minimum value of a position (in oracle uusd denomination)",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Uint128"
+              }
+            ]
+          },
+          "opening_fee_rate": {
+            "description": "The fee paid by the user to open a position (as a percent)",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "skew_scale": {
+            "description": "Determines the funding rate for a given level of skew. The lower the skew_scale the higher the funding rate.",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Uint128"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
       },
       "SignedUint": {
         "type": "object",

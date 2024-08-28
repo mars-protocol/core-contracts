@@ -4,7 +4,7 @@ use cosmwasm_std::{coin, Decimal, Uint128};
 use mars_types::{
     math::SignedDecimal,
     oracle::ActionKind,
-    params::PerpParamsUpdate,
+    params::{PerpParams, PerpParamsUpdate},
     perps::{Funding, PerpDenomState, PnlValues},
     signed_uint::SignedUint,
 };
@@ -29,11 +29,14 @@ fn perp_denom_state() {
 
     mock.set_price(&owner, base_denom, Decimal::from_str(base_price).unwrap()).unwrap();
     mock.set_price(&owner, denom1, Decimal::from_str(denom1_price).unwrap()).unwrap();
-    mock.init_denom(&owner, denom1, initial_funding_velocity, initial_skew_scale).unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params(denom1),
+            params: PerpParams {
+                max_funding_velocity: initial_funding_velocity,
+                skew_scale: initial_skew_scale,
+                ..default_perp_params(denom1)
+            },
         },
     );
 
@@ -107,25 +110,34 @@ fn perp_denom_states() {
     mock.set_price(&owner, denom1, Decimal::from_str(denom1_price).unwrap()).unwrap();
     mock.set_price(&owner, denom2, Decimal::from_str(denom2_price).unwrap()).unwrap();
     mock.set_price(&owner, denom3, Decimal::from_str(denom3_price).unwrap()).unwrap();
-    mock.init_denom(&owner, denom1, initial_funding_velocity1, initial_skew_scale1).unwrap();
-    mock.init_denom(&owner, denom2, initial_funding_velocity2, initial_skew_scale2).unwrap();
-    mock.init_denom(&owner, denom3, initial_funding_velocity3, initial_skew_scale3).unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params(denom1),
+            params: PerpParams {
+                max_funding_velocity: initial_funding_velocity1,
+                skew_scale: initial_skew_scale1,
+                ..default_perp_params(denom1)
+            },
         },
     );
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params(denom2),
+            params: PerpParams {
+                max_funding_velocity: initial_funding_velocity2,
+                skew_scale: initial_skew_scale2,
+                ..default_perp_params(denom2)
+            },
         },
     );
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params(denom3),
+            params: PerpParams {
+                max_funding_velocity: initial_funding_velocity3,
+                skew_scale: initial_skew_scale3,
+                ..default_perp_params(denom3)
+            },
         },
     );
 
@@ -224,20 +236,24 @@ fn perp_positions() {
         .unwrap();
 
     // init denoms
-    mock.init_denom(&owner, "uatom", Decimal::from_str("3").unwrap(), Uint128::new(1000000u128))
-        .unwrap();
-    mock.init_denom(&owner, "utia", Decimal::from_str("3").unwrap(), Uint128::new(1200000u128))
-        .unwrap();
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("uatom"),
+            params: PerpParams {
+                max_funding_velocity: Decimal::from_str("3").unwrap(),
+                skew_scale: Uint128::new(1000000u128),
+                ..default_perp_params("uatom")
+            },
         },
     );
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
-            params: default_perp_params("utia"),
+            params: PerpParams {
+                max_funding_velocity: Decimal::from_str("3").unwrap(),
+                skew_scale: Uint128::new(1200000u128),
+                ..default_perp_params("utia")
+            },
         },
     );
 

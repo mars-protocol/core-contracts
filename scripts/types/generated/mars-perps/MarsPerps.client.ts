@@ -17,6 +17,7 @@ import {
   Uint128,
   ActionKind,
   SignedUint,
+  PerpParams,
   QueryMsg,
   ConfigForString,
   Accounting,
@@ -399,40 +400,6 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     memo?: string,
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
-  initDenom: (
-    {
-      denom,
-      maxFundingVelocity,
-      skewScale,
-    }: {
-      denom: string
-      maxFundingVelocity: Decimal
-      skewScale: Uint128
-    },
-    fee?: number | StdFee | 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ) => Promise<ExecuteResult>
-  enableDenom: (
-    {
-      denom,
-    }: {
-      denom: string
-    },
-    fee?: number | StdFee | 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ) => Promise<ExecuteResult>
-  disableDenom: (
-    {
-      denom,
-    }: {
-      denom: string
-    },
-    fee?: number | StdFee | 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ) => Promise<ExecuteResult>
   deposit: (
     {
       accountId,
@@ -505,6 +472,16 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     memo?: string,
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
+  updateParams: (
+    {
+      params,
+    }: {
+      params: PerpParams
+    },
+    fee?: number | StdFee | 'auto',
+    memo?: string,
+    _funds?: Coin[],
+  ) => Promise<ExecuteResult>
 }
 export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsInterface {
   client: SigningCosmWasmClient
@@ -516,15 +493,13 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     this.sender = sender
     this.contractAddress = contractAddress
     this.updateOwner = this.updateOwner.bind(this)
-    this.initDenom = this.initDenom.bind(this)
-    this.enableDenom = this.enableDenom.bind(this)
-    this.disableDenom = this.disableDenom.bind(this)
     this.deposit = this.deposit.bind(this)
     this.unlock = this.unlock.bind(this)
     this.withdraw = this.withdraw.bind(this)
     this.executePerpOrder = this.executePerpOrder.bind(this)
     this.closeAllPositions = this.closeAllPositions.bind(this)
     this.deleverage = this.deleverage.bind(this)
+    this.updateParams = this.updateParams.bind(this)
   }
   updateOwner = async (
     ownerUpdate: OwnerUpdate,
@@ -537,81 +512,6 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       this.contractAddress,
       {
         update_owner: ownerUpdate,
-      },
-      fee,
-      memo,
-      _funds,
-    )
-  }
-  initDenom = async (
-    {
-      denom,
-      maxFundingVelocity,
-      skewScale,
-    }: {
-      denom: string
-      maxFundingVelocity: Decimal
-      skewScale: Uint128
-    },
-    fee: number | StdFee | 'auto' = 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ): Promise<ExecuteResult> => {
-    return await this.client.execute(
-      this.sender,
-      this.contractAddress,
-      {
-        init_denom: {
-          denom,
-          max_funding_velocity: maxFundingVelocity,
-          skew_scale: skewScale,
-        },
-      },
-      fee,
-      memo,
-      _funds,
-    )
-  }
-  enableDenom = async (
-    {
-      denom,
-    }: {
-      denom: string
-    },
-    fee: number | StdFee | 'auto' = 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ): Promise<ExecuteResult> => {
-    return await this.client.execute(
-      this.sender,
-      this.contractAddress,
-      {
-        enable_denom: {
-          denom,
-        },
-      },
-      fee,
-      memo,
-      _funds,
-    )
-  }
-  disableDenom = async (
-    {
-      denom,
-    }: {
-      denom: string
-    },
-    fee: number | StdFee | 'auto' = 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ): Promise<ExecuteResult> => {
-    return await this.client.execute(
-      this.sender,
-      this.contractAddress,
-      {
-        disable_denom: {
-          denom,
-        },
       },
       fee,
       memo,
@@ -767,6 +667,29 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
         deleverage: {
           account_id: accountId,
           denom,
+        },
+      },
+      fee,
+      memo,
+      _funds,
+    )
+  }
+  updateParams = async (
+    {
+      params,
+    }: {
+      params: PerpParams
+    },
+    fee: number | StdFee | 'auto' = 'auto',
+    memo?: string,
+    _funds?: Coin[],
+  ): Promise<ExecuteResult> => {
+    return await this.client.execute(
+      this.sender,
+      this.contractAddress,
+      {
+        update_params: {
+          params,
         },
       },
       fee,

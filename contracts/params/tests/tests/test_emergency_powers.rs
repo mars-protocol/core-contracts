@@ -1,9 +1,10 @@
 use cosmwasm_std::Addr;
 use mars_owner::OwnerError;
 use mars_params::error::ContractError::Owner;
+use mars_testing::multitest::helpers::default_perp_params;
 use mars_types::params::{
-    AssetParamsUpdate, CmEmergencyUpdate, EmergencyUpdate, RedBankEmergencyUpdate,
-    VaultConfigUpdate,
+    AssetParamsUpdate, CmEmergencyUpdate, EmergencyUpdate, PerpParamsUpdate, PerpsEmergencyUpdate,
+    RedBankEmergencyUpdate, VaultConfigUpdate,
 };
 
 use super::helpers::{assert_err, default_asset_params, default_vault_config, MockEnv};
@@ -213,4 +214,34 @@ fn set_zero_deposit_cap() {
 
     let params = mock.query_vault_config(&vault);
     assert!(params.deposit_cap.amount.is_zero());
+}
+
+#[test]
+fn disabled_perp_trading() {
+    let emergency_owner = Addr::unchecked("miles_morales");
+    let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();
+    let denom = "atom".to_string();
+
+    let params = default_perp_params(&denom);
+
+    mock.update_perp_params(
+        &mock.query_owner(),
+        PerpParamsUpdate::AddOrUpdate {
+            params,
+        },
+    )
+    .unwrap();
+
+    let params = mock.query_perp_params(&denom);
+
+    assert!(params.enabled);
+
+    mock.emergency_update(
+        &emergency_owner,
+        EmergencyUpdate::Perps(PerpsEmergencyUpdate::DisableTrading(denom.clone())),
+    )
+    .unwrap();
+
+    let params = mock.query_perp_params(&denom);
+    assert!(!params.enabled);
 }

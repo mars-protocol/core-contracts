@@ -138,7 +138,13 @@ pub enum RedBankEmergencyUpdate {
 }
 
 #[cw_serde]
+pub enum PerpsEmergencyUpdate {
+    DisableTrading(String),
+}
+
+#[cw_serde]
 pub enum EmergencyUpdate {
     CreditManager(CmEmergencyUpdate),
     RedBank(RedBankEmergencyUpdate),
+    Perps(PerpsEmergencyUpdate),
 }

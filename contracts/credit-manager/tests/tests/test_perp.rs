@@ -164,13 +164,6 @@ fn perp_position_when_not_enough_usdc_in_account() {
     });
 
     // setup perp contract
-    mock.init_perp_denom(
-        &contract_owner,
-        &atom_info.denom,
-        Decimal::from_str("3").unwrap(),
-        Uint128::new(1000000u128),
-    )
-    .unwrap();
     mock.update_credit_account(
         &vault_depositor_account_id,
         &vault_depositor,
@@ -316,13 +309,6 @@ fn perp_position_when_no_usdc_in_account() {
     });
 
     // setup perp contract
-    mock.init_perp_denom(
-        &contract_owner,
-        &atom_info.denom,
-        Decimal::from_str("3").unwrap(),
-        Uint128::new(1000000u128),
-    )
-    .unwrap();
     mock.update_credit_account(
         &vault_depositor_account_id,
         &vault_depositor,
@@ -1070,14 +1056,6 @@ fn setup(
     });
 
     // setup perp contract
-    mock.init_perp_denom(
-        &contract_owner,
-        &atom_info.denom,
-        Decimal::from_str("3").unwrap(),
-        Uint128::new(1000000u128),
-    )
-    .unwrap();
-
     mock.update_credit_account(
         &vault_depositor_account_id,
         &vault_depositor,
