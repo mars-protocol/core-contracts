@@ -14,7 +14,6 @@ import {
   Coin,
   ConfigUpdates,
   ExecuteMsg,
-  SignedUint,
 } from '../../types/generated/mars-credit-manager/MarsCreditManager.types'
 import { MarsMockVaultQueryClient } from '../../types/generated/mars-mock-vault/MarsMockVault.client'
 import { VaultConfigBaseForString } from '../../types/generated/mars-params/MarsParams.types'
@@ -406,20 +405,20 @@ export class Rover {
     )
   }
 
-  async executePerpOrder(denom: string, orderSize: SignedUint, reduceOnly?: boolean) {
+  async executePerpOrder(denom: string, orderSize: string, reduceOnly?: boolean) {
     const response = await this.updateCreditAccount(
       [
         {
           execute_perp_order: {
             denom,
-            order_size: orderSize,
+            order_size: orderSize as any,
             reduce_only: reduceOnly,
           },
         },
       ],
       [],
     )
-    printYellow(`Close perp, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
+    printYellow(`Execute perp, gas used: ${response.gasUsed}, tx: ${response.transactionHash}`)
   }
 
   async liquidateDeposit(liqAccId: string, depositDenom: string, debtCoin: Coin) {

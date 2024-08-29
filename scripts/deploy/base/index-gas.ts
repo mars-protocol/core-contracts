@@ -53,6 +53,11 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
 
     await deployer.updateAddressProvider()
 
+    if (config.swapper.name == 'astroport') {
+      await deployer.updateSwapperAstroportConfig(config.astroportConfig!)
+      await deployer.setAstroportIncentivesAddress(config.astroportConfig!.incentives!)
+    }
+
     // setup
     for (const asset of config.assets) {
       await deployer.updateAssetParams(asset)
@@ -69,7 +74,6 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     for (const oracleConfig of config.oracleConfigs) {
       await deployer.setOracle(oracleConfig)
     }
-    await deployer.setRoutes()
 
     // User flows with gas usage
     const ntrnDenom = 'untrn'
@@ -81,7 +85,9 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     const depositor = await deployer.deployerAsRoverClient()
     await depositor.createCreditAccount()
     const ntrnDepositAmt = '5000000'
+    console.log('Depositing', ntrnDepositAmt, ntrnDenom)
     await depositor.deposit(ntrnDenom, ntrnDepositAmt)
+    console.log('Lending', ntrnDepositAmt, ntrnDenom)
     await depositor.lend(ntrnDenom, ntrnDepositAmt)
     const usdcDepositAmt = '10000000'
     await depositor.deposit(nobleUsdcDenom, usdcDepositAmt)
@@ -95,13 +101,12 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     await trader.createCreditAccount()
     await trader.deposit(nobleUsdcDenom, '22000000')
     await trader.borrow(ntrnDenom, '2000000')
-    const perpSize = { abs: '10000', negative: false }
-    await trader.executePerpOrder(atomDenom, perpSize, false)
-    await trader.executePerpOrder(tiaDenom, perpSize, false)
-    await trader.executePerpOrder(solDenom, perpSize, false)
+    await trader.executePerpOrder(atomDenom, '10000', false)
+    await trader.executePerpOrder(tiaDenom, '10000', false)
+    await trader.executePerpOrder(solDenom, '10000', false)
 
     // prepare for liquidation
-    await deployer.setOracle({ denom: ntrnDenom, price_source: { fixed: { price: '15' } } }, true)
+    await deployer.setOracle({ denom: ntrnDenom, price_source: { fixed: { price: '20' } } }, true)
     await liquidator.liquidateDeposit(trader.accountId!, nobleUsdcDenom, {
       denom: ntrnDenom,
       amount: '1000000',
@@ -127,6 +132,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
   } catch (e) {
     printRed(e)
   } finally {
+    printYellow('CLEANUP')
     await deployer.saveStorage()
   }
 }

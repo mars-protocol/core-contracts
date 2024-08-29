@@ -626,7 +626,7 @@ export const solPerpDenom: PerpDenom = {
 
 export const neutronTestnetConfig: DeploymentConfig = {
   mainnet: false,
-  deployerMnemonic: 'TODO',
+  deployerMnemonic: 'TO BE INSERTED AT TIME OF DEPLOYMENT',
   marsDenom: marsDenom,
   atomDenom: atomDenom,
   safetyFundAddr: safetyFundAddr,

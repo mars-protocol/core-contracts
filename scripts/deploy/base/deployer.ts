@@ -699,6 +699,10 @@ export class Deployer {
         address: this.storage.addresses.creditManager!,
         address_type: 'credit_manager',
       },
+      {
+        address: this.storage.addresses.perps!,
+        address_type: 'perps',
+      },
     ]
 
     for (const addrObj of addressesToSet) {

@@ -4,7 +4,7 @@ use std::convert::TryInto;
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order, Response,
-    StdResult,
+    StdError, StdResult,
 };
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
@@ -134,7 +134,9 @@ fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
 fn query_address(deps: Deps, address_type: MarsAddressType) -> StdResult<AddressResponseItem> {
     Ok(AddressResponseItem {
         address_type,
-        address: ADDRESSES.load(deps.storage, address_type.into())?,
+        address: ADDRESSES.load(deps.storage, address_type.into()).map_err(|_| {
+            StdError::generic_err(format!("address not found for {}", address_type))
+        })?,
     })
 }
 

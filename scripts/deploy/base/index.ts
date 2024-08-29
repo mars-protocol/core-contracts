@@ -74,7 +74,6 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     for (const oracleConfig of config.oracleConfigs) {
       await deployer.setOracle(oracleConfig)
     }
-    await deployer.setRoutes()
 
     // Test basic user flows
     if (config.runTests && config.testActions) {
