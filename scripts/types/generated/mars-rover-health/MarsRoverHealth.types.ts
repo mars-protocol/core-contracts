@@ -38,27 +38,18 @@ export type QueryMsg =
       health_values: {
         account_id: string
         action: ActionKind
-        kind: AccountKind
       }
     }
   | {
       health_state: {
         account_id: string
         action: ActionKind
-        kind: AccountKind
       }
     }
   | {
       config: {}
     }
 export type ActionKind = 'default' | 'liquidation'
-export type AccountKind =
-  | ('default' | 'high_levered_strategy')
-  | {
-      fund_manager: {
-        vault_addr: string
-      }
-    }
 export interface ConfigResponse {
   credit_manager?: string | null
   owner_response: OwnerResponse

@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, DepsMut, QuerierWrapper, Uint128};
+use cosmwasm_std::{Coin, DepsMut, Env, QuerierWrapper, Uint128};
 use mars_liquidation::liquidation::calculate_liquidation_amounts;
 use mars_types::{adapters::oracle::Oracle, oracle::ActionKind, traits::Stringify};
 
@@ -18,6 +18,7 @@ use crate::{
 /// Difference between Liquidator Request Coin and Liquidatee Request Coin goes to rewards-collector account as protocol fee.
 pub fn calculate_liquidation(
     deps: &mut DepsMut,
+    env: Env,
     liquidatee_account_id: &str,
     debt_coin: &Coin,
     request_coin: &str,
@@ -25,7 +26,7 @@ pub fn calculate_liquidation(
 ) -> ContractResult<(Coin, Coin, Coin)> {
     // Assert the liquidatee's credit account is liquidatable
     let health =
-        query_health_values(deps.as_ref(), liquidatee_account_id, ActionKind::Liquidation)?;
+        query_health_values(deps.as_ref(), env, liquidatee_account_id, ActionKind::Liquidation)?;
     if !health.liquidatable {
         return Err(ContractError::NotLiquidatable {
             account_id: liquidatee_account_id.to_string(),

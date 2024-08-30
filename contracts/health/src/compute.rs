@@ -4,7 +4,7 @@ use cosmwasm_std::{Decimal, Deps, StdResult};
 use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
 use mars_types::{
     credit_manager::Positions,
-    health::{AccountKind, HealthResult, HealthState, HealthValuesResponse},
+    health::{HealthResult, HealthState, HealthValuesResponse},
     oracle::ActionKind,
     params::AssetParams,
 };
@@ -16,7 +16,6 @@ use crate::querier::HealthQuerier;
 /// This function queries all necessary data to pass to `HealthComputer`.
 pub fn compute_health(
     deps: Deps,
-    kind: AccountKind,
     q: HealthQuerier,
     positions: Positions,
     action: ActionKind,
@@ -84,7 +83,7 @@ pub fn compute_health(
     })?;
 
     let computer = HealthComputer {
-        kind,
+        kind: positions.account_kind.clone(),
         positions,
         asset_params,
         oracle_prices,
@@ -95,33 +94,19 @@ pub fn compute_health(
     Ok(computer.compute_health()?.into())
 }
 
-pub fn health_values(
+pub fn compute_health_state(
     deps: Deps,
-    account_id: &str,
-    kind: AccountKind,
+    querier: HealthQuerier,
     action: ActionKind,
-) -> HealthResult<HealthValuesResponse> {
-    let q = HealthQuerier::new(&deps)?;
-    let positions = q.query_positions(account_id, action.clone())?;
-    compute_health(deps, kind, q, positions, action)
-}
-
-pub fn health_state(
-    deps: Deps,
-    account_id: &str,
-    kind: AccountKind,
-    action: ActionKind,
+    positions: Positions,
 ) -> HealthResult<HealthState> {
-    let q = HealthQuerier::new(&deps)?;
-    let positions = q.query_positions(account_id, action.clone())?;
-
     // Helpful to not have to do computations & query the oracle for cases
     // like liquidations where oracle circuit breakers may hinder it.
     if positions.debts.is_empty() && positions.perps.is_empty() {
         return Ok(HealthState::Healthy);
     }
 
-    let health = compute_health(deps, kind, q, positions, action)?;
+    let health = compute_health(deps, querier, positions, action)?;
     if !health.above_max_ltv {
         Ok(HealthState::Healthy)
     } else {
@@ -129,4 +114,20 @@ pub fn health_state(
             max_ltv_health_factor: health.max_ltv_health_factor.unwrap(),
         })
     }
+}
+
+pub fn health_values(
+    deps: Deps,
+    account_id: &str,
+    action: ActionKind,
+) -> HealthResult<HealthValuesResponse> {
+    let querier = HealthQuerier::new(&deps)?;
+    let positions = querier.query_positions(account_id, action.clone())?;
+    compute_health(deps, querier, positions, action)
+}
+
+pub fn health_state(deps: Deps, account_id: &str, action: ActionKind) -> HealthResult<HealthState> {
+    let querier = HealthQuerier::new(&deps)?;
+    let positions = querier.query_positions(account_id, action.clone())?;
+    compute_health_state(deps, querier, action, positions)
 }

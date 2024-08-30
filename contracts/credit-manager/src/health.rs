@@ -1,4 +1,8 @@
-use cosmwasm_std::{Deps, Response};
+use cosmwasm_std::{Deps, Env, Response};
+use mars_rover_health::{
+    compute::{compute_health, compute_health_state},
+    querier::HealthQuerier,
+};
 use mars_types::{
     health::{HealthState, HealthValuesResponse},
     oracle::ActionKind,
@@ -6,36 +10,43 @@ use mars_types::{
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::HEALTH_CONTRACT,
-    utils::get_account_kind,
+    query::{query_config, query_positions},
 };
 
 pub fn query_health_state(
     deps: Deps,
+    env: Env,
     account_id: &str,
     action: ActionKind,
 ) -> ContractResult<HealthState> {
-    let hc = HEALTH_CONTRACT.load(deps.storage)?;
-    let kind = get_account_kind(deps.storage, account_id)?;
-    Ok(hc.query_health_state(&deps.querier, account_id, kind, action)?)
+    let config = query_config(deps)?;
+    let querier = HealthQuerier::new_with_config(&deps, env.contract.address.clone(), config)?;
+    let positions = query_positions(deps, env, account_id, action.clone())?;
+    let health = compute_health_state(deps, querier, action, positions)?;
+    Ok(health)
 }
 
 pub fn query_health_values(
     deps: Deps,
+    env: Env,
     account_id: &str,
     action: ActionKind,
 ) -> ContractResult<HealthValuesResponse> {
-    let hc = HEALTH_CONTRACT.load(deps.storage)?;
-    let kind = get_account_kind(deps.storage, account_id)?;
-    Ok(hc.query_health_values(&deps.querier, account_id, kind, action)?)
+    let config = query_config(deps)?;
+    let health_querier =
+        HealthQuerier::new_with_config(&deps, env.contract.address.clone(), config)?;
+    let positions = query_positions(deps, env, account_id, action.clone())?;
+    let health = compute_health(deps, health_querier, positions, action)?;
+    Ok(health)
 }
 
 pub fn assert_max_ltv(
     deps: Deps,
+    env: Env,
     account_id: &str,
     prev_health: HealthState,
 ) -> ContractResult<Response> {
-    let new_health = query_health_state(deps, account_id, ActionKind::Default)?;
+    let new_health = query_health_state(deps, env, account_id, ActionKind::Default)?;
 
     match (&prev_health, &new_health) {
         // If account ends in a healthy state, all good! ✅

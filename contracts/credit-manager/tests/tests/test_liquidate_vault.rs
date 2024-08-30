@@ -9,7 +9,6 @@ use mars_types::{
         Action::{Borrow, Deposit, EnterVault, Liquidate, RequestVaultUnlock},
         LiquidateRequest,
     },
-    health::AccountKind,
     oracle::ActionKind,
 };
 
@@ -370,8 +369,7 @@ fn liquidate_unlocked_vault() {
         price: Decimal::from_atomics(18u128, 0).unwrap(),
     });
 
-    let prev_health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let prev_health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(prev_health.liquidatable);
 
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -424,8 +422,7 @@ fn liquidate_unlocked_vault() {
     assert_eq!(lp.amount, Uint128::new(1));
 
     // Liq HF should improve
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(!health.liquidatable);
 }
 
@@ -476,8 +473,7 @@ fn liquidate_locked_vault() {
         price: Decimal::from_atomics(20u128, 0).unwrap(),
     });
 
-    let prev_health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let prev_health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(prev_health.liquidatable);
 
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -533,8 +529,7 @@ fn liquidate_locked_vault() {
     assert_eq!(lp_balance.amount, Uint128::new(1));
 
     // Liq HF should improve
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(health.liquidatable);
     assert!(
         prev_health.liquidation_health_factor.unwrap() < health.liquidation_health_factor.unwrap()
@@ -605,8 +600,7 @@ fn liquidate_unlocking_liquidation_order() {
         price: Decimal::from_atomics(20u128, 0).unwrap(),
     });
 
-    let prev_health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let prev_health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(prev_health.liquidatable);
 
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -671,8 +665,7 @@ fn liquidate_unlocking_liquidation_order() {
     assert_eq!(lp_balance.amount, Uint128::new(3));
 
     // Liq HF should improve
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(health.liquidatable);
     assert!(
         prev_health.liquidation_health_factor.unwrap() < health.liquidation_health_factor.unwrap()
@@ -727,8 +720,7 @@ fn liquidation_calculation_adjustment() {
         price: Decimal::from_atomics(20u128, 0).unwrap(),
     });
 
-    let prev_health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let prev_health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(prev_health.liquidatable);
 
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -785,7 +777,6 @@ fn liquidation_calculation_adjustment() {
     assert_eq!(position.debts.len(), 0);
 
     // Liq HF should improve
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(!health.liquidatable);
 }

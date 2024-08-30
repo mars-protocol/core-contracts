@@ -11,8 +11,7 @@ use mars_types::{
     adapters::vault::VaultUnchecked,
     credit_manager::Positions,
     health::{
-        AccountKind, ConfigResponse, ExecuteMsg::UpdateConfig, HealthState, HealthValuesResponse,
-        QueryMsg,
+        ConfigResponse, ExecuteMsg::UpdateConfig, HealthState, HealthValuesResponse, QueryMsg,
     },
     oracle::ActionKind,
     params::{
@@ -52,14 +51,12 @@ impl MockEnv {
     pub fn query_health_values(
         &self,
         account_id: &str,
-        kind: AccountKind,
         action: ActionKind,
     ) -> StdResult<HealthValuesResponse> {
         self.app.wrap().query_wasm_smart(
             self.health_contract.clone(),
             &QueryMsg::HealthValues {
                 account_id: account_id.to_string(),
-                kind,
                 action,
             },
         )
@@ -68,14 +65,12 @@ impl MockEnv {
     pub fn query_health_state(
         &self,
         account_id: &str,
-        kind: AccountKind,
         action: ActionKind,
     ) -> StdResult<HealthState> {
         self.app.wrap().query_wasm_smart(
             self.health_contract.clone(),
             &QueryMsg::HealthState {
                 account_id: account_id.to_string(),
-                kind,
                 action,
             },
         )

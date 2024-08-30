@@ -21,9 +21,6 @@ pub enum ContractError {
     #[error("Health contract should be added to config before burns are allowed")]
     HealthContractNotSet,
 
-    #[error("Credit manager contract should be added to config before burns are allowed")]
-    CreditManagerContractNotSet,
-
     #[error("{0}")]
     Version(#[from] cw2::VersionError),
 }

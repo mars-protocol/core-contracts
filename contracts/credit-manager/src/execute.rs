@@ -141,7 +141,8 @@ pub fn dispatch_actions(
 
     // If needed (i.e. if health check is required), we query the health state
     let prev_health_state = if !no_health_check {
-        let health_state = query_health_state(deps.as_ref(), account_id, ActionKind::Default)?;
+        let health_state =
+            query_health_state(deps.as_ref(), env.clone(), account_id, ActionKind::Default)?;
         Some(health_state)
     } else {
         None
@@ -540,7 +541,7 @@ pub fn execute_callback(
         CallbackMsg::AssertMaxLTV {
             account_id,
             prev_health_state,
-        } => assert_max_ltv(deps.as_ref(), &account_id, prev_health_state),
+        } => assert_max_ltv(deps.as_ref(), env, &account_id, prev_health_state),
         CallbackMsg::AssertDepositCaps {
             denoms,
         } => assert_deposit_caps(deps.as_ref(), denoms),

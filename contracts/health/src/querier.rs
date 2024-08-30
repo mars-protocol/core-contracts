@@ -27,6 +27,14 @@ impl<'a> HealthQuerier<'a> {
         let config: ConfigResponse =
             deps.querier.query_wasm_smart(credit_manager.to_string(), &CmQueryMsg::Config {})?;
 
+        Self::new_with_config(deps, credit_manager, config)
+    }
+
+    pub fn new_with_config(
+        deps: &'a Deps,
+        credit_manager: Addr,
+        config: ConfigResponse,
+    ) -> StdResult<Self> {
         Ok(Self {
             querier: &deps.querier,
             credit_manager,

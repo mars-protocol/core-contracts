@@ -3,10 +3,7 @@ use cw721::OwnerOfResponse;
 use cw721_base::{ContractError::Ownership, OwnershipError::NotOwner};
 use cw_multi_test::Executor;
 use mars_account_nft::error::{ContractError, ContractError::BaseError};
-use mars_types::{
-    account_nft::{ExecuteMsg, QueryMsg::OwnerOf},
-    health::AccountKind,
-};
+use mars_types::account_nft::{ExecuteMsg, QueryMsg::OwnerOf};
 
 use super::helpers::{below_max_for_burn, MockEnv};
 
@@ -48,9 +45,9 @@ fn id_incrementer_works_despite_burns() {
     assert_eq!(token_id_2, "2");
     mock.assert_next_id("3");
 
-    mock.set_health_response(&user, &token_id_1, AccountKind::Default, &below_max_for_burn());
+    mock.set_health_response(&user, &token_id_1, &below_max_for_burn());
     mock.burn(&user, &token_id_1).unwrap();
-    mock.set_health_response(&user, &token_id_2, AccountKind::Default, &below_max_for_burn());
+    mock.set_health_response(&user, &token_id_2, &below_max_for_burn());
     mock.burn(&user, &token_id_2).unwrap();
 
     mock.assert_next_id("3");

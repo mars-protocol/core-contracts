@@ -21,8 +21,7 @@ use crate::tests::helpers::default_asset_params;
 #[test]
 fn raises_when_credit_manager_not_set() {
     let mock = MockEnv::new().skip_cm_config().build().unwrap();
-    let err: StdError =
-        mock.query_health_values("xyz", AccountKind::Default, ActionKind::Default).unwrap_err();
+    let err: StdError = mock.query_health_values("xyz", ActionKind::Default).unwrap_err();
     assert_eq!(
         err,
         StdError::generic_err(
@@ -34,8 +33,7 @@ fn raises_when_credit_manager_not_set() {
 #[test]
 fn raises_with_non_existent_account_id() {
     let mock = MockEnv::new().build().unwrap();
-    let err: StdError =
-        mock.query_health_values("xyz", AccountKind::Default, ActionKind::Default).unwrap_err();
+    let err: StdError = mock.query_health_values("xyz", ActionKind::Default).unwrap_err();
     assert_eq!(
         err,
         StdError::generic_err(
@@ -64,8 +62,7 @@ fn computes_correct_position_with_zero_assets() {
         },
     );
 
-    let health =
-        mock.query_health_values(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let health = mock.query_health_values(account_id, ActionKind::Default).unwrap();
     assert_eq!(health.total_debt_value, Uint128::zero());
     assert_eq!(health.total_collateral_value, Uint128::zero());
     assert_eq!(health.max_ltv_adjusted_collateral, Uint128::zero());
@@ -151,8 +148,7 @@ fn adds_vault_base_denoms_to_oracle_and_red_bank() {
 
     mock.set_price(vault_base_token, Decimal::one(), ActionKind::Default);
 
-    let health =
-        mock.query_health_values(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let health = mock.query_health_values(account_id, ActionKind::Default).unwrap();
     assert_eq!(health.total_debt_value, Uint128::zero());
     assert_eq!(health.total_collateral_value, unlocking_amount);
     assert_eq!(
@@ -237,8 +233,7 @@ fn whitelisted_coins_work() {
         },
     );
 
-    let health =
-        mock.query_health_values(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let health = mock.query_health_values(account_id, ActionKind::Default).unwrap();
     assert_eq!(health.total_debt_value, Uint128::zero());
     assert_eq!(health.total_collateral_value, deposit_amount); // price of 1
     assert_eq!(health.max_ltv_adjusted_collateral, Uint128::zero()); // coin not in whitelist
@@ -256,8 +251,7 @@ fn whitelisted_coins_work() {
     mock.update_asset_params(AddOrUpdate {
         params: asset_params,
     });
-    let health =
-        mock.query_health_values(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let health = mock.query_health_values(account_id, ActionKind::Default).unwrap();
     // Now reflects deposit value
     assert_eq!(
         health.max_ltv_adjusted_collateral,
@@ -334,8 +328,7 @@ fn vault_whitelist_affects_max_ltv() {
 
     let mut vault_config = mock.query_vault_config(&vault.into());
 
-    let health =
-        mock.query_health_values(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let health = mock.query_health_values(account_id, ActionKind::Default).unwrap();
     assert_eq!(health.total_debt_value, Uint128::zero());
     assert_eq!(health.total_collateral_value, base_token_amount);
     assert_eq!(
@@ -358,8 +351,7 @@ fn vault_whitelist_affects_max_ltv() {
         config: vault_config.into(),
     });
 
-    let health =
-        mock.query_health_values(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let health = mock.query_health_values(account_id, ActionKind::Default).unwrap();
     assert_eq!(health.max_ltv_adjusted_collateral, Uint128::zero());
 }
 
@@ -404,8 +396,7 @@ fn not_whitelisted_coins_work() {
         },
     );
 
-    let health =
-        mock.query_health_values(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let health = mock.query_health_values(account_id, ActionKind::Default).unwrap();
     assert_eq!(health.total_debt_value, Uint128::zero());
     assert_eq!(health.total_collateral_value, umars_deposit_amount); // price of 1
     assert_eq!(

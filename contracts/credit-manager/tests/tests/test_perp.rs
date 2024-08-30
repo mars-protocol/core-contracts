@@ -8,7 +8,6 @@ use mars_types::{
         Action::{Deposit, ExecutePerpOrder},
         Positions,
     },
-    health::AccountKind,
     oracle::ActionKind,
     params::PerpParamsUpdate,
     perps::PnL,
@@ -996,7 +995,7 @@ fn cannot_open_perp_above_max_ltv() {
 
     let perp_size = SignedUint::from_str("100000").unwrap();
 
-    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     assert!(!health.above_max_ltv);
     assert!(!health.liquidatable);
 

@@ -7,13 +7,12 @@ use cw721_base::{
     Ownership,
 };
 use cw_multi_test::{App, AppResponse, BasicApp, Executor};
-use mars_mock_credit_manager::msg::ExecuteMsg::SetAccountKindResponse;
 use mars_mock_rover_health::msg::ExecuteMsg::SetHealthResponse;
 use mars_types::{
     account_nft::{
         ExecuteMsg, ExecuteMsg::UpdateConfig, NftConfigUpdates, QueryMsg, UncheckedNftConfig,
     },
-    health::{AccountKind, HealthValuesResponse},
+    health::HealthValuesResponse,
 };
 
 use super::MockEnvBuilder;
@@ -80,7 +79,6 @@ impl MockEnv {
         &mut self,
         sender: &Addr,
         account_id: &str,
-        kind: AccountKind,
         response: &HealthValuesResponse,
     ) -> AppResponse {
         let config = self.query_config();
@@ -91,29 +89,7 @@ impl MockEnv {
                 Addr::unchecked(config.health_contract_addr.unwrap()),
                 &SetHealthResponse {
                     account_id: account_id.to_string(),
-                    kind,
                     response: response.clone(),
-                },
-                &[],
-            )
-            .unwrap()
-    }
-
-    pub fn set_account_kind_response(
-        &mut self,
-        sender: &Addr,
-        account_id: &str,
-        kind: AccountKind,
-    ) -> AppResponse {
-        let config = self.query_config();
-
-        self.app
-            .execute_contract(
-                sender.clone(),
-                Addr::unchecked(config.credit_manager_contract_addr.unwrap()),
-                &SetAccountKindResponse {
-                    account_id: account_id.to_string(),
-                    kind,
                 },
                 &[],
             )

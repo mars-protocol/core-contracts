@@ -31,8 +31,7 @@ fn zero_debts_results_in_healthy_state() {
         },
     );
 
-    let state =
-        mock.query_health_state(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let state = mock.query_health_state(account_id, ActionKind::Default).unwrap();
 
     assert_eq!(state, HealthState::Healthy);
 }
@@ -70,8 +69,7 @@ fn computing_health_when_healthy() {
         },
     );
 
-    let state =
-        mock.query_health_state(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let state = mock.query_health_state(account_id, ActionKind::Default).unwrap();
     assert_eq!(state, HealthState::Healthy);
 }
 
@@ -108,7 +106,6 @@ fn computing_health_when_unhealthy() {
         },
     );
 
-    let state =
-        mock.query_health_state(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let state = mock.query_health_state(account_id, ActionKind::Default).unwrap();
     assert!(matches!(state, HealthState::Unhealthy { .. }));
 }

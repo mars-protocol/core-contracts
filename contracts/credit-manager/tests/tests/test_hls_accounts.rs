@@ -273,8 +273,7 @@ fn not_correlated_assets_do_not_infuence_hf() {
         &[lp_token.to_coin(300)],
     )
     .unwrap();
-    let health_before =
-        mock.query_health(&account_id, AccountKind::HighLeveredStrategy, ActionKind::Default);
+    let health_before = mock.query_health(&account_id, ActionKind::Default);
 
     // Deposited asset is not correlated to debt asset
     mock.update_credit_account(
@@ -286,8 +285,7 @@ fn not_correlated_assets_do_not_infuence_hf() {
     .unwrap();
 
     // Health factor should not change
-    let health =
-        mock.query_health(&account_id, AccountKind::HighLeveredStrategy, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     assert_eq!(health_before, health);
 }
 
@@ -322,8 +320,7 @@ fn successful_with_asset_correlations() {
     )
     .unwrap();
 
-    let hls_health =
-        mock.query_health(&account_id, AccountKind::HighLeveredStrategy, ActionKind::Default);
+    let hls_health = mock.query_health(&account_id, ActionKind::Default);
     let total_debt_value = atom_info.price * Uint128::new(atom_borrow_amount) + Uint128::one();
     let lp_collateral_value = lp_token.price * Uint128::new(lp_deposit_amount);
     let atom_collateral_value = atom_info.price * Uint128::new(atom_borrow_amount);
@@ -351,9 +348,6 @@ fn successful_with_asset_correlations() {
         },
         hls_health
     );
-
-    let default_health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
-    assert_ne!(hls_health, default_health);
 }
 
 #[test]
@@ -404,8 +398,7 @@ fn successful_with_vault_correlations() {
     )
     .unwrap();
 
-    let hls_health =
-        mock.query_health(&account_id, AccountKind::HighLeveredStrategy, ActionKind::Default);
+    let hls_health = mock.query_health(&account_id, ActionKind::Default);
     let total_debt_value = atom_info.price * Uint128::new(atom_borrow_amount) + Uint128::one();
     let lp_collateral_value = lp_token.price * Uint128::new(lp_deposit_amount);
     let atom_collateral_value = atom_info.price * Uint128::new(atom_borrow_amount);
@@ -433,7 +426,4 @@ fn successful_with_vault_correlations() {
         },
         hls_health
     );
-
-    let default_health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
-    assert_ne!(hls_health, default_health);
 }

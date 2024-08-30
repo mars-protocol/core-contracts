@@ -2,7 +2,7 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Api, QuerierWrapper, StdResult};
 
 use crate::{
-    health::{AccountKind, HealthState, HealthValuesResponse, QueryMsg},
+    health::{HealthState, HealthValuesResponse, QueryMsg},
     oracle::ActionKind,
 };
 
@@ -39,14 +39,12 @@ impl HealthContract {
         &self,
         querier: &QuerierWrapper,
         account_id: &str,
-        kind: AccountKind,
         action: ActionKind,
     ) -> StdResult<HealthState> {
         querier.query_wasm_smart(
             self.address().to_string(),
             &QueryMsg::HealthState {
                 account_id: account_id.to_string(),
-                kind,
                 action,
             },
         )
@@ -56,14 +54,12 @@ impl HealthContract {
         &self,
         querier: &QuerierWrapper,
         account_id: &str,
-        kind: AccountKind,
         action: ActionKind,
     ) -> StdResult<HealthValuesResponse> {
         querier.query_wasm_smart(
             self.address().to_string(),
             &QueryMsg::HealthValues {
                 account_id: account_id.to_string(),
-                kind,
                 action,
             },
         )

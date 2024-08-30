@@ -8,7 +8,6 @@ use mars_types::{
         Action::{Borrow, Deposit, EnterVault, Repay, Withdraw},
         ActionAmount, ActionCoin, DebtAmount,
     },
-    health::AccountKind,
     oracle::ActionKind,
     params::{AssetParamsUpdate::AddOrUpdate, LiquidationBonus, VaultConfigUpdate},
 };
@@ -54,7 +53,7 @@ fn only_assets_with_no_debts() {
     assert_eq!(position.deposits.len(), 1);
     assert_eq!(position.debts.len(), 0);
 
-    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     let assets_value = deposit_amount.checked_mul_floor(coin_info.price).unwrap();
     assert_eq!(health.total_collateral_value, assets_value);
     assert_eq!(health.total_debt_value, Uint128::zero());
@@ -123,7 +122,7 @@ fn terra_ragnarok() {
     assert_eq!(position.deposits.len(), 1);
     assert_eq!(position.debts.len(), 1);
 
-    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     let assets_value = (deposit_amount + borrow_amount).checked_mul_floor(coin_info.price).unwrap();
     assert_eq!(health.total_collateral_value, assets_value);
     // Note: Simulated yield from mock_red_bank makes debt position more expensive
@@ -158,7 +157,7 @@ fn terra_ragnarok() {
     assert_eq!(position.deposits.len(), 1);
     assert_eq!(position.debts.len(), 1);
 
-    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     assert_eq!(health.total_collateral_value, Uint128::zero());
     assert_eq!(health.total_debt_value, Uint128::zero());
     assert_eq!(health.liquidation_health_factor, None);
@@ -202,7 +201,7 @@ fn debts_no_assets() {
     assert_eq!(position.deposits.len(), 0);
     assert_eq!(position.debts.len(), 0);
 
-    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     assert_eq!(health.total_collateral_value, Uint128::zero());
     assert_eq!(health.total_debt_value, Uint128::zero());
     assert_eq!(health.liquidation_health_factor, None);
@@ -251,7 +250,7 @@ fn cannot_borrow_more_than_healthy() {
     assert_eq!(position.deposits.len(), 1);
     assert_eq!(position.debts.len(), 1);
 
-    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     let assets_value = Uint128::new(827);
     assert_eq!(health.total_collateral_value, assets_value);
     let debts_value = Uint128::new(121);
@@ -276,7 +275,7 @@ fn cannot_borrow_more_than_healthy() {
     );
 
     // All valid on step 2 as well (meaning step 3 did not go through)
-    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     let assets_value = Uint128::new(1064);
     assert_eq!(health.total_collateral_value, assets_value);
     let debts_value = Uint128::new(360);
@@ -354,7 +353,7 @@ fn cannot_borrow_more_but_not_liquidatable() {
     )
     .unwrap();
 
-    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     assert!(!health.liquidatable);
     assert!(!health.above_max_ltv);
 
@@ -364,7 +363,7 @@ fn cannot_borrow_more_but_not_liquidatable() {
         price: Decimal::from_atomics(24u128, 0).unwrap(),
     });
 
-    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     assert!(!health.liquidatable);
     assert!(health.above_max_ltv);
 
@@ -385,7 +384,7 @@ fn cannot_borrow_more_but_not_liquidatable() {
         price: Decimal::from_atomics(35u128, 0).unwrap(),
     });
 
-    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     assert!(health.liquidatable);
     assert!(health.above_max_ltv);
 }
@@ -462,7 +461,7 @@ fn assets_and_ltv_lqdt_adjusted_value() {
     assert_eq!(position.deposits.len(), 2);
     assert_eq!(position.debts.len(), 1);
 
-    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     assert_eq!(
         health.total_collateral_value,
         deposit_amount
@@ -613,7 +612,7 @@ fn debt_value() {
     assert_eq!(position_a.deposits.len(), 2);
     assert_eq!(position_a.debts.len(), 2);
 
-    let health = mock.query_health(&account_id_a, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id_a, ActionKind::Default);
     assert!(!health.above_max_ltv);
     assert!(!health.liquidatable);
 
@@ -706,7 +705,7 @@ fn delisted_deposits_drop_max_ltv() {
     )
     .unwrap();
 
-    let prev_health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let prev_health = mock.query_health(&account_id, ActionKind::Default);
 
     // Blacklist osmo in params contract
     uosmo_info.whitelisted = false;
@@ -714,7 +713,7 @@ fn delisted_deposits_drop_max_ltv() {
         params: uosmo_info.into(),
     });
 
-    let curr_health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let curr_health = mock.query_health(&account_id, ActionKind::Default);
 
     // Values should be the same
     assert_eq!(prev_health.total_debt_value, curr_health.total_debt_value);
@@ -769,7 +768,7 @@ fn delisted_vaults_drop_max_ltv() {
     )
     .unwrap();
 
-    let prev_health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let prev_health = mock.query_health(&account_id, ActionKind::Default);
 
     // Blacklist vault
     let mut config = mock.query_vault_params(&vault.address);
@@ -778,7 +777,7 @@ fn delisted_vaults_drop_max_ltv() {
         config: config.into(),
     });
 
-    let curr_health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let curr_health = mock.query_health(&account_id, ActionKind::Default);
 
     // Values should be the same
     assert_eq!(prev_health.total_debt_value, curr_health.total_debt_value);
@@ -833,7 +832,7 @@ fn vault_base_token_delisting_drops_max_ltv() {
     )
     .unwrap();
 
-    let prev_health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let prev_health = mock.query_health(&account_id, ActionKind::Default);
 
     // Blacklist LP token in params contract
     lp_token.whitelisted = false;
@@ -841,7 +840,7 @@ fn vault_base_token_delisting_drops_max_ltv() {
         params: lp_token.into(),
     });
 
-    let curr_health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let curr_health = mock.query_health(&account_id, ActionKind::Default);
 
     // Values should be the same
     assert_eq!(prev_health.total_debt_value, curr_health.total_debt_value);
@@ -923,7 +922,7 @@ fn can_take_actions_if_ltv_does_not_weaken() {
         price: Decimal::from_atomics(24u128, 0).unwrap(),
     });
 
-    let health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     assert!(!health.liquidatable);
     assert!(health.above_max_ltv);
 

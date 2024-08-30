@@ -109,9 +109,7 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
         price: Decimal::from_atomics(26u128, 1).unwrap(),
     });
 
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let prev_health =
-        mock.query_health(&liquidatee_account_id, account_kind.clone(), ActionKind::Liquidation);
+    let prev_health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
 
     // usdc balance before liquidation
     let usdc_perps_balance_before_liq = mock.query_balance(mock.perps.address(), &uusdc_info.denom);
@@ -188,7 +186,7 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
     assert_eq!(osmo_balance.amount, Uint128::new(4));
 
     // Liq HF should improve
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(!health.liquidatable);
     assert!(
         prev_health.liquidation_health_factor.unwrap() < health.liquidation_health_factor.unwrap()
@@ -289,9 +287,7 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
         price: Decimal::from_atomics(26u128, 1).unwrap(),
     });
 
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let prev_health =
-        mock.query_health(&liquidatee_account_id, account_kind.clone(), ActionKind::Liquidation);
+    let prev_health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
 
     // usdc balance before liquidation
     let usdc_perps_balance_before_liq = mock.query_balance(mock.perps.address(), &uusdc_info.denom);
@@ -369,7 +365,7 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
     assert_eq!(osmo_balance.amount, Uint128::new(4));
 
     // Liq HF should improve
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(health.liquidatable);
     assert!(
         prev_health.liquidation_health_factor.unwrap() < health.liquidation_health_factor.unwrap()
@@ -485,9 +481,7 @@ fn close_perps_with_profit() {
         price: Decimal::from_atomics(25u128, 3).unwrap(),
     });
 
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let prev_health =
-        mock.query_health(&liquidatee_account_id, account_kind.clone(), ActionKind::Liquidation);
+    let prev_health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
 
     // usdc balance before liquidation
     let usdc_perps_balance_before_liq = mock.query_balance(mock.perps.address(), &uusdc_info.denom);
@@ -564,7 +558,7 @@ fn close_perps_with_profit() {
     assert_eq!(osmo_balance.amount, Uint128::new(20));
 
     // Liq HF should improve
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(health.liquidatable);
     assert!(
         prev_health.liquidation_health_factor.unwrap() < health.liquidation_health_factor.unwrap()
@@ -670,9 +664,7 @@ fn liquidation_uses_correct_price_kind_if_perps_open() {
 
     set_price(&mut mock, ActionKind::Default);
 
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let health =
-        mock.query_health(&liquidatee_account_id, account_kind.clone(), ActionKind::Default);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Default);
     assert!(health.liquidatable);
 
     // The liquidation should fail if Default pricing is used

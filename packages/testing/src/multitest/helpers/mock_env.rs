@@ -543,19 +543,13 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_health(
-        &self,
-        account_id: &str,
-        kind: AccountKind,
-        action: ActionKind,
-    ) -> HealthValuesResponse {
+    pub fn query_health(&self, account_id: &str, action: ActionKind) -> HealthValuesResponse {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.health_contract.clone().address(),
                 &HealthValues {
                     account_id: account_id.to_string(),
-                    kind,
                     action,
                 },
             )
