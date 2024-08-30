@@ -3,7 +3,7 @@ use cosmwasm_std::{
 };
 use mars_types::{
     address_provider::{self, MarsAddressType},
-    perps::ExecuteMsg,
+    perps::{ConfigUpdates, ExecuteMsg},
 };
 
 use crate::{
@@ -155,4 +155,32 @@ pub fn disable_perp_trading(
         .add_attribute("denom", denom.to_string());
 
     Ok(response)
+}
+
+/// Disables the liquidation of the perp counterparty vault
+pub fn disable_deleverage(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    OWNER.assert_emergency_owner(deps.storage, &info.sender)?;
+    let updates: ConfigUpdates = ConfigUpdates {
+        deleverage_enabled: Some(false),
+        ..Default::default()
+    };
+
+    let current_addr = ADDRESS_PROVIDER.load(deps.storage)?;
+    let perps_addr = address_provider::helpers::query_contract_addr(
+        deps.as_ref(),
+        &current_addr,
+        MarsAddressType::Perps,
+    )?;
+
+    let update_config_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+        contract_addr: perps_addr.to_string(),
+        msg: to_json_binary(&ExecuteMsg::UpdateConfig {
+            updates,
+        })?,
+        funds: vec![],
+    });
+
+    Ok(Response::new()
+        .add_message(update_config_msg)
+        .add_attribute("action", "emergency_disable_perp_cpv_deleverage"))
 }

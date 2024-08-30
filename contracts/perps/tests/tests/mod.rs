@@ -8,4 +8,5 @@ mod test_pnl;
 mod test_position;
 mod test_protocol_fees;
 mod test_query;
+mod test_update_config;
 mod test_vault;

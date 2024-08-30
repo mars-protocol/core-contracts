@@ -18,6 +18,7 @@ import {
   ActionKind,
   SignedUint,
   PerpParams,
+  ConfigUpdates,
   QueryMsg,
   ConfigForString,
   Accounting,
@@ -482,6 +483,16 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     memo?: string,
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
+  updateConfig: (
+    {
+      updates,
+    }: {
+      updates: ConfigUpdates
+    },
+    fee?: number | StdFee | 'auto',
+    memo?: string,
+    _funds?: Coin[],
+  ) => Promise<ExecuteResult>
 }
 export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsInterface {
   client: SigningCosmWasmClient
@@ -500,6 +511,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     this.closeAllPositions = this.closeAllPositions.bind(this)
     this.deleverage = this.deleverage.bind(this)
     this.updateParams = this.updateParams.bind(this)
+    this.updateConfig = this.updateConfig.bind(this)
   }
   updateOwner = async (
     ownerUpdate: OwnerUpdate,
@@ -690,6 +702,29 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       {
         update_params: {
           params,
+        },
+      },
+      fee,
+      memo,
+      _funds,
+    )
+  }
+  updateConfig = async (
+    {
+      updates,
+    }: {
+      updates: ConfigUpdates
+    },
+    fee: number | StdFee | 'auto' = 'auto',
+    memo?: string,
+    _funds?: Coin[],
+  ): Promise<ExecuteResult> => {
+    return await this.client.execute(
+      this.sender,
+      this.contractAddress,
+      {
+        update_config: {
+          updates,
         },
       },
       fee,

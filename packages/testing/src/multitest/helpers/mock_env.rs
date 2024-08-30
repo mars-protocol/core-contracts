@@ -124,7 +124,8 @@ pub struct MockEnvBuilder {
     pub max_slippage: Option<Decimal>,
     pub health_contract: Option<HealthContract>,
     pub evil_vault: Option<String>,
-    pub target_vault_collaterization_ratio: Option<Decimal>,
+    pub target_vault_collateralization_ratio: Option<Decimal>,
+    pub deleverage_enabled: Option<bool>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -151,7 +152,8 @@ impl MockEnv {
             max_slippage: None,
             health_contract: None,
             evil_vault: None,
-            target_vault_collaterization_ratio: None,
+            target_vault_collateralization_ratio: None,
+            deleverage_enabled: None,
         }
     }
 
@@ -1393,7 +1395,8 @@ impl MockEnvBuilder {
         let contract_code_id = self.app.store_code(mock_perps_contract());
         let owner = self.get_owner();
         let address_provider = self.get_address_provider();
-        let target_vault_collaterization_ratio = self.get_target_vault_collaterization_ratio();
+        let target_vault_collateralization_ratio = self.get_target_vault_collateralization_ratio();
+        let deleverage_enabled = self.get_delegerage_enabled();
 
         let addr = self
             .app
@@ -1409,7 +1412,8 @@ impl MockEnvBuilder {
                     cooldown_period: 360,
                     max_positions: 4,
                     protocol_fee_rate: Decimal::percent(0),
-                    target_vault_collaterization_ratio,
+                    target_vault_collateralization_ratio,
+                    deleverage_enabled,
                 },
                 &[],
                 "mock-perps-contract",
@@ -1724,8 +1728,12 @@ impl MockEnvBuilder {
         self.max_slippage.unwrap_or_else(|| Decimal::percent(99))
     }
 
-    fn get_target_vault_collaterization_ratio(&self) -> Decimal {
-        self.target_vault_collaterization_ratio.unwrap_or_else(|| Decimal::percent(125))
+    fn get_target_vault_collateralization_ratio(&self) -> Decimal {
+        self.target_vault_collateralization_ratio.unwrap_or_else(|| Decimal::percent(125))
+    }
+
+    fn get_delegerage_enabled(&self) -> bool {
+        self.deleverage_enabled.unwrap_or(true)
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -1813,7 +1821,12 @@ impl MockEnvBuilder {
     }
 
     pub fn target_vault_collaterization_ratio(mut self, ratio: Decimal) -> Self {
-        self.target_vault_collaterization_ratio = Some(ratio);
+        self.target_vault_collateralization_ratio = Some(ratio);
+        self
+    }
+
+    pub fn deleverage_enabled(mut self, enabled: bool) -> Self {
+        self.deleverage_enabled = Some(enabled);
         self
     }
 }

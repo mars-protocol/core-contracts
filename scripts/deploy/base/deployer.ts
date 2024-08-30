@@ -484,11 +484,12 @@ export class Deployer {
         cooldown_period: cooldownPeriodUpdated,
         max_positions: this.config.perps.maxPositions,
         protocol_fee_rate: this.config.perps.protocolFeeRate,
-        target_vault_collaterization_ratio: this.config.perps.targetCollaterizationRatio,
+        target_vault_collateralization_ratio: this.config.perps.targetCollaterizationRatio,
         credit_manager: this.storage.addresses.creditManager!,
         oracle: this.storage.addresses.oracle!,
         params: this.storage.addresses.params!,
         address_provider: this.storage.addresses.addressProvider!,
+        deleverage_enabled: this.config.perps.deleverageEnabled,
       }
       await this.instantiate('perps', this.storage.codeIds.perps!, msg)
     } else {

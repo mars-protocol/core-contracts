@@ -55,6 +55,12 @@ pub fn deleverage(
     account_id: String,
     denom: String,
 ) -> ContractResult<Response> {
+    let cfg = CONFIG.load(deps.storage)?;
+
+    if !cfg.deleverage_enabled {
+        return Err(ContractError::DeleverageDisabled);
+    }
+
     // Current block time
     let current_time = env.block.time.seconds();
 
@@ -62,7 +68,6 @@ pub fn deleverage(
     let pricing = ActionKind::Liquidation;
 
     // Load states
-    let cfg = CONFIG.load(deps.storage)?;
     let position = POSITIONS.may_load(deps.storage, (&account_id, &denom))?.ok_or_else(|| {
         ContractError::PositionNotFound {
             account_id: account_id.clone(),
@@ -84,7 +89,7 @@ pub fn deleverage(
     let cr_before = query_vault_cr(deps.as_ref(), current_time, pricing.clone())?;
     assert_cr_and_oi_before_deleverage(
         cr_before,
-        cfg.target_vault_collaterization_ratio,
+        cfg.target_vault_collateralization_ratio,
         denom_price,
         &ds,
         &perp_params,
@@ -136,7 +141,7 @@ pub fn deleverage(
     // Assert CR after deleverage.
     // OI always improves after closing a position.
     let cr_after = query_vault_cr(deps.as_ref(), current_time, pricing.clone())?;
-    assert_cr_after_deleverage(cr_before, cr_after, cfg.target_vault_collaterization_ratio)?;
+    assert_cr_after_deleverage(cr_before, cr_after, cfg.target_vault_collateralization_ratio)?;
 
     // Convert PnL amounts to coins
     let pnl = pnl_amounts.to_coins(&cfg.base_denom).pnl;

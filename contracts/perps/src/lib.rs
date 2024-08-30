@@ -11,5 +11,6 @@ pub mod position_management;
 pub mod pricing;
 pub mod query;
 pub mod state;
+pub mod update_config;
 pub mod utils;
 pub mod vault;

@@ -13,6 +13,7 @@ use crate::{
     error::{ContractError, ContractResult},
     initialize, position_management, query,
     state::OWNER,
+    update_config::update_config,
     vault,
 };
 
@@ -92,6 +93,9 @@ pub fn execute(
         ExecuteMsg::UpdateParams {
             params,
         } => denom_management::update_params(deps, env, info.sender, params),
+        ExecuteMsg::UpdateConfig {
+            updates,
+        } => update_config(deps, info.sender, updates),
     }
 }
 

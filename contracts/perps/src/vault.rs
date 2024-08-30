@@ -227,10 +227,10 @@ pub fn withdraw(
 
     // check if the vault is undercollateralized after the withdrawal
     let current_cr = query_vault_cr(deps.as_ref(), current_time, ActionKind::Default)?;
-    if current_cr < cfg.target_vault_collaterization_ratio {
+    if current_cr < cfg.target_vault_collateralization_ratio {
         return Err(ContractError::VaultUndercollateralized {
             current_cr,
-            threshold_cr: cfg.target_vault_collaterization_ratio,
+            threshold_cr: cfg.target_vault_collateralization_ratio,
         });
     }
 

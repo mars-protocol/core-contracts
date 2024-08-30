@@ -13,11 +13,12 @@ export interface InstantiateMsg {
   base_denom: string
   cooldown_period: number
   credit_manager: string
+  deleverage_enabled: boolean
   max_positions: number
   oracle: OracleBaseForString
   params: ParamsBaseForString
   protocol_fee_rate: Decimal
-  target_vault_collaterization_ratio: Decimal
+  target_vault_collateralization_ratio: Decimal
 }
 export type ExecuteMsg =
   | {
@@ -64,6 +65,11 @@ export type ExecuteMsg =
         params: PerpParams
       }
     }
+  | {
+      update_config: {
+        updates: ConfigUpdates
+      }
+    }
 export type OwnerUpdate =
   | {
       propose_new_owner: {
@@ -100,6 +106,17 @@ export interface PerpParams {
   min_position_value: Uint128
   opening_fee_rate: Decimal
   skew_scale: Uint128
+}
+export interface ConfigUpdates {
+  address_provider?: string | null
+  cooldown_period?: number | null
+  credit_manager?: string | null
+  deleverage_enabled?: boolean | null
+  max_positions?: number | null
+  oracle?: OracleBaseForString | null
+  params?: ParamsBaseForString | null
+  protocol_fee_rate?: Decimal | null
+  target_vault_collateralization_ratio?: Decimal | null
 }
 export type QueryMsg =
   | {
@@ -210,11 +227,12 @@ export interface ConfigForString {
   base_denom: string
   cooldown_period: number
   credit_manager: string
+  deleverage_enabled: boolean
   max_positions: number
   oracle: OracleBaseForString
   params: ParamsBaseForString
   protocol_fee_rate: Decimal
-  target_vault_collaterization_ratio: Decimal
+  target_vault_collateralization_ratio: Decimal
 }
 export interface Accounting {
   balance: Balance

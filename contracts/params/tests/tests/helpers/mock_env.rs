@@ -7,12 +7,12 @@ use cw_paginate::PaginationResponse;
 use mars_owner::{OwnerResponse, OwnerUpdate};
 use mars_types::{
     adapters::{oracle::OracleBase, params::ParamsBase},
-    address_provider::{self, MarsAddressType},
+    address_provider::{self, AddressResponseItem, MarsAddressType},
     params::{
         AssetParams, AssetParamsUpdate, ConfigResponse, EmergencyUpdate, ExecuteMsg,
         InstantiateMsg, PerpParams, PerpParamsUpdate, QueryMsg, VaultConfig, VaultConfigUpdate,
     },
-    perps,
+    perps::{self, Config},
 };
 
 use super::contracts::{mock_address_provider_contract, mock_params_contract, mock_perps_contract};
@@ -246,6 +246,22 @@ impl MockEnv {
             .query_wasm_smart(self.params_contract.clone(), &QueryMsg::Config {})
             .unwrap()
     }
+
+    pub fn query_perp_config(&self) -> Config<Addr> {
+        let perps_address: AddressResponseItem = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                self.address_provider_contract.clone(),
+                &address_provider::QueryMsg::Address(MarsAddressType::Perps),
+            )
+            .unwrap();
+
+        self.app
+            .wrap()
+            .query_wasm_smart(perps_address.address, &perps::QueryMsg::Config {})
+            .unwrap()
+    }
 }
 
 impl MockEnvBuilder {
@@ -316,7 +332,8 @@ impl MockEnvBuilder {
                     cooldown_period: 0,
                     max_positions: 4,
                     protocol_fee_rate: Decimal::from_ratio(1u128, 100u128),
-                    target_vault_collaterization_ratio: Decimal::from_ratio(125u128, 100u128),
+                    target_vault_collateralization_ratio: Decimal::from_ratio(125u128, 100u128),
+                    deleverage_enabled: true,
                 },
                 &[],
                 "mock-perps",

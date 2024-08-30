@@ -5,7 +5,10 @@ use cosmwasm_std::{coin, Addr, Api, Coin, Decimal, StdResult, Uint128};
 use mars_owner::OwnerUpdate;
 
 use crate::{
-    adapters::{oracle::OracleBase, params::ParamsBase},
+    adapters::{
+        oracle::{OracleBase, OracleUnchecked},
+        params::{ParamsBase, ParamsUnchecked},
+    },
     error::MarsError,
     math::SignedDecimal,
     oracle::ActionKind,
@@ -63,7 +66,11 @@ pub struct Config<T> {
     pub protocol_fee_rate: Decimal,
 
     /// The target collateralization ratio of the vault
-    pub target_vault_collaterization_ratio: Decimal,
+    pub target_vault_collateralization_ratio: Decimal,
+
+    /// If the collateralization ratio of the vault falls below the target_vault_collateralization_ratio, it is eligible
+    /// to be deleveraged when this parameter is true.
+    pub deleverage_enabled: bool,
 }
 
 impl Config<String> {
@@ -77,7 +84,8 @@ impl Config<String> {
             cooldown_period: self.cooldown_period,
             max_positions: self.max_positions,
             protocol_fee_rate: self.protocol_fee_rate,
-            target_vault_collaterization_ratio: self.target_vault_collaterization_ratio,
+            target_vault_collateralization_ratio: self.target_vault_collateralization_ratio,
+            deleverage_enabled: self.deleverage_enabled,
         })
     }
 }
@@ -93,9 +101,23 @@ impl From<Config<Addr>> for Config<String> {
             cooldown_period: cfg.cooldown_period,
             max_positions: cfg.max_positions,
             protocol_fee_rate: cfg.protocol_fee_rate,
-            target_vault_collaterization_ratio: cfg.target_vault_collaterization_ratio,
+            target_vault_collateralization_ratio: cfg.target_vault_collateralization_ratio,
+            deleverage_enabled: cfg.deleverage_enabled,
         }
     }
+}
+#[cw_serde]
+#[derive(Default)]
+pub struct ConfigUpdates {
+    pub address_provider: Option<String>,
+    pub credit_manager: Option<String>,
+    pub oracle: Option<OracleUnchecked>,
+    pub params: Option<ParamsUnchecked>,
+    pub cooldown_period: Option<u64>,
+    pub max_positions: Option<u8>,
+    pub protocol_fee_rate: Option<Decimal>,
+    pub target_vault_collateralization_ratio: Option<Decimal>,
+    pub deleverage_enabled: Option<bool>,
 }
 
 /// Global state of the counterparty vault
@@ -557,6 +579,10 @@ pub enum ExecuteMsg {
     /// Receive updated parameters from the params contract
     UpdateParams {
         params: PerpParams,
+    },
+
+    UpdateConfig {
+        updates: ConfigUpdates,
     },
 }
 

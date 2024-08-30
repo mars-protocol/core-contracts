@@ -38,6 +38,9 @@ pub enum ContractError {
     #[error(transparent)]
     Mars(#[from] MarsError),
 
+    #[error("Cannot deleverage - deleveraging is disabled")]
+    DeleverageDisabled,
+
     #[error("denom `{denom}` is already enabled")]
     DenomEnabled {
         denom: String,

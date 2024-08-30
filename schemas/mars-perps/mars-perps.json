@@ -12,11 +12,12 @@
       "base_denom",
       "cooldown_period",
       "credit_manager",
+      "deleverage_enabled",
       "max_positions",
       "oracle",
       "params",
       "protocol_fee_rate",
-      "target_vault_collaterization_ratio"
+      "target_vault_collateralization_ratio"
     ],
     "properties": {
       "address_provider": {
@@ -36,6 +37,10 @@
       "credit_manager": {
         "description": "Address of the Mars Rover credit manager (CM) contract.\n\nUsers open, modify, or close perp positions by interacting with the CM. The CM then invokes the appropriate execute method(s) on the perps contract to fulfill the user requests.",
         "type": "string"
+      },
+      "deleverage_enabled": {
+        "description": "If the collateralization ratio of the vault falls below the target_vault_collateralization_ratio, it is eligible to be deleveraged when this parameter is true.",
+        "type": "boolean"
       },
       "max_positions": {
         "description": "The maximum number of positions that can be opened by a single user",
@@ -67,7 +72,7 @@
           }
         ]
       },
-      "target_vault_collaterization_ratio": {
+      "target_vault_collateralization_ratio": {
         "description": "The target collateralization ratio of the vault",
         "allOf": [
           {
@@ -301,6 +306,27 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "update_config"
+        ],
+        "properties": {
+          "update_config": {
+            "type": "object",
+            "required": [
+              "updates"
+            ],
+            "properties": {
+              "updates": {
+                "$ref": "#/definitions/ConfigUpdates"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -312,8 +338,91 @@
           "liquidation"
         ]
       },
+      "ConfigUpdates": {
+        "type": "object",
+        "properties": {
+          "address_provider": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cooldown_period": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint64",
+            "minimum": 0.0
+          },
+          "credit_manager": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "deleverage_enabled": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "max_positions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint8",
+            "minimum": 0.0
+          },
+          "oracle": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/OracleBase_for_String"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "params": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/ParamsBase_for_String"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "protocol_fee_rate": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "target_vault_collateralization_ratio": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "Decimal": {
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+        "type": "string"
+      },
+      "OracleBase_for_String": {
         "type": "string"
       },
       "OwnerUpdate": {
@@ -391,6 +500,9 @@
             ]
           }
         ]
+      },
+      "ParamsBase_for_String": {
+        "type": "string"
       },
       "PerpParams": {
         "type": "object",
@@ -1077,11 +1189,12 @@
         "base_denom",
         "cooldown_period",
         "credit_manager",
+        "deleverage_enabled",
         "max_positions",
         "oracle",
         "params",
         "protocol_fee_rate",
-        "target_vault_collaterization_ratio"
+        "target_vault_collateralization_ratio"
       ],
       "properties": {
         "address_provider": {
@@ -1101,6 +1214,10 @@
         "credit_manager": {
           "description": "Address of the Mars Rover credit manager (CM) contract.\n\nUsers open, modify, or close perp positions by interacting with the CM. The CM then invokes the appropriate execute method(s) on the perps contract to fulfill the user requests.",
           "type": "string"
+        },
+        "deleverage_enabled": {
+          "description": "If the collateralization ratio of the vault falls below the target_vault_collateralization_ratio, it is eligible to be deleveraged when this parameter is true.",
+          "type": "boolean"
         },
         "max_positions": {
           "description": "The maximum number of positions that can be opened by a single user",
@@ -1132,7 +1249,7 @@
             }
           ]
         },
-        "target_vault_collaterization_ratio": {
+        "target_vault_collateralization_ratio": {
           "description": "The target collateralization ratio of the vault",
           "allOf": [
             {

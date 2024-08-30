@@ -663,6 +663,21 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "disable_deleverage"
+            ],
+            "properties": {
+              "disable_deleverage": {
+                "type": "array",
+                "items": [],
+                "maxItems": 0,
+                "minItems": 0
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },

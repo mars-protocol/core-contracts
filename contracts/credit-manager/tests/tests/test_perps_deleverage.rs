@@ -155,20 +155,21 @@ fn assert_positions(
 }
 
 // TODO: The below tests should be moved to Perps contract once MockEnv from Perps helpers is merged with MockEnv from testing package
-
-#[test_case( "240000000", "480000000", "-40000000", "-60000000", false, "15.0", false, false, 1, Some(PerpsContractError::DeleverageInvalidPosition { reason: "CR >= TCR and OI <= max OI".to_string()}); "CR greater than or equal to target, OI not exeeded; close a position; throw error")]
-#[test_case( "240000000", "480000000", "-40000000", "-60000000", false, "15.0", true, false, 1, None; "CR greater than or equal to target, long OI exeeded; close most profitable long position; CR improved, long OI improved")]
-#[test_case( "240000000", "480000000", "-40000000", "-60000000", false, "15.0", false, true, 2, None; "CR greater than or equal to target, short OI exeeded; close least lossy short position; CR decreased, short OI improved")]
-#[test_case( "240000000", "480000000", "-40000000", "-60000000", false, "15.0", false, true, 1, Some(PerpsContractError::DeleverageInvalidPosition { reason: "CR >= TCR and OI <= max OI".to_string()}); "CR greater than or equal to target, short OI exeeded; close most profitable long position; CR increased, short OI not improved; throw error")]
-#[test_case( "-240000000", "-480000000", "40000000", "60000000", false, "5.0", false, true, 1, None; "CR greater than or equal to target, short OI exeeded; close most profitable short position; CR improved, short OI improved")]
-#[test_case( "-240000000", "-480000000", "40000000", "60000000", false, "5.0", true, false, 2, None; "CR greater than or equal to target, long OI exeeded; close least lossy long position; CR decreased, long OI improved")]
-#[test_case( "-240000000", "-480000000", "40000000", "60000000", false, "5.0", true, false, 1, Some(PerpsContractError::DeleverageInvalidPosition { reason: "CR >= TCR and OI <= max OI".to_string()}); "CR greater than or equal to target, long OI exeeded; close most profitable short position; CR increased, long OI not improved; throw error")]
-#[test_case( "240000000", "480000000", "-4000000", "-6000000", true, "15.0", true, true, 1, None; "CR below target, OI exeeded; close most profitable long position; CR improved, long OI improved")]
-#[test_case( "240000000", "480000000", "-4000000", "-6000000", true, "15.0", true, true, 0, None; "CR below target, OI exeeded; close second most profitable long position; CR improved, long OI improved")]
-#[test_case( "240000000", "480000000", "-4000000", "-6000000", true, "15.0", true, true, 3, Some(PerpsContractError::DeleverageInvalidPosition { reason: "Position closure did not improve CR".to_string()}); "CR below target, OI exeeded; close most lossy short position; CR decreased; throw error")]
-#[test_case( "-240000000", "-480000000", "4000000", "6000000", true, "5.0", true, true, 1, None; "CR below target, OI exeeded; close most profitable short position; CR improved, short OI improved")]
-#[test_case( "-240000000", "-480000000", "4000000", "6000000", true, "5.0", true, true, 0, None; "CR below target, OI exeeded; close second most profitable short position; CR improved, short OI improved")]
-#[test_case( "-240000000", "-480000000", "4000000", "6000000", true, "5.0", true, true, 3, Some(PerpsContractError::DeleverageInvalidPosition { reason: "Position closure did not improve CR".to_string()}); "CR below target, OI exeeded; close most lossy long position; CR decreased; throw error")]
+#[test_case( "-240000000", "-480000000", "4000000", "6000000", true, "5.0", true, true, 3, Some(false), Some(PerpsContractError::DeleverageDisabled ); "CR below target, Deleverage disabled; close most lossy long position; CR decreased; throw error")]
+#[test_case( "240000000", "480000000", "-40000000", "-60000000", false, "15.0", false, false, 1, None, Some(PerpsContractError::DeleverageInvalidPosition { reason: "CR >= TCR and OI <= max OI".to_string()}); "CR greater than or equal to target, OI not exeeded; close a position; throw error")]
+#[test_case( "240000000", "480000000", "-40000000", "-60000000", false, "15.0", true, false, 1, None, None; "CR greater than or equal to target, long OI exeeded; close most profitable long position; CR improved, long OI improved")]
+#[test_case( "240000000", "480000000", "-40000000", "-60000000", false, "15.0", false, true, 2, None, None; "CR greater than or equal to target, short OI exeeded; close least lossy short position; CR decreased, short OI improved")]
+#[test_case( "240000000", "480000000", "-40000000", "-60000000", false, "15.0", false, true, 1, None, Some(PerpsContractError::DeleverageInvalidPosition { reason: "CR >= TCR and OI <= max OI".to_string()}); "CR greater than or equal to target, short OI exeeded; close most profitable long position; CR increased, short OI not improved; throw error")]
+#[test_case( "-240000000", "-480000000", "40000000", "60000000", false, "5.0", false, true, 1, None, None; "CR greater than or equal to target, short OI exeeded; close most profitable short position; CR improved, short OI improved")]
+#[test_case( "-240000000", "-480000000", "40000000", "60000000", false, "5.0", true, false, 2, None, None; "CR greater than or equal to target, long OI exeeded; close least lossy long position; CR decreased, long OI improved")]
+#[test_case( "-240000000", "-480000000", "40000000", "60000000", false, "5.0", true, false, 1, None, Some(PerpsContractError::DeleverageInvalidPosition { reason: "CR >= TCR and OI <= max OI".to_string()}); "CR greater than or equal to target, long OI exeeded; close most profitable short position; CR increased, long OI not improved; throw error")]
+#[test_case( "240000000", "480000000", "-4000000", "-6000000", true, "15.0", true, true, 1, None, None; "CR below target, OI exeeded; close most profitable long position; CR improved, long OI improved")]
+#[test_case( "240000000", "480000000", "-4000000", "-6000000", true, "15.0", true, true, 0, None, None; "CR below target, OI exeeded; close second most profitable long position; CR improved, long OI improved")]
+#[test_case( "240000000", "480000000", "-4000000", "-6000000", true, "15.0", true, true, 3, None, Some(PerpsContractError::DeleverageInvalidPosition { reason: "Position closure did not improve CR".to_string()}); "CR below target, OI exeeded; close most lossy short position; CR decreased; throw error")]
+#[test_case( "-240000000", "-480000000", "4000000", "6000000", true, "5.0", true, true, 1, None, None; "CR below target, OI exeeded; close most profitable short position; CR improved, short OI improved")]
+#[test_case( "-240000000", "-480000000", "4000000", "6000000", true, "5.0", true, true, 0, None, None; "CR below target, OI exeeded; close second most profitable short position; CR improved, short OI improved")]
+#[test_case( "-240000000", "-480000000", "4000000", "6000000", true, "5.0", true, true, 3, None, Some(PerpsContractError::DeleverageInvalidPosition { reason: "Position closure did not improve CR".to_string()}); "CR below target, OI exeeded; close most lossy long position; CR decreased; throw error")]
+#[allow(clippy::too_many_arguments)]
 fn deleverage(
     acc_1_atom_pos: &str,
     acc_2_atom_pos: &str,
@@ -179,6 +180,7 @@ fn deleverage(
     long_oi_above_max: bool,
     short_oi_above_max: bool,
     acc_to_close: usize, // index of account to close (0 idx = acc_1, 1 idx = acc_2, ...)
+    deleverage_enabled: Option<bool>,
     exp_error: Option<PerpsContractError>,
 ) {
     let acc_1_atom_pos = SignedUint::from_str(acc_1_atom_pos).unwrap();
@@ -219,6 +221,7 @@ fn deleverage(
     let mut mock = MockEnv::new()
         .owner(contract_owner.as_str())
         .target_vault_collaterization_ratio(target_collateralization_ratio)
+        .deleverage_enabled(deleverage_enabled.unwrap_or(true))
         .set_params(&[osmo_info.clone(), atom_info.clone(), usdc_info.clone(), tia_info.clone()])
         .fund_accounts(
             vec![cm_user_1.clone(), cm_user_2.clone(), cm_user_3.clone(), cm_user_4.clone()],

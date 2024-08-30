@@ -2,9 +2,12 @@ use cosmwasm_std::Addr;
 use mars_owner::OwnerError;
 use mars_params::error::ContractError::Owner;
 use mars_testing::multitest::helpers::default_perp_params;
-use mars_types::params::{
-    AssetParamsUpdate, CmEmergencyUpdate, EmergencyUpdate, PerpParamsUpdate, PerpsEmergencyUpdate,
-    RedBankEmergencyUpdate, VaultConfigUpdate,
+use mars_types::{
+    params::{
+        AssetParamsUpdate, CmEmergencyUpdate, EmergencyUpdate, PerpParamsUpdate,
+        PerpsEmergencyUpdate, RedBankEmergencyUpdate, VaultConfigUpdate,
+    },
+    perps::Config,
 };
 
 use super::helpers::{assert_err, default_asset_params, default_vault_config, MockEnv};
@@ -244,4 +247,31 @@ fn disabled_perp_trading() {
 
     let params = mock.query_perp_params(&denom);
     assert!(!params.enabled);
+}
+
+#[test]
+fn disable_perp_cpv_deleverage() {
+    // Set up and ensure deleverage is enabled
+    let emergency_owner = Addr::unchecked("miles_morales");
+    let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();
+    let initial_config = mock.query_perp_config();
+    assert!(initial_config.deleverage_enabled);
+
+    // Disable deleverage
+    mock.emergency_update(
+        &emergency_owner,
+        EmergencyUpdate::Perps(PerpsEmergencyUpdate::DisableDeleverage()),
+    )
+    .unwrap();
+
+    // Verify deleverage disabled
+    let updated_config = mock.query_perp_config();
+    assert_eq!(
+        updated_config,
+        Config {
+            deleverage_enabled: false,
+            ..initial_config
+        }
+    );
+    assert!(!updated_config.deleverage_enabled);
 }

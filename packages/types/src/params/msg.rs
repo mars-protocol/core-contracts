@@ -140,6 +140,7 @@ pub enum RedBankEmergencyUpdate {
 #[cw_serde]
 pub enum PerpsEmergencyUpdate {
     DisableTrading(String),
+    DisableDeleverage(),
 }
 
 #[cw_serde]

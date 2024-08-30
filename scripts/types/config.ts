@@ -96,6 +96,7 @@ export interface DeploymentConfig {
     denoms: PerpDenom[]
     protocolFeeRate: Decimal
     targetCollaterizationRatio: Decimal
+    deleverageEnabled: boolean
   }
 }
 

@@ -19,6 +19,7 @@ import {
   ActionKind,
   SignedUint,
   PerpParams,
+  ConfigUpdates,
   QueryMsg,
   ConfigForString,
   Accounting,
@@ -686,6 +687,29 @@ export function useMarsPerpsOwnerQuery<TData = OwnerResponse>({
       ...options,
       enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
     },
+  )
+}
+export interface MarsPerpsUpdateConfigMutation {
+  client: MarsPerpsClient
+  msg: {
+    updates: ConfigUpdates
+  }
+  args?: {
+    fee?: number | StdFee | 'auto'
+    memo?: string
+    funds?: Coin[]
+  }
+}
+export function useMarsPerpsUpdateConfigMutation(
+  options?: Omit<
+    UseMutationOptions<ExecuteResult, Error, MarsPerpsUpdateConfigMutation>,
+    'mutationFn'
+  >,
+) {
+  return useMutation<ExecuteResult, Error, MarsPerpsUpdateConfigMutation>(
+    ({ client, msg, args: { fee, memo, funds } = {} }) =>
+      client.updateConfig(msg, fee, memo, funds),
+    options,
   )
 }
 export interface MarsPerpsUpdateParamsMutation {

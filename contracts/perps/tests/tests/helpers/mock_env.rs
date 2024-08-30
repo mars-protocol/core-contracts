@@ -19,9 +19,10 @@ use mars_types::{
         PerpParams, PerpParamsUpdate,
     },
     perps::{
-        self, Accounting, Config, DenomStateResponse, PerpDenomState, PerpVaultDeposit,
-        PerpVaultPosition, PerpVaultUnlock, PnlAmounts, PnlValues, PositionFeesResponse,
-        PositionResponse, PositionsByAccountResponse, TradingFee, VaultResponse,
+        self, Accounting, Config, ConfigUpdates, DenomStateResponse, PerpDenomState,
+        PerpVaultDeposit, PerpVaultPosition, PerpVaultUnlock, PnlAmounts, PnlValues,
+        PositionFeesResponse, PositionResponse, PositionsByAccountResponse, TradingFee,
+        VaultResponse,
     },
     rewards_collector,
     signed_uint::SignedUint,
@@ -55,8 +56,9 @@ pub struct MockEnvBuilder {
     max_positions: u8,
     protocol_fee_rate: Decimal,
     pub address_provider: Option<Addr>,
-    target_vault_collaterization_ratio: Decimal,
+    target_vault_collateralization_ratio: Decimal,
     pub emergency_owner: Option<String>,
+    deleverage_enabled: bool,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -71,8 +73,9 @@ impl MockEnv {
             max_positions: 4,
             protocol_fee_rate: Decimal::percent(0),
             address_provider: None,
-            target_vault_collaterization_ratio: Decimal::percent(125),
+            target_vault_collateralization_ratio: Decimal::percent(125),
             emergency_owner: None,
+            deleverage_enabled: true,
         }
     }
 
@@ -131,6 +134,21 @@ impl MockEnv {
             sender.clone(),
             self.perps.clone(),
             &perps::ExecuteMsg::UpdateOwner(update),
+            &[],
+        )
+    }
+
+    pub fn update_config(
+        &mut self,
+        sender: &Addr,
+        updates: ConfigUpdates,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.perps.clone(),
+            &perps::ExecuteMsg::UpdateConfig {
+                updates,
+            },
             &[],
         )
     }
@@ -712,7 +730,8 @@ impl MockEnvBuilder {
                     cooldown_period: self.cooldown_period,
                     max_positions: self.max_positions,
                     protocol_fee_rate: self.protocol_fee_rate,
-                    target_vault_collaterization_ratio: self.target_vault_collaterization_ratio,
+                    target_vault_collateralization_ratio: self.target_vault_collateralization_ratio,
+                    deleverage_enabled: self.deleverage_enabled,
                 },
                 &[],
                 "mock-perps",
@@ -860,7 +879,7 @@ impl MockEnvBuilder {
     }
 
     pub fn target_vault_collaterization_ratio(&mut self, ratio: Decimal) -> &mut Self {
-        self.target_vault_collaterization_ratio = ratio;
+        self.target_vault_collateralization_ratio = ratio;
         self
     }
 

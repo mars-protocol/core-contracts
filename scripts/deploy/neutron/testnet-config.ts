@@ -704,6 +704,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
     maxPositions: 4,
     protocolFeeRate: '0.1',
     targetCollaterizationRatio: '1.2',
+    deleverageEnabled: true,
     denoms: [
       atomPerpDenom,
       ntrnPerpDenom,

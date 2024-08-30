@@ -103,9 +103,13 @@ export type RedBankEmergencyUpdate =
   | {
       disable_withdraw: string
     }
-export type PerpsEmergencyUpdate = {
-  disable_trading: string
-}
+export type PerpsEmergencyUpdate =
+  | {
+      disable_trading: string
+    }
+  | {
+      disable_deleverage: []
+    }
 export interface AssetParamsBaseForString {
   close_factor: Decimal
   credit_manager: CmSettingsForString
