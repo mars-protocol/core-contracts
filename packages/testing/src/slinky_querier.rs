@@ -4,7 +4,7 @@ use cosmwasm_std::{to_json_binary, Binary, ContractResult, QuerierResult};
 use mars_oracle_wasm::slinky::CurrencyPairExt;
 use neutron_sdk::bindings::{
     marketmap::{
-        query::{MarketMapQuery, MarketMapResponse},
+        query::{MarketMapQuery, MarketMapResponse, MarketResponse},
         types::{Market, MarketMap},
     },
     oracle::{
@@ -65,7 +65,10 @@ impl SlinkyQuerier {
                     let option_market = self.markets.get(&key);
 
                     if let Some(market) = option_market {
-                        to_json_binary(market).into()
+                        let response = MarketResponse {
+                            market: market.clone(),
+                        };
+                        to_json_binary(&response).into()
                     } else {
                         Err(format!("[mock]: could not find Slinky market for {key}")).into()
                     }

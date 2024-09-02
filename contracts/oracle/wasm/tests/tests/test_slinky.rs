@@ -327,48 +327,6 @@ fn setting_slinky_price_source_successfully() {
 }
 
 #[test]
-fn quering_slinky_price_if_missing_currency_pair() {
-    let mut deps = helpers::setup_test("astroport_factory");
-
-    set_usd_price(deps.as_mut());
-
-    let cp = OracleCurrencyPair {
-        base: "NTRN".to_string(),
-        quote: "USD".to_string(),
-    };
-    deps.querier.set_slinky_currency_pair(cp.clone());
-    deps.querier.set_slinky_market(cp.clone(), create_slinky_market(&cp, 8, true));
-
-    helpers::set_price_source(
-        deps.as_mut(),
-        "untrn",
-        WasmPriceSourceUnchecked::Slinky {
-            base_symbol: "NTRN".to_string(),
-            denom_decimals: 8,
-            max_blocks_old: 4,
-        },
-    );
-
-    deps.querier.remove_slinky_currency_pair(cp.clone());
-
-    let err = entry::query(
-        deps.as_ref(),
-        mock_env(),
-        QueryMsg::Price {
-            denom: "untrn".to_string(),
-            kind: None,
-        },
-    )
-    .unwrap_err();
-    assert_eq!(
-        err,
-        ContractError::InvalidPriceSource {
-            reason: "Slinky Market NTRN/USD not found in x/oracle module".to_string()
-        }
-    );
-}
-
-#[test]
 fn quering_slinky_price_if_missing_or_disabled_market() {
     let mut deps = helpers::setup_test("astroport_factory");
 

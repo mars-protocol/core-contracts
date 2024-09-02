@@ -5,7 +5,7 @@ use mars_oracle_base::{
 };
 use mars_types::oracle::{ActionKind, Config};
 use neutron_sdk::bindings::{
-    marketmap::query::{MarketMapQuery, MarketMapResponse},
+    marketmap::query::{MarketMapQuery, MarketResponse},
     oracle::{
         query::{GetAllCurrencyPairsResponse, GetPriceResponse, OracleQuery},
         types::CurrencyPair,
@@ -87,31 +87,25 @@ fn assert_currency_pair_in_market_module(
     querier: &QuerierWrapper<NeutronQuery>,
     currency_pair: &CurrencyPair,
 ) -> ContractResult<()> {
-    // fetch all supported currency pairs in x/marketmap module
-    // TODO: use MarketMapQuery::Market instead of MarketMapQuery::MarketMap when it returns Option<Market>
-    let market_map_currency_pairs_query: MarketMapQuery = MarketMapQuery::MarketMap {};
-    let market_map_currency_pairs_response: MarketMapResponse =
-        querier.query(&market_map_currency_pairs_query.into())?;
-    let market = market_map_currency_pairs_response.market_map.markets.get(&currency_pair.key());
-    match market {
-        None => {
-            return Err(ContractError::InvalidPriceSource {
-                reason: format!(
-                    "Slinky Market {}/{} not found in x/marketmap module",
-                    currency_pair.base, currency_pair.quote
-                ),
-            });
-        }
-        Some(market) => {
-            if !market.ticker.enabled {
-                return Err(ContractError::InvalidPriceSource {
-                    reason: format!(
-                        "Slinky Market {}/{} not enabled in x/marketmap module",
-                        currency_pair.base, currency_pair.quote
-                    ),
-                });
-            }
-        }
+    // fetch currency pair from x/marketmap module
+    let market_currency_pair_query: MarketMapQuery = MarketMapQuery::Market {
+        currency_pair: currency_pair.clone(),
+    };
+    let market_currency_pair_response: MarketResponse = querier
+        .query(&market_currency_pair_query.into())
+        .map_err(|_| ContractError::InvalidPriceSource {
+            reason: format!(
+                "Slinky Market {}/{} not found in x/marketmap module",
+                currency_pair.base, currency_pair.quote
+            ),
+        })?;
+    if !market_currency_pair_response.market.ticker.enabled {
+        return Err(ContractError::InvalidPriceSource {
+            reason: format!(
+                "Slinky Market {}/{} not enabled in x/marketmap module",
+                currency_pair.base, currency_pair.quote
+            ),
+        });
     }
 
     Ok(())
@@ -134,7 +128,6 @@ pub fn query_slinky_price<P: PriceSourceChecked<Empty>>(
         quote: SLINKY_QUOTE_CURRENCY.to_string(),
     };
 
-    assert_currency_pair_in_oracle_module(&ntrn_querier, &currency_pair)?;
     assert_currency_pair_in_market_module(&ntrn_querier, &currency_pair)?;
 
     // fetch price for currency_pair from x/oracle module

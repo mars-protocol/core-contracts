@@ -602,9 +602,20 @@ pub fn compute_total_pnl(
         PnlValues::default(),
         |acc, item| -> ContractResult<_> {
             let (denom, ds) = item?;
-            let perp_params = config.params.query_perp_params(&deps.querier, &denom)?;
 
+            // if there are no open positions, we can skip the computation
+            if ds.total_size()?.is_zero() {
+                return Ok(PnlValues {
+                    price_pnl: acc.price_pnl,
+                    closing_fee: acc.closing_fee,
+                    accrued_funding: acc.accrued_funding,
+                    pnl: acc.pnl,
+                });
+            }
+
+            let perp_params = config.params.query_perp_params(&deps.querier, &denom)?;
             let denom_price = oracle.query_price(&deps.querier, &denom, action.clone())?.price;
+
             let (pnl_values, _) = ds.compute_pnl(
                 current_time,
                 denom_price,
