@@ -192,7 +192,6 @@ pub fn query_user_amount(
                 &perps::QueryMsg::PerpVaultPosition {
                     user_address: user_addr.to_string(),
                     account_id,
-                    action: None,
                 },
             )?;
 

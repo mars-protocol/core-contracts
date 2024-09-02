@@ -54,19 +54,11 @@ export interface MarsPerpsReadOnlyInterface {
   config: () => Promise<ConfigForString>
   vault: ({ action }: { action?: ActionKind }) => Promise<VaultResponse>
   denomState: ({ denom }: { denom: string }) => Promise<DenomStateResponse>
-  perpDenomState: ({
-    action,
-    denom,
-  }: {
-    action: ActionKind
-    denom: string
-  }) => Promise<PerpDenomState>
+  perpDenomState: ({ denom }: { denom: string }) => Promise<PerpDenomState>
   perpDenomStates: ({
-    action,
     limit,
     startAfter,
   }: {
-    action: ActionKind
     limit?: number
     startAfter?: string
   }) => Promise<PaginationResponseForPerpDenomState>
@@ -79,11 +71,9 @@ export interface MarsPerpsReadOnlyInterface {
   }) => Promise<ArrayOfDenomStateResponse>
   perpVaultPosition: ({
     accountId,
-    action,
     userAddress,
   }: {
     accountId?: string
-    action?: ActionKind
     userAddress: string
   }) => Promise<NullablePerpVaultPosition>
   deposit: ({
@@ -194,32 +184,22 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
       },
     })
   }
-  perpDenomState = async ({
-    action,
-    denom,
-  }: {
-    action: ActionKind
-    denom: string
-  }): Promise<PerpDenomState> => {
+  perpDenomState = async ({ denom }: { denom: string }): Promise<PerpDenomState> => {
     return this.client.queryContractSmart(this.contractAddress, {
       perp_denom_state: {
-        action,
         denom,
       },
     })
   }
   perpDenomStates = async ({
-    action,
     limit,
     startAfter,
   }: {
-    action: ActionKind
     limit?: number
     startAfter?: string
   }): Promise<PaginationResponseForPerpDenomState> => {
     return this.client.queryContractSmart(this.contractAddress, {
       perp_denom_states: {
-        action,
         limit,
         start_after: startAfter,
       },
@@ -241,17 +221,14 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
   }
   perpVaultPosition = async ({
     accountId,
-    action,
     userAddress,
   }: {
     accountId?: string
-    action?: ActionKind
     userAddress: string
   }): Promise<NullablePerpVaultPosition> => {
     return this.client.queryContractSmart(this.contractAddress, {
       perp_vault_position: {
         account_id: accountId,
-        action,
         user_address: userAddress,
       },
     })

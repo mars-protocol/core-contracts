@@ -616,13 +616,11 @@ pub enum QueryMsg {
     #[returns(PerpDenomState)]
     PerpDenomState {
         denom: String,
-        action: ActionKind,
     },
 
     /// Query a single perp denom state with current calculated PnL, funding etc.
     #[returns(cw_paginate::PaginationResponse<PerpDenomState>)]
     PerpDenomStates {
-        action: ActionKind,
         start_after: Option<String>,
         limit: Option<u32>,
     },
@@ -642,8 +640,6 @@ pub enum QueryMsg {
         /// The user's credit account token ID.
         /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
         account_id: Option<String>,
-
-        action: Option<ActionKind>,
     },
 
     /// Query the amount of deposit made to the vault by a single user

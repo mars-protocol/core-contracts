@@ -81,7 +81,7 @@ pub fn query_positions(
         perps: PERPS.load(deps.storage)?.query_positions_by_account(
             &deps.querier,
             account_id,
-            action.clone(),
+            action,
         )?,
     })
 }

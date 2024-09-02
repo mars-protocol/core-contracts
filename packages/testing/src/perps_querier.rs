@@ -15,7 +15,6 @@ impl PerpsQuerier {
             QueryMsg::PerpVaultPosition {
                 user_address,
                 account_id: _,
-                action: _,
             } => match self.vault_positions.get(&user_address.clone()) {
                 Some(position) => to_json_binary(&position).into(),
                 None => {

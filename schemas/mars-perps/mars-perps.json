@@ -741,13 +741,9 @@
           "perp_denom_state": {
             "type": "object",
             "required": [
-              "action",
               "denom"
             ],
             "properties": {
-              "action": {
-                "$ref": "#/definitions/ActionKind"
-              },
               "denom": {
                 "type": "string"
               }
@@ -766,13 +762,7 @@
         "properties": {
           "perp_denom_states": {
             "type": "object",
-            "required": [
-              "action"
-            ],
             "properties": {
-              "action": {
-                "$ref": "#/definitions/ActionKind"
-              },
               "limit": {
                 "type": [
                   "integer",
@@ -840,16 +830,6 @@
                 "type": [
                   "string",
                   "null"
-                ]
-              },
-              "action": {
-                "anyOf": [
-                  {
-                    "$ref": "#/definitions/ActionKind"
-                  },
-                  {
-                    "type": "null"
-                  }
                 ]
               },
               "user_address": {

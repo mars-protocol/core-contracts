@@ -139,13 +139,11 @@ export type QueryMsg =
     }
   | {
       perp_denom_state: {
-        action: ActionKind
         denom: string
       }
     }
   | {
       perp_denom_states: {
-        action: ActionKind
         limit?: number | null
         start_after?: string | null
       }
@@ -159,7 +157,6 @@ export type QueryMsg =
   | {
       perp_vault_position: {
         account_id?: string | null
-        action?: ActionKind | null
         user_address: string
       }
     }

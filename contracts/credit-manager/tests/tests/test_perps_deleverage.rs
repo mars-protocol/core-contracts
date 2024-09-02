@@ -350,12 +350,18 @@ fn deleverage(
     };
 
     // check CR before deleverage
-    let vault = mock.query_perp_vault();
+    let vault = mock.query_perp_vault(Some(ActionKind::Default)).unwrap();
     let cr_before = vault.collateralization_ratio.unwrap_or(Decimal::MAX);
     assert!(
         (cr_below_threshold && cr_before < target_collateralization_ratio)
             || (!cr_below_threshold && cr_before >= target_collateralization_ratio)
     );
+
+    // remove Default price for all coins
+    mock.remove_price(&osmo_info.denom, ActionKind::Default);
+    mock.remove_price(&atom_info.denom, ActionKind::Default);
+    mock.remove_price(&usdc_info.denom, ActionKind::Default);
+    mock.remove_price(&tia_info.denom, ActionKind::Default);
 
     // deleverage
     let result = mock.deleverage(acc_to_close, &denom_to_close);
@@ -378,13 +384,31 @@ fn deleverage(
     let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
     assert_eq!(vault_usdc_balance.amount, vault_usdc_balance_before.amount + pnl_loss - pnl_profit);
 
+    // query the liquidatee's position with Default pricing should fail
+    let res = mock.query_positions_with_action(acc_to_close, Some(ActionKind::Default));
+    match res {
+        Ok(positions) if !positions.perps.is_empty() => {
+            // query should fail because Default pricing is removed
+            panic!("expected error, but got success");
+        }
+        Ok(_) => {
+            // no perps, no pricing needed
+        }
+        _ => {}
+    }
+
     // check account usdc balance
-    let position = mock.query_positions(acc_to_close);
+    let position =
+        mock.query_positions_with_action(acc_to_close, Some(ActionKind::Liquidation)).unwrap();
     assert_present(&position, &usdc_info.denom, acc_usdc_deposit + pnl_profit - pnl_loss);
+
+    // query the vault with Default pricing should fail
+    let res = mock.query_perp_vault(Some(ActionKind::Default));
+    assert!(res.is_err());
 
     // Check CR after deleverage.
     // CR after deleverage should be greater than or equal to target CR or improved if CR was less than target CR before deleverage.
-    let vault = mock.query_perp_vault();
+    let vault = mock.query_perp_vault(Some(ActionKind::Liquidation)).unwrap();
     let cr_after = vault.collateralization_ratio.unwrap_or(Decimal::MAX);
     let cr_after_ge_threshold = cr_after >= target_collateralization_ratio;
     let cr_improved = cr_after >= cr_before;

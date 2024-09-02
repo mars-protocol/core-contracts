@@ -332,14 +332,13 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_perp_denom_state(&self, denom: &str, action: ActionKind) -> PerpDenomState {
+    pub fn query_perp_denom_state(&self, denom: &str) -> PerpDenomState {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.perps.clone(),
                 &perps::QueryMsg::PerpDenomState {
                     denom: denom.to_string(),
-                    action,
                 },
             )
             .unwrap()
@@ -347,7 +346,6 @@ impl MockEnv {
 
     pub fn query_perp_denom_states(
         &self,
-        action: ActionKind,
         start_after: Option<String>,
         limit: Option<u32>,
     ) -> PaginationResponse<PerpDenomState> {
@@ -356,7 +354,6 @@ impl MockEnv {
             .query_wasm_smart(
                 self.perps.clone(),
                 &perps::QueryMsg::PerpDenomStates {
-                    action,
                     start_after,
                     limit,
                 },
@@ -419,19 +416,14 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_cm_vault_position(
-        &self,
-        account_id: &str,
-        action: ActionKind,
-    ) -> Option<PerpVaultPosition> {
-        self.query_vault_position(self.credit_manager.as_str(), Some(account_id), action)
+    pub fn query_cm_vault_position(&self, account_id: &str) -> Option<PerpVaultPosition> {
+        self.query_vault_position(self.credit_manager.as_str(), Some(account_id))
     }
 
     pub fn query_vault_position(
         &self,
         user_address: &str,
         account_id: Option<&str>,
-        action: ActionKind,
     ) -> Option<PerpVaultPosition> {
         self.app
             .wrap()
@@ -440,7 +432,6 @@ impl MockEnv {
                 &perps::QueryMsg::PerpVaultPosition {
                     user_address: user_address.to_string(),
                     account_id: account_id.map(|s| s.to_string()),
-                    action: Some(action),
                 },
             )
             .unwrap()

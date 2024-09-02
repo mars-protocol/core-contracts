@@ -128,25 +128,19 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         } => to_json_binary(&query::denom_states(deps.storage, start_after, limit)?),
         QueryMsg::PerpDenomState {
             denom,
-            action,
-        } => {
-            to_json_binary(&query::perp_denom_state(deps, env.block.time.seconds(), action, denom)?)
-        }
+        } => to_json_binary(&query::perp_denom_state(deps, env.block.time.seconds(), denom)?),
         QueryMsg::PerpDenomStates {
-            action,
             start_after,
             limit,
         } => to_json_binary(&query::perp_denom_states(
             deps,
             env.block.time.seconds(),
-            action,
             start_after,
             limit,
         )?),
         QueryMsg::PerpVaultPosition {
             user_address,
             account_id,
-            action,
         } => {
             let user_addr = deps.api.addr_validate(&user_address)?;
             to_json_binary(&query::perp_vault_position(
@@ -154,7 +148,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
                 user_addr,
                 account_id,
                 env.block.time.seconds(),
-                action.unwrap_or(ActionKind::Default),
             )?)
         }
         QueryMsg::Deposit {

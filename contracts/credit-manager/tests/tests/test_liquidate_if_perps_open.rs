@@ -690,6 +690,16 @@ fn liquidation_uses_correct_price_kind_if_perps_open() {
 
     set_price(&mut mock, ActionKind::Liquidation);
 
+    // Query the liquidatee's position with Default pricing should fail
+    let res = mock.query_positions_with_action(&liquidatee_account_id, Some(ActionKind::Default));
+    assert!(res.is_err());
+
+    // Query the liquidatee's position with Liquidation pricing should succeed
+    let position = mock
+        .query_positions_with_action(&liquidatee_account_id, Some(ActionKind::Liquidation))
+        .unwrap();
+    let usdc_debt_before = get_debt(&uusdc_info.denom, &position.debts);
+
     // The liquidation should acknowledge LIQUIDATION pricing changes and go through fine
     mock.update_credit_account(
         &liquidator_account_id,
@@ -705,6 +715,15 @@ fn liquidation_uses_correct_price_kind_if_perps_open() {
         &[uatom_info.to_coin(1000)],
     )
     .unwrap();
+
+    // Query the liquidatee's position with Default pricing should succeed now because perps are closed and no need to use pricing
+    let position = mock
+        .query_positions_with_action(&liquidatee_account_id, Some(ActionKind::Default))
+        .unwrap();
+    let usdc_debt = get_debt(&uusdc_info.denom, &position.debts);
+    // USDC debt should increase.
+    // It means that borrowing from the Red Bank was successful with only Liquidation pricing.
+    assert!(usdc_debt.amount > usdc_debt_before.amount);
 }
 
 fn pnl_profit(pnl: PnL) -> Uint128 {

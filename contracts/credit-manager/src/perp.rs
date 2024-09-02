@@ -14,8 +14,6 @@ use crate::{
     utils::{decrement_coin_balance, increment_coin_balance},
 };
 
-// TODO: we should probably use Liquidation pricing for borrow whenever we use Perps in context of liquidation or deleverage.
-
 /// Deduct payment from the user’s account. If the user doesn’t have enough USDC, it is borrowed
 fn deduct_payment(
     deps: &mut DepsMut,

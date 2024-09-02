@@ -170,12 +170,10 @@ impl Perps {
         &self,
         querier: &QuerierWrapper,
         denom: impl Into<String>,
-        action: ActionKind,
     ) -> StdResult<PerpDenomState> {
         let res: PerpDenomState = querier.query_wasm_smart(
             self.address(),
             &QueryMsg::PerpDenomState {
-                action,
                 denom: denom.into(),
             },
         )?;
@@ -192,14 +190,12 @@ impl Perps {
         querier: &QuerierWrapper,
         credit_manager: impl Into<String>,
         account_id: impl Into<String>,
-        action: ActionKind,
     ) -> StdResult<Option<PerpVaultPosition>> {
         let res: Option<PerpVaultPosition> = querier.query_wasm_smart(
             self.address(),
             &QueryMsg::PerpVaultPosition {
                 user_address: credit_manager.into(),
                 account_id: Some(account_id.into()),
-                action: Some(action),
             },
         )?;
         Ok(res)

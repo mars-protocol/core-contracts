@@ -504,7 +504,6 @@ export interface MarsPerpsPerpVaultPositionQuery<TData>
   extends MarsPerpsReactQuery<NullablePerpVaultPosition, TData> {
   args: {
     accountId?: string
-    action?: ActionKind
     userAddress: string
   }
 }
@@ -519,7 +518,6 @@ export function useMarsPerpsPerpVaultPositionQuery<TData = NullablePerpVaultPosi
       client
         ? client.perpVaultPosition({
             accountId: args.accountId,
-            action: args.action,
             userAddress: args.userAddress,
           })
         : Promise.reject(new Error('Invalid client')),
@@ -559,7 +557,6 @@ export function useMarsPerpsDenomStatesQuery<TData = ArrayOfDenomStateResponse>(
 export interface MarsPerpsPerpDenomStatesQuery<TData>
   extends MarsPerpsReactQuery<PaginationResponseForPerpDenomState, TData> {
   args: {
-    action: ActionKind
     limit?: number
     startAfter?: string
   }
@@ -574,7 +571,6 @@ export function useMarsPerpsPerpDenomStatesQuery<TData = PaginationResponseForPe
     () =>
       client
         ? client.perpDenomStates({
-            action: args.action,
             limit: args.limit,
             startAfter: args.startAfter,
           })
@@ -588,7 +584,6 @@ export function useMarsPerpsPerpDenomStatesQuery<TData = PaginationResponseForPe
 export interface MarsPerpsPerpDenomStateQuery<TData>
   extends MarsPerpsReactQuery<PerpDenomState, TData> {
   args: {
-    action: ActionKind
     denom: string
   }
 }
@@ -602,7 +597,6 @@ export function useMarsPerpsPerpDenomStateQuery<TData = PerpDenomState>({
     () =>
       client
         ? client.perpDenomState({
-            action: args.action,
             denom: args.denom,
           })
         : Promise.reject(new Error('Invalid client')),

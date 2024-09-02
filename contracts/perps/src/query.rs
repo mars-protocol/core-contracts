@@ -121,12 +121,12 @@ pub fn denom_states(
 pub fn perp_denom_state(
     deps: Deps,
     current_time: u64,
-    action: ActionKind,
     denom: String,
 ) -> ContractResult<PerpDenomState> {
     let ds = DENOM_STATES.load(deps.storage, &denom)?;
     let cfg = CONFIG.load(deps.storage)?;
-    let base_denom_price = cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action)?.price;
+    let base_denom_price =
+        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     get_perp_denom_state(deps, &cfg, current_time, denom, ds, base_denom_price)
 }
@@ -134,12 +134,12 @@ pub fn perp_denom_state(
 pub fn perp_denom_states(
     deps: Deps,
     current_time: u64,
-    action: ActionKind,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> ContractResult<PaginationResponse<PerpDenomState>> {
     let cfg = CONFIG.load(deps.storage)?;
-    let base_denom_price = cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action)?.price;
+    let base_denom_price =
+        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     let start = start_after.as_ref().map(|start_after| Bound::exclusive(start_after.as_str()));
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
@@ -154,7 +154,6 @@ pub fn perp_vault_position(
     user_addr: Addr,
     account_id: Option<String>,
     current_time: u64,
-    action: ActionKind,
 ) -> ContractResult<Option<PerpVaultPosition>> {
     let cfg = CONFIG.load(deps.storage)?;
 
@@ -178,7 +177,7 @@ pub fn perp_vault_position(
             current_time,
             &cfg.base_denom,
             shares,
-            action.clone(),
+            ActionKind::Default,
         )
         .unwrap_or_default(),
     };
@@ -198,7 +197,7 @@ pub fn perp_vault_position(
                     current_time,
                     &cfg.base_denom,
                     unlock.shares,
-                    action.clone(),
+                    ActionKind::Default,
                 )
                 .unwrap_or_default(),
             })

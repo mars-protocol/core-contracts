@@ -3,7 +3,6 @@ use std::str::FromStr;
 use cosmwasm_std::{coin, Decimal, Uint128};
 use mars_types::{
     math::SignedDecimal,
-    oracle::ActionKind,
     params::{PerpParams, PerpParamsUpdate},
     perps::{Funding, PerpDenomState, PnlValues},
     signed_uint::SignedUint,
@@ -41,7 +40,7 @@ fn perp_denom_state() {
     );
 
     // Test initial state
-    let perp_denom_state = mock.query_perp_denom_state(denom1, ActionKind::Default);
+    let perp_denom_state = mock.query_perp_denom_state(denom1);
 
     let expected_perp_denom_state = PerpDenomState {
         denom: denom1.to_string(),
@@ -72,7 +71,7 @@ fn perp_denom_state() {
 
     mock.execute_perp_order(&credit_manager, "2", denom1, size, None, &[]).unwrap();
 
-    let perp_denom_state = mock.query_perp_denom_state(denom1, ActionKind::Default);
+    let perp_denom_state = mock.query_perp_denom_state(denom1);
 
     let expected_perp_denom_state = PerpDenomState {
         long_oi: amount,
@@ -185,7 +184,7 @@ fn perp_denom_states() {
     };
 
     // Test to query all perp denom states
-    let perp_denom_states_res = mock.query_perp_denom_states(ActionKind::Default, None, None);
+    let perp_denom_states_res = mock.query_perp_denom_states(None, None);
     assert_eq!(
         perp_denom_states_res.data,
         vec![
@@ -197,8 +196,7 @@ fn perp_denom_states() {
     assert!(!perp_denom_states_res.metadata.has_more);
 
     // Test to query after the first perp denom state
-    let perp_denom_states_res =
-        mock.query_perp_denom_states(ActionKind::Default, Some(denom1.to_string()), None);
+    let perp_denom_states_res = mock.query_perp_denom_states(Some(denom1.to_string()), None);
     assert_eq!(
         perp_denom_states_res.data,
         vec![expected_perp_denom_state2.clone(), expected_perp_denom_state3.clone()]
@@ -206,7 +204,7 @@ fn perp_denom_states() {
     assert!(!perp_denom_states_res.metadata.has_more);
 
     // Test the limit parameter
-    let perp_denom_states_res = mock.query_perp_denom_states(ActionKind::Default, None, Some(1));
+    let perp_denom_states_res = mock.query_perp_denom_states(None, Some(1));
     assert_eq!(perp_denom_states_res.data, vec![expected_perp_denom_state1.clone()]);
     assert!(perp_denom_states_res.metadata.has_more);
 }

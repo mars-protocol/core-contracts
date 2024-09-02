@@ -2,7 +2,8 @@ use std::default::Default;
 
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{
-    coin, coins, testing::MockApi, Addr, Coin, Decimal, Empty, StdResult, Timestamp, Uint128,
+    coin, coins, testing::MockApi, Addr, Coin, Decimal, Empty, StdError, StdResult, Timestamp,
+    Uint128,
 };
 use cw721::TokensResponse;
 use cw721_base::{Action::TransferOwnership, Ownership};
@@ -533,16 +534,21 @@ impl MockEnv {
     //--------------------------------------------------------------------------------------------------
 
     pub fn query_positions(&self, account_id: &str) -> Positions {
-        self.app
-            .wrap()
-            .query_wasm_smart(
-                self.rover.clone(),
-                &QueryMsg::Positions {
-                    account_id: account_id.to_string(),
-                    action: None,
-                },
-            )
-            .unwrap()
+        self.query_positions_with_action(account_id, None).unwrap()
+    }
+
+    pub fn query_positions_with_action(
+        &self,
+        account_id: &str,
+        action: Option<ActionKind>,
+    ) -> Result<Positions, StdError> {
+        self.app.wrap().query_wasm_smart(
+            self.rover.clone(),
+            &QueryMsg::Positions {
+                account_id: account_id.to_string(),
+                action,
+            },
+        )
     }
 
     pub fn query_health(&self, account_id: &str, action: ActionKind) -> HealthValuesResponse {
@@ -1040,16 +1046,13 @@ impl MockEnv {
         self.app.wrap().query_wasm_smart(self.perps.address(), &perps::QueryMsg::Config {}).unwrap()
     }
 
-    pub fn query_perp_vault(&self) -> VaultResponse {
-        self.app
-            .wrap()
-            .query_wasm_smart(
-                self.perps.address(),
-                &perps::QueryMsg::Vault {
-                    action: None,
-                },
-            )
-            .unwrap()
+    pub fn query_perp_vault(&self, action: Option<ActionKind>) -> Result<VaultResponse, StdError> {
+        self.app.wrap().query_wasm_smart(
+            self.perps.address(),
+            &perps::QueryMsg::Vault {
+                action,
+            },
+        )
     }
 
     pub fn query_perp_vault_position(&self, acc_id: &str) -> Option<PerpVaultPosition> {
@@ -1060,7 +1063,6 @@ impl MockEnv {
                 &perps::QueryMsg::PerpVaultPosition {
                     user_address: self.rover.to_string(),
                     account_id: Some(acc_id.to_string()),
-                    action: None,
                 },
             )
             .unwrap()
