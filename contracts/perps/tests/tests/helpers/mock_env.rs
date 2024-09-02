@@ -59,6 +59,7 @@ pub struct MockEnvBuilder {
     target_vault_collateralization_ratio: Decimal,
     pub emergency_owner: Option<String>,
     deleverage_enabled: bool,
+    withdraw_enabled: bool,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -76,6 +77,7 @@ impl MockEnv {
             target_vault_collateralization_ratio: Decimal::percent(125),
             emergency_owner: None,
             deleverage_enabled: true,
+            withdraw_enabled: true,
         }
     }
 
@@ -732,6 +734,7 @@ impl MockEnvBuilder {
                     protocol_fee_rate: self.protocol_fee_rate,
                     target_vault_collateralization_ratio: self.target_vault_collateralization_ratio,
                     deleverage_enabled: self.deleverage_enabled,
+                    vault_withdraw_enabled: self.withdraw_enabled,
                 },
                 &[],
                 "mock-perps",
@@ -880,6 +883,11 @@ impl MockEnvBuilder {
 
     pub fn target_vault_collaterization_ratio(&mut self, ratio: Decimal) -> &mut Self {
         self.target_vault_collateralization_ratio = ratio;
+        self
+    }
+
+    pub fn withdraw_enabled(&mut self, enabled: bool) -> &mut Self {
+        self.withdraw_enabled = enabled;
         self
     }
 

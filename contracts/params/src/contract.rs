@@ -10,8 +10,9 @@ use mars_types::params::{
 
 use crate::{
     emergency_powers::{
-        disable_borrowing, disable_deleverage, disable_perp_trading, disable_withdraw_cm,
-        disable_withdraw_rb, disallow_coin, set_zero_deposit_cap, set_zero_max_ltv,
+        disable_borrowing, disable_counterparty_vault_withdraw, disable_deleverage,
+        disable_perp_trading, disable_withdraw_cm, disable_withdraw_rb, disallow_coin,
+        set_zero_deposit_cap, set_zero_max_ltv,
     },
     error::ContractResult,
     execute::{update_asset_params, update_config, update_perp_params, update_vault_config},
@@ -88,6 +89,9 @@ pub fn execute(
                     disable_perp_trading(deps, info, &denom)
                 }
                 PerpsEmergencyUpdate::DisableDeleverage() => disable_deleverage(deps, info),
+                PerpsEmergencyUpdate::DisableCounterpartyVaultWithdraw() => {
+                    disable_counterparty_vault_withdraw(deps, info)
+                }
             },
         },
     }

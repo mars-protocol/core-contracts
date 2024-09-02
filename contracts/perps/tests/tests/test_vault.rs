@@ -176,6 +176,35 @@ fn withdraw_not_possible_if_cooldown_not_ended() {
 }
 
 #[test]
+fn withdraw_not_possible_if_withdraw_not_enabled() {
+    let depositor = "depositor";
+    let cooldown_period = 86400u64;
+    let mut mock =
+        MockEnv::new().cooldown_period(cooldown_period).withdraw_enabled(false).build().unwrap();
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+
+    // set usdc price
+    mock.set_price(&owner, "uusdc", Decimal::one()).unwrap();
+
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uusdc"]);
+
+    mock.deposit_to_vault(&credit_manager, Some(depositor), &[coin(1_000_000_000u128, "uusdc")])
+        .unwrap();
+
+    mock.unlock_from_vault(&credit_manager, Some(depositor), Uint128::new(1_000_000)).unwrap();
+
+    let unlocks = mock.query_cm_unlocks(depositor);
+    assert!(!unlocks.is_empty());
+
+    // move time forward
+    mock.increment_by_time(86401u64);
+
+    let res = mock.withdraw_from_vault(&credit_manager, Some(depositor));
+    assert_err(res, ContractError::VaultWithdrawDisabled {});
+}
+
+#[test]
 fn withdraw_unlocked_shares() {
     let depositor = "depositor";
     let cooldown_period = 86400u64;

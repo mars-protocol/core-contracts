@@ -705,6 +705,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
     protocolFeeRate: '0.1',
     targetCollaterizationRatio: '1.2',
     deleverageEnabled: true,
+    vaultWithdrawEnabled: true,
     denoms: [
       atomPerpDenom,
       ntrnPerpDenom,

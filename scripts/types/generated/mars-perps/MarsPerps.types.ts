@@ -19,6 +19,7 @@ export interface InstantiateMsg {
   params: ParamsBaseForString
   protocol_fee_rate: Decimal
   target_vault_collateralization_ratio: Decimal
+  vault_withdraw_enabled: boolean
 }
 export type ExecuteMsg =
   | {
@@ -117,6 +118,7 @@ export interface ConfigUpdates {
   params?: ParamsBaseForString | null
   protocol_fee_rate?: Decimal | null
   target_vault_collateralization_ratio?: Decimal | null
+  vault_withdraw_enabled?: boolean | null
 }
 export type QueryMsg =
   | {
@@ -233,6 +235,7 @@ export interface ConfigForString {
   params: ParamsBaseForString
   protocol_fee_rate: Decimal
   target_vault_collateralization_ratio: Decimal
+  vault_withdraw_enabled: boolean
 }
 export interface Accounting {
   balance: Balance

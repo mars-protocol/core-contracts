@@ -17,7 +17,8 @@
       "oracle",
       "params",
       "protocol_fee_rate",
-      "target_vault_collateralization_ratio"
+      "target_vault_collateralization_ratio",
+      "vault_withdraw_enabled"
     ],
     "properties": {
       "address_provider": {
@@ -79,6 +80,10 @@
             "$ref": "#/definitions/Decimal"
           }
         ]
+      },
+      "vault_withdraw_enabled": {
+        "description": "True by default, it can be set to false to disable perp counterparty vault withdrawals",
+        "type": "boolean"
       }
     },
     "additionalProperties": false,
@@ -413,6 +418,12 @@
               {
                 "type": "null"
               }
+            ]
+          },
+          "vault_withdraw_enabled": {
+            "type": [
+              "boolean",
+              "null"
             ]
           }
         },
@@ -1194,7 +1205,8 @@
         "oracle",
         "params",
         "protocol_fee_rate",
-        "target_vault_collateralization_ratio"
+        "target_vault_collateralization_ratio",
+        "vault_withdraw_enabled"
       ],
       "properties": {
         "address_provider": {
@@ -1256,6 +1268,10 @@
               "$ref": "#/definitions/Decimal"
             }
           ]
+        },
+        "vault_withdraw_enabled": {
+          "description": "True by default, it can be set to false to disable perp counterparty vault withdrawals",
+          "type": "boolean"
         }
       },
       "additionalProperties": false,

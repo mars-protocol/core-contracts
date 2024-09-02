@@ -68,9 +68,13 @@ pub struct Config<T> {
     /// The target collateralization ratio of the vault
     pub target_vault_collateralization_ratio: Decimal,
 
-    /// If the collateralization ratio of the vault falls below the target_vault_collateralization_ratio, it is eligible
-    /// to be deleveraged when this parameter is true.
+    /// If the collateralization ratio of the vault falls below the
+    /// target_vault_collateralization_ratio, it is eligible to be deleveraged
+    /// when this parameter is true.
     pub deleverage_enabled: bool,
+
+    /// True by default, it can be set to false to disable perp counterparty vault withdrawals
+    pub vault_withdraw_enabled: bool,
 }
 
 impl Config<String> {
@@ -86,6 +90,7 @@ impl Config<String> {
             protocol_fee_rate: self.protocol_fee_rate,
             target_vault_collateralization_ratio: self.target_vault_collateralization_ratio,
             deleverage_enabled: self.deleverage_enabled,
+            vault_withdraw_enabled: self.vault_withdraw_enabled,
         })
     }
 }
@@ -103,6 +108,7 @@ impl From<Config<Addr>> for Config<String> {
             protocol_fee_rate: cfg.protocol_fee_rate,
             target_vault_collateralization_ratio: cfg.target_vault_collateralization_ratio,
             deleverage_enabled: cfg.deleverage_enabled,
+            vault_withdraw_enabled: cfg.vault_withdraw_enabled,
         }
     }
 }
@@ -118,6 +124,7 @@ pub struct ConfigUpdates {
     pub protocol_fee_rate: Option<Decimal>,
     pub target_vault_collateralization_ratio: Option<Decimal>,
     pub deleverage_enabled: Option<bool>,
+    pub vault_withdraw_enabled: Option<bool>,
 }
 
 /// Global state of the counterparty vault

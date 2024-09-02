@@ -97,6 +97,7 @@ export interface DeploymentConfig {
     protocolFeeRate: Decimal
     targetCollaterizationRatio: Decimal
     deleverageEnabled: boolean
+    vaultWithdrawEnabled: boolean
   }
 }
 

@@ -154,6 +154,10 @@ pub fn withdraw(
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
+    if !cfg.vault_withdraw_enabled {
+        return Err(ContractError::VaultWithdrawDisabled {});
+    }
+
     // Don't allow users to create alternative account ids.
     // Only allow credit manager contract to create them.
     // Even if account_id contains empty string we won't allow it.

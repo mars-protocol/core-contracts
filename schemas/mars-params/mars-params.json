@@ -678,6 +678,21 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "disable_counterparty_vault_withdraw"
+            ],
+            "properties": {
+              "disable_counterparty_vault_withdraw": {
+                "type": "array",
+                "items": [],
+                "maxItems": 0,
+                "minItems": 0
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },

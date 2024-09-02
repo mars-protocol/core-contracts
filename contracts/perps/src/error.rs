@@ -89,6 +89,9 @@ pub enum ContractError {
     #[error("only the credit manager can modify perp positions")]
     SenderIsNotCreditManager,
 
+    #[error("withdrawing from the counterparty vault is currently disabled")]
+    VaultWithdrawDisabled,
+
     #[error("cannot compute deposit amount when there is zero total shares")]
     ZeroTotalShares,
 

@@ -334,6 +334,7 @@ impl MockEnvBuilder {
                     protocol_fee_rate: Decimal::from_ratio(1u128, 100u128),
                     target_vault_collateralization_ratio: Decimal::from_ratio(125u128, 100u128),
                     deleverage_enabled: true,
+                    vault_withdraw_enabled: true,
                 },
                 &[],
                 "mock-perps",

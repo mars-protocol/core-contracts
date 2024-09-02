@@ -68,6 +68,7 @@ fn update_total_config() {
         params: ParamsBase::new(Addr::unchecked("params_new")),
         protocol_fee_rate: Decimal::from_ratio(2u128, 100u128),
         target_vault_collateralization_ratio: Decimal::from_ratio(150u128, 100u128),
+        vault_withdraw_enabled: false,
     };
 
     let res = mock.update_config(
@@ -84,6 +85,7 @@ fn update_total_config() {
             target_vault_collateralization_ratio: Some(
                 new_config.target_vault_collateralization_ratio,
             ),
+            vault_withdraw_enabled: Some(new_config.vault_withdraw_enabled),
         },
     );
 

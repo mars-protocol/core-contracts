@@ -126,6 +126,7 @@ pub struct MockEnvBuilder {
     pub evil_vault: Option<String>,
     pub target_vault_collateralization_ratio: Option<Decimal>,
     pub deleverage_enabled: Option<bool>,
+    pub withdraw_enabled: Option<bool>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -154,6 +155,7 @@ impl MockEnv {
             evil_vault: None,
             target_vault_collateralization_ratio: None,
             deleverage_enabled: None,
+            withdraw_enabled: None,
         }
     }
 
@@ -1391,6 +1393,7 @@ impl MockEnvBuilder {
         let address_provider = self.get_address_provider();
         let target_vault_collateralization_ratio = self.get_target_vault_collateralization_ratio();
         let deleverage_enabled = self.get_delegerage_enabled();
+        let vault_withdraw_enabled = self.get_withdraw_enabled();
 
         let addr = self
             .app
@@ -1408,6 +1411,7 @@ impl MockEnvBuilder {
                     protocol_fee_rate: Decimal::percent(0),
                     target_vault_collateralization_ratio,
                     deleverage_enabled,
+                    vault_withdraw_enabled,
                 },
                 &[],
                 "mock-perps-contract",
@@ -1728,6 +1732,10 @@ impl MockEnvBuilder {
 
     fn get_delegerage_enabled(&self) -> bool {
         self.deleverage_enabled.unwrap_or(true)
+    }
+
+    fn get_withdraw_enabled(&self) -> bool {
+        self.withdraw_enabled.unwrap_or(true)
     }
 
     //--------------------------------------------------------------------------------------------------

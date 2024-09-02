@@ -157,7 +157,6 @@ pub fn disable_perp_trading(
     Ok(response)
 }
 
-/// Disables the liquidation of the perp counterparty vault
 pub fn disable_deleverage(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
     OWNER.assert_emergency_owner(deps.storage, &info.sender)?;
     let updates: ConfigUpdates = ConfigUpdates {
@@ -165,6 +164,34 @@ pub fn disable_deleverage(deps: DepsMut, info: MessageInfo) -> Result<Response, 
         ..Default::default()
     };
 
+    let update_config_msg = create_update_perp_config_msg(deps, updates)?;
+
+    Ok(Response::new()
+        .add_message(update_config_msg)
+        .add_attribute("action", "emergency_disable_perp_deleverage"))
+}
+
+pub fn disable_counterparty_vault_withdraw(
+    deps: DepsMut,
+    info: MessageInfo,
+) -> Result<Response, ContractError> {
+    OWNER.assert_emergency_owner(deps.storage, &info.sender)?;
+    let updates: ConfigUpdates = ConfigUpdates {
+        vault_withdraw_enabled: Some(false),
+        ..Default::default()
+    };
+
+    let param_update_msg = create_update_perp_config_msg(deps, updates)?;
+
+    Ok(Response::new()
+        .add_message(param_update_msg)
+        .add_attribute("action", "emergency_disable_vault_withdraw"))
+}
+
+fn create_update_perp_config_msg(
+    deps: DepsMut,
+    updates: ConfigUpdates,
+) -> Result<CosmosMsg, ContractError> {
     let current_addr = ADDRESS_PROVIDER.load(deps.storage)?;
     let perps_addr = address_provider::helpers::query_contract_addr(
         deps.as_ref(),
@@ -172,15 +199,11 @@ pub fn disable_deleverage(deps: DepsMut, info: MessageInfo) -> Result<Response, 
         MarsAddressType::Perps,
     )?;
 
-    let update_config_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+    Ok(CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: perps_addr.to_string(),
         msg: to_json_binary(&ExecuteMsg::UpdateConfig {
             updates,
         })?,
         funds: vec![],
-    });
-
-    Ok(Response::new()
-        .add_message(update_config_msg)
-        .add_attribute("action", "emergency_disable_perp_cpv_deleverage"))
+    }))
 }

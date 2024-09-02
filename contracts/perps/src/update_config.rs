@@ -66,6 +66,11 @@ pub fn update_config(
         existing_cfg.deleverage_enabled = deleverage_enabled
     }
 
+    if let Some(vwe) = updates.vault_withdraw_enabled {
+        response = response.add_attribute("vault_withdraw_enabled", vwe.to_string());
+        existing_cfg.vault_withdraw_enabled = vwe
+    }
+
     CONFIG.save(deps.storage, &existing_cfg)?;
 
     Ok(response)

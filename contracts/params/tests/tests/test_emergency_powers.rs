@@ -275,3 +275,30 @@ fn disable_perp_cpv_deleverage() {
     );
     assert!(!updated_config.deleverage_enabled);
 }
+
+#[test]
+fn disable_perp_vault_withdraw() {
+    // Set up and ensure withdraw is enabled
+    let emergency_owner = Addr::unchecked("miles_morales");
+    let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();
+    let initial_config = mock.query_perp_config();
+    assert!(initial_config.vault_withdraw_enabled);
+
+    // Disable withdraw
+    mock.emergency_update(
+        &emergency_owner,
+        EmergencyUpdate::Perps(PerpsEmergencyUpdate::DisableCounterpartyVaultWithdraw()),
+    )
+    .unwrap();
+
+    // Verify withdraw disabled
+    let updated_config = mock.query_perp_config();
+    assert_eq!(
+        updated_config,
+        Config {
+            vault_withdraw_enabled: false,
+            ..initial_config
+        }
+    );
+    assert!(!updated_config.vault_withdraw_enabled);
+}

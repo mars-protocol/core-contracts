@@ -110,6 +110,9 @@ export type PerpsEmergencyUpdate =
   | {
       disable_deleverage: []
     }
+  | {
+      disable_counterparty_vault_withdraw: []
+    }
 export interface AssetParamsBaseForString {
   close_factor: Decimal
   credit_manager: CmSettingsForString
