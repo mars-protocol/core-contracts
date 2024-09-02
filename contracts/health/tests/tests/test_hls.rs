@@ -42,7 +42,6 @@ fn hls_account_kind_passed_along() {
         }],
         staked_astro_lps: vec![],
         perps: vec![],
-        perp_vault: None,
     };
     mock.set_positions_response(account_id, &positions);
     mock.set_price(debt_token, Decimal::one(), ActionKind::Default);

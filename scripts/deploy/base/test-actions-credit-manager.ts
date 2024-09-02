@@ -17,11 +17,13 @@ import {
 } from '../../types/generated/mars-credit-manager/MarsCreditManager.types'
 import { MarsMockVaultQueryClient } from '../../types/generated/mars-mock-vault/MarsMockVault.client'
 import { VaultConfigBaseForString } from '../../types/generated/mars-params/MarsParams.types'
+import { MarsPerpsQueryClient } from '../../types/generated/mars-perps/MarsPerps.client'
 
 export class Rover {
   private exec: MarsCreditManagerClient
   private query: MarsCreditManagerQueryClient
   private nft: MarsAccountNftQueryClient
+  private perps: MarsPerpsQueryClient
   accountId?: string
 
   constructor(
@@ -34,6 +36,7 @@ export class Rover {
     this.exec = new MarsCreditManagerClient(cwClient, userAddr, storage.addresses.creditManager!)
     this.query = new MarsCreditManagerQueryClient(cwClient, storage.addresses.creditManager!)
     this.nft = new MarsAccountNftQueryClient(cwClient, storage.addresses.accountNft!)
+    this.perps = new MarsPerpsQueryClient(cwClient, storage.addresses.perps!)
   }
 
   async updateConfig(updates: ConfigUpdates) {
@@ -376,8 +379,11 @@ export class Rover {
   }
 
   async unlockFromPerpVault() {
-    const positions_before = await this.query.positions({ accountId: this.accountId! })
-    const shares = positions_before.perp_vault?.deposit.shares
+    const positions_before = await this.perps.perpVaultPosition({
+      accountId: this.accountId!,
+      userAddress: this.storage.addresses.creditManager!,
+    })
+    const shares = positions_before?.deposit.shares
     const response = await this.updateCreditAccount(
       [
         {

@@ -78,7 +78,6 @@ fn lending_zero_has_no_effect() {
             vaults: vec![],
             staked_astro_lps: vec![],
             perps: vec![],
-            perp_vault: None,
         }
     );
 }
@@ -163,7 +162,6 @@ fn attempting_to_lend_account_balance_with_no_funds() {
             vaults: vec![],
             staked_astro_lps: vec![],
             perps: vec![],
-            perp_vault: None,
         }
     );
 }

@@ -72,7 +72,6 @@ fn uses_liquidation_pricing() {
             vaults: vec![],
             staked_astro_lps: vec![],
             perps: vec![],
-            perp_vault: None,
         },
     );
 

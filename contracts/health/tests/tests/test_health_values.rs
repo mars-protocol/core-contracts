@@ -58,7 +58,6 @@ fn computes_correct_position_with_zero_assets() {
             vaults: vec![],
             staked_astro_lps: vec![],
             perps: vec![],
-            perp_vault: None,
         },
     );
 
@@ -106,7 +105,6 @@ fn adds_vault_base_denoms_to_oracle_and_red_bank() {
             }],
             staked_astro_lps: vec![],
             perps: vec![],
-            perp_vault: None,
         },
     );
 
@@ -229,7 +227,6 @@ fn whitelisted_coins_work() {
             vaults: vec![],
             staked_astro_lps: vec![],
             perps: vec![],
-            perp_vault: None,
         },
     );
 
@@ -287,7 +284,6 @@ fn vault_whitelist_affects_max_ltv() {
             }],
             staked_astro_lps: vec![],
             perps: vec![],
-            perp_vault: None,
         },
     );
 
@@ -392,7 +388,6 @@ fn not_whitelisted_coins_work() {
             vaults: vec![],
             staked_astro_lps: vec![],
             perps: vec![],
-            perp_vault: None,
         },
     );
 

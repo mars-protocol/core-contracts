@@ -151,7 +151,6 @@ fn assert_positions(
     assert!(positions.vaults.is_empty());
     assert!(positions.staked_astro_lps.is_empty());
     assert!(positions.perps.is_empty());
-    assert!(positions.perp_vault.is_none());
 }
 
 // TODO: The below tests should be moved to Perps contract once MockEnv from Perps helpers is merged with MockEnv from testing package

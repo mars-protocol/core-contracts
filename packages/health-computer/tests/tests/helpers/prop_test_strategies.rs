@@ -557,7 +557,6 @@ pub fn random_health_computer() -> impl Strategy<Value = HealthComputer> {
                                 vaults,
                                 staked_astro_lps,
                                 perps,
-                                perp_vault: None,
                             },
                             vaults_data: vaults_data.clone(),
                             oracle_prices: oracle_prices.clone(),

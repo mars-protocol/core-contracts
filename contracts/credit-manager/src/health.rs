@@ -21,7 +21,7 @@ pub fn query_health_state(
 ) -> ContractResult<HealthState> {
     let config = query_config(deps)?;
     let querier = HealthQuerier::new_with_config(&deps, env.contract.address.clone(), config)?;
-    let positions = query_positions(deps, env, account_id, action.clone())?;
+    let positions = query_positions(deps, account_id, action.clone())?;
     let health = compute_health_state(deps, querier, action, positions)?;
     Ok(health)
 }
@@ -35,7 +35,7 @@ pub fn query_health_values(
     let config = query_config(deps)?;
     let health_querier =
         HealthQuerier::new_with_config(&deps, env.contract.address.clone(), config)?;
-    let positions = query_positions(deps, env, account_id, action.clone())?;
+    let positions = query_positions(deps, account_id, action.clone())?;
     let health = compute_health(deps, health_querier, positions, action)?;
     Ok(health)
 }

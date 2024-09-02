@@ -27,7 +27,6 @@ fn zero_debts_results_in_healthy_state() {
             vaults: vec![],
             staked_astro_lps: vec![],
             perps: vec![],
-            perp_vault: None,
         },
     );
 
@@ -65,7 +64,6 @@ fn computing_health_when_healthy() {
             vaults: vec![],
             staked_astro_lps: vec![],
             perps: vec![],
-            perp_vault: None,
         },
     );
 
@@ -102,7 +100,6 @@ fn computing_health_when_unhealthy() {
             vaults: vec![],
             staked_astro_lps: vec![],
             perps: vec![],
-            perp_vault: None,
         },
     );
 

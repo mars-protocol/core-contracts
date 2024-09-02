@@ -1,4 +1,4 @@
-use cosmwasm_std::{Deps, Env, Response};
+use cosmwasm_std::{Deps, Response};
 use mars_types::{
     credit_manager::Positions, health::AccountKind, oracle::ActionKind, params::HlsAssetType,
 };
@@ -10,7 +10,7 @@ use crate::{
 };
 
 // TODO: should we check if perps and perp_vault are present?
-pub fn assert_hls_rules(deps: Deps, env: Env, account_id: &str) -> ContractResult<Response> {
+pub fn assert_hls_rules(deps: Deps, account_id: &str) -> ContractResult<Response> {
     // Rule #1 - There can only be 0 or 1 debt denom in the account
     let Positions {
         // destruct Positions so whenever we add new positions we don't forget to add them here
@@ -22,8 +22,7 @@ pub fn assert_hls_rules(deps: Deps, env: Env, account_id: &str) -> ContractResul
         vaults,
         staked_astro_lps,
         perps: _,
-        perp_vault: _,
-    } = query_positions(deps, env, account_id, ActionKind::Default)?;
+    } = query_positions(deps, account_id, ActionKind::Default)?;
 
     if debts.len() > 1 {
         return Err(ContractError::HLS {

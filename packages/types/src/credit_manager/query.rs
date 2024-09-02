@@ -9,7 +9,7 @@ use crate::{
     },
     health::AccountKind,
     oracle::ActionKind,
-    perps::{PerpPosition, PerpVaultPosition},
+    perps::PerpPosition,
     traits::Coins,
 };
 
@@ -163,7 +163,6 @@ pub struct Positions {
     pub vaults: Vec<VaultPosition>,
     pub staked_astro_lps: Vec<Coin>,
     pub perps: Vec<PerpPosition>,
-    pub perp_vault: Option<PerpVaultPosition>,
 }
 
 #[cw_serde]

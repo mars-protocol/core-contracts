@@ -115,7 +115,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             action,
         } => to_json_binary(&query_positions(
             deps,
-            env,
             &account_id,
             action.unwrap_or(ActionKind::Default),
         )?),

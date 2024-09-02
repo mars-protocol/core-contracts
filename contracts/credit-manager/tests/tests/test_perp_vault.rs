@@ -97,7 +97,8 @@ fn deposit_account_balance_to_perp_vault_if_no_funds() {
 
     let position = mock.query_positions(&account_id_a);
     assert_eq!(position.deposits.len(), 0);
-    assert!(position.perp_vault.is_none());
+    let perp_vault_position = mock.query_perp_vault_position(&account_id_a);
+    assert!(perp_vault_position.is_none());
 
     let res = mock.update_credit_account(
         &account_id_a,
@@ -131,7 +132,8 @@ fn successful_deposit_to_perp_vault() {
 
     let position = mock.query_positions(&account_id);
     assert_eq!(position.deposits.len(), 0);
-    assert!(position.perp_vault.is_none());
+    let perp_vault_position = mock.query_perp_vault_position(&account_id);
+    assert!(perp_vault_position.is_none());
 
     let vault_deposit_amt = Uint128::new(50);
     mock.update_credit_account(
@@ -153,8 +155,9 @@ fn successful_deposit_to_perp_vault() {
     assert_eq!(deposit_res.amount, expected_net_deposit_amount);
 
     // Assert perp vault position increased
+    let perp_vault_position = mock.query_perp_vault_position(&account_id);
     assert_eq!(
-        position.perp_vault.unwrap(),
+        perp_vault_position.unwrap(),
         PerpVaultPosition {
             denom: coin_info.denom.clone(),
             deposit: PerpVaultDeposit {
@@ -191,7 +194,8 @@ fn successful_account_balance_deposit_to_perp_vault() {
 
     let position = mock.query_positions(&account_id);
     assert_eq!(position.deposits.len(), 0);
-    assert!(position.perp_vault.is_none());
+    let perp_vault_position = mock.query_perp_vault_position(&account_id);
+    assert!(perp_vault_position.is_none());
 
     let vault_deposit_amt = Uint128::new(300);
     mock.update_credit_account(
@@ -213,8 +217,9 @@ fn successful_account_balance_deposit_to_perp_vault() {
     assert!(position.deposits.is_empty());
 
     // Assert perp vault position increased
+    let perp_vault_position = mock.query_perp_vault_position(&account_id);
     assert_eq!(
-        position.perp_vault.unwrap(),
+        perp_vault_position.unwrap(),
         PerpVaultPosition {
             denom: coin_info.denom.clone(),
             deposit: PerpVaultDeposit {
@@ -280,13 +285,13 @@ fn unlock_more_shares_than_deposited_throws_error() {
     )
     .unwrap();
 
-    let position = mock.query_positions(&account_id);
+    let perp_vault_position = mock.query_perp_vault_position(&account_id);
 
     mock.update_credit_account(
         &account_id,
         &user,
         vec![UnlockFromPerpVault {
-            shares: position.perp_vault.unwrap().deposit.shares + Uint128::new(1),
+            shares: perp_vault_position.unwrap().deposit.shares + Uint128::new(1),
         }],
         &[],
     )
@@ -323,12 +328,13 @@ fn successful_unlock_and_withdraw_from_perp_vault() {
     .unwrap();
 
     // Read state before unlock
-    let perp_vault_position = mock.query_positions(&account_id);
+    let position = mock.query_positions(&account_id);
+    let perp_vault_position = mock.query_perp_vault_position(&account_id);
     let cm_balance = mock.query_balance(&mock.rover, &coin_info.denom);
     let perps_balance = mock.query_balance(mock.perps.address(), &coin_info.denom);
 
     let unlock_current_time = mock.query_block_time();
-    let unlock_shares = perp_vault_position.perp_vault.unwrap().deposit.shares / Uint128::new(5);
+    let unlock_shares = perp_vault_position.unwrap().deposit.shares / Uint128::new(5);
     mock.update_credit_account(
         &account_id,
         &user,
@@ -346,15 +352,16 @@ fn successful_unlock_and_withdraw_from_perp_vault() {
     assert_eq!(perps_balance, perps_balance_after_unlock);
 
     let perp_config = mock.query_perp_config();
-    let perp_vault_position_after_unlock = mock.query_positions(&account_id);
+    let positions_after_unlock = mock.query_positions(&account_id);
+    let perp_vault_position_after_unlock = mock.query_perp_vault_position(&account_id);
 
     // Deposits should be the same
-    assert_eq!(perp_vault_position.deposits, perp_vault_position_after_unlock.deposits);
+    assert_eq!(position.deposits, positions_after_unlock.deposits);
 
     // Perp vault position should be updated
     let expected_unlock_amt = Uint128::new(10);
     assert_eq!(
-        perp_vault_position_after_unlock.perp_vault.unwrap(),
+        perp_vault_position_after_unlock.unwrap(),
         PerpVaultPosition {
             denom: coin_info.denom.clone(),
             deposit: PerpVaultDeposit {
@@ -388,9 +395,10 @@ fn successful_unlock_and_withdraw_from_perp_vault() {
     );
 
     // Check positions are updated
-    let perp_vault_position_after_withdraw = mock.query_positions(&account_id);
+    let positions_after_withdraw = mock.query_positions(&account_id);
+    let perp_vault_position_after_withdraw = mock.query_perp_vault_position(&account_id);
     assert_eq!(
-        perp_vault_position_after_withdraw.perp_vault.unwrap(),
+        perp_vault_position_after_withdraw.unwrap(),
         PerpVaultPosition {
             denom: coin_info.denom.clone(),
             deposit: PerpVaultDeposit {
@@ -400,8 +408,8 @@ fn successful_unlock_and_withdraw_from_perp_vault() {
             unlocks: vec![]
         }
     );
-    let deposit_after_unlock = perp_vault_position_after_unlock.deposits.first().unwrap();
-    let deposit_after_withdraw = perp_vault_position_after_withdraw.deposits.first().unwrap();
-    assert_eq!(perp_vault_position_after_withdraw.deposits.len(), 1);
+    let deposit_after_unlock = positions_after_unlock.deposits.first().unwrap();
+    let deposit_after_withdraw = positions_after_withdraw.deposits.first().unwrap();
+    assert_eq!(positions_after_withdraw.deposits.len(), 1);
     assert_eq!(deposit_after_withdraw.amount, deposit_after_unlock.amount + expected_unlock_amt);
 }
