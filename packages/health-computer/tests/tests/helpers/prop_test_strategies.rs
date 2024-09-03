@@ -523,15 +523,6 @@ fn random_vault_positions(vd: VaultsData) -> impl Strategy<Value = Vec<VaultPosi
 pub fn random_health_computer() -> impl Strategy<Value = HealthComputer> {
     (random_param_maps()).prop_flat_map(
         |(mut asset_params, oracle_prices, mut vaults_data, perps_data)| {
-            // TODO fix me
-            let perps_data_safe = if !perps_data.params.is_empty() {
-                perps_data.clone()
-            } else {
-                PerpsData {
-                    params: Default::default(),
-                }
-            };
-
             update_hls_correlations(&mut asset_params, &mut vaults_data);
 
             (
@@ -542,7 +533,7 @@ pub fn random_health_computer() -> impl Strategy<Value = HealthComputer> {
                 random_coins(asset_params.clone()),
                 random_vault_positions(vaults_data.clone()),
                 random_astro_lp_coins(asset_params.clone()),
-                random_perps(perps_data_safe.clone()),
+                random_perps(perps_data.clone()),
             )
                 .prop_map(
                     move |(kind, deposits, debts, lends, vaults, staked_astro_lps, perps)| {

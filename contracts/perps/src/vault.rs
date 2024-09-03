@@ -58,7 +58,6 @@ pub fn deposit(
         MarsAddressType::Incentives,
     )?;
 
-    // todo: Test this
     let msg = build_incentives_balance_changed_msg(
         &incentives_addr,
         &info.sender,
@@ -200,7 +199,6 @@ pub fn withdraw(
 
     let mut msgs = vec![];
 
-    // todo: test this
     msgs.push(build_incentives_balance_changed_msg(
         &incentives_addr,
         &info.sender,

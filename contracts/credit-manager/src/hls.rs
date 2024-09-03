@@ -9,9 +9,8 @@ use crate::{
     state::PARAMS,
 };
 
-// TODO: should we check if perps and perp_vault are present?
+/// See diagram: https://excalidraw.com/#json=zzlhNw1NkvfV8axfJDGl9,Ec_67y7m-_3feub_xC4NSA
 pub fn assert_hls_rules(deps: Deps, account_id: &str) -> ContractResult<Response> {
-    // Rule #1 - There can only be 0 or 1 debt denom in the account
     let Positions {
         // destruct Positions so whenever we add new positions we don't forget to add them here
         account_id,
@@ -21,9 +20,19 @@ pub fn assert_hls_rules(deps: Deps, account_id: &str) -> ContractResult<Response
         lends,
         vaults,
         staked_astro_lps,
-        perps: _,
+        perps,
     } = query_positions(deps, account_id, ActionKind::Default)?;
 
+    // No deposits check here. It is handled in Health Computer collaterals calculation
+
+    // Rule #1 - There can't be any perps in the account
+    if !perps.is_empty() {
+        return Err(ContractError::HLS {
+            reason: "Account has perps".to_string(),
+        });
+    }
+
+    // Rule #2 - There can only be 0 or 1 debt denom in the account
     if debts.len() > 1 {
         return Err(ContractError::HLS {
             reason: "Account has more than one debt denom".to_string(),
@@ -36,14 +45,14 @@ pub fn assert_hls_rules(deps: Deps, account_id: &str) -> ContractResult<Response
             .query_asset_params(&deps.querier, &debt.denom)?
             .ok_or(ContractError::AssetParamsNotFound(debt.denom.to_string()))?;
 
-        // Rule #2: Debt denom must have HLS params set in the Mars-Param contract
+        // Rule #3: Debt denom must have HLS params set in the Mars-Param contract
         let Some(hls) = params.credit_manager.hls else {
             return Err(ContractError::HLS {
                 reason: format!("{} does not have HLS parameters", debt.denom),
             });
         };
 
-        // Rule #3: For that debt denom, verify all collateral assets excluding deposits are only those
+        // Rule #4: For that debt denom, verify all collateral assets excluding deposits are only those
         //          within the correlated list for that debt denom.
         //          Deposits can have claimed rewards which are not correlated. These assets will have
         //          LTV = 0 and won't be considered for HF.
