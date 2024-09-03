@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap};
+use std::collections::HashMap;
 
 use cosmwasm_std::{
     coins, ensure_eq, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Order,
@@ -386,47 +386,27 @@ fn adjust_position_with_validation(
     perp_params: &PerpParams,
     ds: &DenomState,
 ) -> Result<PositionModification, ContractError> {
-    let is_flipped = new_size.negative != entry_size.negative;
     let position_value = new_size.abs.checked_mul_floor(denom_price)?;
-    let modification = match (is_flipped, new_size.abs.cmp(&entry_size.abs)) {
-        // Position is not changed
-        (false, Ordering::Equal) => {
-            return Err(ContractError::IllegalPositionModification {
-                reason: "new_size is equal to old_size.".to_string(),
-            });
-        }
-
-        // Position is decreasing
-        (false, Ordering::Less) => {
-            // Enforce min size when decreasing
-            ensure_min_position(position_value, perp_params)?;
-
-            let q_change = entry_size.checked_sub(new_size)?;
-            PositionModification::Decrease(q_change)
-        }
-
-        // Position is increasing
-        (false, Ordering::Greater) => {
+    let modification = PositionModification::from_new_size(entry_size, new_size)?;
+    match modification {
+        PositionModification::Increase(..) => {
             // Enforce position size cannot be too big when increasing
             ensure_max_position(position_value, perp_params)?;
 
-            // validate the position's size against OI limits
+            // Validate the position's size against OI limits
             ds.validate_open_interest(new_size, entry_size, denom_price, perp_params)?;
-
-            let q_change = new_size.checked_sub(entry_size)?;
-            PositionModification::Increase(q_change)
         }
-
-        // Position is flipping
-        (true, _) => {
+        PositionModification::Decrease(..) => {
+            // Enforce min size when decreasing
+            ensure_min_position(position_value, perp_params)?;
+        }
+        PositionModification::Flip(..) => {
             // Ensure min and max position size when flipping a position
             ensure_min_position(position_value, perp_params)?;
             ensure_max_position(position_value, perp_params)?;
 
             // Ensure the position's size against OI limits
             ds.validate_open_interest(new_size, entry_size, denom_price, perp_params)?;
-
-            PositionModification::Flip(new_size, entry_size)
         }
     };
     Ok(modification)

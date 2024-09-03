@@ -836,7 +836,9 @@ impl HealthComputer {
             let base_denom_price =
                 *self.oracle_prices.get(base_denom).ok_or(MissingPrice(base_denom.to_string()))?;
 
-            let closing_rate = position.closing_fee_rate;
+            let perp_params =
+                self.perps_data.params.get(denom).ok_or(MissingPerpParams(denom.to_string()))?;
+            let closing_rate = perp_params.closing_fee_rate;
 
             // Perp(0)
             let position_value_open =

@@ -340,7 +340,6 @@ export interface PositionResponse {
 }
 export interface PerpPosition {
   base_denom: string
-  closing_fee_rate: Decimal
   current_exec_price: Decimal
   current_price: Decimal
   denom: string

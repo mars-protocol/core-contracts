@@ -443,7 +443,7 @@ fn random_perps(perp_denoms_data: PerpsData) -> impl Strategy<Value = Vec<PerpPo
                             usdc_price,
                             Decimal::zero(), // TODO: provide a real value
                             closing_fee_rate,
-                            PositionModification::None,
+                            PositionModification::Decrease(position.size),
                         )
                         .unwrap();
 
@@ -457,7 +457,6 @@ fn random_perps(perp_denoms_data: PerpsData) -> impl Strategy<Value = Vec<PerpPo
                         current_exec_price: current_price,
                         unrealised_pnl: pnl_amounts,
                         realised_pnl: PnlAmounts::default(),
-                        closing_fee_rate,
                     }
                 },
             ),

@@ -40,7 +40,7 @@ pub fn create_perp_info(
             max_net_oi_value: Uint128::new(1200),
             max_long_oi_value: Uint128::new(800),
             max_short_oi_value: Uint128::new(800),
-            closing_fee_rate: Decimal::percent(5),
+            closing_fee_rate: Decimal::from_str("0.0002").unwrap(),
             opening_fee_rate: Decimal::percent(5),
             min_position_value: Uint128::new(10),
             max_position_value: None,

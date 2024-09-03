@@ -1349,7 +1349,6 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
         HashMap::from([(uusd.denom.clone(), uusd.price), (btcperp.denom.clone(), btcperp.price)]);
 
     let vaults_data = Default::default();
-    let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedUint::from_str("-25210000").unwrap();
     let perps_data = PerpsData {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
@@ -1379,7 +1378,6 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
                     ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
-                closing_fee_rate,
             }],
         },
         oracle_prices,
@@ -1427,7 +1425,6 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
     let vaults_data = Default::default();
-    let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedUint::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -1454,7 +1451,6 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
                     ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
-                closing_fee_rate,
             }],
         },
         asset_params,
@@ -1497,7 +1493,6 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
     let perps_data = PerpsData {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
-    let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedUint::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -1523,7 +1518,6 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
                     pnl: SignedUint::from_str("-55000000").unwrap(),
                     ..Default::default()
                 },
-                closing_fee_rate,
                 realised_pnl: PnlAmounts::default(),
             }],
         },
@@ -1559,8 +1553,9 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
     let current_price = Decimal::from_str("105.50").unwrap();
     let max_ltv = Decimal::from_str("0.9").unwrap();
     let liquidation_threshold = Decimal::from_str("0.95").unwrap();
-    let btcperp =
+    let mut btcperp =
         create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
+    btcperp.perp_params.closing_fee_rate = Decimal::from_str("0.000").unwrap();
 
     let asset_params = HashMap::from([(uusd.denom.clone(), uusd.params.clone())]);
 
@@ -1602,7 +1597,6 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
 
-    let closing_fee_rate = Decimal::from_str("0.000").unwrap();
     let unrealised_funding_accrued = SignedUint::zero();
 
     let h = HealthComputer {
@@ -1633,7 +1627,6 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
                     ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
-                closing_fee_rate,
             }],
         },
         oracle_prices,
@@ -1683,7 +1676,6 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
     let perps_data = PerpsData {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
-    let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedUint::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -1710,7 +1702,6 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
                     ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
-                closing_fee_rate,
             }],
         },
         oracle_prices,
@@ -1780,7 +1771,6 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
             (ethperp.denom.clone(), ethperp.perp_params.clone()),
         ]),
     };
-    let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued_btc = SignedUint::from_str("15210000").unwrap();
     let unrealised_funding_accrued_eth = SignedUint::from_str("-12650000").unwrap();
     let h = HealthComputer {
@@ -1810,7 +1800,6 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                         ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
-                    closing_fee_rate,
                 },
                 PerpPosition {
                     denom: ethperp.denom,
@@ -1827,7 +1816,6 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                         ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
-                    closing_fee_rate,
                 },
             ],
         },
@@ -1898,7 +1886,6 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
             (ethperp.denom.clone(), ethperp.perp_params.clone()),
         ]),
     };
-    let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued_btc = SignedUint::from_str("15210000").unwrap();
     let unrealised_funding_accrued_eth = SignedUint::from_str("-12650000").unwrap();
     let h = HealthComputer {
@@ -1928,7 +1915,6 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                         ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
-                    closing_fee_rate,
                 },
                 PerpPosition {
                     denom: ethperp.denom,
@@ -1945,7 +1931,6 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                         ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
-                    closing_fee_rate,
                 },
             ],
         },
@@ -2006,7 +1991,6 @@ fn perp_short_delta_neutral_with_btc_collateral() {
     let perps_data = PerpsData {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
-    let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedUint::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -2033,7 +2017,6 @@ fn perp_short_delta_neutral_with_btc_collateral() {
                     ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
-                closing_fee_rate,
             }],
         },
         oracle_prices,
@@ -2094,7 +2077,6 @@ fn spot_short_delta_neutral_with_leverage() {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
 
-    let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedUint::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -2125,7 +2107,6 @@ fn spot_short_delta_neutral_with_leverage() {
                     ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
-                closing_fee_rate,
             }],
         },
         oracle_prices,
@@ -2155,7 +2136,8 @@ fn spot_short_delta_neutral_with_leverage() {
 #[test]
 fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
     let uusd = uusdc_info();
-    let btcperp = btcperp_info();
+    let mut btcperp = btcperp_info();
+    btcperp.perp_params.closing_fee_rate = Decimal::from_str("0.000").unwrap();
     let ethperp = ethperp_info();
     let atomperp = atomperp_info();
     let uluna = uluna_info();
@@ -2250,7 +2232,6 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                         ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
-                    closing_fee_rate: Decimal::from_str("0.000").unwrap(),
                 },
                 PerpPosition {
                     denom: ethperp.denom,
@@ -2266,7 +2247,6 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                         ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
-                    closing_fee_rate: Decimal::from_str("0.0002").unwrap(),
                 },
                 PerpPosition {
                     denom: atomperp.denom,
@@ -2282,7 +2262,6 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                         ..Default::default()
                     },
                     realised_pnl: PnlAmounts::default(),
-                    closing_fee_rate: Decimal::from_str("0.0002").unwrap(),
                 },
             ],
         },
@@ -2332,7 +2311,6 @@ fn single_perp_funding_greater_than_pnl() {
     };
 
     let vaults_data = Default::default();
-    let closing_fee_rate = Decimal::from_str("0.0002").unwrap();
     let unrealised_funding_accrued = SignedUint::from_str("1225210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -2358,7 +2336,6 @@ fn single_perp_funding_greater_than_pnl() {
                     ..Default::default()
                 },
                 realised_pnl: PnlAmounts::default(),
-                closing_fee_rate,
             }],
         },
         oracle_prices,

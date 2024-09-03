@@ -470,7 +470,6 @@
       "type": "object",
       "required": [
         "base_denom",
-        "closing_fee_rate",
         "current_exec_price",
         "current_price",
         "denom",
@@ -483,9 +482,6 @@
       "properties": {
         "base_denom": {
           "type": "string"
-        },
-        "closing_fee_rate": {
-          "$ref": "#/definitions/Decimal"
         },
         "current_exec_price": {
           "$ref": "#/definitions/Decimal"
