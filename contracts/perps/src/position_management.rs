@@ -335,6 +335,9 @@ fn update_position_state(
         let mut realized_pnl = position.realized_pnl;
         realized_pnl.add(&pnl_amounts)?;
 
+        // Reduce the initial skew by the old position size. It is new "initial skew".
+        let initial_skew = initial_skew.checked_sub(position.size)?;
+
         let entry_exec_price =
             opening_execution_price(initial_skew, ds.funding.skew_scale, new_size, denom_price)?;
 

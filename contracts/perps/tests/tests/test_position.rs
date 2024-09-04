@@ -1016,7 +1016,7 @@ fn modify_position_realises_pnl() {
         "uatom",
         SignedUint::from_str("-100").unwrap(),
         None,
-        &[coin(213u128, "uusdc")],
+        &[coin(212u128, "uusdc")],
     )
     .unwrap();
 
@@ -1026,11 +1026,11 @@ fn modify_position_realises_pnl() {
         position.position.unwrap().realised_pnl,
         PnlAmounts {
             accrued_funding: SignedUint::zero(),
-            price_pnl: SignedUint::from_str("98").unwrap(),
+            price_pnl: SignedUint::from_str("99").unwrap(),
             // opening_fee: atom_opening_fee_total, // we are not paying opening fee for decrease
             opening_fee: SignedUint::from_str("-43").unwrap(), // rounding error
             closing_fee: SignedUint::from_str("-11").unwrap(),
-            pnl: SignedUint::from_str("44").unwrap(),
+            pnl: SignedUint::from_str("45").unwrap(),
         }
     );
 }

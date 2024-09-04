@@ -393,14 +393,10 @@ impl DenomStateExt for DenomState {
 
         // first we have to decrease the accumulators with old data
         decrease_accumulators(self, position)?;
+        self.decrease_open_interest(position.size)?;
 
         // then we increase the accumulators with new data
         increase_accumulators(self, new_size, denom_price)?;
-
-        // update the open interest:
-        // - decrease for the old size
-        self.decrease_open_interest(position.size)?;
-        // - increase for the new size
         self.increase_open_interest(new_size)?;
 
         self.last_updated = current_time;
@@ -977,7 +973,9 @@ mod tests {
         // modify with new denom price, base denom price and new decreased size
         let new_denom_price = Decimal::from_str("4400").unwrap();
         let new_base_denom_price = Decimal::from_str("0.9").unwrap();
-        let new_skew = ds_1.skew().unwrap();
+        // Reduce skew by old position size.
+        // It is "initial skew" for the new position size.
+        let new_skew = ds_1.skew().unwrap().checked_sub(size).unwrap();
         ds_1.modify_position(43600, new_denom_price, new_base_denom_price, &pos, new_size).unwrap();
 
         // update the position with new data
