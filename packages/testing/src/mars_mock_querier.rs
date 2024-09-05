@@ -11,7 +11,7 @@ use mars_oracle_wasm::slinky::CurrencyPairExt;
 use mars_types::{
     address_provider, incentives, oracle,
     params::AssetParams,
-    perps::{PerpVaultPosition, VaultResponse},
+    perps::{VaultPositionResponse, VaultResponse},
     red_bank,
 };
 use neutron_sdk::bindings::{
@@ -292,7 +292,7 @@ impl MarsMockQuerier {
     pub fn set_perp_vault_position(
         &mut self,
         user: impl Into<String>,
-        vault_position: PerpVaultPosition,
+        vault_position: VaultPositionResponse,
     ) {
         self.perps_querier.vault_positions.insert(user.into(), vault_position);
     }

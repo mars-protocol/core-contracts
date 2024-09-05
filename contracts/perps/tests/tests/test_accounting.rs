@@ -3,7 +3,7 @@ use std::{cmp::max, str::FromStr};
 use cosmwasm_std::{coin, Coin, Decimal};
 use mars_types::{
     params::{PerpParams, PerpParamsUpdate},
-    perps::{Accounting, Balance, CashFlow, PerpPosition, PnL, PnlAmounts, VaultResponse},
+    perps::{Accounting, Balance, CashFlow, PerpPosition, PnL, VaultResponse},
     signed_uint::SignedUint,
 };
 
@@ -57,11 +57,11 @@ fn accounting() {
     mock.set_price(&owner, "uatom", Decimal::from_str("10.5").unwrap()).unwrap();
 
     // check accounting in the beginning
-    let osmo_accounting = mock.query_denom_accounting("uosmo");
+    let osmo_accounting = mock.query_market_accounting("uosmo").accounting;
     assert_eq!(osmo_accounting, Accounting::default());
-    let atom_accounting = mock.query_denom_accounting("uatom");
+    let atom_accounting = mock.query_market_accounting("uatom").accounting;
     assert_eq!(atom_accounting, Accounting::default());
-    let total_accounting = mock.query_total_accounting();
+    let total_accounting = mock.query_total_accounting().accounting;
     assert_eq!(total_accounting, Accounting::default());
 
     let vault_state_before_opening = mock.query_vault();
@@ -91,10 +91,10 @@ fn accounting() {
     .unwrap();
 
     // check vault state after opening positions
-    assert_vault(&mock, &vault_state_before_opening, base_denom_price);
+    assert_vault(&mock, &vault_state_before_opening);
 
     // check accounting after opening positions
-    let osmo_accounting = mock.query_denom_accounting("uosmo");
+    let osmo_accounting = mock.query_market_accounting("uosmo").accounting;
     assert_eq!(
         osmo_accounting.cash_flow,
         CashFlow {
@@ -102,7 +102,7 @@ fn accounting() {
             ..Default::default()
         }
     );
-    let atom_accounting = mock.query_denom_accounting("uatom");
+    let atom_accounting = mock.query_market_accounting("uatom").accounting;
     assert_eq!(
         atom_accounting.cash_flow,
         CashFlow {
@@ -110,7 +110,7 @@ fn accounting() {
             ..Default::default()
         }
     );
-    let total_accounting = mock.query_total_accounting();
+    let total_accounting = mock.query_total_accounting().accounting;
     assert_eq!(
         total_accounting.cash_flow,
         CashFlow {
@@ -141,16 +141,16 @@ fn accounting() {
     .unwrap();
 
     // check vault state after closing uosmo position
-    assert_vault(&mock, &vault_state_before_closing, base_denom_price);
+    assert_vault(&mock, &vault_state_before_closing);
 
     // check accounting after closing uosmo position
-    let osmo_accounting = mock.query_denom_accounting("uosmo");
-    let atom_accounting = mock.query_denom_accounting("uatom");
-    let total_accounting = mock.query_total_accounting();
+    let osmo_accounting = mock.query_market_accounting("uosmo").accounting;
+    let atom_accounting = mock.query_market_accounting("uatom").accounting;
+    let total_accounting = mock.query_total_accounting().accounting;
     assert_accounting(&total_accounting, &osmo_accounting, &atom_accounting);
 
     // compare realized PnL
-    let osmo_realized_pnl = mock.query_denom_realized_pnl_for_account("1", "uosmo");
+    let osmo_realized_pnl = mock.query_realized_pnl_by_account_and_market("1", "uosmo");
     assert_eq!(osmo_realized_pnl.price_pnl.abs, osmo_accounting.cash_flow.price_pnl.abs);
     assert!(!osmo_realized_pnl.price_pnl.negative);
     assert_ne!(osmo_realized_pnl.price_pnl.negative, osmo_accounting.cash_flow.price_pnl.negative);
@@ -197,16 +197,16 @@ fn accounting() {
     .unwrap();
 
     // check vault state after closing uatom position
-    assert_vault(&mock, &vault_state_before_closing, base_denom_price);
+    assert_vault(&mock, &vault_state_before_closing);
 
     // check accounting after closing uatom position
-    let osmo_accounting = mock.query_denom_accounting("uosmo");
-    let atom_accounting = mock.query_denom_accounting("uatom");
-    let total_accounting = mock.query_total_accounting();
+    let osmo_accounting = mock.query_market_accounting("uosmo").accounting;
+    let atom_accounting = mock.query_market_accounting("uatom").accounting;
+    let total_accounting = mock.query_total_accounting().accounting;
     assert_accounting(&total_accounting, &osmo_accounting, &atom_accounting);
 
     // compare realized PnL
-    let atom_realized_pnl = mock.query_denom_realized_pnl_for_account("1", "uatom");
+    let atom_realized_pnl = mock.query_realized_pnl_by_account_and_market("1", "uatom");
     assert_eq!(atom_realized_pnl.price_pnl.abs, atom_accounting.cash_flow.price_pnl.abs);
     assert!(atom_realized_pnl.price_pnl.negative);
     assert_ne!(atom_realized_pnl.price_pnl.negative, atom_accounting.cash_flow.price_pnl.negative);
@@ -279,11 +279,11 @@ fn add_balances(a: &Balance, b: &Balance) -> Balance {
     }
 }
 
-fn assert_vault(mock: &MockEnv, vault_before: &VaultResponse, base_denom_price: Decimal) {
+fn assert_vault(mock: &MockEnv, vault_before: &VaultResponse) {
     let vault = mock.query_vault();
-    let total_accounting = mock.query_total_accounting();
-    let total_pnl_val = mock.query_total_pnl();
-    let total_pnl_amt = PnlAmounts::from_pnl_values(total_pnl_val, base_denom_price).unwrap();
+    let total_accounting_res = mock.query_total_accounting();
+    let total_accounting = total_accounting_res.accounting;
+    let total_pnl_amt = total_accounting_res.unrealized_pnl;
     let total_debt = max(total_pnl_amt.pnl, SignedUint::zero()).abs;
     let total_withdrawal_balance =
         total_accounting.withdrawal_balance.total.checked_add(vault_before.total_balance).unwrap();

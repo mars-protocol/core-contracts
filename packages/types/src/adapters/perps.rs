@@ -6,8 +6,8 @@ use cosmwasm_std::{
 use crate::{
     oracle::ActionKind,
     perps::{
-        Config, ExecuteMsg, PerpDenomState, PerpPosition, PerpVaultPosition, PositionResponse,
-        PositionsByAccountResponse, QueryMsg, TradingFee,
+        Config, ExecuteMsg, MarketResponse, PerpPosition, PositionResponse,
+        PositionsByAccountResponse, QueryMsg, TradingFee, VaultPositionResponse,
     },
     signed_uint::SignedUint,
 };
@@ -89,7 +89,7 @@ impl Perps {
     ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
-            msg: to_json_binary(&ExecuteMsg::ExecutePerpOrder {
+            msg: to_json_binary(&ExecuteMsg::ExecuteOrder {
                 account_id: account_id.into(),
                 denom: denom.into(),
                 size,
@@ -166,14 +166,14 @@ impl Perps {
         Ok(res)
     }
 
-    pub fn query_perp_denom_state(
+    pub fn query_perp_market_state(
         &self,
         querier: &QuerierWrapper,
         denom: impl Into<String>,
-    ) -> StdResult<PerpDenomState> {
-        let res: PerpDenomState = querier.query_wasm_smart(
+    ) -> StdResult<MarketResponse> {
+        let res: MarketResponse = querier.query_wasm_smart(
             self.address(),
-            &QueryMsg::PerpDenomState {
+            &QueryMsg::Market {
                 denom: denom.into(),
             },
         )?;
@@ -190,10 +190,10 @@ impl Perps {
         querier: &QuerierWrapper,
         credit_manager: impl Into<String>,
         account_id: impl Into<String>,
-    ) -> StdResult<Option<PerpVaultPosition>> {
-        let res: Option<PerpVaultPosition> = querier.query_wasm_smart(
+    ) -> StdResult<Option<VaultPositionResponse>> {
+        let res: Option<VaultPositionResponse> = querier.query_wasm_smart(
             self.address(),
-            &QueryMsg::PerpVaultPosition {
+            &QueryMsg::VaultPosition {
                 user_address: credit_manager.into(),
                 account_id: Some(account_id.into()),
             },

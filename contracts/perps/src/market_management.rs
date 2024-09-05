@@ -4,17 +4,17 @@ use mars_types::{
     error::MarsError,
     oracle::ActionKind,
     params::PerpParams,
-    perps::{Config, DenomState, Funding},
+    perps::{Config, Funding, MarketState},
 };
 
 use crate::{
-    denom::DenomStateExt,
     error::{ContractError, ContractResult},
-    state::{CONFIG, DENOM_STATES},
+    market::MarketStateExt,
+    state::{CONFIG, MARKET_STATES},
 };
 
-/// Updates the perp parameters for a given denomination
-pub fn update_params(
+/// Updates the perp parameters for a given market
+pub fn update_market(
     deps: DepsMut,
     env: Env,
     sender: Addr,
@@ -29,24 +29,24 @@ pub fn update_params(
     // Ensure that the sender is authorized to update the parameters
     assert_is_authorized(&deps, &sender, &cfg.address_provider)?;
 
-    // Try to load the existing state for the given denomination
-    let denom_state_opt = DENOM_STATES.may_load(deps.storage, &params.denom)?;
+    // Try to load the existing state for the given market
+    let market_state_opt = MARKET_STATES.may_load(deps.storage, &params.denom)?;
 
-    // Determine the appropriate action based on whether the denomination state exists
-    let denom_state = match denom_state_opt {
-        // If the denomination exists, update its parameters
-        Some(ds) => update_denom_state(ds, deps.as_ref(), &cfg, &params, current_time)?,
+    // Determine the appropriate action based on whether the market state exists
+    let market_state = match market_state_opt {
+        // If the market exists, update its parameters
+        Some(ms) => update_market_state(ms, deps.as_ref(), &cfg, &params, current_time)?,
 
-        // If the denomination does not exist, initialize a new state
-        None => initialize_denom_state(&params, current_time),
+        // If the market does not exist, initialize a new state
+        None => initialize_market_state(&params, current_time),
     };
 
-    // Save the updated denomination state to storage
-    DENOM_STATES.save(deps.storage, &params.denom, &denom_state)?;
+    // Save the updated market state to storage
+    MARKET_STATES.save(deps.storage, &params.denom, &market_state)?;
 
     // Return a response indicating the success of the update, with relevant attributes
     Ok(Response::new()
-        .add_attribute("action", "update_params")
+        .add_attribute("action", "update_market")
         .add_attribute("denom", params.denom)
         .add_attribute("enabled", params.enabled.to_string())
         .add_attribute("max_funding_velocity", params.max_funding_velocity.to_string())
@@ -68,9 +68,9 @@ fn assert_is_authorized(deps: &DepsMut, sender: &Addr, ap_addr: &Addr) -> Contra
     Ok(())
 }
 
-/// Initializes a new state for a denomination that does not yet exist
-fn initialize_denom_state(params: &PerpParams, current_time: u64) -> DenomState {
-    DenomState {
+/// Initializes a new state for a market that does not yet exist
+fn initialize_market_state(params: &PerpParams, current_time: u64) -> MarketState {
+    MarketState {
         enabled: params.enabled,
         funding: Funding {
             max_funding_velocity: params.max_funding_velocity,
@@ -82,18 +82,18 @@ fn initialize_denom_state(params: &PerpParams, current_time: u64) -> DenomState 
     }
 }
 
-/// Updates the state of a given denomination with new parameters and funding information
-fn update_denom_state(
-    mut denom_state: DenomState,
+/// Updates the state of a given market with new parameters and funding information
+fn update_market_state(
+    mut market_state: MarketState,
     deps: Deps,
     cfg: &Config<Addr>,
     params: &PerpParams,
     current_time: u64,
-) -> ContractResult<DenomState> {
-    // If the denomination is enabled and hasn't been updated in the current block,
+) -> ContractResult<MarketState> {
+    // If the market is enabled and hasn't been updated in the current block,
     // refresh the funding rate and update its parameters.
-    if denom_state.enabled && denom_state.last_updated != current_time {
-        // Query the current price of the denomination and the base denomination
+    if market_state.enabled && market_state.last_updated != current_time {
+        // Query the current price of the market and the base market
         let denom_price =
             cfg.oracle.query_price(&deps.querier, &params.denom, ActionKind::Default)?.price;
         let base_denom_price =
@@ -101,15 +101,15 @@ fn update_denom_state(
 
         // Refresh the funding rate and index before updating the parameters
         let current_funding =
-            denom_state.current_funding(current_time, denom_price, base_denom_price)?;
-        denom_state.funding = current_funding;
+            market_state.current_funding(current_time, denom_price, base_denom_price)?;
+        market_state.funding = current_funding;
     }
 
-    // Update the funding parameters and enable/disable the denomination
-    denom_state.funding.max_funding_velocity = params.max_funding_velocity;
-    denom_state.funding.skew_scale = params.skew_scale;
-    denom_state.enabled = params.enabled;
-    denom_state.last_updated = current_time;
+    // Update the funding parameters and enable/disable the market
+    market_state.funding.max_funding_velocity = params.max_funding_velocity;
+    market_state.funding.skew_scale = params.skew_scale;
+    market_state.enabled = params.enabled;
+    market_state.last_updated = current_time;
 
-    Ok(denom_state)
+    Ok(market_state)
 }

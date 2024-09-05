@@ -197,7 +197,7 @@ pub struct UnlockState {
 /// Global state of a single denom
 #[cw_serde]
 #[derive(Default)]
-pub struct DenomState {
+pub struct MarketState {
     /// Whether the denom is enabled for trading
     pub enabled: bool,
 
@@ -320,20 +320,23 @@ pub struct Accounting {
     pub withdrawal_balance: Balance,
 }
 
-/// This is the denom data to be returned in a query. It includes current
-/// price, PnL and funding.
+/// Accounting and unrealized PnL in the base denom (e.g. UUSDC)
 #[cw_serde]
 #[derive(Default)]
-pub struct PerpDenomState {
+pub struct AccountingResponse {
+    pub accounting: Accounting,
+    pub unrealized_pnl: PnlAmounts,
+}
+
+/// Market state for a single denom
+#[cw_serde]
+#[derive(Default)]
+pub struct MarketResponse {
     pub denom: String,
     pub enabled: bool,
     pub long_oi: Uint128,
     pub short_oi: Uint128,
-    pub total_entry_cost: SignedUint,
-    pub total_entry_funding: SignedUint,
-    pub rate: SignedDecimal,
-    pub pnl_values: PnlValues,
-    pub funding: Funding,
+    pub current_funding_rate: SignedDecimal,
 }
 
 /// This is the position data to be stored in the contract state. It does not
@@ -389,13 +392,6 @@ impl PnL {
             PnL::BreakEven
         }
     }
-}
-
-#[cw_serde]
-pub struct PositionPnl {
-    pub values: PnlValues,
-    pub amounts: PnlAmounts,
-    pub coins: PnlCoins,
 }
 
 /// Values denominated in the Oracle base currency (uusd)
@@ -553,7 +549,7 @@ pub enum ExecuteMsg {
     /// Execute a perp order against a perp market for a given account.
     /// If the position in that market for that account id exists, it is modified.
     /// If no position exists, a position is created (providing reduce_only is none or false)
-    ExecutePerpOrder {
+    ExecuteOrder {
         account_id: String,
         denom: String,
 
@@ -588,10 +584,11 @@ pub enum ExecuteMsg {
     },
 
     /// Receive updated parameters from the params contract
-    UpdateParams {
+    UpdateMarket {
         params: PerpParams,
     },
 
+    /// Update the contract's global configuration
     UpdateConfig {
         updates: ConfigUpdates,
     },
@@ -600,44 +597,42 @@ pub enum ExecuteMsg {
 #[cw_serde]
 #[derive(QueryResponses)]
 pub enum QueryMsg {
+    /// Query the owner of the contract.
     #[returns(mars_owner::OwnerResponse)]
     Owner {},
 
+    /// Query the current configuration of the contract.
     #[returns(Config<String>)]
     Config {},
 
+    /// Query the vault state, optionally for a specific action.
     #[returns(VaultResponse)]
     Vault {
         action: Option<ActionKind>,
     },
 
-    #[returns(DenomStateResponse)]
-    DenomState {
+    /// Query the state of a specific market.
+    #[returns(MarketStateResponse)]
+    MarketState {
         denom: String,
     },
 
-    /// Query a single perp denom state with current calculated PnL, funding etc.
-    #[returns(PerpDenomState)]
-    PerpDenomState {
+    /// Query a single market.
+    #[returns(MarketResponse)]
+    Market {
         denom: String,
     },
 
-    /// Query a single perp denom state with current calculated PnL, funding etc.
-    #[returns(cw_paginate::PaginationResponse<PerpDenomState>)]
-    PerpDenomStates {
+    /// Query markets with pagination.
+    #[returns(cw_paginate::PaginationResponse<MarketResponse>)]
+    Markets {
         start_after: Option<String>,
         limit: Option<u32>,
     },
 
-    /// List all denoms enabled for trading
-    #[returns(Vec<DenomStateResponse>)]
-    DenomStates {
-        start_after: Option<String>,
-        limit: Option<u32>,
-    },
-
-    #[returns(Option<PerpVaultPosition>)]
-    PerpVaultPosition {
+    /// Query the vault position for a specific user and optional account id.
+    #[returns(Option<VaultPositionResponse>)]
+    VaultPosition {
         /// User address calling the contract.
         /// It can be the Credit Manager contract or a wallet.
         user_address: String,
@@ -646,28 +641,7 @@ pub enum QueryMsg {
         account_id: Option<String>,
     },
 
-    /// Query the amount of deposit made to the vault by a single user
-    #[returns(PerpVaultDeposit)]
-    Deposit {
-        /// User address calling the contract.
-        /// It can be the Credit Manager contract or a wallet.
-        user_address: String,
-        /// The user's credit account token ID.
-        /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
-        account_id: Option<String>,
-    },
-
-    #[returns(Vec<PerpVaultUnlock>)]
-    Unlocks {
-        /// User address calling the contract.
-        /// It can be the Credit Manager contract or a wallet.
-        user_address: String,
-        /// The user's credit account token ID.
-        /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
-        account_id: Option<String>,
-    },
-
-    /// Query a single perp position by ID
+    /// Query a single perp position by account and denom.
     #[returns(PositionResponse)]
     Position {
         account_id: String,
@@ -675,7 +649,7 @@ pub enum QueryMsg {
         order_size: Option<SignedUint>,
     },
 
-    /// List positions of all accounts and denoms
+    /// List positions of all accounts and denoms.
     #[returns(Vec<PositionResponse>)]
     Positions {
         start_after: Option<(String, String)>,
@@ -692,30 +666,31 @@ pub enum QueryMsg {
         action: Option<ActionKind>,
     },
 
-    /// Compute the total PnL of all perp positions, denominated in uusd (USD = 1e6 uusd, configured in Oracle)
-    #[returns(SignedDecimal)]
-    TotalPnl {},
+    /// Query realized PnL amounts for a specific account and market.
+    #[returns(PnlAmounts)]
+    RealizedPnlByAccountAndMarket {
+        account_id: String,
+        denom: String,
+    },
 
+    /// Query the accounting details for a specific market.
+    #[returns(AccountingResponse)]
+    MarketAccounting {
+        denom: String,
+    },
+
+    /// Query the total accounting details across all markets.
+    #[returns(AccountingResponse)]
+    TotalAccounting {},
+
+    /// Query the opening fee for a given market and position size.
     #[returns(TradingFee)]
     OpeningFee {
         denom: String,
         size: SignedUint,
     },
 
-    #[returns(Accounting)]
-    DenomAccounting {
-        denom: String,
-    },
-
-    #[returns(Accounting)]
-    TotalAccounting {},
-
-    #[returns(PnlAmounts)]
-    DenomRealizedPnlForAccount {
-        account_id: String,
-        denom: String,
-    },
-
+    /// Query the fees associated with modifying a specific position.
     #[returns(PositionFeesResponse)]
     PositionFees {
         account_id: String,
@@ -726,40 +701,33 @@ pub enum QueryMsg {
 
 #[cw_serde]
 #[derive(Default)]
-pub struct DenomStateResponse {
+pub struct MarketStateResponse {
     pub denom: String,
-    pub enabled: bool,
-    pub total_cost_base: SignedUint,
-    pub funding: Funding,
-    pub last_updated: u64,
+
+    #[serde(flatten)]
+    pub market_state: MarketState,
 }
 
 #[cw_serde]
-pub struct PerpVaultPosition {
+pub struct VaultPositionResponse {
     pub denom: String,
-    pub deposit: PerpVaultDeposit,
-    pub unlocks: Vec<PerpVaultUnlock>,
+    pub deposit: VaultDeposit,
+    pub unlocks: Vec<VaultUnlock>,
 }
 
 #[cw_serde]
 #[derive(Default)]
-pub struct PerpVaultDeposit {
+pub struct VaultDeposit {
     pub shares: Uint128,
     pub amount: Uint128,
 }
 
 #[cw_serde]
 #[derive(Default)]
-pub struct PerpVaultUnlock {
+pub struct VaultUnlock {
     pub created_at: u64,
     pub cooldown_end: u64,
     pub shares: Uint128,
-    pub amount: Uint128,
-}
-
-#[cw_serde]
-pub struct DebtResponse {
-    pub account_id: String,
     pub amount: Uint128,
 }
 

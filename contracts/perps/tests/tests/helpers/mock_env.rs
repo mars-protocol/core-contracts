@@ -19,10 +19,9 @@ use mars_types::{
         PerpParams, PerpParamsUpdate,
     },
     perps::{
-        self, Accounting, Config, ConfigUpdates, DenomStateResponse, PerpDenomState,
-        PerpVaultDeposit, PerpVaultPosition, PerpVaultUnlock, PnlAmounts, PnlValues,
-        PositionFeesResponse, PositionResponse, PositionsByAccountResponse, TradingFee,
-        VaultResponse,
+        self, AccountingResponse, Config, ConfigUpdates, MarketResponse, MarketStateResponse,
+        PnlAmounts, PositionFeesResponse, PositionResponse, PositionsByAccountResponse, TradingFee,
+        VaultPositionResponse, VaultResponse,
     },
     rewards_collector,
     signed_uint::SignedUint,
@@ -215,7 +214,7 @@ impl MockEnv {
         self.app.execute_contract(
             sender.clone(),
             self.perps.clone(),
-            &perps::ExecuteMsg::ExecutePerpOrder {
+            &perps::ExecuteMsg::ExecuteOrder {
                 account_id: account_id.to_string(),
                 denom: denom.to_string(),
                 size,
@@ -267,11 +266,11 @@ impl MockEnv {
             .unwrap();
     }
 
-    pub fn update_params(&mut self, sender: &Addr, params: PerpParams) -> AnyResult<AppResponse> {
+    pub fn update_market(&mut self, sender: &Addr, params: PerpParams) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
             self.perps.clone(),
-            &perps::ExecuteMsg::UpdateParams {
+            &perps::ExecuteMsg::UpdateMarket {
                 params,
             },
             &[],
@@ -320,40 +319,40 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_denom_state(&self, denom: &str) -> DenomStateResponse {
+    pub fn query_market_state(&self, denom: &str) -> MarketStateResponse {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.perps.clone(),
-                &perps::QueryMsg::DenomState {
+                &perps::QueryMsg::MarketState {
                     denom: denom.to_string(),
                 },
             )
             .unwrap()
     }
 
-    pub fn query_perp_denom_state(&self, denom: &str) -> PerpDenomState {
+    pub fn query_market(&self, denom: &str) -> MarketResponse {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.perps.clone(),
-                &perps::QueryMsg::PerpDenomState {
+                &perps::QueryMsg::Market {
                     denom: denom.to_string(),
                 },
             )
             .unwrap()
     }
 
-    pub fn query_perp_denom_states(
+    pub fn query_markets(
         &self,
         start_after: Option<String>,
         limit: Option<u32>,
-    ) -> PaginationResponse<PerpDenomState> {
+    ) -> PaginationResponse<MarketResponse> {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.perps.clone(),
-                &perps::QueryMsg::PerpDenomStates {
+                &perps::QueryMsg::Markets {
                     start_after,
                     limit,
                 },
@@ -361,62 +360,7 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_denom_states(
-        &self,
-        start_after: Option<String>,
-        limit: Option<u32>,
-    ) -> Vec<DenomStateResponse> {
-        self.app
-            .wrap()
-            .query_wasm_smart(
-                self.perps.clone(),
-                &perps::QueryMsg::DenomStates {
-                    start_after,
-                    limit,
-                },
-            )
-            .unwrap()
-    }
-
-    pub fn query_cm_deposit(&self, account_id: &str) -> PerpVaultDeposit {
-        self.query_deposit(self.credit_manager.as_str(), Some(account_id))
-    }
-
-    pub fn query_deposit(&self, user_address: &str, account_id: Option<&str>) -> PerpVaultDeposit {
-        self.app
-            .wrap()
-            .query_wasm_smart(
-                self.perps.clone(),
-                &perps::QueryMsg::Deposit {
-                    user_address: user_address.to_string(),
-                    account_id: account_id.map(|s| s.to_string()),
-                },
-            )
-            .unwrap()
-    }
-
-    pub fn query_cm_unlocks(&self, account_id: &str) -> Vec<PerpVaultUnlock> {
-        self.query_unlocks(self.credit_manager.as_str(), Some(account_id))
-    }
-
-    pub fn query_unlocks(
-        &self,
-        user_address: &str,
-        account_id: Option<&str>,
-    ) -> Vec<PerpVaultUnlock> {
-        self.app
-            .wrap()
-            .query_wasm_smart(
-                self.perps.clone(),
-                &perps::QueryMsg::Unlocks {
-                    user_address: user_address.to_string(),
-                    account_id: account_id.map(|s| s.to_string()),
-                },
-            )
-            .unwrap()
-    }
-
-    pub fn query_cm_vault_position(&self, account_id: &str) -> Option<PerpVaultPosition> {
+    pub fn query_cm_vault_position(&self, account_id: &str) -> Option<VaultPositionResponse> {
         self.query_vault_position(self.credit_manager.as_str(), Some(account_id))
     }
 
@@ -424,12 +368,12 @@ impl MockEnv {
         &self,
         user_address: &str,
         account_id: Option<&str>,
-    ) -> Option<PerpVaultPosition> {
+    ) -> Option<VaultPositionResponse> {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.perps.clone(),
-                &perps::QueryMsg::PerpVaultPosition {
+                &perps::QueryMsg::VaultPosition {
                     user_address: user_address.to_string(),
                     account_id: account_id.map(|s| s.to_string()),
                 },
@@ -485,30 +429,26 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_total_pnl(&self) -> PnlValues {
-        self.app.wrap().query_wasm_smart(self.perps.clone(), &perps::QueryMsg::TotalPnl {}).unwrap()
-    }
-
-    pub fn query_denom_accounting(&self, denom: &str) -> Accounting {
+    pub fn query_market_accounting(&self, denom: &str) -> AccountingResponse {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.perps.clone(),
-                &perps::QueryMsg::DenomAccounting {
+                &perps::QueryMsg::MarketAccounting {
                     denom: denom.to_string(),
                 },
             )
             .unwrap()
     }
 
-    pub fn query_total_accounting(&self) -> Accounting {
+    pub fn query_total_accounting(&self) -> AccountingResponse {
         self.app
             .wrap()
             .query_wasm_smart(self.perps.clone(), &perps::QueryMsg::TotalAccounting {})
             .unwrap()
     }
 
-    pub fn query_denom_realized_pnl_for_account(
+    pub fn query_realized_pnl_by_account_and_market(
         &self,
         account_id: &str,
         denom: &str,
@@ -517,7 +457,7 @@ impl MockEnv {
             .wrap()
             .query_wasm_smart(
                 self.perps.clone(),
-                &perps::QueryMsg::DenomRealizedPnlForAccount {
+                &perps::QueryMsg::RealizedPnlByAccountAndMarket {
                     account_id: account_id.to_string(),
                     denom: denom.to_string(),
                 },

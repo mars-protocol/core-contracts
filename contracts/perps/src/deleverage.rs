@@ -7,17 +7,17 @@ use mars_types::{
     credit_manager::ExecuteMsg,
     oracle::ActionKind,
     params::PerpParams,
-    perps::{DenomState, Position},
+    perps::{MarketState, Position},
 };
 
 use crate::{
-    denom::DenomStateExt,
     error::{ContractError, ContractResult},
+    market::MarketStateExt,
     position::{PositionExt, PositionModification},
     position_management::apply_pnl_and_fees,
     query,
     state::{
-        DeleverageRequestTempStorage, CONFIG, DELEVERAGE_REQUEST_TEMP_STORAGE, DENOM_STATES,
+        DeleverageRequestTempStorage, CONFIG, DELEVERAGE_REQUEST_TEMP_STORAGE, MARKET_STATES,
         POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW,
     },
 };
@@ -76,7 +76,7 @@ pub fn deleverage(
     })?;
     let mut realized_pnl =
         REALIZED_PNL.may_load(deps.storage, (&account_id, &denom))?.unwrap_or_default();
-    let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
+    let mut ms = MARKET_STATES.load(deps.storage, &denom)?;
     let mut tcf = TOTAL_CASH_FLOW.may_load(deps.storage)?.unwrap_or_default();
 
     // Query prices and parameters
@@ -91,18 +91,18 @@ pub fn deleverage(
         cr_before,
         cfg.target_vault_collateralization_ratio,
         denom_price,
-        &ds,
+        &ms,
         &perp_params,
         &position,
     )?;
 
     // Close the position
-    let initial_skew = ds.skew()?;
-    ds.close_position(current_time, denom_price, base_denom_price, &position)?;
+    let initial_skew = ms.skew()?;
+    ms.close_position(current_time, denom_price, base_denom_price, &position)?;
 
     // Compute the position's unrealized PnL
     let pnl_amounts = position.compute_pnl(
-        &ds.funding,
+        &ms.funding,
         initial_skew,
         denom_price,
         base_denom_price,
@@ -124,7 +124,7 @@ pub fn deleverage(
     res = apply_pnl_and_fees(
         &cfg,
         &rewards_collector_addr,
-        &mut ds,
+        &mut ms,
         &mut tcf,
         &mut realized_pnl,
         &pnl_amounts,
@@ -135,7 +135,7 @@ pub fn deleverage(
     // Save updated states
     POSITIONS.remove(deps.storage, (&account_id, &denom));
     REALIZED_PNL.save(deps.storage, (&account_id, &denom), &realized_pnl)?;
-    DENOM_STATES.save(deps.storage, &denom, &ds)?;
+    MARKET_STATES.save(deps.storage, &denom, &ms)?;
     TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
 
     // Assert CR after deleverage.
@@ -194,7 +194,7 @@ pub fn query_vault_cr(
     current_time: u64,
     pricing: ActionKind,
 ) -> ContractResult<Decimal> {
-    let vault_response = query::vault(deps, current_time, pricing)?;
+    let vault_response = query::query_vault(deps, current_time, pricing)?;
 
     // If the vault response does not contain a CR, return the maximum Decimal value.
     // It means that the vault is over-collateralized. There is no debt.
@@ -207,14 +207,14 @@ fn assert_cr_and_oi_before_deleverage(
     cr_before: Decimal,
     target_cr: Decimal,
     denom_price: Decimal,
-    ds: &DenomState,
+    ms: &MarketState,
     perp_params: &PerpParams,
     position: &Position,
 ) -> ContractResult<()> {
     let oi_before = if position.size.is_negative() {
-        ds.short_oi.checked_mul_floor(denom_price)?
+        ms.short_oi.checked_mul_floor(denom_price)?
     } else {
-        ds.long_oi.checked_mul_floor(denom_price)?
+        ms.long_oi.checked_mul_floor(denom_price)?
     };
 
     // If CR >= TCR and OI <= max OI, throw an error and terminate deleverage

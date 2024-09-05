@@ -13,7 +13,7 @@ use mars_testing::MockEnvParams;
 use mars_types::{
     incentives::{ExecuteMsg, IncentiveKind, IncentiveState},
     keys::{IncentiveId, IncentiveIdKey, IncentiveKindKey, UserId, UserIdKey},
-    perps::{PerpVaultDeposit, PerpVaultPosition, VaultResponse},
+    perps::{VaultDeposit, VaultPositionResponse, VaultResponse},
     red_bank::{Market, UserCollateralResponse},
     signed_uint::SignedUint,
 };
@@ -368,9 +368,9 @@ fn execute_claim_rewards_perp_vault() {
 
     deps.querier.set_perp_vault_position(
         &user_addr,
-        PerpVaultPosition {
+        VaultPositionResponse {
             denom: perp_vault_denom.to_string(),
-            deposit: PerpVaultDeposit {
+            deposit: VaultDeposit {
                 amount: Uint128::zero(),
                 shares: user_shares,
             },

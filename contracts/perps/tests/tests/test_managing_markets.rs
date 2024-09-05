@@ -1,12 +1,12 @@
 use std::{collections::HashMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
-use mars_perps::{denom::SECONDS_IN_DAY, error::ContractError};
+use mars_perps::{error::ContractError, market::SECONDS_IN_DAY};
 use mars_types::{
     error::MarsError,
     math::SignedDecimal,
     params::{EmergencyUpdate, PerpParams, PerpParamsUpdate, PerpsEmergencyUpdate},
-    perps::{DenomStateResponse, Funding},
+    perps::{Funding, MarketResponse, MarketState, MarketStateResponse},
     signed_uint::SignedUint,
 };
 
@@ -14,20 +14,20 @@ use super::helpers::MockEnv;
 use crate::tests::helpers::{assert_err, default_perp_params};
 
 #[test]
-fn random_addr_cannot_update_params() {
+fn random_addr_cannot_update_market() {
     let mut mock = MockEnv::new().build().unwrap();
 
-    let res = mock.update_params(&Addr::unchecked("dawid"), default_perp_params("uosmo"));
+    let res = mock.update_market(&Addr::unchecked("dawid"), default_perp_params("uosmo"));
     assert_err(res, ContractError::Mars(MarsError::Unauthorized {}));
 }
 
 #[test]
-fn initialize_denom() {
+fn initialize_market() {
     let mut mock = MockEnv::new().build().unwrap();
 
     let params_addr = mock.params.clone();
 
-    mock.update_params(
+    mock.update_market(
         &params_addr,
         PerpParams {
             max_funding_velocity: Decimal::from_str("3").unwrap(),
@@ -37,27 +37,29 @@ fn initialize_denom() {
     )
     .unwrap();
 
-    let ds = mock.query_denom_state("perp/osmo/usd");
+    let ms = mock.query_market_state("perp/osmo/usd");
     let block_time = mock.query_block_time();
     assert_eq!(
-        ds,
-        DenomStateResponse {
+        ms,
+        MarketStateResponse {
             denom: "perp/osmo/usd".to_string(),
-            enabled: true,
-            total_cost_base: SignedUint::zero(),
-            funding: Funding {
-                max_funding_velocity: Decimal::from_str("3").unwrap(),
-                skew_scale: Uint128::new(1000000u128),
-                last_funding_rate: SignedDecimal::zero(),
-                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
-            },
-            last_updated: block_time
+            market_state: MarketState {
+                enabled: true,
+                funding: Funding {
+                    max_funding_velocity: Decimal::from_str("3").unwrap(),
+                    skew_scale: Uint128::new(1000000u128),
+                    last_funding_rate: SignedDecimal::zero(),
+                    last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
+                },
+                last_updated: block_time,
+                ..Default::default()
+            }
         }
     )
 }
 
 #[test]
-fn update_denom() {
+fn update_market() {
     let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
@@ -66,7 +68,7 @@ fn update_denom() {
     mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
     mock.set_price(&owner, "perp/osmo/usd", Decimal::from_str("1").unwrap()).unwrap();
 
-    mock.update_params(
+    mock.update_market(
         &params_addr,
         PerpParams {
             max_funding_velocity: Decimal::from_str("389").unwrap(),
@@ -78,24 +80,26 @@ fn update_denom() {
 
     let block_time = mock.query_block_time();
 
-    let ds = mock.query_denom_state("perp/osmo/usd");
+    let ms = mock.query_market_state("perp/osmo/usd");
     assert_eq!(
-        ds,
-        DenomStateResponse {
+        ms,
+        MarketStateResponse {
             denom: "perp/osmo/usd".to_string(),
-            enabled: true,
-            total_cost_base: SignedUint::zero(),
-            funding: Funding {
-                max_funding_velocity: Decimal::from_str("389").unwrap(),
-                skew_scale: Uint128::new(1234000u128),
-                last_funding_rate: SignedDecimal::zero(),
-                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
-            },
-            last_updated: block_time
+            market_state: MarketState {
+                enabled: true,
+                funding: Funding {
+                    max_funding_velocity: Decimal::from_str("389").unwrap(),
+                    skew_scale: Uint128::new(1234000u128),
+                    last_funding_rate: SignedDecimal::zero(),
+                    last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
+                },
+                last_updated: block_time,
+                ..Default::default()
+            }
         }
     );
 
-    mock.update_params(
+    mock.update_market(
         &params_addr,
         PerpParams {
             enabled: false,
@@ -106,20 +110,22 @@ fn update_denom() {
     )
     .unwrap();
 
-    let ds = mock.query_denom_state("perp/osmo/usd");
+    let ms = mock.query_market_state("perp/osmo/usd");
     assert_eq!(
-        ds,
-        DenomStateResponse {
+        ms,
+        MarketStateResponse {
             denom: "perp/osmo/usd".to_string(),
-            enabled: false,
-            total_cost_base: SignedUint::zero(),
-            funding: Funding {
-                max_funding_velocity: Decimal::from_str("36").unwrap(),
-                skew_scale: Uint128::new(8976543u128),
-                last_funding_rate: SignedDecimal::zero(),
-                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
-            },
-            last_updated: block_time
+            market_state: MarketState {
+                enabled: false,
+                funding: Funding {
+                    max_funding_velocity: Decimal::from_str("36").unwrap(),
+                    skew_scale: Uint128::new(8976543u128),
+                    last_funding_rate: SignedDecimal::zero(),
+                    last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
+                },
+                last_updated: block_time,
+                ..Default::default()
+            }
         }
     );
 }
@@ -137,25 +143,30 @@ fn emergency_disable_trading() {
             params: default_perp_params("ueth"),
         },
     );
-    let ds = mock.query_denom_state("ueth");
-    assert!(ds.enabled);
+    let ms = mock.query_market_state("ueth");
+    assert!(ms.market_state.enabled);
 
     mock.emergency_params_update(
         &emergency_owner,
         EmergencyUpdate::Perps(PerpsEmergencyUpdate::DisableTrading("ueth".to_string())),
     )
     .unwrap();
-    let ds = mock.query_denom_state("ueth");
-    assert!(!ds.enabled);
+    let ms = mock.query_market_state("ueth");
+    assert!(!ms.market_state.enabled);
 }
 
 #[test]
-fn paginate_denom_states() {
+fn paginate_markets() {
     let mut mock = MockEnv::new().build().unwrap();
 
+    let owner = mock.owner.clone();
     let params_addr = mock.params.clone();
 
-    mock.update_params(
+    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
+    mock.set_price(&owner, "perp/osmo/usd", Decimal::from_str("1").unwrap()).unwrap();
+    mock.set_price(&owner, "perp/ntrn/usd", Decimal::from_str("1").unwrap()).unwrap();
+
+    mock.update_market(
         &params_addr,
         PerpParams {
             enabled: false,
@@ -166,7 +177,7 @@ fn paginate_denom_states() {
     )
     .unwrap();
 
-    mock.update_params(
+    mock.update_market(
         &params_addr,
         PerpParams {
             enabled: true,
@@ -177,45 +188,29 @@ fn paginate_denom_states() {
     )
     .unwrap();
 
-    let block_time = mock.query_block_time();
-
-    let dss = mock.query_denom_states(None, None);
-    assert_eq!(dss.len(), 2);
-    let dss = dss.into_map();
+    let dss = mock.query_markets(None, None);
+    assert_eq!(dss.data.len(), 2);
+    let dss = dss.data.into_map();
     assert_eq!(
         dss.get("perp/osmo/usd").unwrap(),
-        &DenomStateResponse {
+        &MarketResponse {
             denom: "perp/osmo/usd".to_string(),
             enabled: false,
-            total_cost_base: SignedUint::zero(),
-            funding: Funding {
-                max_funding_velocity: Decimal::from_str("389").unwrap(),
-                skew_scale: Uint128::new(1234000u128),
-                last_funding_rate: SignedDecimal::zero(),
-                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
-            },
-            last_updated: block_time
+            ..Default::default()
         }
     );
     assert_eq!(
         dss.get("perp/ntrn/usd").unwrap(),
-        &DenomStateResponse {
+        &MarketResponse {
             denom: "perp/ntrn/usd".to_string(),
             enabled: true,
-            total_cost_base: SignedUint::zero(),
-            funding: Funding {
-                max_funding_velocity: Decimal::from_str("100").unwrap(),
-                skew_scale: Uint128::new(23400u128),
-                last_funding_rate: SignedDecimal::zero(),
-                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::zero()
-            },
-            last_updated: block_time
+            ..Default::default()
         }
     );
 }
 
 #[test]
-fn funding_change_accordingly_to_denom_state_modification() {
+fn funding_change_accordingly_to_market_state_modification() {
     let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
@@ -236,7 +231,7 @@ fn funding_change_accordingly_to_denom_state_modification() {
     )
     .unwrap();
 
-    // prepare denom state
+    // prepare market state
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -267,8 +262,8 @@ fn funding_change_accordingly_to_denom_state_modification() {
         },
     );
 
-    // query denom state for h0
-    let ds_h0 = mock.query_denom_state("ueth");
+    // query market state for h0
+    let ds_h0 = mock.query_market_state("ueth");
 
     // move time forward by 24 hour
     mock.increment_by_time(SECONDS_IN_DAY);
@@ -289,13 +284,16 @@ fn funding_change_accordingly_to_denom_state_modification() {
     // Should be the same as h0 with last_updated changed and enabled set to true.
     // When denom is disabled there is no activity so funding shouldn't be changed.
     // We just shift the last_updated time.
-    let ds_h24 = mock.query_denom_state("ueth");
+    let ds_h24 = mock.query_market_state("ueth");
     assert_eq!(
         ds_h24,
-        DenomStateResponse {
-            enabled: true,
-            last_updated: ds_h0.last_updated + SECONDS_IN_DAY,
-            ..ds_h0
+        MarketStateResponse {
+            denom: ds_h0.denom.clone(),
+            market_state: MarketState {
+                enabled: true,
+                last_updated: ds_h0.market_state.last_updated + SECONDS_IN_DAY,
+                ..ds_h0.market_state
+            }
         }
     );
 
@@ -316,33 +314,40 @@ fn funding_change_accordingly_to_denom_state_modification() {
 
     // Query state for h48.
     // When denom is disabled, funding should be updated accordingly.
-    let ds_h48 = mock.query_denom_state("ueth");
-    assert_ne!(ds_h48.funding.last_funding_rate, ds_h24.funding.last_funding_rate);
+    let ds_h48 = mock.query_market_state("ueth");
     assert_ne!(
-        ds_h48.funding.last_funding_accrued_per_unit_in_base_denom,
-        ds_h24.funding.last_funding_accrued_per_unit_in_base_denom
+        ds_h48.market_state.funding.last_funding_rate,
+        ds_h24.market_state.funding.last_funding_rate
+    );
+    assert_ne!(
+        ds_h48.market_state.funding.last_funding_accrued_per_unit_in_base_denom,
+        ds_h24.market_state.funding.last_funding_accrued_per_unit_in_base_denom
     );
     assert_eq!(
         ds_h48,
-        DenomStateResponse {
-            enabled: false,
-            last_updated: ds_h24.last_updated + SECONDS_IN_DAY,
-            funding: Funding {
-                last_funding_rate: SignedDecimal::from_str("0.009").unwrap(),
-                last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("-9").unwrap(),
-                ..ds_h24.funding
-            },
-            ..ds_h24
+        MarketStateResponse {
+            denom: ds_h24.denom.clone(),
+            market_state: MarketState {
+                enabled: false,
+                last_updated: ds_h24.market_state.last_updated + SECONDS_IN_DAY,
+                funding: Funding {
+                    last_funding_rate: SignedDecimal::from_str("0.009").unwrap(),
+                    last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("-9")
+                        .unwrap(),
+                    ..ds_h24.market_state.funding
+                },
+                ..ds_h24.market_state
+            }
         }
     );
 }
 
-trait DenomStateResponseVecExt {
-    fn into_map(self) -> HashMap<String, DenomStateResponse>;
+trait MarketStateResponseVecExt {
+    fn into_map(self) -> HashMap<String, MarketResponse>;
 }
 
-impl DenomStateResponseVecExt for Vec<DenomStateResponse> {
-    fn into_map(self) -> HashMap<String, DenomStateResponse> {
-        self.into_iter().map(|ds| (ds.denom.clone(), ds)).collect()
+impl MarketStateResponseVecExt for Vec<MarketResponse> {
+    fn into_map(self) -> HashMap<String, MarketResponse> {
+        self.into_iter().map(|ms| (ms.denom.clone(), ms)).collect()
     }
 }

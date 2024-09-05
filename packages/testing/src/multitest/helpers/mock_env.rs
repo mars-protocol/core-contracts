@@ -63,8 +63,8 @@ use mars_types::{
         VaultConfig, VaultConfigUnchecked, VaultConfigUpdate,
     },
     perps::{
-        self, Config, InstantiateMsg as PerpsInstantiateMsg, PerpVaultPosition, PnL,
-        PositionResponse, TradingFee, VaultResponse,
+        self, Config, InstantiateMsg as PerpsInstantiateMsg, PnL, PositionResponse, TradingFee,
+        VaultPositionResponse, VaultResponse,
     },
     red_bank::{
         self, InitOrUpdateAssetParams, InterestRateModel,
@@ -1055,12 +1055,12 @@ impl MockEnv {
         )
     }
 
-    pub fn query_perp_vault_position(&self, acc_id: &str) -> Option<PerpVaultPosition> {
+    pub fn query_perp_vault_position(&self, acc_id: &str) -> Option<VaultPositionResponse> {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.perps.address(),
-                &perps::QueryMsg::PerpVaultPosition {
+                &perps::QueryMsg::VaultPosition {
                     user_address: self.rover.to_string(),
                     account_id: Some(acc_id.to_string()),
                 },

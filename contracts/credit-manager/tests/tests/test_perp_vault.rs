@@ -6,7 +6,7 @@ use mars_types::{
         Action::{Deposit, DepositToPerpVault, UnlockFromPerpVault, WithdrawFromPerpVault},
         ActionAmount, ActionCoin,
     },
-    perps::{PerpVaultDeposit, PerpVaultPosition, PerpVaultUnlock},
+    perps::{VaultDeposit, VaultPositionResponse, VaultUnlock},
 };
 
 use super::helpers::{assert_err, coin_info, AccountToFund, MockEnv};
@@ -158,9 +158,9 @@ fn successful_deposit_to_perp_vault() {
     let perp_vault_position = mock.query_perp_vault_position(&account_id);
     assert_eq!(
         perp_vault_position.unwrap(),
-        PerpVaultPosition {
+        VaultPositionResponse {
             denom: coin_info.denom.clone(),
-            deposit: PerpVaultDeposit {
+            deposit: VaultDeposit {
                 shares: Uint128::new(50_000_000),
                 amount: vault_deposit_amt
             },
@@ -220,9 +220,9 @@ fn successful_account_balance_deposit_to_perp_vault() {
     let perp_vault_position = mock.query_perp_vault_position(&account_id);
     assert_eq!(
         perp_vault_position.unwrap(),
-        PerpVaultPosition {
+        VaultPositionResponse {
             denom: coin_info.denom.clone(),
-            deposit: PerpVaultDeposit {
+            deposit: VaultDeposit {
                 shares: Uint128::new(300_000_000),
                 amount: vault_deposit_amt
             },
@@ -362,13 +362,13 @@ fn successful_unlock_and_withdraw_from_perp_vault() {
     let expected_unlock_amt = Uint128::new(10);
     assert_eq!(
         perp_vault_position_after_unlock.unwrap(),
-        PerpVaultPosition {
+        VaultPositionResponse {
             denom: coin_info.denom.clone(),
-            deposit: PerpVaultDeposit {
+            deposit: VaultDeposit {
                 shares: Uint128::new(40_000_000),
                 amount: Uint128::new(40),
             },
-            unlocks: vec![PerpVaultUnlock {
+            unlocks: vec![VaultUnlock {
                 created_at: unlock_current_time,
                 cooldown_end: unlock_current_time + perp_config.cooldown_period,
                 shares: unlock_shares,
@@ -399,9 +399,9 @@ fn successful_unlock_and_withdraw_from_perp_vault() {
     let perp_vault_position_after_withdraw = mock.query_perp_vault_position(&account_id);
     assert_eq!(
         perp_vault_position_after_withdraw.unwrap(),
-        PerpVaultPosition {
+        VaultPositionResponse {
             denom: coin_info.denom.clone(),
-            deposit: PerpVaultDeposit {
+            deposit: VaultDeposit {
                 shares: Uint128::new(40_000_000),
                 amount: Uint128::new(40),
             },

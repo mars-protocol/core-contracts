@@ -17,8 +17,8 @@ use mars_types::{
 
 use crate::{
     deleverage::query_vault_cr,
-    denom::compute_total_accounting_data,
     error::{ContractError, ContractResult},
+    market::compute_total_accounting_data,
     state::{
         decrease_deposit_shares, increase_deposit_shares, CONFIG, DEPOSIT_SHARES, UNLOCKS,
         VAULT_STATE,
@@ -28,6 +28,11 @@ use crate::{
 
 pub const DEFAULT_SHARES_PER_AMOUNT: u128 = 1_000_000;
 
+/// Handles the logic for a user depositing funds into the vault.
+/// The function verifies the sender's permission to deposit with an optional account id,
+/// then calculates the number of shares to mint based on the deposit amount.
+/// It updates the total vault balance, the user's deposit shares, and triggers an incentive message.
+/// Returns a `Response` with details about the deposit, including the amount deposited and the number of shares minted.
 pub fn deposit(
     deps: DepsMut,
     info: MessageInfo,
@@ -67,10 +72,10 @@ pub fn deposit(
         total_vault_shares_before,
     )?;
 
-    // find the deposit amount
+    // Find the deposit amount
     let amount = must_pay(&info, &cfg.base_denom)?;
 
-    // compute the new shares to be minted to the depositor
+    // Compute the new shares to be minted to the depositor
     let shares = amount_to_shares(
         &deps.as_ref(),
         &vs,
@@ -81,12 +86,12 @@ pub fn deposit(
         ActionKind::Default,
     )?;
 
-    // increment total liquidity and deposit shares
+    // Increment total liquidity and deposit shares
     vs.total_balance = vs.total_balance.checked_add(amount.into())?;
     vs.total_shares = vs.total_shares.checked_add(shares)?;
     VAULT_STATE.save(deps.storage, &vs)?;
 
-    // increment the user's deposit shares
+    // Increment the user's deposit shares
     increase_deposit_shares(deps.storage, &user_id_key, shares)?;
 
     Ok(Response::new()
@@ -97,6 +102,10 @@ pub fn deposit(
         .add_attribute("shares", shares))
 }
 
+/// Handles the unlocking of deposited shares, initiating a cooldown period before the user can withdraw.
+/// The function verifies the sender's permission to unlock shares and ensures that the amount to unlock is non-zero.
+/// It updates the user's deposit shares, adds the unlocked shares to the unlocks list with a cooldown period,
+/// and returns a `Response` with details about the unlock.
 pub fn unlock(
     deps: DepsMut,
     info: MessageInfo,
@@ -115,15 +124,15 @@ pub fn unlock(
 
     let user_id_key = create_user_id_key(&info.sender, account_id)?;
 
-    // cannot unlock zero shares
+    // Cannot unlock zero shares
     if shares.is_zero() {
         return Err(ContractError::ZeroShares);
     }
 
-    // decrement the user's deposit shares
+    // Decrement the user's deposit shares
     decrease_deposit_shares(deps.storage, &user_id_key, shares)?;
 
-    // add new unlock position
+    // Add new unlock position
     let cooldown_end = current_time + cfg.cooldown_period;
     UNLOCKS.update(deps.storage, &user_id_key, |maybe_unlocks| {
         let mut unlocks = maybe_unlocks.unwrap_or_default();
@@ -145,6 +154,10 @@ pub fn unlock(
         .add_attribute("cooldown_end", cooldown_end.to_string()))
 }
 
+/// Handles the withdrawal of unlocked shares from the vault, converting them to the corresponding amount of the base denomination.
+/// The function verifies permissions, checks that there are unlocked shares available for withdrawal, and ensures the vault
+/// remains collateralized after the withdrawal. It then updates the vault's state and sends the withdrawn amount to the user.
+/// Returns a `Response` with details about the withdrawal, including the shares and amount withdrawn.
 pub fn withdraw(
     deps: DepsMut,
     info: MessageInfo,
@@ -168,16 +181,16 @@ pub fn withdraw(
 
     let unlocks = UNLOCKS.load(deps.storage, &user_id_key)?;
 
-    // find all unlocked positions
+    // Find all unlocked positions
     let (unlocked, unlocking): (Vec<_>, Vec<_>) =
         unlocks.into_iter().partition(|us| us.cooldown_end <= current_time);
 
-    // cannot withdraw when there is zero unlocked positions
+    // Cannot withdraw when there is zero unlocked positions
     if unlocked.is_empty() {
         return Err(ContractError::UnlockedPositionsNotFound {});
     }
 
-    // clear state if no more unlocking positions
+    // Clear state if no more unlocking positions
     if unlocking.is_empty() {
         UNLOCKS.remove(deps.storage, &user_id_key);
     } else {
@@ -208,10 +221,10 @@ pub fn withdraw(
         total_vault_shares_before,
     )?);
 
-    // compute the total shares to be withdrawn
+    // Compute the total shares to be withdrawn
     let total_unlocked_shares = unlocked.into_iter().map(|us| us.shares).sum::<Uint128>();
 
-    // convert the shares to amount
+    // Convert the shares to amount
     let total_unlocked_amount = shares_to_amount(
         &deps.as_ref(),
         &vs,
@@ -222,12 +235,12 @@ pub fn withdraw(
         ActionKind::Default,
     )?;
 
-    // decrement total liquidity and deposit shares
+    // Decrement total liquidity and deposit shares
     vs.total_balance = vs.total_balance.checked_sub(total_unlocked_amount.into())?;
     vs.total_shares = vs.total_shares.checked_sub(total_unlocked_shares)?;
     VAULT_STATE.save(deps.storage, &vs)?;
 
-    // check if the vault is undercollateralized after the withdrawal
+    // Check if the vault is undercollateralized after the withdrawal
     let current_cr = query_vault_cr(deps.as_ref(), current_time, ActionKind::Default)?;
     if current_cr < cfg.target_vault_collateralization_ratio {
         return Err(ContractError::VaultUndercollateralized {

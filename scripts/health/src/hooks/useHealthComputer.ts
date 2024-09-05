@@ -28,7 +28,7 @@ export default function useHealthComputer(accountId: string) {
           vault_values: {},
         },
         perps_data: {
-          denom_states: hasPerps ? perpsDenomStates : {},
+          market_states: hasPerps ? perpsDenomStates : {},
           params: hasPerps ? perpsParams : {},
         },
       } as HealthComputer,

@@ -23,7 +23,7 @@ pub fn ensure_max_position(
     position_value: Uint128,
     perp_params: &PerpParams,
 ) -> ContractResult<()> {
-    // could be set to None if not needed
+    // Could be set to None if not needed
     if let Some(max_pos_value) = perp_params.max_position_value {
         if position_value > max_pos_value {
             return Err(ContractError::PositionTooBig {

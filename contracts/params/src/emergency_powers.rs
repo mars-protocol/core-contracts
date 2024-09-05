@@ -143,7 +143,7 @@ pub fn disable_perp_trading(
 
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: perps_addr.to_string(),
-        msg: to_json_binary(&ExecuteMsg::UpdateParams {
+        msg: to_json_binary(&ExecuteMsg::UpdateMarket {
             params,
         })?,
         funds: vec![],

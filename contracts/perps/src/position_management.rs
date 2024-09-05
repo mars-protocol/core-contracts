@@ -10,17 +10,17 @@ use mars_types::{
     address_provider::MarsAddressType,
     oracle::ActionKind,
     params::PerpParams,
-    perps::{CashFlow, Config, DenomState, PnL, PnlAmounts, Position},
+    perps::{CashFlow, Config, MarketState, PnL, PnlAmounts, Position},
     signed_uint::SignedUint,
 };
 
 use crate::{
     accounting::CashFlowExt,
-    denom::DenomStateExt,
     error::{ContractError, ContractResult},
+    market::MarketStateExt,
     position::{PositionExt, PositionModification},
     pricing::opening_execution_price,
-    state::{CONFIG, DENOM_STATES, POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW},
+    state::{CONFIG, MARKET_STATES, POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW},
     utils::{ensure_max_position, ensure_min_position},
 };
 
@@ -28,7 +28,7 @@ use crate::{
 ///
 /// Depending on whether a position exists and the reduce_only flag, this function either opens a new
 /// position, modifies an existing one, or returns an error if the operation is illegal.
-pub fn execute_perp_order(
+pub fn execute_order(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -59,7 +59,7 @@ pub fn execute_perp_order(
                 position.size.checked_add(size)?
             };
 
-            update_position_state(deps, env, info, position, account_id, denom, new_size)
+            modify_position(deps, env, info, position, account_id, denom, new_size)
         }
     }
 }
@@ -78,18 +78,18 @@ fn open_position(
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
-    // only the credit manager contract can open positions
+    // Only the credit manager contract can open positions
     ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
 
-    // the denom must exists and have been enabled
-    let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
-    if !ds.enabled {
+    // The denom must exists and have been enabled
+    let mut ms = MARKET_STATES.load(deps.storage, &denom)?;
+    if !ms.enabled {
         return Err(ContractError::DenomNotEnabled {
             denom,
         });
     }
 
-    // number of open positions per account is limited
+    // Number of open positions per account is limited
     let positions = POSITIONS
         .prefix(&account_id)
         .range(deps.storage, None, None, Order::Ascending)
@@ -101,7 +101,7 @@ fn open_position(
         });
     }
 
-    // each account can only have one position for a denom at the same time
+    // Each account can only have one position for a denom at the same time
     if positions.contains_key(&denom) {
         return Err(ContractError::PositionExists {
             account_id,
@@ -118,44 +118,44 @@ fn open_position(
     // Params for the given market
     let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
 
-    // find the opening fee amount
+    // Find the opening fee amount
     let opening_fee_amt = if !perp_params.opening_fee_rate.is_zero() {
         must_pay(&info, &cfg.base_denom)?
     } else {
         Uint128::zero()
     };
 
-    // query the asset's price
+    // Query the asset's price.
     //
-    // this will be the position's entry price, used to compute PnL when closing
-    // the position
+    // This will be the position's entry price, used to compute PnL when closing
+    // the position.
     let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
-    // the position's initial value cannot be too small
+    // The position's initial value cannot be too small
     let position_value = size.abs.checked_mul_floor(denom_price)?;
     ensure_min_position(position_value, &perp_params)?;
 
-    // the position's initial value cannot be too big
+    // The position's initial value cannot be too big
     ensure_max_position(position_value, &perp_params)?;
 
-    // validate the position's size against OI limits
-    ds.validate_open_interest(size, SignedUint::zero(), denom_price, &perp_params)?;
+    // Validate the position's size against OI limits
+    ms.validate_open_interest(size, SignedUint::zero(), denom_price, &perp_params)?;
 
-    // skew _before_ modification
-    let initial_skew = ds.skew()?;
+    // Skew _before_ modification
+    let initial_skew = ms.skew()?;
 
     // Update the denom's accumulators.
     // Funding rates and index is updated to the current block time (using old size).
-    ds.open_position(env.block.time.seconds(), size, denom_price, base_denom_price)?;
+    ms.open_position(env.block.time.seconds(), size, denom_price, base_denom_price)?;
 
     let mut res = Response::new();
     let mut msgs: Vec<CosmosMsg> = vec![];
 
     let mut realized_pnl = PnlAmounts::default();
 
-    // update realized PnL with opening fee
+    // Update realized PnL with opening fee
     if !opening_fee_amt.is_zero() {
         let mut tcf = TOTAL_CASH_FLOW.may_load(deps.storage)?.unwrap_or_default();
 
@@ -165,7 +165,7 @@ fn open_position(
         res = apply_pnl_and_fees(
             &cfg,
             &rewards_collector_addr,
-            &mut ds,
+            &mut ms,
             &mut tcf,
             &mut realized_pnl,
             &unrealized_pnl,
@@ -178,11 +178,11 @@ fn open_position(
     }
 
     let entry_exec_price =
-        opening_execution_price(initial_skew, ds.funding.skew_scale, size, denom_price)?;
+        opening_execution_price(initial_skew, ms.funding.skew_scale, size, denom_price)?;
 
-    DENOM_STATES.save(deps.storage, &denom, &ds)?;
+    MARKET_STATES.save(deps.storage, &denom, &ms)?;
 
-    // save the user's new position with updated funding
+    // Save the user's new position with updated funding
     POSITIONS.save(
         deps.storage,
         (&account_id, &denom),
@@ -190,7 +190,7 @@ fn open_position(
             size,
             entry_price: denom_price,
             entry_exec_price,
-            entry_accrued_funding_per_unit_in_base_denom: ds
+            entry_accrued_funding_per_unit_in_base_denom: ms
                 .funding
                 .last_funding_accrued_per_unit_in_base_denom,
             initial_skew,
@@ -212,7 +212,7 @@ fn open_position(
 /// This function adjusts the position size based on the provided new size and performs necessary updates
 /// to the position state, including PnL realization, funding rates, and accumulator updates. The function
 /// ensures that the position modifications adhere to the market parameters and the denom's current state.
-fn update_position_state(
+fn modify_position(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
@@ -233,7 +233,7 @@ fn update_position_state(
     // Load relevant state variables
     let mut realized_pnl =
         REALIZED_PNL.may_load(deps.storage, (&account_id, &denom))?.unwrap_or_default();
-    let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
+    let mut ms = MARKET_STATES.load(deps.storage, &denom)?;
     let mut tcf = TOTAL_CASH_FLOW.may_load(deps.storage)?.unwrap_or_default();
 
     let rewards_collector_addr = address_provider::helpers::query_contract_addr(
@@ -256,7 +256,7 @@ fn update_position_state(
     let paid_amount = may_pay(&info, &cfg.base_denom)?;
 
     // skew _before_ modification
-    let initial_skew = ds.skew()?;
+    let initial_skew = ms.skew()?;
 
     // Determine the type of modification to the position based on the new size
     let modification = if new_size.is_zero() {
@@ -264,12 +264,12 @@ fn update_position_state(
 
         // Update the denoms accumulators.
         // Funding rates and index is updated to the current block time (using old size).
-        ds.close_position(env.block.time.seconds(), denom_price, base_denom_price, &position)?;
+        ms.close_position(env.block.time.seconds(), denom_price, base_denom_price, &position)?;
 
         PositionModification::Decrease(entry_size)
     } else {
         // When a denom is disabled it should be close only
-        if !ds.enabled {
+        if !ms.enabled {
             return Err(ContractError::PositionCannotBeModifiedIfDenomDisabled {
                 denom,
             });
@@ -277,11 +277,11 @@ fn update_position_state(
 
         // Validate and adjust the position's size
         let modification =
-            adjust_position_with_validation(new_size, entry_size, denom_price, &perp_params, &ds)?;
+            adjust_position_with_validation(new_size, entry_size, denom_price, &perp_params, &ms)?;
 
         // Update the denoms accumulators.
         // Funding rates and index is updated to the current block time (using old size).
-        ds.modify_position(
+        ms.modify_position(
             env.block.time.seconds(),
             denom_price,
             base_denom_price,
@@ -294,7 +294,7 @@ fn update_position_state(
 
     // Compute the position's unrealized PnL
     let pnl_amounts = position.compute_pnl(
-        &ds.funding,
+        &ms.funding,
         initial_skew,
         denom_price,
         base_denom_price,
@@ -312,11 +312,11 @@ fn update_position_state(
     // Apply the payment to the credit manager if necessary
     apply_payment_to_cm_if_needed(&cfg, &mut msgs, paid_amount, &pnl)?;
 
-    // Update the realized PnL, denom state, and total cash flow based on the new amounts
+    // Update the realized PnL, market state, and total cash flow based on the new amounts
     res = apply_pnl_and_fees(
         &cfg,
         &rewards_collector_addr,
-        &mut ds,
+        &mut ms,
         &mut tcf,
         &mut realized_pnl,
         &pnl_amounts,
@@ -339,7 +339,7 @@ fn update_position_state(
         let initial_skew = initial_skew.checked_sub(position.size)?;
 
         let entry_exec_price =
-            opening_execution_price(initial_skew, ds.funding.skew_scale, new_size, denom_price)?;
+            opening_execution_price(initial_skew, ms.funding.skew_scale, new_size, denom_price)?;
 
         POSITIONS.save(
             deps.storage,
@@ -348,7 +348,7 @@ fn update_position_state(
                 size: new_size,
                 entry_price: denom_price,
                 entry_exec_price,
-                entry_accrued_funding_per_unit_in_base_denom: ds
+                entry_accrued_funding_per_unit_in_base_denom: ms
                     .funding
                     .last_funding_accrued_per_unit_in_base_denom,
                 initial_skew,
@@ -361,7 +361,7 @@ fn update_position_state(
 
     // Save the updated state variables
     REALIZED_PNL.save(deps.storage, (&account_id, &denom), &realized_pnl)?;
-    DENOM_STATES.save(deps.storage, &denom, &ds)?;
+    MARKET_STATES.save(deps.storage, &denom, &ms)?;
     TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
 
     // Return the response with the appropriate attributes
@@ -377,6 +377,116 @@ fn update_position_state(
         .add_attribute("realised_pnl", pnl.to_string()))
 }
 
+/// Closes all positions for a given account.
+pub fn close_all_positions(
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    account_id: String,
+    action: ActionKind,
+) -> ContractResult<Response> {
+    let cfg = CONFIG.load(deps.storage)?;
+
+    // Only the credit manager contract can adjust positions
+    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+
+    let rewards_collector_addr = address_provider::helpers::query_contract_addr(
+        deps.as_ref(),
+        &cfg.address_provider,
+        MarsAddressType::RewardsCollector,
+    )?;
+
+    // Read all positions for the account
+    let account_positions: Vec<_> = {
+        // Collect all positions for the account to avoid problems with mutable/immutable borrows in the same scope
+        POSITIONS
+            .prefix(&account_id)
+            .range(deps.storage, None, None, Order::Ascending)
+            .map(|item| {
+                let (denom, position) = item?;
+                Ok((denom, position))
+            })
+            .collect::<ContractResult<Vec<_>>>()?
+    };
+
+    // Read total cash flow
+    let mut tcf = TOTAL_CASH_FLOW.may_load(deps.storage)?.unwrap_or_default();
+
+    // When modifying a position, we must realise all PnL. The credit manager
+    // may send no coin (in case the position is winning or breaking even) or
+    // one coin of the base denom (i.e usdc) in case the position is losing
+    let paid_amount = may_pay(&info, &cfg.base_denom)?;
+
+    let base_denom_price =
+        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
+
+    let mut msgs = vec![];
+    let mut res = Response::new();
+    let mut pnl_amounts_accumulator = PnlAmounts::default();
+    for (denom, position) in account_positions {
+        let mut realized_pnl =
+            REALIZED_PNL.may_load(deps.storage, (&account_id, &denom))?.unwrap_or_default();
+        let mut ms = MARKET_STATES.load(deps.storage, &denom)?;
+
+        // Params for the given market
+        let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
+
+        // Prices
+        let denom_price = cfg.oracle.query_price(&deps.querier, &denom, action.clone())?.price;
+
+        // skew _before_ modification
+        let initial_skew = ms.skew()?;
+
+        // Update the denom's accumulators.
+        // Funding rates and index is updated to the current block time (using old size).
+        ms.close_position(env.block.time.seconds(), denom_price, base_denom_price, &position)?;
+
+        // Compute the position's unrealized PnL
+        let pnl_amounts = position.compute_pnl(
+            &ms.funding,
+            initial_skew,
+            denom_price,
+            base_denom_price,
+            perp_params.opening_fee_rate,
+            perp_params.closing_fee_rate,
+            PositionModification::Decrease(position.size),
+        )?;
+
+        pnl_amounts_accumulator.add(&pnl_amounts)?;
+
+        res = apply_pnl_and_fees(
+            &cfg,
+            &rewards_collector_addr,
+            &mut ms,
+            &mut tcf,
+            &mut realized_pnl,
+            &pnl_amounts,
+            res,
+            &mut msgs,
+        )?;
+
+        // Remove the position
+        POSITIONS.remove(deps.storage, (&account_id, &denom));
+
+        // Save updated states
+        REALIZED_PNL.save(deps.storage, (&account_id, &denom), &realized_pnl)?;
+        MARKET_STATES.save(deps.storage, &denom, &ms)?;
+    }
+
+    // Convert PnL amounts to coins
+    let pnl = pnl_amounts_accumulator.to_coins(&cfg.base_denom).pnl;
+
+    apply_payment_to_cm_if_needed(&cfg, &mut msgs, paid_amount, &pnl)?;
+
+    TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
+
+    Ok(res
+        .add_messages(msgs)
+        .add_attribute("action", "close_all_positions")
+        .add_attribute("account_id", account_id)
+        .add_attribute("realised_pnl", pnl.to_string()))
+}
+
 /// Adjusts the position size with validation and determines the type of position modification.
 ///
 /// This function takes the new position size and validates it against the current position size,
@@ -387,7 +497,7 @@ fn adjust_position_with_validation(
     entry_size: SignedUint,
     denom_price: Decimal,
     perp_params: &PerpParams,
-    ds: &DenomState,
+    ms: &MarketState,
 ) -> Result<PositionModification, ContractError> {
     let position_value = new_size.abs.checked_mul_floor(denom_price)?;
     let modification = PositionModification::from_new_size(entry_size, new_size)?;
@@ -397,7 +507,7 @@ fn adjust_position_with_validation(
             ensure_max_position(position_value, perp_params)?;
 
             // Validate the position's size against OI limits
-            ds.validate_open_interest(new_size, entry_size, denom_price, perp_params)?;
+            ms.validate_open_interest(new_size, entry_size, denom_price, perp_params)?;
         }
         PositionModification::Decrease(..) => {
             // Enforce min size when decreasing
@@ -409,16 +519,24 @@ fn adjust_position_with_validation(
             ensure_max_position(position_value, perp_params)?;
 
             // Ensure the position's size against OI limits
-            ds.validate_open_interest(new_size, entry_size, denom_price, perp_params)?;
+            ms.validate_open_interest(new_size, entry_size, denom_price, perp_params)?;
         }
     };
     Ok(modification)
 }
 
+/// Applies profit and loss (PnL) and associated fees to the market state and cash flow.
+///
+/// This function performs the following tasks:
+/// 1. **Update Realized PnL**: Adds unrealized PnL to realized PnL.
+/// 2. **Calculate and Send Protocol Fees**: Computes protocol fees as a percentage of unrealized opening and closing fees,
+///    then creates and adds a message to send these fees to the rewards collector if applicable.
+/// 3. **Adjust PnL for Protocol Fees**: Calculates the PnL after accounting for protocol fees and updates the market and total cash flows accordingly.
+/// 4. **Update Response**: Adds attributes to the response indicating the protocol opening and closing fees.
 pub fn apply_pnl_and_fees(
     cfg: &Config<Addr>,
     rewards_collector: &Addr,
-    ds: &mut DenomState,
+    ms: &mut MarketState,
     tcf: &mut CashFlow,
     realized_pnl: &mut PnlAmounts,
     unrealized_pnl: &PnlAmounts,
@@ -480,7 +598,7 @@ pub fn apply_pnl_and_fees(
     };
 
     // Apply pnl to denom cash flow (without protocol fee)
-    ds.cash_flow.add(&pnl_without_protocol_fee)?;
+    ms.cash_flow.add(&pnl_without_protocol_fee)?;
 
     // Apply pnl to total cash flow (without protocol fee)
     tcf.add(&pnl_without_protocol_fee)?;
@@ -488,6 +606,26 @@ pub fn apply_pnl_and_fees(
     Ok(response
         .add_attribute("protocol_opening_fee", protocol_opening_fee.to_string())
         .add_attribute("protocol_closing_fee", protocol_closing_fee.to_string()))
+}
+
+/// Applies payments to the credit manager if necessary based on the PnL and paid amount.
+fn apply_payment_to_cm_if_needed(
+    cfg: &Config<Addr>,
+    msgs: &mut Vec<CosmosMsg>,
+    paid_amount: Uint128,
+    pnl: &PnL,
+) -> ContractResult<()> {
+    let payment_amount = get_payment_amount_to_cm(&cfg.base_denom, paid_amount, pnl)?;
+    if !payment_amount.is_zero() {
+        // send coins to credit manager
+        let send_msg = CosmosMsg::Bank(BankMsg::Send {
+            to_address: cfg.credit_manager.clone().into(),
+            amount: coins(payment_amount.u128(), &cfg.base_denom),
+        });
+        msgs.push(send_msg);
+    }
+
+    Ok(())
 }
 
 /// Compute how many coins should be sent to the credit account.
@@ -542,132 +680,4 @@ fn get_payment_amount_to_cm(
             Ok(Uint128::zero())
         }
     }
-}
-
-pub fn close_all_positions(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    account_id: String,
-    action: ActionKind,
-) -> ContractResult<Response> {
-    let cfg = CONFIG.load(deps.storage)?;
-
-    // Only the credit manager contract can adjust positions
-    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
-
-    let rewards_collector_addr = address_provider::helpers::query_contract_addr(
-        deps.as_ref(),
-        &cfg.address_provider,
-        MarsAddressType::RewardsCollector,
-    )?;
-
-    // Read all positions for the account
-    let account_positions: Vec<_> = {
-        // Collect all positions for the account to avoid problems with mutable/immutable borrows in the same scope
-        POSITIONS
-            .prefix(&account_id)
-            .range(deps.storage, None, None, Order::Ascending)
-            .map(|item| {
-                let (denom, position) = item?;
-                Ok((denom, position))
-            })
-            .collect::<ContractResult<Vec<_>>>()?
-    };
-
-    // Read total cash flow
-    let mut tcf = TOTAL_CASH_FLOW.may_load(deps.storage)?.unwrap_or_default();
-
-    // When modifying a position, we must realise all PnL. The credit manager
-    // may send no coin (in case the position is winning or breaking even) or
-    // one coin of the base denom (i.e usdc) in case the position is losing
-    let paid_amount = may_pay(&info, &cfg.base_denom)?;
-
-    let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
-
-    let mut msgs = vec![];
-    let mut res = Response::new();
-    let mut pnl_amounts_accumulator = PnlAmounts::default();
-    for (denom, position) in account_positions {
-        let mut realized_pnl =
-            REALIZED_PNL.may_load(deps.storage, (&account_id, &denom))?.unwrap_or_default();
-        let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
-
-        // Params for the given market
-        let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
-
-        // Prices
-        let denom_price = cfg.oracle.query_price(&deps.querier, &denom, action.clone())?.price;
-
-        // skew _before_ modification
-        let initial_skew = ds.skew()?;
-
-        // Update the denom's accumulators.
-        // Funding rates and index is updated to the current block time (using old size).
-        ds.close_position(env.block.time.seconds(), denom_price, base_denom_price, &position)?;
-
-        // Compute the position's unrealized PnL
-        let pnl_amounts = position.compute_pnl(
-            &ds.funding,
-            initial_skew,
-            denom_price,
-            base_denom_price,
-            perp_params.opening_fee_rate,
-            perp_params.closing_fee_rate,
-            PositionModification::Decrease(position.size),
-        )?;
-
-        pnl_amounts_accumulator.add(&pnl_amounts)?;
-
-        res = apply_pnl_and_fees(
-            &cfg,
-            &rewards_collector_addr,
-            &mut ds,
-            &mut tcf,
-            &mut realized_pnl,
-            &pnl_amounts,
-            res,
-            &mut msgs,
-        )?;
-
-        // Remove the position
-        POSITIONS.remove(deps.storage, (&account_id, &denom));
-
-        // Save updated states
-        REALIZED_PNL.save(deps.storage, (&account_id, &denom), &realized_pnl)?;
-        DENOM_STATES.save(deps.storage, &denom, &ds)?;
-    }
-
-    // Convert PnL amounts to coins
-    let pnl = pnl_amounts_accumulator.to_coins(&cfg.base_denom).pnl;
-
-    apply_payment_to_cm_if_needed(&cfg, &mut msgs, paid_amount, &pnl)?;
-
-    TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
-
-    Ok(res
-        .add_messages(msgs)
-        .add_attribute("action", "close_all_positions")
-        .add_attribute("account_id", account_id)
-        .add_attribute("realised_pnl", pnl.to_string()))
-}
-
-fn apply_payment_to_cm_if_needed(
-    cfg: &Config<Addr>,
-    msgs: &mut Vec<CosmosMsg>,
-    paid_amount: Uint128,
-    pnl: &PnL,
-) -> ContractResult<()> {
-    let payment_amount = get_payment_amount_to_cm(&cfg.base_denom, paid_amount, pnl)?;
-    if !payment_amount.is_zero() {
-        // send coins to credit manager
-        let send_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: cfg.credit_manager.clone().into(),
-            amount: coins(payment_amount.u128(), &cfg.base_denom),
-        });
-        msgs.push(send_msg);
-    }
-
-    Ok(())
 }

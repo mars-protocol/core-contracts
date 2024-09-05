@@ -22,32 +22,30 @@ import {
   ConfigUpdates,
   QueryMsg,
   ConfigForString,
+  MarketResponse,
+  SignedDecimal,
+  AccountingResponse,
   Accounting,
   Balance,
   CashFlow,
   PnlAmounts,
-  DenomStateResponse,
+  MarketStateResponse,
   Funding,
-  SignedDecimal,
-  ArrayOfDenomStateResponse,
-  PerpVaultDeposit,
+  PaginationResponseForMarketResponse,
+  Metadata,
   TradingFee,
   Coin,
   OwnerResponse,
-  PerpDenomState,
-  PnlValues,
-  PaginationResponseForPerpDenomState,
-  Metadata,
-  NullablePerpVaultPosition,
-  PerpVaultPosition,
-  PerpVaultUnlock,
   PositionResponse,
   PerpPosition,
   PositionFeesResponse,
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
-  ArrayOfPerpVaultUnlock,
   VaultResponse,
+  NullableVaultPositionResponse,
+  VaultPositionResponse,
+  VaultDeposit,
+  VaultUnlock,
 } from './MarsPerps.types'
 import { MarsPerpsQueryClient, MarsPerpsClient } from './MarsPerps.client'
 export const marsPerpsQueryKeys = {
@@ -87,59 +85,35 @@ export const marsPerpsQueryKeys = {
         args,
       },
     ] as const,
-  denomState: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+  marketState: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
     [
       {
         ...marsPerpsQueryKeys.address(contractAddress)[0],
-        method: 'denom_state',
+        method: 'market_state',
         args,
       },
     ] as const,
-  perpDenomState: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+  market: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
     [
       {
         ...marsPerpsQueryKeys.address(contractAddress)[0],
-        method: 'perp_denom_state',
+        method: 'market',
         args,
       },
     ] as const,
-  perpDenomStates: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+  markets: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
     [
       {
         ...marsPerpsQueryKeys.address(contractAddress)[0],
-        method: 'perp_denom_states',
+        method: 'markets',
         args,
       },
     ] as const,
-  denomStates: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+  vaultPosition: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
     [
       {
         ...marsPerpsQueryKeys.address(contractAddress)[0],
-        method: 'denom_states',
-        args,
-      },
-    ] as const,
-  perpVaultPosition: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
-    [
-      {
-        ...marsPerpsQueryKeys.address(contractAddress)[0],
-        method: 'perp_vault_position',
-        args,
-      },
-    ] as const,
-  deposit: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
-    [
-      {
-        ...marsPerpsQueryKeys.address(contractAddress)[0],
-        method: 'deposit',
-        args,
-      },
-    ] as const,
-  unlocks: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
-    [
-      {
-        ...marsPerpsQueryKeys.address(contractAddress)[0],
-        method: 'unlocks',
+        method: 'vault_position',
         args,
       },
     ] as const,
@@ -167,27 +141,22 @@ export const marsPerpsQueryKeys = {
         args,
       },
     ] as const,
-  totalPnl: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+  realizedPnlByAccountAndMarket: (
+    contractAddress: string | undefined,
+    args?: Record<string, unknown>,
+  ) =>
     [
       {
         ...marsPerpsQueryKeys.address(contractAddress)[0],
-        method: 'total_pnl',
+        method: 'realized_pnl_by_account_and_market',
         args,
       },
     ] as const,
-  openingFee: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+  marketAccounting: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
     [
       {
         ...marsPerpsQueryKeys.address(contractAddress)[0],
-        method: 'opening_fee',
-        args,
-      },
-    ] as const,
-  denomAccounting: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
-    [
-      {
-        ...marsPerpsQueryKeys.address(contractAddress)[0],
-        method: 'denom_accounting',
+        method: 'market_accounting',
         args,
       },
     ] as const,
@@ -199,14 +168,11 @@ export const marsPerpsQueryKeys = {
         args,
       },
     ] as const,
-  denomRealizedPnlForAccount: (
-    contractAddress: string | undefined,
-    args?: Record<string, unknown>,
-  ) =>
+  openingFee: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
     [
       {
         ...marsPerpsQueryKeys.address(contractAddress)[0],
-        method: 'denom_realized_pnl_for_account',
+        method: 'opening_fee',
         args,
       },
     ] as const,
@@ -257,73 +223,6 @@ export function useMarsPerpsPositionFeesQuery<TData = PositionFeesResponse>({
     },
   )
 }
-export interface MarsPerpsDenomRealizedPnlForAccountQuery<TData>
-  extends MarsPerpsReactQuery<PnlAmounts, TData> {
-  args: {
-    accountId: string
-    denom: string
-  }
-}
-export function useMarsPerpsDenomRealizedPnlForAccountQuery<TData = PnlAmounts>({
-  client,
-  args,
-  options,
-}: MarsPerpsDenomRealizedPnlForAccountQuery<TData>) {
-  return useQuery<PnlAmounts, Error, TData>(
-    marsPerpsQueryKeys.denomRealizedPnlForAccount(client?.contractAddress, args),
-    () =>
-      client
-        ? client.denomRealizedPnlForAccount({
-            accountId: args.accountId,
-            denom: args.denom,
-          })
-        : Promise.reject(new Error('Invalid client')),
-    {
-      ...options,
-      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
-    },
-  )
-}
-export interface MarsPerpsTotalAccountingQuery<TData>
-  extends MarsPerpsReactQuery<Accounting, TData> {}
-export function useMarsPerpsTotalAccountingQuery<TData = Accounting>({
-  client,
-  options,
-}: MarsPerpsTotalAccountingQuery<TData>) {
-  return useQuery<Accounting, Error, TData>(
-    marsPerpsQueryKeys.totalAccounting(client?.contractAddress),
-    () => (client ? client.totalAccounting() : Promise.reject(new Error('Invalid client'))),
-    {
-      ...options,
-      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
-    },
-  )
-}
-export interface MarsPerpsDenomAccountingQuery<TData>
-  extends MarsPerpsReactQuery<Accounting, TData> {
-  args: {
-    denom: string
-  }
-}
-export function useMarsPerpsDenomAccountingQuery<TData = Accounting>({
-  client,
-  args,
-  options,
-}: MarsPerpsDenomAccountingQuery<TData>) {
-  return useQuery<Accounting, Error, TData>(
-    marsPerpsQueryKeys.denomAccounting(client?.contractAddress, args),
-    () =>
-      client
-        ? client.denomAccounting({
-            denom: args.denom,
-          })
-        : Promise.reject(new Error('Invalid client')),
-    {
-      ...options,
-      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
-    },
-  )
-}
 export interface MarsPerpsOpeningFeeQuery<TData> extends MarsPerpsReactQuery<TradingFee, TData> {
   args: {
     denom: string
@@ -350,14 +249,67 @@ export function useMarsPerpsOpeningFeeQuery<TData = TradingFee>({
     },
   )
 }
-export interface MarsPerpsTotalPnlQuery<TData> extends MarsPerpsReactQuery<SignedDecimal, TData> {}
-export function useMarsPerpsTotalPnlQuery<TData = SignedDecimal>({
+export interface MarsPerpsTotalAccountingQuery<TData>
+  extends MarsPerpsReactQuery<AccountingResponse, TData> {}
+export function useMarsPerpsTotalAccountingQuery<TData = AccountingResponse>({
   client,
   options,
-}: MarsPerpsTotalPnlQuery<TData>) {
-  return useQuery<SignedDecimal, Error, TData>(
-    marsPerpsQueryKeys.totalPnl(client?.contractAddress),
-    () => (client ? client.totalPnl() : Promise.reject(new Error('Invalid client'))),
+}: MarsPerpsTotalAccountingQuery<TData>) {
+  return useQuery<AccountingResponse, Error, TData>(
+    marsPerpsQueryKeys.totalAccounting(client?.contractAddress),
+    () => (client ? client.totalAccounting() : Promise.reject(new Error('Invalid client'))),
+    {
+      ...options,
+      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
+    },
+  )
+}
+export interface MarsPerpsMarketAccountingQuery<TData>
+  extends MarsPerpsReactQuery<AccountingResponse, TData> {
+  args: {
+    denom: string
+  }
+}
+export function useMarsPerpsMarketAccountingQuery<TData = AccountingResponse>({
+  client,
+  args,
+  options,
+}: MarsPerpsMarketAccountingQuery<TData>) {
+  return useQuery<AccountingResponse, Error, TData>(
+    marsPerpsQueryKeys.marketAccounting(client?.contractAddress, args),
+    () =>
+      client
+        ? client.marketAccounting({
+            denom: args.denom,
+          })
+        : Promise.reject(new Error('Invalid client')),
+    {
+      ...options,
+      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
+    },
+  )
+}
+export interface MarsPerpsRealizedPnlByAccountAndMarketQuery<TData>
+  extends MarsPerpsReactQuery<PnlAmounts, TData> {
+  args: {
+    accountId: string
+    denom: string
+  }
+}
+export function useMarsPerpsRealizedPnlByAccountAndMarketQuery<TData = PnlAmounts>({
+  client,
+  args,
+  options,
+}: MarsPerpsRealizedPnlByAccountAndMarketQuery<TData>) {
+  return useQuery<PnlAmounts, Error, TData>(
+    marsPerpsQueryKeys.realizedPnlByAccountAndMarket(client?.contractAddress, args),
+    () =>
+      client
+        ? client.realizedPnlByAccountAndMarket({
+            accountId: args.accountId,
+            denom: args.denom,
+          })
+        : Promise.reject(new Error('Invalid client')),
     {
       ...options,
       enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
@@ -447,23 +399,23 @@ export function useMarsPerpsPositionQuery<TData = PositionResponse>({
     },
   )
 }
-export interface MarsPerpsUnlocksQuery<TData>
-  extends MarsPerpsReactQuery<ArrayOfPerpVaultUnlock, TData> {
+export interface MarsPerpsVaultPositionQuery<TData>
+  extends MarsPerpsReactQuery<NullableVaultPositionResponse, TData> {
   args: {
     accountId?: string
     userAddress: string
   }
 }
-export function useMarsPerpsUnlocksQuery<TData = ArrayOfPerpVaultUnlock>({
+export function useMarsPerpsVaultPositionQuery<TData = NullableVaultPositionResponse>({
   client,
   args,
   options,
-}: MarsPerpsUnlocksQuery<TData>) {
-  return useQuery<ArrayOfPerpVaultUnlock, Error, TData>(
-    marsPerpsQueryKeys.unlocks(client?.contractAddress, args),
+}: MarsPerpsVaultPositionQuery<TData>) {
+  return useQuery<NullableVaultPositionResponse, Error, TData>(
+    marsPerpsQueryKeys.vaultPosition(client?.contractAddress, args),
     () =>
       client
-        ? client.unlocks({
+        ? client.vaultPosition({
             accountId: args.accountId,
             userAddress: args.userAddress,
           })
@@ -474,76 +426,23 @@ export function useMarsPerpsUnlocksQuery<TData = ArrayOfPerpVaultUnlock>({
     },
   )
 }
-export interface MarsPerpsDepositQuery<TData> extends MarsPerpsReactQuery<PerpVaultDeposit, TData> {
-  args: {
-    accountId?: string
-    userAddress: string
-  }
-}
-export function useMarsPerpsDepositQuery<TData = PerpVaultDeposit>({
-  client,
-  args,
-  options,
-}: MarsPerpsDepositQuery<TData>) {
-  return useQuery<PerpVaultDeposit, Error, TData>(
-    marsPerpsQueryKeys.deposit(client?.contractAddress, args),
-    () =>
-      client
-        ? client.deposit({
-            accountId: args.accountId,
-            userAddress: args.userAddress,
-          })
-        : Promise.reject(new Error('Invalid client')),
-    {
-      ...options,
-      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
-    },
-  )
-}
-export interface MarsPerpsPerpVaultPositionQuery<TData>
-  extends MarsPerpsReactQuery<NullablePerpVaultPosition, TData> {
-  args: {
-    accountId?: string
-    userAddress: string
-  }
-}
-export function useMarsPerpsPerpVaultPositionQuery<TData = NullablePerpVaultPosition>({
-  client,
-  args,
-  options,
-}: MarsPerpsPerpVaultPositionQuery<TData>) {
-  return useQuery<NullablePerpVaultPosition, Error, TData>(
-    marsPerpsQueryKeys.perpVaultPosition(client?.contractAddress, args),
-    () =>
-      client
-        ? client.perpVaultPosition({
-            accountId: args.accountId,
-            userAddress: args.userAddress,
-          })
-        : Promise.reject(new Error('Invalid client')),
-    {
-      ...options,
-      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
-    },
-  )
-}
-export interface MarsPerpsDenomStatesQuery<TData>
-  extends MarsPerpsReactQuery<ArrayOfDenomStateResponse, TData> {
+export interface MarsPerpsMarketsQuery<TData>
+  extends MarsPerpsReactQuery<PaginationResponseForMarketResponse, TData> {
   args: {
     limit?: number
     startAfter?: string
   }
 }
-export function useMarsPerpsDenomStatesQuery<TData = ArrayOfDenomStateResponse>({
+export function useMarsPerpsMarketsQuery<TData = PaginationResponseForMarketResponse>({
   client,
   args,
   options,
-}: MarsPerpsDenomStatesQuery<TData>) {
-  return useQuery<ArrayOfDenomStateResponse, Error, TData>(
-    marsPerpsQueryKeys.denomStates(client?.contractAddress, args),
+}: MarsPerpsMarketsQuery<TData>) {
+  return useQuery<PaginationResponseForMarketResponse, Error, TData>(
+    marsPerpsQueryKeys.markets(client?.contractAddress, args),
     () =>
       client
-        ? client.denomStates({
+        ? client.markets({
             limit: args.limit,
             startAfter: args.startAfter,
           })
@@ -554,49 +453,21 @@ export function useMarsPerpsDenomStatesQuery<TData = ArrayOfDenomStateResponse>(
     },
   )
 }
-export interface MarsPerpsPerpDenomStatesQuery<TData>
-  extends MarsPerpsReactQuery<PaginationResponseForPerpDenomState, TData> {
-  args: {
-    limit?: number
-    startAfter?: string
-  }
-}
-export function useMarsPerpsPerpDenomStatesQuery<TData = PaginationResponseForPerpDenomState>({
-  client,
-  args,
-  options,
-}: MarsPerpsPerpDenomStatesQuery<TData>) {
-  return useQuery<PaginationResponseForPerpDenomState, Error, TData>(
-    marsPerpsQueryKeys.perpDenomStates(client?.contractAddress, args),
-    () =>
-      client
-        ? client.perpDenomStates({
-            limit: args.limit,
-            startAfter: args.startAfter,
-          })
-        : Promise.reject(new Error('Invalid client')),
-    {
-      ...options,
-      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
-    },
-  )
-}
-export interface MarsPerpsPerpDenomStateQuery<TData>
-  extends MarsPerpsReactQuery<PerpDenomState, TData> {
+export interface MarsPerpsMarketQuery<TData> extends MarsPerpsReactQuery<MarketResponse, TData> {
   args: {
     denom: string
   }
 }
-export function useMarsPerpsPerpDenomStateQuery<TData = PerpDenomState>({
+export function useMarsPerpsMarketQuery<TData = MarketResponse>({
   client,
   args,
   options,
-}: MarsPerpsPerpDenomStateQuery<TData>) {
-  return useQuery<PerpDenomState, Error, TData>(
-    marsPerpsQueryKeys.perpDenomState(client?.contractAddress, args),
+}: MarsPerpsMarketQuery<TData>) {
+  return useQuery<MarketResponse, Error, TData>(
+    marsPerpsQueryKeys.market(client?.contractAddress, args),
     () =>
       client
-        ? client.perpDenomState({
+        ? client.market({
             denom: args.denom,
           })
         : Promise.reject(new Error('Invalid client')),
@@ -606,22 +477,22 @@ export function useMarsPerpsPerpDenomStateQuery<TData = PerpDenomState>({
     },
   )
 }
-export interface MarsPerpsDenomStateQuery<TData>
-  extends MarsPerpsReactQuery<DenomStateResponse, TData> {
+export interface MarsPerpsMarketStateQuery<TData>
+  extends MarsPerpsReactQuery<MarketStateResponse, TData> {
   args: {
     denom: string
   }
 }
-export function useMarsPerpsDenomStateQuery<TData = DenomStateResponse>({
+export function useMarsPerpsMarketStateQuery<TData = MarketStateResponse>({
   client,
   args,
   options,
-}: MarsPerpsDenomStateQuery<TData>) {
-  return useQuery<DenomStateResponse, Error, TData>(
-    marsPerpsQueryKeys.denomState(client?.contractAddress, args),
+}: MarsPerpsMarketStateQuery<TData>) {
+  return useQuery<MarketStateResponse, Error, TData>(
+    marsPerpsQueryKeys.marketState(client?.contractAddress, args),
     () =>
       client
-        ? client.denomState({
+        ? client.marketState({
             denom: args.denom,
           })
         : Promise.reject(new Error('Invalid client')),
@@ -706,7 +577,7 @@ export function useMarsPerpsUpdateConfigMutation(
     options,
   )
 }
-export interface MarsPerpsUpdateParamsMutation {
+export interface MarsPerpsUpdateMarketMutation {
   client: MarsPerpsClient
   msg: {
     params: PerpParams
@@ -717,15 +588,15 @@ export interface MarsPerpsUpdateParamsMutation {
     funds?: Coin[]
   }
 }
-export function useMarsPerpsUpdateParamsMutation(
+export function useMarsPerpsUpdateMarketMutation(
   options?: Omit<
-    UseMutationOptions<ExecuteResult, Error, MarsPerpsUpdateParamsMutation>,
+    UseMutationOptions<ExecuteResult, Error, MarsPerpsUpdateMarketMutation>,
     'mutationFn'
   >,
 ) {
-  return useMutation<ExecuteResult, Error, MarsPerpsUpdateParamsMutation>(
+  return useMutation<ExecuteResult, Error, MarsPerpsUpdateMarketMutation>(
     ({ client, msg, args: { fee, memo, funds } = {} }) =>
-      client.updateParams(msg, fee, memo, funds),
+      client.updateMarket(msg, fee, memo, funds),
     options,
   )
 }
@@ -776,7 +647,7 @@ export function useMarsPerpsCloseAllPositionsMutation(
     options,
   )
 }
-export interface MarsPerpsExecutePerpOrderMutation {
+export interface MarsPerpsExecuteOrderMutation {
   client: MarsPerpsClient
   msg: {
     accountId: string
@@ -790,15 +661,15 @@ export interface MarsPerpsExecutePerpOrderMutation {
     funds?: Coin[]
   }
 }
-export function useMarsPerpsExecutePerpOrderMutation(
+export function useMarsPerpsExecuteOrderMutation(
   options?: Omit<
-    UseMutationOptions<ExecuteResult, Error, MarsPerpsExecutePerpOrderMutation>,
+    UseMutationOptions<ExecuteResult, Error, MarsPerpsExecuteOrderMutation>,
     'mutationFn'
   >,
 ) {
-  return useMutation<ExecuteResult, Error, MarsPerpsExecutePerpOrderMutation>(
+  return useMutation<ExecuteResult, Error, MarsPerpsExecuteOrderMutation>(
     ({ client, msg, args: { fee, memo, funds } = {} }) =>
-      client.executePerpOrder(msg, fee, memo, funds),
+      client.executeOrder(msg, fee, memo, funds),
     options,
   )
 }

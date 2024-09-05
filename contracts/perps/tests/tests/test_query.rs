@@ -4,14 +4,14 @@ use cosmwasm_std::{coin, Decimal, Uint128};
 use mars_types::{
     math::SignedDecimal,
     params::{PerpParams, PerpParamsUpdate},
-    perps::{Funding, PerpDenomState, PnlValues},
+    perps::MarketResponse,
     signed_uint::SignedUint,
 };
 
 use crate::tests::helpers::{default_perp_params, MockEnv};
 
 #[test]
-fn perp_denom_state() {
+fn query_market() {
     let mut mock = MockEnv::new().build().unwrap();
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -40,27 +40,19 @@ fn perp_denom_state() {
     );
 
     // Test initial state
-    let perp_denom_state = mock.query_perp_denom_state(denom1);
+    let perp_market_state = mock.query_market(denom1);
 
-    let expected_perp_denom_state = PerpDenomState {
+    let expected_perp_market_state = MarketResponse {
         denom: denom1.to_string(),
         enabled: true,
         long_oi: Uint128::zero(),
         short_oi: Uint128::zero(),
-        total_entry_cost: SignedUint::zero(),
-        total_entry_funding: SignedUint::zero(),
-        rate: SignedDecimal::zero(),
-        pnl_values: PnlValues::default(),
-        funding: Funding {
-            skew_scale: initial_skew_scale,
-            max_funding_velocity: initial_funding_velocity,
-            ..Funding::default()
-        },
+        current_funding_rate: SignedDecimal::zero(),
     };
 
-    assert_eq!(perp_denom_state, expected_perp_denom_state);
+    assert_eq!(perp_market_state, expected_perp_market_state);
 
-    // Add some position to the perp denom state
+    // Add some position to the perp market state
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &[denom1, base_denom]);
 
     mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
@@ -71,19 +63,18 @@ fn perp_denom_state() {
 
     mock.execute_perp_order(&credit_manager, "2", denom1, size, None, &[]).unwrap();
 
-    let perp_denom_state = mock.query_perp_denom_state(denom1);
+    let perp_market_state = mock.query_market(denom1);
 
-    let expected_perp_denom_state = PerpDenomState {
+    let expected_perp_market_state = MarketResponse {
         long_oi: amount,
-        total_entry_cost: SignedUint::from_str("62318").unwrap(),
-        ..expected_perp_denom_state
+        ..expected_perp_market_state
     };
 
-    assert_eq!(perp_denom_state, expected_perp_denom_state);
+    assert_eq!(perp_market_state, expected_perp_market_state);
 }
 
 #[test]
-fn perp_denom_states() {
+fn query_markets() {
     let mut mock = MockEnv::new().build().unwrap();
     let owner = mock.owner.clone();
 
@@ -140,77 +131,58 @@ fn perp_denom_states() {
         },
     );
 
-    // Setup all expected perp denom states
-    let expected_perp_denom_state_base = PerpDenomState {
+    // Setup all expected perp market states
+    let expected_perp_market_state_base = MarketResponse {
         denom: base_denom.to_string(),
         enabled: true,
         long_oi: Uint128::zero(),
         short_oi: Uint128::zero(),
-        total_entry_cost: SignedUint::zero(),
-        total_entry_funding: SignedUint::zero(),
-        rate: SignedDecimal::zero(),
-        pnl_values: PnlValues::default(),
-        funding: Funding::default(),
+        current_funding_rate: SignedDecimal::zero(),
     };
 
-    let expected_perp_denom_state1 = PerpDenomState {
+    let expected_perp_market_state1 = MarketResponse {
         denom: denom1.to_string(),
-        funding: Funding {
-            skew_scale: initial_skew_scale1,
-            max_funding_velocity: initial_funding_velocity1,
-            ..Funding::default()
-        },
-        ..expected_perp_denom_state_base.clone()
+        ..expected_perp_market_state_base.clone()
     };
 
-    let expected_perp_denom_state2 = PerpDenomState {
+    let expected_perp_market_state2 = MarketResponse {
         denom: denom2.to_string(),
-        funding: Funding {
-            skew_scale: initial_skew_scale2,
-            max_funding_velocity: initial_funding_velocity2,
-            ..Funding::default()
-        },
-        ..expected_perp_denom_state_base.clone()
+        ..expected_perp_market_state_base.clone()
     };
 
-    let expected_perp_denom_state3 = PerpDenomState {
+    let expected_perp_market_state3 = MarketResponse {
         denom: denom3.to_string(),
-        funding: Funding {
-            skew_scale: initial_skew_scale3,
-            max_funding_velocity: initial_funding_velocity3,
-            ..Funding::default()
-        },
-        ..expected_perp_denom_state_base.clone()
+        ..expected_perp_market_state_base.clone()
     };
 
-    // Test to query all perp denom states
-    let perp_denom_states_res = mock.query_perp_denom_states(None, None);
+    // Test to query all perp market states
+    let perp_market_states_res = mock.query_markets(None, None);
     assert_eq!(
-        perp_denom_states_res.data,
+        perp_market_states_res.data,
         vec![
-            expected_perp_denom_state1.clone(),
-            expected_perp_denom_state2.clone(),
-            expected_perp_denom_state3.clone()
+            expected_perp_market_state1.clone(),
+            expected_perp_market_state2.clone(),
+            expected_perp_market_state3.clone()
         ]
     );
-    assert!(!perp_denom_states_res.metadata.has_more);
+    assert!(!perp_market_states_res.metadata.has_more);
 
-    // Test to query after the first perp denom state
-    let perp_denom_states_res = mock.query_perp_denom_states(Some(denom1.to_string()), None);
+    // Test to query after the first perp market state
+    let perp_market_states_res = mock.query_markets(Some(denom1.to_string()), None);
     assert_eq!(
-        perp_denom_states_res.data,
-        vec![expected_perp_denom_state2.clone(), expected_perp_denom_state3.clone()]
+        perp_market_states_res.data,
+        vec![expected_perp_market_state2.clone(), expected_perp_market_state3.clone()]
     );
-    assert!(!perp_denom_states_res.metadata.has_more);
+    assert!(!perp_market_states_res.metadata.has_more);
 
     // Test the limit parameter
-    let perp_denom_states_res = mock.query_perp_denom_states(None, Some(1));
-    assert_eq!(perp_denom_states_res.data, vec![expected_perp_denom_state1.clone()]);
-    assert!(perp_denom_states_res.metadata.has_more);
+    let perp_market_states_res = mock.query_markets(None, Some(1));
+    assert_eq!(perp_market_states_res.data, vec![expected_perp_market_state1.clone()]);
+    assert!(perp_market_states_res.metadata.has_more);
 }
 
 #[test]
-fn perp_positions() {
+fn query_positions() {
     let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();

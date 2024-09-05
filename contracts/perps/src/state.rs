@@ -4,7 +4,7 @@ use cw_storage_plus::{Item, Map};
 use mars_owner::Owner;
 use mars_types::{
     keys::UserIdKey,
-    perps::{CashFlow, Config, DenomState, PnlAmounts, Position, UnlockState, VaultState},
+    perps::{CashFlow, Config, MarketState, PnlAmounts, Position, UnlockState, VaultState},
 };
 
 #[cw_serde]
@@ -23,28 +23,28 @@ pub const OWNER: Owner = Owner::new("owner");
 
 pub const CONFIG: Item<Config<Addr>> = Item::new("cfg");
 
-pub const VAULT_STATE: Item<VaultState> = Item::new("gs");
+pub const VAULT_STATE: Item<VaultState> = Item::new("vault");
 
-// denom => denom state
-pub const DENOM_STATES: Map<&str, DenomState> = Map::new("ds");
+// denom => market state
+pub const MARKET_STATES: Map<&str, MarketState> = Map::new("markets");
 
 // (user, account id) => shares
-pub const DEPOSIT_SHARES: Map<&UserIdKey, Uint128> = Map::new("s");
+pub const DEPOSIT_SHARES: Map<&UserIdKey, Uint128> = Map::new("deposit_shares");
 
 // (user, account id) => unlocks
-pub const UNLOCKS: Map<&UserIdKey, Vec<UnlockState>> = Map::new("ul");
+pub const UNLOCKS: Map<&UserIdKey, Vec<UnlockState>> = Map::new("unlocks");
 
 // (account_id, denom) => position
-pub const POSITIONS: Map<(&str, &str), Position> = Map::new("p");
+pub const POSITIONS: Map<(&str, &str), Position> = Map::new("positions");
 
 // (account_id, denom) => realized PnL amounts
-pub const REALIZED_PNL: Map<(&str, &str), PnlAmounts> = Map::new("rpnl");
+pub const REALIZED_PNL: Map<(&str, &str), PnlAmounts> = Map::new("realized_pnls");
 
-// denom => denom cash flow
-pub const DENOM_CASH_FLOW: Map<&str, CashFlow> = Map::new("dcf");
+// denom => market cash flow
+pub const MARKET_CASH_FLOW: Map<&str, CashFlow> = Map::new("market_cf");
 
 // total cash flow, accumulated across all denoms
-pub const TOTAL_CASH_FLOW: Item<CashFlow> = Item::new("tcf");
+pub const TOTAL_CASH_FLOW: Item<CashFlow> = Item::new("total_cf");
 
 // Temporary state to save variables to be used on reply handling
 pub const DELEVERAGE_REQUEST_TEMP_STORAGE: Item<DeleverageRequestTempStorage> =

@@ -187,9 +187,9 @@ pub fn query_user_amount(
             Ok(user_collateral.amount_scaled)
         }
         IncentiveKind::PerpVault => {
-            let position: perps::PerpVaultPosition = querier.query_wasm_smart(
+            let position: perps::VaultPositionResponse = querier.query_wasm_smart(
                 perps_addr,
-                &perps::QueryMsg::PerpVaultPosition {
+                &perps::QueryMsg::VaultPosition {
                     user_address: user_addr.to_string(),
                     account_id,
                 },

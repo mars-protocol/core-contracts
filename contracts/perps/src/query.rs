@@ -1,26 +1,25 @@
 use std::{cmp::max, collections::HashMap};
 
-use cosmwasm_std::{coin, Addr, Decimal, Deps, Order, StdResult, Storage, Uint128};
+use cosmwasm_std::{coin, Addr, Decimal, Deps, Order, StdResult, Storage};
 use cw_paginate::{paginate_map_query, PaginationResponse};
 use cw_storage_plus::Bound;
 use mars_types::{
     oracle::ActionKind,
     params::PerpParams,
     perps::{
-        Accounting, Config, DenomState, DenomStateResponse, PerpDenomState, PerpPosition,
-        PerpVaultDeposit, PerpVaultPosition, PerpVaultUnlock, PnlAmounts, PnlValues,
-        PositionFeesResponse, PositionResponse, PositionsByAccountResponse, TradingFee,
-        VaultResponse,
+        AccountingResponse, Config, MarketResponse, MarketState, MarketStateResponse, PerpPosition,
+        PnlAmounts, PositionFeesResponse, PositionResponse, PositionsByAccountResponse, TradingFee,
+        VaultDeposit, VaultPositionResponse, VaultResponse, VaultUnlock,
     },
     signed_uint::SignedUint,
 };
 
 use crate::{
-    denom::{compute_total_accounting_data, compute_total_pnl, DenomStateExt},
     error::ContractResult,
+    market::{compute_total_accounting_data, MarketStateExt},
     position::{PositionExt, PositionModification},
     pricing::{closing_execution_price, opening_execution_price},
-    state::{CONFIG, DENOM_STATES, DEPOSIT_SHARES, POSITIONS, REALIZED_PNL, UNLOCKS, VAULT_STATE},
+    state::{CONFIG, DEPOSIT_SHARES, MARKET_STATES, POSITIONS, REALIZED_PNL, UNLOCKS, VAULT_STATE},
     utils::create_user_id_key,
     vault::shares_to_amount,
 };
@@ -28,11 +27,20 @@ use crate::{
 const DEFAULT_LIMIT: u32 = 10;
 const MAX_LIMIT: u32 = 30;
 
-pub fn config(store: &dyn Storage) -> StdResult<Config<String>> {
+/// Queries the configuration data from storage.
+pub fn query_config(store: &dyn Storage) -> StdResult<Config<String>> {
     CONFIG.load(store).map(Into::into).map_err(Into::into)
 }
 
-pub fn vault(deps: Deps, current_time: u64, action: ActionKind) -> ContractResult<VaultResponse> {
+/// Retrieves and calculates the current state of the vault.
+/// This includes querying the base denomination price, computing total accounting data,
+/// and calculating metrics like share price and collateralization ratio.
+/// Returns a `VaultResponse` with the vault's key financial metrics.
+pub fn query_vault(
+    deps: Deps,
+    current_time: u64,
+    action: ActionKind,
+) -> ContractResult<VaultResponse> {
     // Load configuration and vault state from storage
     let cfg = CONFIG.load(deps.storage)?;
     let vault_state = VAULT_STATE.load(deps.storage)?;
@@ -83,60 +91,39 @@ pub fn vault(deps: Deps, current_time: u64, action: ActionKind) -> ContractResul
     })
 }
 
-pub fn denom_state(store: &dyn Storage, denom: String) -> StdResult<DenomStateResponse> {
-    let ds = DENOM_STATES.load(store, &denom)?;
-    Ok(DenomStateResponse {
-        denom,
-        enabled: ds.enabled,
-        total_cost_base: ds.total_entry_cost,
-        funding: ds.funding,
-        last_updated: ds.last_updated,
-    })
-}
-
-pub fn denom_states(
-    store: &dyn Storage,
-    start_after: Option<String>,
-    limit: Option<u32>,
-) -> StdResult<Vec<DenomStateResponse>> {
-    let start = start_after.as_ref().map(|denom| Bound::exclusive(denom.as_str()));
-    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
-
-    DENOM_STATES
-        .range(store, start, None, Order::Ascending)
-        .take(limit)
-        .map(|item| {
-            let (denom, ds) = item?;
-            Ok(DenomStateResponse {
-                denom,
-                enabled: ds.enabled,
-                total_cost_base: ds.total_entry_cost,
-                funding: ds.funding,
-                last_updated: ds.last_updated,
-            })
-        })
-        .collect()
-}
-
-pub fn perp_denom_state(
+/// Queries the current state of a specific market based on its denomination.
+/// This function returns key details such as the market's enabled status, open interest,
+/// and the current funding rate.
+pub fn query_market(
     deps: Deps,
     current_time: u64,
     denom: String,
-) -> ContractResult<PerpDenomState> {
-    let ds = DENOM_STATES.load(deps.storage, &denom)?;
+) -> ContractResult<MarketResponse> {
+    let ms = MARKET_STATES.load(deps.storage, &denom)?;
     let cfg = CONFIG.load(deps.storage)?;
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+    let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
 
-    get_perp_denom_state(deps, &cfg, current_time, denom, ds, base_denom_price)
+    Ok(MarketResponse {
+        denom: denom.clone(),
+        enabled: ms.enabled,
+        long_oi: ms.long_oi,
+        short_oi: ms.short_oi,
+        current_funding_rate: curr_funding.last_funding_rate,
+    })
 }
 
-pub fn perp_denom_states(
+/// Retrieves a paginated list of markets.
+/// This function queries multiple markets, providing a response with details for each market
+/// including its current funding rate, open interest, and enabled status.
+pub fn query_markets(
     deps: Deps,
     current_time: u64,
     start_after: Option<String>,
     limit: Option<u32>,
-) -> ContractResult<PaginationResponse<PerpDenomState>> {
+) -> ContractResult<PaginationResponse<MarketResponse>> {
     let cfg = CONFIG.load(deps.storage)?;
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
@@ -144,17 +131,29 @@ pub fn perp_denom_states(
     let start = start_after.as_ref().map(|start_after| Bound::exclusive(start_after.as_str()));
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
 
-    paginate_map_query(&DENOM_STATES, deps.storage, start, Some(limit), |denom, ds| {
-        get_perp_denom_state(deps, &cfg, current_time, denom, ds, base_denom_price)
+    paginate_map_query(&MARKET_STATES, deps.storage, start, Some(limit), |denom, ms| {
+        let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+        let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
+
+        Ok(MarketResponse {
+            denom: denom.clone(),
+            enabled: ms.enabled,
+            long_oi: ms.long_oi,
+            short_oi: ms.short_oi,
+            current_funding_rate: curr_funding.last_funding_rate,
+        })
     })
 }
 
-pub fn perp_vault_position(
+/// Queries the current vault position of a specific user, including both active deposits and pending unlocks.
+/// The function returns details such as the amount of shares the user holds, their corresponding value,
+/// and any pending unlocks. If the user has no active shares or unlocks, the function returns `None`.
+pub fn query_vault_position(
     deps: Deps,
     user_addr: Addr,
     account_id: Option<String>,
     current_time: u64,
-) -> ContractResult<Option<PerpVaultPosition>> {
+) -> ContractResult<Option<VaultPositionResponse>> {
     let cfg = CONFIG.load(deps.storage)?;
 
     let user_id_key = create_user_id_key(&user_addr, account_id)?;
@@ -168,7 +167,7 @@ pub fn perp_vault_position(
     }
 
     let shares = shares.unwrap_or_default();
-    let perp_vault_deposit = PerpVaultDeposit {
+    let perp_vault_deposit = VaultDeposit {
         shares,
         amount: shares_to_amount(
             &deps,
@@ -186,7 +185,7 @@ pub fn perp_vault_position(
     let unlocks: ContractResult<Vec<_>> = unlocks
         .into_iter()
         .map(|unlock| {
-            Ok(PerpVaultUnlock {
+            Ok(VaultUnlock {
                 created_at: unlock.created_at,
                 cooldown_end: unlock.cooldown_end,
                 shares: unlock.shares,
@@ -204,77 +203,18 @@ pub fn perp_vault_position(
         })
         .collect();
 
-    Ok(Some(PerpVaultPosition {
+    Ok(Some(VaultPositionResponse {
         denom: cfg.base_denom.clone(),
         deposit: perp_vault_deposit,
         unlocks: unlocks?,
     }))
 }
 
-pub fn deposit(
-    deps: Deps,
-    user_addr: Addr,
-    account_id: Option<String>,
-    current_time: u64,
-) -> ContractResult<PerpVaultDeposit> {
-    let cfg = CONFIG.load(deps.storage)?;
-
-    let user_id_key = create_user_id_key(&user_addr, account_id)?;
-
-    let vs = VAULT_STATE.load(deps.storage)?;
-    let shares = DEPOSIT_SHARES.may_load(deps.storage, &user_id_key)?.unwrap_or_else(Uint128::zero);
-
-    Ok(PerpVaultDeposit {
-        shares,
-        amount: shares_to_amount(
-            &deps,
-            &vs,
-            &cfg.oracle,
-            current_time,
-            &cfg.base_denom,
-            shares,
-            ActionKind::Default,
-        )
-        .unwrap_or_default(),
-    })
-}
-
-pub fn unlocks(
-    deps: Deps,
-    user_addr: Addr,
-    account_id: Option<String>,
-    current_time: u64,
-) -> ContractResult<Vec<PerpVaultUnlock>> {
-    let cfg = CONFIG.load(deps.storage)?;
-
-    let user_id_key = create_user_id_key(&user_addr, account_id)?;
-
-    let vs = VAULT_STATE.load(deps.storage)?;
-
-    let unlocks = UNLOCKS.may_load(deps.storage, &user_id_key)?.unwrap_or_default();
-    unlocks
-        .into_iter()
-        .map(|unlock| {
-            Ok(PerpVaultUnlock {
-                created_at: unlock.created_at,
-                cooldown_end: unlock.cooldown_end,
-                shares: unlock.shares,
-                amount: shares_to_amount(
-                    &deps,
-                    &vs,
-                    &cfg.oracle,
-                    current_time,
-                    &cfg.base_denom,
-                    unlock.shares,
-                    ActionKind::Default,
-                )
-                .unwrap_or_default(),
-            })
-        })
-        .collect()
-}
-
-pub fn position(
+/// Queries the current position for a given account and market (denom).
+/// It calculates the position's current state, including unrealized and realized PnL,
+/// based on the latest market data, funding rates, and any potential order size modification.
+/// Returns a `PositionResponse` containing the position details or `None` if no position exists.
+pub fn query_position(
     deps: Deps,
     current_time: u64,
     account_id: String,
@@ -286,8 +226,8 @@ pub fn position(
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
     let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
-    let ds = DENOM_STATES.load(deps.storage, &denom)?;
-    let curr_funding = ds.current_funding(current_time, denom_price, base_denom_price)?;
+    let ms = MARKET_STATES.load(deps.storage, &denom)?;
+    let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
     let position_opt = POSITIONS.may_load(deps.storage, (&account_id, &denom))?;
 
     let Some(position) = position_opt else {
@@ -306,7 +246,7 @@ pub fn position(
 
     let pnl_amounts = position.compute_pnl(
         &curr_funding,
-        ds.skew()?,
+        ms.skew()?,
         denom_price,
         base_denom_price,
         perp_params.opening_fee_rate,
@@ -315,7 +255,7 @@ pub fn position(
     )?;
 
     let exit_exec_price =
-        closing_execution_price(ds.skew()?, curr_funding.skew_scale, position.size, denom_price)?;
+        closing_execution_price(ms.skew()?, curr_funding.skew_scale, position.size, denom_price)?;
 
     Ok(PositionResponse {
         account_id,
@@ -333,7 +273,12 @@ pub fn position(
     })
 }
 
-pub fn positions(
+/// Queries a list of positions across multiple accounts and markets (denoms).
+/// It retrieves the current state of each position, including unrealized and realized PnL,
+/// by using the latest market data and funding rates. The function supports pagination
+/// through the `start_after` parameter and allows limiting the number of returned positions.
+/// To optimize performance, market data and parameters are cached to avoid redundant queries.
+pub fn query_positions(
     deps: Deps,
     current_time: u64,
     start_after: Option<(String, String)>,
@@ -346,8 +291,8 @@ pub fn positions(
         .map(|(account_id, denom)| Bound::exclusive((account_id.as_str(), denom.as_str())));
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
 
-    // cache the price, params, denom state here so that we don't repetitively query/recalculate them
-    let mut cache: HashMap<String, (Decimal, PerpParams, DenomState)> = HashMap::new();
+    // Cache the price, params, market state here so that we don't repetitively query/recalculate them
+    let mut cache: HashMap<String, (Decimal, PerpParams, MarketState)> = HashMap::new();
 
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
@@ -358,22 +303,22 @@ pub fn positions(
         .map(|item| {
             let ((account_id, denom), position) = item?;
 
-            // if price, params, denom state are already in the cache, simply read it
+            // If price, params, market state are already in the cache, simply read it
             // otherwise, query/recalculate it, and insert into the cache
             let (current_price, perp_params, funding, skew) =
-                if let Some((price, params, ds)) = cache.get(&denom) {
-                    (*price, params.clone(), ds.funding.clone(), ds.skew()?)
+                if let Some((price, params, ms)) = cache.get(&denom) {
+                    (*price, params.clone(), ms.funding.clone(), ms.skew()?)
                 } else {
                     let price =
                         cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
                     let params = cfg.params.query_perp_params(&deps.querier, &denom)?;
 
-                    let mut ds = DENOM_STATES.load(deps.storage, &denom)?;
-                    let curr_funding = ds.current_funding(current_time, price, base_denom_price)?;
-                    let skew = ds.skew()?;
-                    ds.funding = curr_funding.clone();
+                    let mut ms = MARKET_STATES.load(deps.storage, &denom)?;
+                    let curr_funding = ms.current_funding(current_time, price, base_denom_price)?;
+                    let skew = ms.skew()?;
+                    ms.funding = curr_funding.clone();
 
-                    cache.insert(denom.clone(), (price, params.clone(), ds));
+                    cache.insert(denom.clone(), (price, params.clone(), ms));
 
                     (price, params, curr_funding, skew)
                 };
@@ -409,7 +354,11 @@ pub fn positions(
         .collect()
 }
 
-pub fn positions_by_account(
+/// Queries all positions associated with a specific account across various markets (denoms).
+/// For each position, the function calculates the current state, including unrealized and realized PnL,
+/// using the latest market data, funding rates, and execution prices. The function also optimizes price queries
+/// by avoiding unnecessary queries when no positions exist, which is especially important during liquidation scenarios.
+pub fn query_positions_by_account(
     deps: Deps,
     current_time: u64,
     account_id: String,
@@ -439,12 +388,12 @@ pub fn positions_by_account(
 
             let denom_price = cfg.oracle.query_price(&deps.querier, &denom, action.clone())?.price;
 
-            let ds = DENOM_STATES.load(deps.storage, &denom)?;
-            let curr_funding = ds.current_funding(current_time, denom_price, base_denom_price)?;
+            let ms = MARKET_STATES.load(deps.storage, &denom)?;
+            let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
 
             let pnl_amounts = position.compute_pnl(
                 &curr_funding,
-                ds.skew()?,
+                ms.skew()?,
                 denom_price,
                 base_denom_price,
                 perp_params.opening_fee_rate,
@@ -453,7 +402,7 @@ pub fn positions_by_account(
             )?;
 
             let exit_exec_price = closing_execution_price(
-                ds.skew()?,
+                ms.skew()?,
                 curr_funding.skew_scale,
                 position.size,
                 denom_price,
@@ -479,15 +428,75 @@ pub fn positions_by_account(
     })
 }
 
-pub fn total_pnl(deps: Deps, current_time: u64) -> ContractResult<PnlValues> {
-    let cfg = CONFIG.load(deps.storage)?;
-    compute_total_pnl(&deps, &cfg.oracle, current_time, ActionKind::Default)
+/// Retrieves the realized profit and loss (PnL) for a specific account and market.
+/// This function loads the realized PnL data from storage using the provided account id and market denomination.
+/// Returns the PnL amounts associated with the specified account and market.
+pub fn query_realized_pnl_by_account_and_market(
+    deps: Deps,
+    account_id: String,
+    denom: String,
+) -> ContractResult<PnlAmounts> {
+    let realized_pnl = REALIZED_PNL.load(deps.storage, (&account_id, &denom))?;
+    Ok(realized_pnl)
 }
 
-// TODO: remove this function when frontend is updated (they should use position_fees instead)
-pub fn opening_fee(deps: Deps, denom: &str, size: SignedUint) -> ContractResult<TradingFee> {
+/// Queries and calculates the accounting data for a specific market.
+/// This function retrieves the current market state, denomination price, and calculates both accounting metrics and unrealized PnL.
+/// Returns an `AccountingResponse` containing the computed data for the given market.
+pub fn query_market_accounting(
+    deps: Deps,
+    denom: &str,
+    current_time: u64,
+) -> ContractResult<AccountingResponse> {
     let cfg = CONFIG.load(deps.storage)?;
-    let ds = DENOM_STATES.load(deps.storage, denom)?;
+    let perp_params = cfg.params.query_perp_params(&deps.querier, denom)?;
+    let denom_price = cfg.oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
+    let base_denom_price =
+        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+
+    let ms = MARKET_STATES.load(deps.storage, denom)?;
+    let (accounting, unrealized_pnl) = ms.compute_accounting_data(
+        current_time,
+        denom_price,
+        base_denom_price,
+        perp_params.closing_fee_rate,
+    )?;
+
+    Ok(AccountingResponse {
+        accounting,
+        unrealized_pnl,
+    })
+}
+
+/// Computes and retrieves the total accounting data across all markets.
+/// This function aggregates the accounting data and unrealized PnL across all markets.
+/// Returns an `AccountingResponse` summarizing the total accounting metrics.
+pub fn query_total_accounting(deps: Deps, current_time: u64) -> ContractResult<AccountingResponse> {
+    let cfg = CONFIG.load(deps.storage)?;
+    let base_denom_price =
+        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+
+    let (accounting, unrealized_pnl) = compute_total_accounting_data(
+        &deps,
+        &cfg.oracle,
+        current_time,
+        base_denom_price,
+        ActionKind::Default,
+    )?;
+
+    Ok(AccountingResponse {
+        accounting,
+        unrealized_pnl,
+    })
+}
+
+/// Calculates the opening fee for a given position size in a specified market.
+/// This function retrieves market and configuration data, including the current prices of the base denomination and the market asset.
+/// It then computes the opening trading fee based on the provided position size and market parameters.
+/// Returns a `TradingFee` structure containing the fee rate and the calculated fee amount.
+pub fn query_opening_fee(deps: Deps, denom: &str, size: SignedUint) -> ContractResult<TradingFee> {
+    let cfg = CONFIG.load(deps.storage)?;
+    let ms = MARKET_STATES.load(deps.storage, denom)?;
 
     let base_denom_price =
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
@@ -499,7 +508,7 @@ pub fn opening_fee(deps: Deps, denom: &str, size: SignedUint) -> ContractResult<
         perp_params.closing_fee_rate,
         denom_price,
         base_denom_price,
-        ds.skew()?,
+        ms.skew()?,
         perp_params.skew_scale,
     )?;
 
@@ -509,47 +518,11 @@ pub fn opening_fee(deps: Deps, denom: &str, size: SignedUint) -> ContractResult<
     })
 }
 
-pub fn denom_accounting(deps: Deps, denom: &str, current_time: u64) -> ContractResult<Accounting> {
-    let cfg = CONFIG.load(deps.storage)?;
-    let perp_params = cfg.params.query_perp_params(&deps.querier, denom)?;
-    let denom_price = cfg.oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
-    let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-
-    let ds = DENOM_STATES.load(deps.storage, denom)?;
-    ds.compute_accounting_data(
-        current_time,
-        denom_price,
-        base_denom_price,
-        perp_params.closing_fee_rate,
-    )
-}
-
-pub fn total_accounting(deps: Deps, current_time: u64) -> ContractResult<Accounting> {
-    let cfg = CONFIG.load(deps.storage)?;
-    let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-
-    let (accounting, _) = compute_total_accounting_data(
-        &deps,
-        &cfg.oracle,
-        current_time,
-        base_denom_price,
-        ActionKind::Default,
-    )?;
-    Ok(accounting)
-}
-
-pub fn denom_realized_pnl_for_account(
-    deps: Deps,
-    account_id: String,
-    denom: String,
-) -> ContractResult<PnlAmounts> {
-    let realized_pnl = REALIZED_PNL.load(deps.storage, (&account_id, &denom))?;
-    Ok(realized_pnl)
-}
-
-pub fn position_fees(
+/// Computes the fees associated with modifying a position in a specific market.
+/// Depending on whether the position is being opened, closed, or flipped, this function calculates the relevant execution prices and fees.
+/// It retrieves current market conditions and uses them to determine the opening and closing fees for the new position size.
+/// Returns a `PositionFeesResponse` containing the calculated fees and execution prices.
+pub fn query_position_fees(
     deps: Deps,
     account_id: &str,
     denom: &str,
@@ -561,9 +534,9 @@ pub fn position_fees(
         cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
     let denom_price = cfg.oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
     let perp_params = cfg.params.query_perp_params(&deps.querier, denom)?;
-    let ds = DENOM_STATES.load(deps.storage, denom)?;
-    let skew_scale = ds.funding.skew_scale;
-    let skew = ds.skew()?;
+    let ms = MARKET_STATES.load(deps.storage, denom)?;
+    let skew_scale = ms.funding.skew_scale;
+    let skew = ms.skew()?;
 
     let mut opening_exec_price = None;
     let mut closing_exec_price = None;
@@ -616,27 +589,11 @@ pub fn position_fees(
     })
 }
 
-fn get_perp_denom_state(
-    deps: Deps,
-    cfg: &Config<Addr>,
-    current_time: u64,
-    denom: String,
-    ds: DenomState,
-    base_denom_price: Decimal,
-) -> ContractResult<PerpDenomState> {
-    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
-    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
-    let (pnl_values, curr_funding) =
-        ds.compute_pnl(current_time, denom_price, base_denom_price, perp_params.closing_fee_rate)?;
-    Ok(PerpDenomState {
-        denom: denom.clone(),
-        enabled: ds.enabled,
-        long_oi: ds.long_oi,
-        short_oi: ds.short_oi,
-        total_entry_cost: ds.total_entry_cost,
-        total_entry_funding: ds.total_entry_funding,
-        rate: curr_funding.last_funding_rate,
-        pnl_values,
-        funding: ds.funding,
+/// Retrieves the current state of a specified market.
+pub fn query_market_state(store: &dyn Storage, denom: String) -> StdResult<MarketStateResponse> {
+    let ms = MARKET_STATES.load(store, &denom)?;
+    Ok(MarketStateResponse {
+        denom,
+        market_state: ms,
     })
 }

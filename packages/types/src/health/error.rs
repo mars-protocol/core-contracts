@@ -40,7 +40,7 @@ pub enum HealthError {
     #[error("{0} was not provided perp params to compute health with")]
     MissingPerpParams(String),
 
-    #[error("{0} was not provided denom state to compute health with")]
+    #[error("{0} was not provided market state to compute health with")]
     MissingDenomState(String),
 
     #[error("{0} was not provided a price to compute health with")]

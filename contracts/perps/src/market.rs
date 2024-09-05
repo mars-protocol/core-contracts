@@ -6,7 +6,7 @@ use mars_types::{
     math::SignedDecimal,
     oracle::ActionKind,
     params::PerpParams,
-    perps::{Accounting, DenomState, Funding, PnlAmounts, PnlValues, Position},
+    perps::{Accounting, Funding, MarketState, PnlAmounts, PnlValues, Position},
     signed_uint::SignedUint,
 };
 
@@ -14,7 +14,7 @@ use crate::{
     accounting::AccountingExt,
     error::{ContractError, ContractResult},
     pricing::opening_execution_price,
-    state::{CONFIG, DENOM_STATES, TOTAL_CASH_FLOW},
+    state::{CONFIG, MARKET_STATES, TOTAL_CASH_FLOW},
 };
 
 pub const SECONDS_IN_DAY: u64 = 86400;
@@ -32,7 +32,7 @@ pub const MAX_FUNDING_RATE: Decimal = Decimal::percent(96);
 /// where:
 /// current_accrued_funding_per_unit - accrued_funding_per_unit in USDC at the time of position closing
 /// entry_accrued_funding_per_unit - accrued_funding_per_unit in USDC at the time of position opening
-pub trait DenomStateExt {
+pub trait MarketStateExt {
     /// Returns the time elapsed in days since last update
     fn time_elapsed_in_days(&self, current_time: u64) -> Decimal;
 
@@ -157,10 +157,10 @@ pub trait DenomStateExt {
         denom_price: Decimal,
         base_denom_price: Decimal,
         closing_fee_rate: Decimal,
-    ) -> ContractResult<Accounting>;
+    ) -> ContractResult<(Accounting, PnlAmounts)>;
 }
 
-impl DenomStateExt for DenomState {
+impl MarketStateExt for MarketState {
     fn time_elapsed_in_days(&self, current_time: u64) -> Decimal {
         let time_diff = current_time - self.last_updated;
         Decimal::from_ratio(time_diff, SECONDS_IN_DAY)
@@ -176,12 +176,12 @@ impl DenomStateExt for DenomState {
     }
 
     fn current_funding_rate_velocity(&self) -> ContractResult<SignedDecimal> {
-        // avoid a panic due to div by zero
+        // Avoid a panic due to div by zero
         if self.funding.skew_scale.is_zero() {
             return Ok(SignedDecimal::zero());
         }
 
-        // ensures the proportional skew is between -1 and 1
+        // Ensures the proportional skew is between -1 and 1
         let p_skew =
             SignedDecimal::checked_from_ratio(self.skew()?, self.funding.skew_scale.into())?;
         let p_skew_bounded =
@@ -252,7 +252,7 @@ impl DenomStateExt for DenomState {
             return Ok(self.funding.clone());
         };
 
-        // update only rate and index here, the rest is copied from the previous funding
+        // Update only rate and index here, the rest is copied from the previous funding
         Ok(Funding {
             last_funding_rate: self.current_funding_rate(current_time)?,
             last_funding_accrued_per_unit_in_base_denom: self
@@ -275,21 +275,21 @@ impl DenomStateExt for DenomState {
         let mut long_oi = self.long_oi;
         let mut short_oi = self.short_oi;
 
-        // remove old_size from OI
+        // Remove old_size from OI
         if old_size.is_positive() {
             long_oi = long_oi.checked_sub(old_size.abs)?;
         } else {
             short_oi = short_oi.checked_sub(old_size.abs)?;
         }
 
-        // add new_size to OI
+        // Add new_size to OI
         if new_size.is_positive() {
             long_oi = long_oi.checked_add(new_size.abs)?;
         } else {
             short_oi = short_oi.checked_add(new_size.abs)?;
         }
 
-        // validate OI long
+        // Validate OI long
         let long_oi_value = long_oi.checked_mul_floor(denom_price)?;
         if long_oi_value > param.max_long_oi_value {
             return Err(ContractError::LongOpenInterestReached {
@@ -298,7 +298,7 @@ impl DenomStateExt for DenomState {
             });
         }
 
-        // validate OI short
+        // Validate OI short
         let short_oi_value = short_oi.checked_mul_floor(denom_price)?;
         if short_oi_value > param.max_short_oi_value {
             return Err(ContractError::ShortOpenInterestReached {
@@ -345,13 +345,13 @@ impl DenomStateExt for DenomState {
         denom_price: Decimal,
         base_denom_price: Decimal,
     ) -> ContractResult<()> {
-        // calculate the current funding with size up to the current time
+        // Calculate the current funding with size up to the current time
         self.funding = self.current_funding(current_time, denom_price, base_denom_price)?;
 
-        // increase the accumulators with new data
+        // Increase the accumulators with new data
         increase_accumulators(self, size, denom_price)?;
 
-        // update the open interest
+        // Update the open interest
         self.increase_open_interest(size)?;
 
         self.last_updated = current_time;
@@ -366,13 +366,13 @@ impl DenomStateExt for DenomState {
         base_denom_price: Decimal,
         position: &Position,
     ) -> ContractResult<()> {
-        // calculate the current funding with size up to the current time
+        // Calculate the current funding with size up to the current time
         self.funding = self.current_funding(current_time, denom_price, base_denom_price)?;
 
-        // decrease the accumulators with old data
+        // Decrease the accumulators with old data
         decrease_accumulators(self, position)?;
 
-        // update the open interest
+        // Update the open interest
         self.decrease_open_interest(position.size)?;
 
         self.last_updated = current_time;
@@ -388,14 +388,14 @@ impl DenomStateExt for DenomState {
         position: &Position,
         new_size: SignedUint,
     ) -> ContractResult<()> {
-        // calculate the current funding with size up to the current time
+        // Calculate the current funding with size up to the current time
         self.funding = self.current_funding(current_time, denom_price, base_denom_price)?;
 
-        // first we have to decrease the accumulators with old data
+        // First we have to decrease the accumulators with old data
         decrease_accumulators(self, position)?;
         self.decrease_open_interest(position.size)?;
 
-        // then we increase the accumulators with new data
+        // Then we increase the accumulators with new data
         increase_accumulators(self, new_size, denom_price)?;
         self.increase_open_interest(new_size)?;
 
@@ -431,7 +431,7 @@ impl DenomStateExt for DenomState {
             .checked_sub(self.total_squared_positions)?;
         let two_times_skew_scale = Uint128::new(2u128).checked_mul(self.funding.skew_scale)?;
         let val_3 = SignedDecimal::checked_from_ratio(val_2, two_times_skew_scale.into())?;
-        // rounding errors here after rewriting the formula
+        // Rounding errors here after rewriting the formula
         let val_4: SignedUint = val_3.checked_mul(exit_price.into())?.to_signed_uint_floor();
         let price_pnl = val_1.checked_add(val_4)?;
 
@@ -466,7 +466,7 @@ impl DenomStateExt for DenomState {
         let val_2 = skew.checked_mul(total_size.checked_mul(Uint128::new(2u128))?.into())?;
         let val_3 = self.total_abs_multiplied_positions.checked_sub(val_2)?;
         let two_times_skew_scale = Uint128::new(2u128).checked_mul(self.funding.skew_scale)?;
-        // rounding errors here after rewriting the formula
+        // Rounding errors here after rewriting the formula
         let val_4: SignedUint =
             SignedDecimal::checked_from_ratio(val_3, two_times_skew_scale.into())?
                 .to_signed_uint_floor();
@@ -518,32 +518,35 @@ impl DenomStateExt for DenomState {
         denom_price: Decimal,
         base_denom_price: Decimal,
         closing_fee_rate: Decimal,
-    ) -> ContractResult<Accounting> {
+    ) -> ContractResult<(Accounting, PnlAmounts)> {
         let (unrealized_pnl_val, _) =
             self.compute_pnl(current_time, denom_price, base_denom_price, closing_fee_rate)?;
         let unrealized_pnl_amt = PnlAmounts::from_pnl_values(unrealized_pnl_val, base_denom_price)?;
         let acc = Accounting::compute(&self.cash_flow, &unrealized_pnl_amt)?;
-        Ok(acc)
+        Ok((acc, unrealized_pnl_amt))
     }
 }
 
-fn decrease_accumulators(denom_state: &mut DenomState, position: &Position) -> ContractResult<()> {
-    // decrease the total_entry_cost accumulator
+fn decrease_accumulators(
+    market_state: &mut MarketState,
+    position: &Position,
+) -> ContractResult<()> {
+    // Decrease the total_entry_cost accumulator
     let value = position.size.checked_mul_floor(position.entry_exec_price.into())?;
-    denom_state.total_entry_cost = denom_state.total_entry_cost.checked_sub(value)?;
+    market_state.total_entry_cost = market_state.total_entry_cost.checked_sub(value)?;
 
-    // decrease the total_entry_funding accumulator accordingly
-    denom_state.total_entry_funding = denom_state.total_entry_funding.checked_sub(
+    // Decrease the total_entry_funding accumulator accordingly
+    market_state.total_entry_funding = market_state.total_entry_funding.checked_sub(
         position.size.checked_mul_floor(position.entry_accrued_funding_per_unit_in_base_denom)?,
     )?;
 
-    // decrease the total_squared_positions accumulator
-    denom_state.total_squared_positions = denom_state
+    // Decrease the total_squared_positions accumulator
+    market_state.total_squared_positions = market_state
         .total_squared_positions
         .checked_sub(position.size.abs.checked_pow(2)?.into())?;
 
-    // decrease the total_abs_multiplied_positions accumulator
-    denom_state.total_abs_multiplied_positions = denom_state
+    // Decrease the total_abs_multiplied_positions accumulator
+    market_state.total_abs_multiplied_positions = market_state
         .total_abs_multiplied_positions
         .checked_sub(position.size.checked_mul(position.size.abs.into())?)?;
 
@@ -551,31 +554,31 @@ fn decrease_accumulators(denom_state: &mut DenomState, position: &Position) -> C
 }
 
 fn increase_accumulators(
-    denom_state: &mut DenomState,
+    market_state: &mut MarketState,
     size: SignedUint,
     denom_price: Decimal,
 ) -> ContractResult<()> {
-    // increase the total_entry_cost accumulator
+    // Increase the total_entry_cost accumulator
     let entry_exec_price = opening_execution_price(
-        denom_state.skew()?,
-        denom_state.funding.skew_scale,
+        market_state.skew()?,
+        market_state.funding.skew_scale,
         size,
         denom_price,
     )?;
     let value = size.checked_mul_floor(entry_exec_price.into())?;
-    denom_state.total_entry_cost = denom_state.total_entry_cost.checked_add(value)?;
+    market_state.total_entry_cost = market_state.total_entry_cost.checked_add(value)?;
 
-    // increase the total_entry_funding accumulator with recalculated funding
-    denom_state.total_entry_funding = denom_state.total_entry_funding.checked_add(
-        size.checked_mul_floor(denom_state.funding.last_funding_accrued_per_unit_in_base_denom)?,
+    // Increase the total_entry_funding accumulator with recalculated funding
+    market_state.total_entry_funding = market_state.total_entry_funding.checked_add(
+        size.checked_mul_floor(market_state.funding.last_funding_accrued_per_unit_in_base_denom)?,
     )?;
 
-    // increase the total_squared_positions accumulator
-    denom_state.total_squared_positions =
-        denom_state.total_squared_positions.checked_add(size.abs.checked_pow(2)?.into())?;
+    // Increase the total_squared_positions accumulator
+    market_state.total_squared_positions =
+        market_state.total_squared_positions.checked_add(size.abs.checked_pow(2)?.into())?;
 
-    // increase the total_abs_multiplied_positions accumulator
-    denom_state.total_abs_multiplied_positions = denom_state
+    // Increase the total_abs_multiplied_positions accumulator
+    market_state.total_abs_multiplied_positions = market_state
         .total_abs_multiplied_positions
         .checked_add(size.checked_mul(size.abs.into())?)?;
 
@@ -594,13 +597,13 @@ pub fn compute_total_pnl(
 
     let base_denom_price =
         oracle.query_price(&deps.querier, &config.base_denom, action.clone())?.price;
-    let total_pnl = DENOM_STATES.range(deps.storage, None, None, Order::Ascending).try_fold(
+    let total_pnl = MARKET_STATES.range(deps.storage, None, None, Order::Ascending).try_fold(
         PnlValues::default(),
         |acc, item| -> ContractResult<_> {
-            let (denom, ds) = item?;
+            let (denom, ms) = item?;
 
-            // if there are no open positions, we can skip the computation
-            if ds.total_size()?.is_zero() {
+            // If there are no open positions, we can skip the computation
+            if ms.total_size()?.is_zero() {
                 return Ok(PnlValues {
                     price_pnl: acc.price_pnl,
                     closing_fee: acc.closing_fee,
@@ -612,7 +615,7 @@ pub fn compute_total_pnl(
             let perp_params = config.params.query_perp_params(&deps.querier, &denom)?;
             let denom_price = oracle.query_price(&deps.querier, &denom, action.clone())?.price;
 
-            let (pnl_values, _) = ds.compute_pnl(
+            let (pnl_values, _) = ms.compute_pnl(
                 current_time,
                 denom_price,
                 base_denom_price,
@@ -659,45 +662,45 @@ mod tests {
 
     #[test]
     fn time_elapsed_in_days() {
-        let ds = DenomState {
+        let ms = MarketState {
             last_updated: 120,
             ..Default::default()
         };
 
-        let res = ds.time_elapsed_in_days((2 * SECONDS_IN_DAY) + ds.last_updated);
+        let res = ms.time_elapsed_in_days((2 * SECONDS_IN_DAY) + ms.last_updated);
         assert_eq!(res, Decimal::from_str("2").unwrap());
     }
 
     #[test]
     fn skew() {
-        let ds = DenomState {
+        let ms = MarketState {
             long_oi: Uint128::new(100u128),
             short_oi: Uint128::new(20u128),
             ..Default::default()
         };
-        assert_eq!(ds.skew().unwrap(), SignedUint::from_str("80").unwrap());
+        assert_eq!(ms.skew().unwrap(), SignedUint::from_str("80").unwrap());
 
-        let ds = DenomState {
+        let ms = MarketState {
             long_oi: Uint128::new(100u128),
             short_oi: Uint128::new(256u128),
             ..Default::default()
         };
-        assert_eq!(ds.skew().unwrap(), SignedUint::from_str("-156").unwrap());
+        assert_eq!(ms.skew().unwrap(), SignedUint::from_str("-156").unwrap());
     }
 
     #[test]
     fn total_size() {
-        let ds = DenomState {
+        let ms = MarketState {
             long_oi: Uint128::new(100u128),
             short_oi: Uint128::new(20u128),
             ..Default::default()
         };
-        assert_eq!(ds.total_size().unwrap(), Uint128::new(120u128));
+        assert_eq!(ms.total_size().unwrap(), Uint128::new(120u128));
     }
 
     #[test]
     fn current_funding_rate_velocity() {
-        let ds = DenomState {
+        let ms = MarketState {
             long_oi: Uint128::new(300u128),
             short_oi: Uint128::new(150u128),
             funding: Funding {
@@ -708,12 +711,12 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            ds.current_funding_rate_velocity().unwrap(),
+            ms.current_funding_rate_velocity().unwrap(),
             SignedDecimal::from_str("0.00045").unwrap()
         );
 
         // upper bound
-        let ds = DenomState {
+        let ms = MarketState {
             long_oi: Uint128::new(3000000u128),
             short_oi: Uint128::new(150u128),
             funding: Funding {
@@ -724,12 +727,12 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            ds.current_funding_rate_velocity().unwrap(),
+            ms.current_funding_rate_velocity().unwrap(),
             SignedDecimal::from_str("3").unwrap()
         );
 
         // lower bound
-        let ds = DenomState {
+        let ms = MarketState {
             long_oi: Uint128::new(300u128),
             short_oi: Uint128::new(1500000u128),
             funding: Funding {
@@ -740,25 +743,25 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            ds.current_funding_rate_velocity().unwrap(),
+            ms.current_funding_rate_velocity().unwrap(),
             SignedDecimal::from_str("-3").unwrap()
         );
     }
 
     #[test]
     fn current_funding_rate() {
-        let ds = denom_state();
+        let ms = market_state();
         assert_eq!(
-            ds.current_funding_rate(43400).unwrap(),
+            ms.current_funding_rate(43400).unwrap(),
             SignedDecimal::from_str("-0.043").unwrap()
         );
     }
 
     #[test]
     fn current_funding_entrance_per_unit_in_base_denom() {
-        let ds = denom_state();
+        let ms = market_state();
         assert_eq!(
-            ds.current_funding_entrance_per_unit_in_base_denom(
+            ms.current_funding_entrance_per_unit_in_base_denom(
                 43400,
                 Decimal::from_str("3.6").unwrap(),
                 Decimal::from_str("0.9").unwrap()
@@ -770,9 +773,9 @@ mod tests {
 
     #[test]
     fn current_funding_accrued_per_unit_in_base_denom() {
-        let ds = denom_state();
+        let ms = market_state();
         assert_eq!(
-            ds.current_funding_accrued_per_unit_in_base_denom(
+            ms.current_funding_accrued_per_unit_in_base_denom(
                 43400,
                 Decimal::from_str("3.6").unwrap(),
                 Decimal::from_str("0.9").unwrap()
@@ -784,19 +787,19 @@ mod tests {
 
     #[test]
     fn current_funding() {
-        let ds = denom_state();
+        let ms = market_state();
         assert_eq!(
-            ds.current_funding(
-                ds.last_updated,
+            ms.current_funding(
+                ms.last_updated,
                 Decimal::from_str("4600").unwrap(),
                 Decimal::from_str("0.8").unwrap()
             )
             .unwrap(),
-            ds.funding
+            ms.funding
         );
 
         assert_eq!(
-            ds.current_funding(
+            ms.current_funding(
                 43400,
                 Decimal::from_str("4600").unwrap(),
                 Decimal::from_str("0.8").unwrap()
@@ -806,51 +809,51 @@ mod tests {
                 last_funding_rate: SignedDecimal::from_str("-0.043").unwrap(),
                 last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("85.25")
                     .unwrap(),
-                ..ds.funding
+                ..ms.funding
             }
         );
     }
 
     #[test]
     fn increase_open_interest() {
-        let mut ds = DenomState {
+        let mut ms = MarketState {
             long_oi: Uint128::new(100u128),
             short_oi: Uint128::new(20u128),
             ..Default::default()
         };
 
-        ds.increase_open_interest(SignedUint::from_str("70").unwrap()).unwrap();
-        assert_eq!(ds.long_oi, Uint128::new(170u128));
-        assert_eq!(ds.short_oi, Uint128::new(20u128));
+        ms.increase_open_interest(SignedUint::from_str("70").unwrap()).unwrap();
+        assert_eq!(ms.long_oi, Uint128::new(170u128));
+        assert_eq!(ms.short_oi, Uint128::new(20u128));
 
-        ds.increase_open_interest(SignedUint::from_str("-70").unwrap()).unwrap();
-        assert_eq!(ds.long_oi, Uint128::new(170u128));
-        assert_eq!(ds.short_oi, Uint128::new(90u128));
+        ms.increase_open_interest(SignedUint::from_str("-70").unwrap()).unwrap();
+        assert_eq!(ms.long_oi, Uint128::new(170u128));
+        assert_eq!(ms.short_oi, Uint128::new(90u128));
     }
 
     #[test]
     fn decrease_open_interest() {
-        let mut ds = DenomState {
+        let mut ms = MarketState {
             long_oi: Uint128::new(100u128),
             short_oi: Uint128::new(200u128),
             ..Default::default()
         };
 
-        ds.decrease_open_interest(SignedUint::from_str("70").unwrap()).unwrap();
-        assert_eq!(ds.long_oi, Uint128::new(30u128));
-        assert_eq!(ds.short_oi, Uint128::new(200u128));
+        ms.decrease_open_interest(SignedUint::from_str("70").unwrap()).unwrap();
+        assert_eq!(ms.long_oi, Uint128::new(30u128));
+        assert_eq!(ms.short_oi, Uint128::new(200u128));
 
-        ds.decrease_open_interest(SignedUint::from_str("-70").unwrap()).unwrap();
-        assert_eq!(ds.long_oi, Uint128::new(30u128));
-        assert_eq!(ds.short_oi, Uint128::new(130u128));
+        ms.decrease_open_interest(SignedUint::from_str("-70").unwrap()).unwrap();
+        assert_eq!(ms.long_oi, Uint128::new(30u128));
+        assert_eq!(ms.short_oi, Uint128::new(130u128));
     }
 
     #[test]
     fn open_position() {
-        let mut ds = denom_state();
-        let ds_before_modification = ds.clone();
+        let mut ms = market_state();
+        let ds_before_modification = ms.clone();
 
-        ds.open_position(
+        ms.open_position(
             43400,
             SignedUint::from_str("-105").unwrap(),
             Decimal::from_str("4200").unwrap(),
@@ -859,8 +862,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            ds,
-            DenomState {
+            ms,
+            MarketState {
                 funding: Funding {
                     last_funding_rate: SignedDecimal::from_str("-0.043").unwrap(),
                     last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("76.75")
@@ -880,10 +883,10 @@ mod tests {
 
     #[test]
     fn close_position() {
-        let mut ds = denom_state();
-        let ds_before_modification = ds.clone();
+        let mut ms = market_state();
+        let ds_before_modification = ms.clone();
 
-        ds.close_position(
+        ms.close_position(
             43400,
             Decimal::from_str("4200").unwrap(),
             Decimal::from_str("0.8").unwrap(),
@@ -900,8 +903,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            ds,
-            DenomState {
+            ms,
+            MarketState {
                 funding: Funding {
                     last_funding_rate: SignedDecimal::from_str("-0.043").unwrap(),
                     last_funding_accrued_per_unit_in_base_denom: SignedDecimal::from_str("76.75")
@@ -950,7 +953,7 @@ mod tests {
         "short position - decrease to zero"
     )]
     fn modify_position(size: SignedUint, new_size: SignedUint) {
-        let ds_before_modification = denom_state();
+        let ds_before_modification = market_state();
 
         let mut ds_1 = ds_before_modification.clone();
 
@@ -1013,18 +1016,18 @@ mod tests {
 
     #[test]
     fn compute_price_pnl() {
-        let ds = denom_state();
+        let ms = market_state();
         assert_eq!(
-            ds.compute_price_pnl(Decimal::from_str("4200").unwrap()).unwrap(),
+            ms.compute_price_pnl(Decimal::from_str("4200").unwrap()).unwrap(),
             SignedUint::from_str("-49795106").unwrap()
         );
     }
 
     #[test]
     fn compute_closing_fee() {
-        let ds = denom_state();
+        let ms = market_state();
         assert_eq!(
-            ds.compute_closing_fee(Decimal::percent(2), Decimal::from_str("4200").unwrap())
+            ms.compute_closing_fee(Decimal::percent(2), Decimal::from_str("4200").unwrap())
                 .unwrap(),
             SignedUint::from_str("-1493940").unwrap()
         );
@@ -1032,9 +1035,9 @@ mod tests {
 
     #[test]
     fn compute_accrued_funding() {
-        let ds = denom_state();
+        let ms = market_state();
 
-        let (accrued_funding, funding) = ds
+        let (accrued_funding, funding) = ms
             .compute_accrued_funding(
                 43400,
                 Decimal::from_str("4200").unwrap(),
@@ -1045,7 +1048,7 @@ mod tests {
         assert_eq!(accrued_funding, SignedUint::from_str("-737015").unwrap());
         assert_eq!(
             funding,
-            ds.current_funding(
+            ms.current_funding(
                 43400,
                 Decimal::from_str("4200").unwrap(),
                 Decimal::from_str("0.8").unwrap(),
@@ -1056,9 +1059,9 @@ mod tests {
 
     #[test]
     fn compute_pnl() {
-        let ds = denom_state();
+        let ms = market_state();
 
-        let (pnl_values, funding) = ds
+        let (pnl_values, funding) = ms
             .compute_pnl(
                 43400,
                 Decimal::from_str("4200").unwrap(),
@@ -1078,7 +1081,7 @@ mod tests {
         );
         assert_eq!(
             funding,
-            ds.current_funding(
+            ms.current_funding(
                 43400,
                 Decimal::from_str("4200").unwrap(),
                 Decimal::from_str("0.8").unwrap(),
@@ -1087,8 +1090,8 @@ mod tests {
         )
     }
 
-    fn denom_state() -> DenomState {
-        DenomState {
+    fn market_state() -> MarketState {
+        MarketState {
             enabled: true,
             long_oi: Uint128::new(3000u128),
             short_oi: Uint128::new(15000u128),

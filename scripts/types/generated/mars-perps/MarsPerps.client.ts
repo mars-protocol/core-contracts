@@ -21,75 +21,52 @@ import {
   ConfigUpdates,
   QueryMsg,
   ConfigForString,
+  MarketResponse,
+  SignedDecimal,
+  AccountingResponse,
   Accounting,
   Balance,
   CashFlow,
   PnlAmounts,
-  DenomStateResponse,
+  MarketStateResponse,
   Funding,
-  SignedDecimal,
-  ArrayOfDenomStateResponse,
-  PerpVaultDeposit,
+  PaginationResponseForMarketResponse,
+  Metadata,
   TradingFee,
   Coin,
   OwnerResponse,
-  PerpDenomState,
-  PnlValues,
-  PaginationResponseForPerpDenomState,
-  Metadata,
-  NullablePerpVaultPosition,
-  PerpVaultPosition,
-  PerpVaultUnlock,
   PositionResponse,
   PerpPosition,
   PositionFeesResponse,
   ArrayOfPositionResponse,
   PositionsByAccountResponse,
-  ArrayOfPerpVaultUnlock,
   VaultResponse,
+  NullableVaultPositionResponse,
+  VaultPositionResponse,
+  VaultDeposit,
+  VaultUnlock,
 } from './MarsPerps.types'
 export interface MarsPerpsReadOnlyInterface {
   contractAddress: string
   owner: () => Promise<OwnerResponse>
   config: () => Promise<ConfigForString>
   vault: ({ action }: { action?: ActionKind }) => Promise<VaultResponse>
-  denomState: ({ denom }: { denom: string }) => Promise<DenomStateResponse>
-  perpDenomState: ({ denom }: { denom: string }) => Promise<PerpDenomState>
-  perpDenomStates: ({
+  marketState: ({ denom }: { denom: string }) => Promise<MarketStateResponse>
+  market: ({ denom }: { denom: string }) => Promise<MarketResponse>
+  markets: ({
     limit,
     startAfter,
   }: {
     limit?: number
     startAfter?: string
-  }) => Promise<PaginationResponseForPerpDenomState>
-  denomStates: ({
-    limit,
-    startAfter,
-  }: {
-    limit?: number
-    startAfter?: string
-  }) => Promise<ArrayOfDenomStateResponse>
-  perpVaultPosition: ({
+  }) => Promise<PaginationResponseForMarketResponse>
+  vaultPosition: ({
     accountId,
     userAddress,
   }: {
     accountId?: string
     userAddress: string
-  }) => Promise<NullablePerpVaultPosition>
-  deposit: ({
-    accountId,
-    userAddress,
-  }: {
-    accountId?: string
-    userAddress: string
-  }) => Promise<PerpVaultDeposit>
-  unlocks: ({
-    accountId,
-    userAddress,
-  }: {
-    accountId?: string
-    userAddress: string
-  }) => Promise<ArrayOfPerpVaultUnlock>
+  }) => Promise<NullableVaultPositionResponse>
   position: ({
     accountId,
     denom,
@@ -113,17 +90,16 @@ export interface MarsPerpsReadOnlyInterface {
     accountId: string
     action?: ActionKind
   }) => Promise<PositionsByAccountResponse>
-  totalPnl: () => Promise<SignedDecimal>
-  openingFee: ({ denom, size }: { denom: string; size: SignedUint }) => Promise<TradingFee>
-  denomAccounting: ({ denom }: { denom: string }) => Promise<Accounting>
-  totalAccounting: () => Promise<Accounting>
-  denomRealizedPnlForAccount: ({
+  realizedPnlByAccountAndMarket: ({
     accountId,
     denom,
   }: {
     accountId: string
     denom: string
   }) => Promise<PnlAmounts>
+  marketAccounting: ({ denom }: { denom: string }) => Promise<AccountingResponse>
+  totalAccounting: () => Promise<AccountingResponse>
+  openingFee: ({ denom, size }: { denom: string; size: SignedUint }) => Promise<TradingFee>
   positionFees: ({
     accountId,
     denom,
@@ -143,21 +119,17 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
     this.owner = this.owner.bind(this)
     this.config = this.config.bind(this)
     this.vault = this.vault.bind(this)
-    this.denomState = this.denomState.bind(this)
-    this.perpDenomState = this.perpDenomState.bind(this)
-    this.perpDenomStates = this.perpDenomStates.bind(this)
-    this.denomStates = this.denomStates.bind(this)
-    this.perpVaultPosition = this.perpVaultPosition.bind(this)
-    this.deposit = this.deposit.bind(this)
-    this.unlocks = this.unlocks.bind(this)
+    this.marketState = this.marketState.bind(this)
+    this.market = this.market.bind(this)
+    this.markets = this.markets.bind(this)
+    this.vaultPosition = this.vaultPosition.bind(this)
     this.position = this.position.bind(this)
     this.positions = this.positions.bind(this)
     this.positionsByAccount = this.positionsByAccount.bind(this)
-    this.totalPnl = this.totalPnl.bind(this)
-    this.openingFee = this.openingFee.bind(this)
-    this.denomAccounting = this.denomAccounting.bind(this)
+    this.realizedPnlByAccountAndMarket = this.realizedPnlByAccountAndMarket.bind(this)
+    this.marketAccounting = this.marketAccounting.bind(this)
     this.totalAccounting = this.totalAccounting.bind(this)
-    this.denomRealizedPnlForAccount = this.denomRealizedPnlForAccount.bind(this)
+    this.openingFee = this.openingFee.bind(this)
     this.positionFees = this.positionFees.bind(this)
   }
   owner = async (): Promise<OwnerResponse> => {
@@ -177,85 +149,43 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
       },
     })
   }
-  denomState = async ({ denom }: { denom: string }): Promise<DenomStateResponse> => {
+  marketState = async ({ denom }: { denom: string }): Promise<MarketStateResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      denom_state: {
+      market_state: {
         denom,
       },
     })
   }
-  perpDenomState = async ({ denom }: { denom: string }): Promise<PerpDenomState> => {
+  market = async ({ denom }: { denom: string }): Promise<MarketResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      perp_denom_state: {
+      market: {
         denom,
       },
     })
   }
-  perpDenomStates = async ({
+  markets = async ({
     limit,
     startAfter,
   }: {
     limit?: number
     startAfter?: string
-  }): Promise<PaginationResponseForPerpDenomState> => {
+  }): Promise<PaginationResponseForMarketResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      perp_denom_states: {
+      markets: {
         limit,
         start_after: startAfter,
       },
     })
   }
-  denomStates = async ({
-    limit,
-    startAfter,
-  }: {
-    limit?: number
-    startAfter?: string
-  }): Promise<ArrayOfDenomStateResponse> => {
-    return this.client.queryContractSmart(this.contractAddress, {
-      denom_states: {
-        limit,
-        start_after: startAfter,
-      },
-    })
-  }
-  perpVaultPosition = async ({
+  vaultPosition = async ({
     accountId,
     userAddress,
   }: {
     accountId?: string
     userAddress: string
-  }): Promise<NullablePerpVaultPosition> => {
+  }): Promise<NullableVaultPositionResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      perp_vault_position: {
-        account_id: accountId,
-        user_address: userAddress,
-      },
-    })
-  }
-  deposit = async ({
-    accountId,
-    userAddress,
-  }: {
-    accountId?: string
-    userAddress: string
-  }): Promise<PerpVaultDeposit> => {
-    return this.client.queryContractSmart(this.contractAddress, {
-      deposit: {
-        account_id: accountId,
-        user_address: userAddress,
-      },
-    })
-  }
-  unlocks = async ({
-    accountId,
-    userAddress,
-  }: {
-    accountId?: string
-    userAddress: string
-  }): Promise<ArrayOfPerpVaultUnlock> => {
-    return this.client.queryContractSmart(this.contractAddress, {
-      unlocks: {
+      vault_position: {
         account_id: accountId,
         user_address: userAddress,
       },
@@ -306,9 +236,30 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
       },
     })
   }
-  totalPnl = async (): Promise<SignedDecimal> => {
+  realizedPnlByAccountAndMarket = async ({
+    accountId,
+    denom,
+  }: {
+    accountId: string
+    denom: string
+  }): Promise<PnlAmounts> => {
     return this.client.queryContractSmart(this.contractAddress, {
-      total_pnl: {},
+      realized_pnl_by_account_and_market: {
+        account_id: accountId,
+        denom,
+      },
+    })
+  }
+  marketAccounting = async ({ denom }: { denom: string }): Promise<AccountingResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      market_accounting: {
+        denom,
+      },
+    })
+  }
+  totalAccounting = async (): Promise<AccountingResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      total_accounting: {},
     })
   }
   openingFee = async ({
@@ -322,32 +273,6 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
       opening_fee: {
         denom,
         size,
-      },
-    })
-  }
-  denomAccounting = async ({ denom }: { denom: string }): Promise<Accounting> => {
-    return this.client.queryContractSmart(this.contractAddress, {
-      denom_accounting: {
-        denom,
-      },
-    })
-  }
-  totalAccounting = async (): Promise<Accounting> => {
-    return this.client.queryContractSmart(this.contractAddress, {
-      total_accounting: {},
-    })
-  }
-  denomRealizedPnlForAccount = async ({
-    accountId,
-    denom,
-  }: {
-    accountId: string
-    denom: string
-  }): Promise<PnlAmounts> => {
-    return this.client.queryContractSmart(this.contractAddress, {
-      denom_realized_pnl_for_account: {
-        account_id: accountId,
-        denom,
       },
     })
   }
@@ -410,7 +335,7 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     memo?: string,
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
-  executePerpOrder: (
+  executeOrder: (
     {
       accountId,
       denom,
@@ -450,7 +375,7 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     memo?: string,
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
-  updateParams: (
+  updateMarket: (
     {
       params,
     }: {
@@ -484,10 +409,10 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     this.deposit = this.deposit.bind(this)
     this.unlock = this.unlock.bind(this)
     this.withdraw = this.withdraw.bind(this)
-    this.executePerpOrder = this.executePerpOrder.bind(this)
+    this.executeOrder = this.executeOrder.bind(this)
     this.closeAllPositions = this.closeAllPositions.bind(this)
     this.deleverage = this.deleverage.bind(this)
-    this.updateParams = this.updateParams.bind(this)
+    this.updateMarket = this.updateMarket.bind(this)
     this.updateConfig = this.updateConfig.bind(this)
   }
   updateOwner = async (
@@ -579,7 +504,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       _funds,
     )
   }
-  executePerpOrder = async (
+  executeOrder = async (
     {
       accountId,
       denom,
@@ -599,7 +524,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       this.sender,
       this.contractAddress,
       {
-        execute_perp_order: {
+        execute_order: {
           account_id: accountId,
           denom,
           reduce_only: reduceOnly,
@@ -663,7 +588,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       _funds,
     )
   }
-  updateParams = async (
+  updateMarket = async (
     {
       params,
     }: {
@@ -677,7 +602,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       this.sender,
       this.contractAddress,
       {
-        update_params: {
+        update_market: {
           params,
         },
       },

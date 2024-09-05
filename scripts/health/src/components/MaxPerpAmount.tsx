@@ -21,8 +21,8 @@ export default function MaxPerpAmount(props: Props) {
         props.healthComputer,
         selectedDenom,
         'ibc/4C19E7EC06C1AB2EC2D70C6855FEB6D48E9CE174913991DA0A517D21978E7E42',
-        props.healthComputer.perps_data.denom_states[selectedDenom].long_oi,
-        props.healthComputer.perps_data.denom_states[selectedDenom].short_oi,
+        props.healthComputer.perps_data.market_states[selectedDenom].long_oi,
+        props.healthComputer.perps_data.market_states[selectedDenom].short_oi,
         'long',
       )
       setAmount(amount)

@@ -15,7 +15,7 @@ use mars_types::{
     error::MarsError,
     incentives::{ExecuteMsg, IncentiveKind, IncentiveState},
     keys::{IncentiveId, IncentiveIdKey, IncentiveKindKey, UserId, UserIdKey},
-    perps::{PerpVaultDeposit, PerpVaultPosition, VaultResponse},
+    perps::{VaultDeposit, VaultPositionResponse, VaultResponse},
     red_bank::{Market, UserCollateralResponse},
     signed_uint::SignedUint,
 };
@@ -387,9 +387,9 @@ fn with_zero_previous_balance_and_asset_with_zero_index_accumulates_rewards(
                 });
                 deps.querier.set_perp_vault_position(
                     &user_addr,
-                    PerpVaultPosition {
+                    VaultPositionResponse {
                         denom: denom.to_string(),
-                        deposit: PerpVaultDeposit {
+                        deposit: VaultDeposit {
                             amount: Uint128::zero(),
                             shares: user_balance,
                         },
@@ -471,9 +471,9 @@ fn set_new_asset_incentive_user_non_zero_balance(sender: &str, kind: &IncentiveK
         IncentiveKind::PerpVault => {
             deps.querier.set_perp_vault_position(
                 &user_addr,
-                PerpVaultPosition {
+                VaultPositionResponse {
                     denom: denom.to_string(),
-                    deposit: PerpVaultDeposit {
+                    deposit: VaultDeposit {
                         amount: Uint128::zero(),
                         shares: user_balance,
                     },
@@ -557,9 +557,9 @@ fn set_new_asset_incentive_user_non_zero_balance(sender: &str, kind: &IncentiveK
             IncentiveKind::PerpVault => {
                 deps.querier.set_perp_vault_position(
                     &user_addr,
-                    PerpVaultPosition {
+                    VaultPositionResponse {
                         denom: denom.to_string(),
-                        deposit: PerpVaultDeposit {
+                        deposit: VaultDeposit {
                             amount: Uint128::zero(),
                             shares: user_balance,
                         },

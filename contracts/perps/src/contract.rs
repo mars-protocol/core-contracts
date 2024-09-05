@@ -8,16 +8,23 @@ use mars_types::{
 };
 
 use crate::{
-    deleverage::{self, handle_deleverage_request_reply, DELEVERAGE_REQUEST_REPLY_ID},
-    denom_management,
+    deleverage::{deleverage, handle_deleverage_request_reply, DELEVERAGE_REQUEST_REPLY_ID},
     error::{ContractError, ContractResult},
-    initialize, position_management, query,
+    initialize::initialize,
+    market_management::update_market,
+    position_management::{close_all_positions, execute_order},
+    query::{
+        query_config, query_market, query_market_accounting, query_market_state, query_markets,
+        query_opening_fee, query_position, query_position_fees, query_positions,
+        query_positions_by_account, query_realized_pnl_by_account_and_market,
+        query_total_accounting, query_vault, query_vault_position,
+    },
     state::OWNER,
     update_config::update_config,
-    vault,
+    vault::{deposit, unlock, withdraw},
 };
 
-pub const CONTRACT_NAME: &str = "mars-perps";
+pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[entry_point]
@@ -40,7 +47,7 @@ pub fn instantiate(
     )?;
 
     // initialize contract config and global state
-    initialize::initialize(deps.storage, msg.check(deps.api)?)
+    initialize(deps.storage, msg.check(deps.api)?)
 }
 
 #[entry_point]
@@ -54,45 +61,33 @@ pub fn execute(
         ExecuteMsg::UpdateOwner(update) => OWNER.update(deps, info, update).map_err(Into::into),
         ExecuteMsg::Deposit {
             account_id,
-        } => vault::deposit(deps, info, env.block.time.seconds(), account_id),
+        } => deposit(deps, info, env.block.time.seconds(), account_id),
         ExecuteMsg::Unlock {
             account_id,
             shares,
-        } => vault::unlock(deps, info, env.block.time.seconds(), account_id, shares),
+        } => unlock(deps, info, env.block.time.seconds(), account_id, shares),
         ExecuteMsg::Withdraw {
             account_id,
-        } => vault::withdraw(deps, info, env.block.time.seconds(), account_id),
+        } => withdraw(deps, info, env.block.time.seconds(), account_id),
         ExecuteMsg::CloseAllPositions {
             account_id,
             action,
-        } => position_management::close_all_positions(
-            deps,
-            env,
-            info,
-            account_id,
-            action.unwrap_or(ActionKind::Default),
-        ),
-        ExecuteMsg::ExecutePerpOrder {
+        } => {
+            close_all_positions(deps, env, info, account_id, action.unwrap_or(ActionKind::Default))
+        }
+        ExecuteMsg::ExecuteOrder {
             account_id,
             denom,
             size,
             reduce_only,
-        } => position_management::execute_perp_order(
-            deps,
-            env,
-            info,
-            account_id,
-            denom,
-            size,
-            reduce_only,
-        ),
+        } => execute_order(deps, env, info, account_id, denom, size, reduce_only),
         ExecuteMsg::Deleverage {
             account_id,
             denom,
-        } => deleverage::deleverage(deps, env, account_id, denom),
-        ExecuteMsg::UpdateParams {
+        } => deleverage(deps, env, account_id, denom),
+        ExecuteMsg::UpdateMarket {
             params,
-        } => denom_management::update_params(deps, env, info.sender, params),
+        } => update_market(deps, env, info.sender, params),
         ExecuteMsg::UpdateConfig {
             updates,
         } => update_config(deps, info.sender, updates),
@@ -111,64 +106,38 @@ pub fn reply(deps: DepsMut, env: Env, reply: Reply) -> ContractResult<Response> 
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
     match msg {
         QueryMsg::Owner {} => to_json_binary(&OWNER.query(deps.storage)?),
-        QueryMsg::Config {} => to_json_binary(&query::config(deps.storage)?),
+        QueryMsg::Config {} => to_json_binary(&query_config(deps.storage)?),
         QueryMsg::Vault {
             action,
-        } => to_json_binary(&query::vault(
+        } => to_json_binary(&query_vault(
             deps,
             env.block.time.seconds(),
             action.unwrap_or(ActionKind::Default),
         )?),
-        QueryMsg::DenomState {
+        QueryMsg::Market {
             denom,
-        } => to_json_binary(&query::denom_state(deps.storage, denom)?),
-        QueryMsg::DenomStates {
+        } => to_json_binary(&query_market(deps, env.block.time.seconds(), denom)?),
+        QueryMsg::Markets {
             start_after,
             limit,
-        } => to_json_binary(&query::denom_states(deps.storage, start_after, limit)?),
-        QueryMsg::PerpDenomState {
-            denom,
-        } => to_json_binary(&query::perp_denom_state(deps, env.block.time.seconds(), denom)?),
-        QueryMsg::PerpDenomStates {
-            start_after,
-            limit,
-        } => to_json_binary(&query::perp_denom_states(
-            deps,
-            env.block.time.seconds(),
-            start_after,
-            limit,
-        )?),
-        QueryMsg::PerpVaultPosition {
+        } => to_json_binary(&query_markets(deps, env.block.time.seconds(), start_after, limit)?),
+        QueryMsg::VaultPosition {
             user_address,
             account_id,
         } => {
             let user_addr = deps.api.addr_validate(&user_address)?;
-            to_json_binary(&query::perp_vault_position(
+            to_json_binary(&query_vault_position(
                 deps,
                 user_addr,
                 account_id,
                 env.block.time.seconds(),
             )?)
         }
-        QueryMsg::Deposit {
-            user_address,
-            account_id,
-        } => {
-            let user_addr = deps.api.addr_validate(&user_address)?;
-            to_json_binary(&query::deposit(deps, user_addr, account_id, env.block.time.seconds())?)
-        }
-        QueryMsg::Unlocks {
-            user_address,
-            account_id,
-        } => {
-            let user_addr = deps.api.addr_validate(&user_address)?;
-            to_json_binary(&query::unlocks(deps, user_addr, account_id, env.block.time.seconds())?)
-        }
         QueryMsg::Position {
             account_id,
             denom,
             order_size,
-        } => to_json_binary(&query::position(
+        } => to_json_binary(&query_position(
             deps,
             env.block.time.seconds(),
             account_id,
@@ -178,36 +147,38 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::Positions {
             start_after,
             limit,
-        } => to_json_binary(&query::positions(deps, env.block.time.seconds(), start_after, limit)?),
+        } => to_json_binary(&query_positions(deps, env.block.time.seconds(), start_after, limit)?),
         QueryMsg::PositionsByAccount {
             account_id,
             action,
-        } => to_json_binary(&query::positions_by_account(
+        } => to_json_binary(&query_positions_by_account(
             deps,
             env.block.time.seconds(),
             account_id,
             action.unwrap_or(ActionKind::Default),
         )?),
-        QueryMsg::TotalPnl {} => to_json_binary(&query::total_pnl(deps, env.block.time.seconds())?),
+        QueryMsg::RealizedPnlByAccountAndMarket {
+            account_id,
+            denom,
+        } => to_json_binary(&query_realized_pnl_by_account_and_market(deps, account_id, denom)?),
+        QueryMsg::MarketAccounting {
+            denom,
+        } => to_json_binary(&query_market_accounting(deps, &denom, env.block.time.seconds())?),
+        QueryMsg::TotalAccounting {} => {
+            to_json_binary(&query_total_accounting(deps, env.block.time.seconds())?)
+        }
         QueryMsg::OpeningFee {
             denom,
             size,
-        } => to_json_binary(&query::opening_fee(deps, &denom, size)?),
-        QueryMsg::DenomAccounting {
-            denom,
-        } => to_json_binary(&query::denom_accounting(deps, &denom, env.block.time.seconds())?),
-        QueryMsg::TotalAccounting {} => {
-            to_json_binary(&query::total_accounting(deps, env.block.time.seconds())?)
-        }
-        QueryMsg::DenomRealizedPnlForAccount {
-            account_id,
-            denom,
-        } => to_json_binary(&query::denom_realized_pnl_for_account(deps, account_id, denom)?),
+        } => to_json_binary(&query_opening_fee(deps, &denom, size)?),
         QueryMsg::PositionFees {
             account_id,
             denom,
             new_size,
-        } => to_json_binary(&query::position_fees(deps, &account_id, &denom, new_size)?),
+        } => to_json_binary(&query_position_fees(deps, &account_id, &denom, new_size)?),
+        QueryMsg::MarketState {
+            denom,
+        } => to_json_binary(&query_market_state(deps.storage, denom)?),
     }
     .map_err(Into::into)
 }

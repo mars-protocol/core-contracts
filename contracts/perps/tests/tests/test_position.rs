@@ -6,7 +6,7 @@ use mars_types::{
     math::SignedDecimal,
     oracle::ActionKind,
     params::{PerpParams, PerpParamsUpdate},
-    perps::{Accounting, Balance, CashFlow, PnL, PnlAmounts, PnlValues, PositionFeesResponse},
+    perps::{Accounting, Balance, CashFlow, PnL, PnlAmounts, PositionFeesResponse},
     signed_uint::SignedUint,
 };
 use test_case::test_case;
@@ -2055,19 +2055,19 @@ fn close_all_positions(
     assert!(acc_positions.positions.is_empty());
 
     // realized pnl after closing position is equal to opening fee paid (included in realized pnl before closing position) + unrealized pnl
-    let atom_realized_pnl = mock.query_denom_realized_pnl_for_account("1", "uatom");
+    let atom_realized_pnl = mock.query_realized_pnl_by_account_and_market("1", "uatom");
     let mut atom_pnl = PnlAmounts::default();
     atom_pnl.add(&atom_pos_before_close.unrealised_pnl).unwrap();
     atom_pnl.add(&atom_pos_before_close.realised_pnl).unwrap();
     assert_eq!(atom_realized_pnl, atom_pnl);
 
-    let ntrn_realized_pnl = mock.query_denom_realized_pnl_for_account("1", "untrn");
+    let ntrn_realized_pnl = mock.query_realized_pnl_by_account_and_market("1", "untrn");
     let mut ntrn_pnl = PnlAmounts::default();
     ntrn_pnl.add(&ntrn_pos_before_close.unrealised_pnl).unwrap();
     ntrn_pnl.add(&ntrn_pos_before_close.realised_pnl).unwrap();
     assert_eq!(ntrn_realized_pnl, ntrn_pnl);
 
-    let osmo_realized_pnl = mock.query_denom_realized_pnl_for_account("1", "uosmo");
+    let osmo_realized_pnl = mock.query_realized_pnl_by_account_and_market("1", "uosmo");
     let mut osmo_pnl = PnlAmounts::default();
     osmo_pnl.add(&osmo_pos_before_close.unrealised_pnl).unwrap();
     osmo_pnl.add(&osmo_pos_before_close.realised_pnl).unwrap();
@@ -2079,7 +2079,7 @@ fn close_all_positions(
     user_realized_pnl.add(&ntrn_realized_pnl).unwrap();
     user_realized_pnl.add(&osmo_realized_pnl).unwrap();
 
-    let accounting = mock.query_total_accounting();
+    let accounting = mock.query_total_accounting().accounting;
 
     // profit for a user is a loss for the contract and vice versa
     let expected_cash_flow = CashFlow {
@@ -2117,7 +2117,7 @@ fn close_all_positions(
     assert_eq!(cm_usdc_balance_after_close.amount, expected_cm_usdc_balance);
     assert_eq!(perps_usdc_balance_after_close.amount, expected_perps_usdc_balance);
 
-    // no unrealized pnl after updating denom states
-    let total_pnl = mock.query_total_pnl();
-    assert_eq!(total_pnl, PnlValues::default());
+    // no unrealized pnl after updating market states
+    let total_pnl = mock.query_total_accounting().unrealized_pnl;
+    assert_eq!(total_pnl, PnlAmounts::default());
 }

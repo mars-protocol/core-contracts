@@ -379,7 +379,7 @@ export class Rover {
   }
 
   async unlockFromPerpVault() {
-    const positions_before = await this.perps.perpVaultPosition({
+    const positions_before = await this.perps.vaultPosition({
       accountId: this.accountId!,
       userAddress: this.storage.addresses.creditManager!,
     })
