@@ -382,6 +382,15 @@ impl MockEnv {
     }
 
     pub fn query_position(&self, account_id: &str, denom: &str) -> PositionResponse {
+        self.query_position_with_order_size(account_id, denom, None)
+    }
+
+    pub fn query_position_with_order_size(
+        &self,
+        account_id: &str,
+        denom: &str,
+        order_size: Option<SignedUint>,
+    ) -> PositionResponse {
         self.app
             .wrap()
             .query_wasm_smart(
@@ -389,7 +398,7 @@ impl MockEnv {
                 &perps::QueryMsg::Position {
                     account_id: account_id.to_string(),
                     denom: denom.to_string(),
-                    order_size: None,
+                    order_size,
                 },
             )
             .unwrap()

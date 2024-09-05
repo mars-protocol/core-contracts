@@ -171,8 +171,8 @@ pub struct VaultResponse {
     pub share_price: Option<Decimal>,
 
     /// Total liquidity in the base denom aggregated across all markets.
-    /// `total_liquidity = max(total_balance + accounting.liquidity.total, 0)`
-    /// See [`Accounting`] for more details regarding the calculation of `accounting.liquidity.total`.
+    /// `total_liquidity = max(total_balance + accounting.cash_flow.total, 0)`
+    /// See [`Accounting`] for more details regarding the calculation of `accounting.cash_flow.total`.
     pub total_liquidity: Uint128,
 
     /// Positive total unrealized PnL that the vault owes to the users.

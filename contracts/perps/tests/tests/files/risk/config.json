@@ -1,0 +1,69 @@
+{
+    "target_collaterization_ratio": "1.2",
+    "protocol_fee_rate": "0",
+    "assets": [
+        {
+            "denom": "uusdc",
+            "initial_price": "1.0",
+            "max_loan_to_value": "0.795",
+            "liquidation_threshold": "0.8",
+            "liquidation_bonus": {
+                "max_lb": "0.2",
+                "min_lb": "0.05",
+                "slope": "1",
+                "starting_lb": "0"
+            },
+            "protocol_liquidation_fee": "0.5",
+            "credit_manager": {
+                "whitelisted": true
+            },
+            "red_bank": {
+                "borrow_enabled": true,
+                "deposit_enabled": true
+            },
+            "deposit_cap": "500000000000",
+            "reserve_factor": "0.1",
+            "interest_rate_model": {
+                "optimal_utilization_rate": "0.8",
+                "base": "0",
+                "slope_1": "0.2",
+                "slope_2": "2"
+            },
+            "close_factor": "0.9"
+        }
+    ],
+    "perps": [
+        {
+            "denom": "uatom",
+            "enabled": true,
+            "initial_price": "4.5",
+            "max_funding_velocity": "36",
+            "skew_scale": "7227323000000",
+            "max_net_oi_value": "45591000000",
+            "max_long_oi_value": "490402700000",
+            "max_short_oi_value": "490402700000",
+            "closing_fee_rate": "0.00075",
+            "opening_fee_rate": "0.00075",
+            "min_position_value": "500000000",
+            "max_position_value": null,
+            "max_loan_to_value": "0.85",
+            "liquidation_threshold": "0.86"
+        },
+        {
+            "denom": "usol",
+            "enabled": true,
+            "initial_price": "1.55",
+            "max_funding_velocity": "36",
+            "skew_scale": "3954627000000000",
+            "max_net_oi_value": "36869000000",
+            "max_long_oi_value": "3396453000000",
+            "max_short_oi_value": "3396453000000",
+            "closing_fee_rate": "0.00075",
+            "opening_fee_rate": "0.00075",
+            "min_position_value": "500000000",
+            "max_position_value": null,
+            "max_loan_to_value": "0.85",
+            "liquidation_threshold": "0.88"
+        }
+    ]
+}

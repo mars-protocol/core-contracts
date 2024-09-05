@@ -1,0 +1,142 @@
+[
+  {
+    "block_time": 1300,
+    "accounting": {
+      "cash_flow": {
+        "price_pnl": "2999896228",
+        "opening_fee": "3262312",
+        "closing_fee": "0",
+        "accrued_funding": "79"
+      },
+      "balance": {
+        "price_pnl": "2999896228",
+        "opening_fee": "3262312",
+        "closing_fee": "5512234",
+        "accrued_funding": "79",
+        "total": "3008670853"
+      },
+      "withdrawal_balance": {
+        "price_pnl": "2999896228",
+        "opening_fee": "3262312",
+        "closing_fee": "0",
+        "accrued_funding": "79",
+        "total": "3003158619"
+      }
+    },
+    "vault": {
+      "total_withdrawal_balance": "1003003158619"
+    }
+  },
+  {
+    "block_time": 1400,
+    "accounting": {
+      "cash_flow": {
+        "price_pnl": "2999896228",
+        "opening_fee": "3262312",
+        "closing_fee": "787430",
+        "accrued_funding": "170"
+      },
+      "balance": {
+        "price_pnl": "2999896228",
+        "opening_fee": "3262312",
+        "closing_fee": "5512234",
+        "accrued_funding": "170",
+        "total": "3008670944"
+      },
+      "withdrawal_balance": {
+        "price_pnl": "2999896228",
+        "opening_fee": "3262312",
+        "closing_fee": "787430",
+        "accrued_funding": "170",
+        "total": "3003946140"
+      }
+    },
+    "vault": {
+      "total_withdrawal_balance": "2253003946140"
+    }
+  },
+  {
+    "block_time": 1700,
+    "accounting": {
+      "cash_flow": {
+        "price_pnl": "-1749873742",
+        "opening_fee": "7199622",
+        "closing_fee": "3787347",
+        "accrued_funding": "-60"
+      },
+      "balance": {
+        "price_pnl": "3950387765",
+        "opening_fee": "7199622",
+        "closing_fee": "17287067",
+        "accrued_funding": "452",
+        "total": "3974874906"
+      },
+      "withdrawal_balance": {
+        "price_pnl": "-1749873742",
+        "opening_fee": "7199622",
+        "closing_fee": "3787347",
+        "accrued_funding": "-60",
+        "total": "-1738886833"
+      }
+    },
+    "vault": {
+      "total_withdrawal_balance": "2248261113167"
+    }
+  },
+  {
+    "block_time": 1800,
+    "accounting": {
+      "cash_flow": {
+        "price_pnl": "-6549612234",
+        "opening_fee": "7762087",
+        "closing_fee": "3787347",
+        "accrued_funding": "489"
+      },
+      "balance": {
+        "price_pnl": "-1299907988",
+        "opening_fee": "7762087",
+        "closing_fee": "6037254",
+        "accrued_funding": "471",
+        "total": "-1286108176"
+      },
+      "withdrawal_balance": {
+        "price_pnl": "-6549612234",
+        "opening_fee": "7762087",
+        "closing_fee": "3787347",
+        "accrued_funding": "471",
+        "total": "-6538062329"
+      }
+    },
+    "vault": {
+      "total_withdrawal_balance": "2243461937671"
+    }
+  },
+  {
+    "block_time": 2000,
+    "accounting": {
+      "cash_flow": {
+        "price_pnl": "-6549612234",
+        "opening_fee": "7762087",
+        "closing_fee": "4912301",
+        "accrued_funding": "551"
+      },
+      "balance": {
+        "price_pnl": "-1299970251",
+        "opening_fee": "7762087",
+        "closing_fee": "6037301",
+        "accrued_funding": "512",
+        "total": "-1286170351"
+      },
+      "withdrawal_balance": {
+        "price_pnl": "-6549612234",
+        "opening_fee": "7762087",
+        "closing_fee": "4912301",
+        "accrued_funding": "512",
+        "total": "-6536937334"
+      }
+    },
+    "vault": {
+      "total_withdrawal_balance": "2243463062666"
+    }
+  }
+]
