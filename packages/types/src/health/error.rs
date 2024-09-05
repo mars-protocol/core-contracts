@@ -5,6 +5,8 @@ use cosmwasm_std::{
 use mars_owner::OwnerError;
 use thiserror::Error;
 
+use crate::perps::PerpsError;
+
 pub type HealthResult<T> = Result<T, HealthError>;
 
 #[derive(Error, Debug, PartialEq)]
@@ -58,6 +60,9 @@ pub enum HealthError {
 
     #[error("{0}")]
     Owner(#[from] OwnerError),
+
+    #[error("{0}")]
+    PerpsError(#[from] PerpsError),
 
     #[error("{0}")]
     Std(#[from] StdError),

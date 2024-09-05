@@ -6,6 +6,7 @@ use std::{
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal, Decimal256, Fraction, Uint128};
+use mars_perps::pricing::closing_execution_price;
 use mars_types::{
     credit_manager::Positions,
     health::{
@@ -72,7 +73,7 @@ impl HealthComputer {
             liquidation_threshold_adjusted_collateral,
         } = self.total_collateral_value()?;
 
-        let spot_debt_value = self.spot_debt_value()?;
+        let spot_debt_value = self.debt_value()?;
         let perp_hf_values = self.perp_health_factor_values(&self.positions.perps)?;
         let ltv_numerator =
             max_ltv_adjusted_collateral.checked_add(perp_hf_values.max_ltv_numerator)?;
@@ -140,7 +141,7 @@ impl HealthComputer {
                 // withdraw denom max ltv adjusted value = total max ltv adjusted value - debt value - perp_denominator + perp_numerator
                 let total_max_ltv_adjusted_value =
                     self.total_collateral_value()?.max_ltv_adjusted_collateral;
-                let debt_value = self.spot_debt_value()?;
+                let debt_value = self.debt_value()?;
 
                 let withdraw_denom_price = *self
                     .oracle_prices
@@ -222,7 +223,7 @@ impl HealthComputer {
         let total_max_ltv_adjusted_value =
             self.total_collateral_value()?.max_ltv_adjusted_collateral;
 
-        let debt_value = self.spot_debt_value()?;
+        let debt_value = self.debt_value()?;
 
         if total_max_ltv_adjusted_value.is_zero() {
             return Ok(Uint128::zero());
@@ -359,7 +360,7 @@ impl HealthComputer {
     ) -> HealthResult<Uint128> {
         let total_max_ltv_adjusted_value =
             self.total_collateral_value()?.max_ltv_adjusted_collateral;
-        let debt_value = self.spot_debt_value()?;
+        let debt_value = self.debt_value()?;
 
         // We often add one to calcs for a margin of error, so rather than create it multiple times we just create it once here.
         let one = Uint128::one();
@@ -592,16 +593,16 @@ impl HealthComputer {
             q_old,
             // Entry price
             p_ex_o,
-        ) = self.positions.perps.iter().find(|&x| x.denom == *denom).map_or(
-            (
-                SignedUint::zero(),
-                SignedUint::zero(),
-                self.get_execution_price(perp_oracle_price, k, skew_scale, SignedUint::zero())?,
-            ),
-            |f| (f.unrealised_pnl.accrued_funding, f.size, f.entry_exec_price),
-        );
+        ) = self
+            .positions
+            .perps
+            .iter()
+            .find(|&x| x.denom == *denom)
+            .map_or((SignedUint::zero(), SignedUint::zero(), Decimal::zero()), |f| {
+                (f.unrealised_pnl.accrued_funding, f.size, f.entry_exec_price)
+            });
 
-        let p_ex = self.get_execution_price(perp_oracle_price, k, skew_scale, q_old)?;
+        let p_ex = closing_execution_price(k, skew_scale, q_old, perp_oracle_price)?;
         let closing_fee_value = q_old.abs.checked_mul_floor(p_ex.checked_mul(closing_fee_rate)?)?;
 
         // Indicator functions
@@ -724,29 +725,6 @@ impl HealthComputer {
         }
 
         Ok(q_max_amount)
-    }
-
-    // TODO this calc seems to be functionally equivilent to the execution_closing_price in perps::pricing.
-    fn get_execution_price(
-        &self,
-        perp_oracle_price: Decimal,
-        skew: SignedUint,
-        skew_scale: Uint128,
-        q_old: SignedUint,
-    ) -> HealthResult<Decimal> {
-        // price_oracle * (1 + (k - q_old / 2) / skew_scale)
-        // price_oracle * (1 + ratio)
-        // where:
-        // ratio = (2 * k - q_old) / (2 * skew_scale)
-        let ratio_n = skew.checked_mul(Uint128::new(2u128).into())?.checked_sub(q_old)?;
-        let ratio_d = Uint128::new(2u128).checked_mul(skew_scale)?;
-        let ratio = SignedDecimal::checked_from_ratio(ratio_n, ratio_d.into())?;
-
-        let price =
-            SignedDecimal::one().checked_add(ratio)?.checked_mul(perp_oracle_price.into())?;
-
-        // price shouldn't be negative
-        Ok(price.abs)
     }
 
     fn account_composition(
@@ -1159,7 +1137,7 @@ impl HealthComputer {
     /// Total value of all spot debts.
     ///
     /// Denominated in the protocol's base asset (typically USDC).
-    fn spot_debt_value(&self) -> HealthResult<Uint128> {
+    fn debt_value(&self) -> HealthResult<Uint128> {
         let mut total = Uint128::zero();
 
         // spot debt borrowed from redbank
@@ -1274,7 +1252,7 @@ impl HealthComputer {
         kind: &LiquidationPriceKind,
     ) -> HealthResult<Uint128> {
         let collateral_ltv_value = self.total_collateral_value()?.max_ltv_adjusted_collateral;
-        let total_debt_value = self.spot_debt_value()?; // TODO: add perp debt value
+        let total_debt_value = self.debt_value()?;
         if total_debt_value.is_zero() {
             return Ok(Uint128::zero());
         }

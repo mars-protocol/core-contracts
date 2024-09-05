@@ -16,7 +16,6 @@ pub fn calculate_remaining_oi_value(
 
     // If we are already at the OI limits, we can't open a new position
     let net_oi_valid = total_oi_value < perp_params.max_net_oi_value;
-
     if !net_oi_valid {
         return Ok(SignedUint::zero());
     }

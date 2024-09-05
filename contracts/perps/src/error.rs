@@ -4,7 +4,7 @@ use cosmwasm_std::{
 };
 use cw_utils::PaymentError;
 use mars_owner::OwnerError;
-use mars_types::error::MarsError;
+use mars_types::{error::MarsError, perps::PerpsError};
 
 #[derive(Debug, PartialEq, thiserror::Error)]
 pub enum ContractError {
@@ -37,6 +37,9 @@ pub enum ContractError {
 
     #[error(transparent)]
     Mars(#[from] MarsError),
+
+    #[error(transparent)]
+    Perps(#[from] PerpsError),
 
     #[error("Cannot deleverage - deleveraging is disabled")]
     DeleverageDisabled,

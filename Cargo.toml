@@ -32,6 +32,7 @@ members  = [
   "packages/health-computer",
   "packages/interest-rate",
   "packages/liquidation",
+  "packages/perps-common",
   "packages/testing",
   "packages/types",
   "packages/utils",
@@ -112,6 +113,7 @@ mars-rover-old             = { package = "mars-rover", git = "https://github.com
 mars-testing               = { path = "./packages/testing" }
 mars-types                 = { path = "./packages/types" }
 mars-utils                 = { path = "./packages/utils" }
+mars-perps-common          = { path = "./packages/perps-common" }
 
 # contracts
 mars-account-nft               = { path = "./contracts/account-nft" }

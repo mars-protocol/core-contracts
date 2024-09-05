@@ -1,8 +1,13 @@
 use std::{fmt, str::FromStr};
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{coin, Addr, Api, Coin, Decimal, StdResult, Uint128};
+use cosmwasm_std::{
+    coin, Addr, Api, CheckedFromRatioError, CheckedMultiplyFractionError,
+    CheckedMultiplyRatioError, Coin, Decimal, DecimalRangeExceeded, OverflowError, StdError,
+    StdResult, Uint128,
+};
 use mars_owner::OwnerUpdate;
+use thiserror::Error;
 
 use crate::{
     adapters::{
@@ -796,4 +801,25 @@ pub struct PositionFeesResponse {
     /// Closing execution price of the position calculated with:
     /// - entry size if the position is closed or reduced
     pub closing_exec_price: Option<Decimal>,
+}
+
+#[derive(Error, Debug, PartialEq)]
+pub enum PerpsError {
+    #[error("{0}")]
+    Std(#[from] StdError),
+
+    #[error("{0}")]
+    Overflow(#[from] OverflowError),
+
+    #[error("{0}")]
+    CheckedMultiplyRatio(#[from] CheckedMultiplyRatioError),
+
+    #[error("{0}")]
+    CheckedMultiplyFraction(#[from] CheckedMultiplyFractionError),
+
+    #[error("{0}")]
+    CheckedFromRatio(#[from] CheckedFromRatioError),
+
+    #[error("{0}")]
+    DecimalRangeExceeded(#[from] DecimalRangeExceeded),
 }

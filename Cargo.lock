@@ -2506,12 +2506,22 @@ dependencies = [
  "mars-oracle-osmosis",
  "mars-owner 2.0.0",
  "mars-params",
+ "mars-perps-common",
  "mars-testing",
  "mars-types",
  "schemars",
  "serde",
  "serde-json-wasm 1.0.1",
  "test-case",
+ "thiserror",
+]
+
+[[package]]
+name = "mars-perps-common"
+version = "1.0.0"
+dependencies = [
+ "cosmwasm-std",
+ "mars-types",
  "thiserror",
 ]
 
@@ -2662,6 +2672,7 @@ dependencies = [
  "proptest",
  "schemars",
  "serde_json",
+ "test-case",
  "tsify",
  "wasm-bindgen",
  "web-sys",

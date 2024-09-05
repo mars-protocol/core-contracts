@@ -33,5 +33,7 @@ console_error_panic_hook = { version = "0.1.7", optional = true }
 web-sys = "0.3.64"
 
 [dev-dependencies]
-proptest = { workspace = true }
+proptest    = { workspace = true }
+test-case   = { workspace = true }
+
 
