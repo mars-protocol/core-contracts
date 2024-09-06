@@ -40,6 +40,16 @@
     {
         "block_time": 1300,
         "action": {
+            "execute_perp_order": {
+                "account_id": "30",
+                "denom": "usol",
+                "order_size": "20000000000"
+            }
+        }
+    },
+    {
+        "block_time": 1300,
+        "action": {
             "snapshot_state": {}
         }
     },
@@ -69,6 +79,25 @@
         }
     },
     {
+        "block_time": 1500,
+        "action": {
+            "change_price": {
+                "denom": "usol",
+                "new_price": "0.11826934613"
+            }
+        }
+    },
+    {
+        "block_time": 1500,
+        "action": {
+            "execute_perp_order": {
+                "account_id": "30",
+                "denom": "usol",
+                "order_size": "110000000000"
+            }
+        }
+    },
+    {
         "block_time": 1600,
         "action": {
             "execute_perp_order": {
@@ -84,6 +113,15 @@
             "change_price": {
                 "denom": "uatom",
                 "new_price": "20"
+            }
+        }
+    },
+    {
+        "block_time": 1600,
+        "action": {
+            "change_price": {
+                "denom": "usol",
+                "new_price": "0.14826934613"
             }
         }
     },
@@ -140,6 +178,41 @@
     },
     {
         "block_time": 2000,
+        "action": {
+            "snapshot_state": {}
+        }
+    },
+    {
+        "block_time": 2100,
+        "action": {
+            "execute_perp_order": {
+                "account_id": "30",
+                "denom": "usol",
+                "order_size": "-350000000000"
+            }
+        }
+    },
+    {
+        "block_time": 2100,
+        "action": {
+            "change_price": {
+                "denom": "usol",
+                "new_price": "0.15826934613"
+            }
+        }
+    },
+    {
+        "block_time": 2200,
+        "action": {
+            "execute_perp_order": {
+                "account_id": "30",
+                "denom": "usol",
+                "order_size": "220000000000"
+            }
+        }
+    },
+    {
+        "block_time": 2500,
         "action": {
             "snapshot_state": {}
         }

@@ -1,23 +1,23 @@
 use std::{fs::File, io::Read, str::FromStr};
 
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{coin, Decimal, Uint128};
 use mars_types::{
     params::{PerpParams, PerpParamsUpdate},
-    perps::Accounting,
+    perps::Balance,
     signed_uint::SignedUint,
 };
-use serde::{Deserialize, Serialize};
 
 use super::helpers::MockEnv;
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[cw_serde]
 struct AssetConfig {
     name: String,
     initial_price: f64,
     initial_funding_rate: f64,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[cw_serde]
 struct PerpConfig {
     initial_price: Decimal,
 
@@ -25,15 +25,14 @@ struct PerpConfig {
     perps_params: PerpParams,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[cw_serde]
 struct TestConfig {
     target_collaterization_ratio: Decimal,
     protocol_fee_rate: Decimal,
     perps: Vec<PerpConfig>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "snake_case")]
+#[cw_serde]
 enum ActionType {
     ExecutePerpOrder {
         account_id: String,
@@ -52,20 +51,32 @@ enum ActionType {
     SnapshotState {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[cw_serde]
 struct Action {
     block_time: u64,
     action: ActionType,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[cw_serde]
 struct SnapshotStateResponse {
     block_time: u64,
     accounting: Accounting,
     vault: Vault,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[cw_serde]
+pub struct Accounting {
+    /// The actual amount of money, includes only realized payments
+    pub cash_flow: Balance,
+
+    /// The actual amount of money + unrealized payments
+    pub balance: Balance,
+
+    /// The amount of money available for withdrawal by LPs (in this type of balance we cap some unrealized payments)
+    pub withdrawal_balance: Balance,
+}
+
+#[cw_serde]
 struct Vault {
     total_withdrawal_balance: Uint128,
 }
@@ -207,7 +218,17 @@ fn verify_accounting_with_input_actions() {
 
                 let snapshot_state = SnapshotStateResponse {
                     block_time,
-                    accounting,
+                    accounting: Accounting {
+                        cash_flow: Balance {
+                            price_pnl: accounting.cash_flow.price_pnl,
+                            opening_fee: accounting.cash_flow.opening_fee,
+                            closing_fee: accounting.cash_flow.closing_fee,
+                            accrued_funding: accounting.cash_flow.accrued_funding,
+                            total: accounting.cash_flow.total().unwrap(),
+                        },
+                        balance: accounting.balance,
+                        withdrawal_balance: accounting.withdrawal_balance,
+                    },
                     vault: Vault {
                         total_withdrawal_balance: vault.total_withdrawal_balance,
                     },
