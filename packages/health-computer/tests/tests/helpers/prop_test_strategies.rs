@@ -385,20 +385,22 @@ fn random_perps(perp_denoms_data: PerpsData) -> impl Strategy<Value = Vec<PerpPo
             random_signed_uint(0..=100000000000),
             random_signed_decimal(0..=10000000, 2..=8),
             random_signed_decimal(0..=10000000, 2..=8),
+            random_decimal(0..=100, 2..=3),
         )
             .prop_map(
                 move |(
                     index,
                     size,
                     entry_price,
-                    current_price,
+                    market_price,
                     skew_scale,
                     rate,
-                    usdc_price,
+                    base_denom_price,
                     initial_skew,
                     current_skew,
                     entry_accrued_funding_per_unit_in_base_denom,
                     exit_funding_diff,
+                    opening_fee_rate,
                 )| {
                     let perp_denom = perp_denoms.get(index).unwrap().clone();
                     let base_denom = usdc.denom.clone();
@@ -439,9 +441,9 @@ fn random_perps(perp_denoms_data: PerpsData) -> impl Strategy<Value = Vec<PerpPo
                         .compute_pnl(
                             &funding,
                             current_skew,
-                            current_price,
-                            usdc_price,
-                            Decimal::zero(), // TODO: provide a real value
+                            market_price,
+                            base_denom_price,
+                            opening_fee_rate,
                             closing_fee_rate,
                             PositionModification::Decrease(position.size),
                         )
@@ -451,10 +453,10 @@ fn random_perps(perp_denoms_data: PerpsData) -> impl Strategy<Value = Vec<PerpPo
                         denom: perp_denom,
                         base_denom,
                         size,
-                        current_price,
+                        current_price: market_price,
                         entry_price,
                         entry_exec_price: entry_price,
-                        current_exec_price: current_price,
+                        current_exec_price: market_price,
                         unrealised_pnl: pnl_amounts,
                         realised_pnl: PnlAmounts::default(),
                     }
