@@ -1,10 +1,8 @@
 use std::{collections::HashMap, ops::RangeInclusive, str::FromStr};
 
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
-use mars_perps::{
-    position::{PositionExt, PositionModification},
-    pricing::opening_execution_price,
-};
+use mars_perps::position::{PositionExt, PositionModification};
+use mars_perps_common::pricing::opening_execution_price;
 use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
 use mars_types::{
     adapters::vault::{

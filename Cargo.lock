@@ -2669,6 +2669,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "mars-perps",
+ "mars-perps-common",
  "mars-types",
  "proptest",
  "schemars",

@@ -1,5 +1,3 @@
-pub use mars_perps_common::pricing;
-
 #[cfg(not(feature = "library"))]
 pub mod accounting;
 pub mod contract;

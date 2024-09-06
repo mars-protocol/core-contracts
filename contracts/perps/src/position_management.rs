@@ -5,9 +5,9 @@ use cosmwasm_std::{
     Response, StdError, Uint128,
 };
 use cw_utils::{may_pay, must_pay};
+use mars_perps_common::pricing::opening_execution_price;
 use mars_types::{
-    address_provider,
-    address_provider::MarsAddressType,
+    address_provider::{self, MarsAddressType},
     oracle::ActionKind,
     params::PerpParams,
     perps::{CashFlow, Config, MarketState, PnL, PnlAmounts, Position},
@@ -19,7 +19,6 @@ use crate::{
     error::{ContractError, ContractResult},
     market::MarketStateExt,
     position::{PositionExt, PositionModification},
-    pricing::opening_execution_price,
     state::{CONFIG, MARKET_STATES, POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW},
     utils::{ensure_max_position, ensure_min_position},
 };
@@ -139,6 +138,26 @@ fn open_position(
 
     // The position's initial value cannot be too big
     ensure_max_position(position_value, &perp_params)?;
+
+    let fees = PositionModification::Increase(size).compute_fees(
+        perp_params.opening_fee_rate,
+        perp_params.closing_fee_rate,
+        denom_price,
+        base_denom_price,
+        ms.skew()?,
+        perp_params.skew_scale,
+    )?;
+
+    // Ensure the opening fee amount sent is correct
+    ensure_eq!(
+        opening_fee_amt,
+        fees.opening_fee.abs,
+        ContractError::InvalidPayment {
+            denom,
+            required: fees.opening_fee.abs,
+            received: opening_fee_amt,
+        }
+    );
 
     // Validate the position's size against OI limits
     ms.validate_open_interest(size, SignedUint::zero(), denom_price, &perp_params)?;

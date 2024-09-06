@@ -3,6 +3,7 @@ use std::str::FromStr;
 use cosmwasm_std::{
     Decimal, Deps, Fraction, Int256, Int512, Order, SignedDecimal256, Uint128, Uint256,
 };
+use mars_perps_common::pricing::opening_execution_price;
 use mars_types::{
     adapters::oracle::Oracle,
     math::SignedDecimal,
@@ -15,7 +16,6 @@ use mars_types::{
 use crate::{
     accounting::AccountingExt,
     error::{ContractError, ContractResult},
-    pricing::opening_execution_price,
     state::{CONFIG, MARKET_STATES, TOTAL_CASH_FLOW},
 };
 

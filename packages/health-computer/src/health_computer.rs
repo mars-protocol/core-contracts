@@ -6,7 +6,7 @@ use std::{
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Decimal, Decimal256, Fraction, Uint128};
-use mars_perps::pricing::closing_execution_price;
+use mars_perps_common::pricing::closing_execution_price;
 use mars_types::{
     credit_manager::Positions,
     health::{

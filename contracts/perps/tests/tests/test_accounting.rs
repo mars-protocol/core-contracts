@@ -346,8 +346,13 @@ fn accounting_works_up_to_oi_limits() {
     mock.set_price(&owner, "ueth", Decimal::from_str("0.000000002389095541").unwrap()).unwrap();
 
     // Deposit a large amount of uusdc to the vault on behalf of the user.
-    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000_000u128, "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(user),
+        None,
+        &[coin(1_000_000_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
 
     // Initialize perpetual market parameters for ueth (Ethereum).
     // Set the maximum long open interest value (max_long_oi_value) and other parameters for ueth.

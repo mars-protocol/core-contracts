@@ -3,6 +3,7 @@ use std::{cmp::max, collections::HashMap};
 use cosmwasm_std::{coin, Addr, Decimal, Deps, Order, StdResult, Storage};
 use cw_paginate::{paginate_map_query, PaginationResponse};
 use cw_storage_plus::Bound;
+use mars_perps_common::pricing::{closing_execution_price, opening_execution_price};
 use mars_types::{
     oracle::ActionKind,
     params::PerpParams,
@@ -18,7 +19,6 @@ use crate::{
     error::ContractResult,
     market::{compute_total_accounting_data, MarketStateExt},
     position::{PositionExt, PositionModification},
-    pricing::{closing_execution_price, opening_execution_price},
     state::{CONFIG, DEPOSIT_SHARES, MARKET_STATES, POSITIONS, REALIZED_PNL, UNLOCKS, VAULT_STATE},
     utils::create_user_id_key,
     vault::shares_to_amount,

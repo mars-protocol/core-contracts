@@ -1,16 +1,14 @@
 use std::cmp::Ordering;
 
 use cosmwasm_std::{Decimal, Uint128};
+use mars_perps_common::pricing::{closing_execution_price, opening_execution_price};
 use mars_types::{
     math::SignedDecimal,
     perps::{Funding, PnlAmounts, Position},
     signed_uint::SignedUint,
 };
 
-use crate::{
-    error::{ContractError, ContractResult},
-    pricing::{closing_execution_price, opening_execution_price},
-};
+use crate::error::{ContractError, ContractResult};
 
 pub trait PositionExt {
     /// Compute the unrealized PnL of a position, given the current price

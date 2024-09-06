@@ -20,6 +20,7 @@ cosmwasm-schema   = { workspace = true }
 cosmwasm-std      = { workspace = true }
 mars-types        = { workspace = true }
 mars-perps        = { workspace = true }
+mars-perps-common = { workspace = true }
 schemars          = { workspace = true }
 serde_json        = { workspace = true }
 tsify             = { workspace = true, optional = true }
