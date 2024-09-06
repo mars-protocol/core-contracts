@@ -148,6 +148,7 @@ fn verify_accounting_with_input_actions() {
                 mock.deposit_to_vault(
                     &credit_manager,
                     Some(account_id),
+                    None,
                     &[coin(amount.u128(), "uusdc")],
                 )
                 .unwrap();

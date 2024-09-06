@@ -524,7 +524,26 @@
             ],
             "properties": {
               "deposit_to_perp_vault": {
-                "$ref": "#/definitions/ActionCoin"
+                "type": "object",
+                "required": [
+                  "coin"
+                ],
+                "properties": {
+                  "coin": {
+                    "$ref": "#/definitions/ActionCoin"
+                  },
+                  "max_receivable_shares": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/Uint128"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
               }
             },
             "additionalProperties": false
@@ -560,6 +579,18 @@
             "properties": {
               "withdraw_from_perp_vault": {
                 "type": "object",
+                "properties": {
+                  "min_receive": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/Uint128"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
                 "additionalProperties": false
               }
             },

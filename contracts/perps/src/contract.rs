@@ -61,14 +61,16 @@ pub fn execute(
         ExecuteMsg::UpdateOwner(update) => OWNER.update(deps, info, update).map_err(Into::into),
         ExecuteMsg::Deposit {
             account_id,
-        } => deposit(deps, info, env.block.time.seconds(), account_id),
+            max_shares_receivable,
+        } => deposit(deps, info, env.block.time.seconds(), account_id, max_shares_receivable),
         ExecuteMsg::Unlock {
             account_id,
             shares,
         } => unlock(deps, info, env.block.time.seconds(), account_id, shares),
         ExecuteMsg::Withdraw {
             account_id,
-        } => withdraw(deps, info, env.block.time.seconds(), account_id),
+            min_receive,
+        } => withdraw(deps, info, env.block.time.seconds(), account_id, min_receive),
         ExecuteMsg::CloseAllPositions {
             account_id,
             action,

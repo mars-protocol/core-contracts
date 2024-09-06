@@ -272,7 +272,7 @@ fn deleverage(
         &[usdc_vault_deposit.clone()],
     )
     .unwrap();
-    mock.deposit_to_perp_vault(&vault_depositor_acc, &usdc_vault_deposit).unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_acc, &usdc_vault_deposit, None).unwrap();
 
     // fund credit accounts
     for (user, acc) in cm_perps_users.iter().zip(cm_perps_accs.iter()) {

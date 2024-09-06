@@ -92,6 +92,19 @@ pub enum ContractError {
     #[error("only the credit manager can modify perp positions")]
     SenderIsNotCreditManager,
 
+    #[error("Minimum receivable amount is {min} {denom}, found {found} {denom}")]
+    MinimumReceiveExceeded {
+        min: Uint128,
+        found: Uint128,
+        denom: String,
+    },
+
+    #[error("Maximum receivable shares is {max}, found {found}")]
+    MaximumReceiveExceeded {
+        max: Uint128,
+        found: Uint128,
+    },
+
     #[error("withdrawing from the counterparty vault is currently disabled")]
     VaultWithdrawDisabled,
 

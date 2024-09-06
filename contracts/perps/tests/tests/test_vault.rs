@@ -17,10 +17,12 @@ fn random_user_cannot_deposit_to_vault() {
     let random_sender = Addr::unchecked("random-user-123");
     mock.fund_accounts(&[&random_sender], 1_000_000_000_000u128, &["uusdc"]);
 
-    let res = mock.deposit_to_vault(&random_sender, Some("2"), &[coin(1_000_000_000u128, "uusdc")]);
+    let res =
+        mock.deposit_to_vault(&random_sender, Some("2"), None, &[coin(1_000_000_000u128, "uusdc")]);
     assert_err(res, ContractError::SenderIsNotCreditManager);
 
-    let res = mock.deposit_to_vault(&random_sender, Some(""), &[coin(1_000_000_000u128, "uusdc")]);
+    let res =
+        mock.deposit_to_vault(&random_sender, Some(""), None, &[coin(1_000_000_000u128, "uusdc")]);
     assert_err(res, ContractError::SenderIsNotCreditManager);
 }
 
@@ -43,10 +45,10 @@ fn random_user_cannot_withdraw_from_vault() {
     let random_sender = Addr::unchecked("random-user-123");
     mock.fund_accounts(&[&random_sender], 1_000_000_000_000u128, &["uusdc"]);
 
-    let res = mock.withdraw_from_vault(&random_sender, Some("2"));
+    let res = mock.withdraw_from_vault(&random_sender, Some("2"), None);
     assert_err(res, ContractError::SenderIsNotCreditManager);
 
-    let res = mock.withdraw_from_vault(&random_sender, Some(""));
+    let res = mock.withdraw_from_vault(&random_sender, Some(""), None);
     assert_err(res, ContractError::SenderIsNotCreditManager);
 }
 
@@ -63,8 +65,13 @@ fn unlock_few_times() {
 
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uusdc"]);
 
-    mock.deposit_to_vault(&credit_manager, Some(depositor), &[coin(1_000_000_000u128, "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor),
+        None,
+        &[coin(1_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
 
     // unlocks should be empty
     let unlocks = mock.query_cm_vault_position(depositor).unwrap().unlocks;
@@ -161,8 +168,13 @@ fn withdraw_not_possible_if_cooldown_not_ended() {
 
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uusdc"]);
 
-    mock.deposit_to_vault(&credit_manager, Some(depositor), &[coin(1_000_000_000u128, "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor),
+        None,
+        &[coin(1_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
 
     mock.unlock_from_vault(&credit_manager, Some(depositor), Uint128::new(1_000_000)).unwrap();
 
@@ -170,8 +182,80 @@ fn withdraw_not_possible_if_cooldown_not_ended() {
     assert!(!unlocks.is_empty());
 
     // cooldown period should be passed for at least one unlock
-    let res = mock.withdraw_from_vault(&credit_manager, Some(depositor));
+    let res = mock.withdraw_from_vault(&credit_manager, Some(depositor), None);
     assert_err(res, ContractError::UnlockedPositionsNotFound {});
+}
+
+#[test]
+fn min_receive_exceeded_on_withdraw_throws_error() {
+    let depositor = "depositor";
+    let cooldown_period = 86400u64;
+    let mut mock = MockEnv::new().cooldown_period(cooldown_period).build().unwrap();
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+
+    // set usdc price
+    mock.set_price(&owner, "uusdc", Decimal::one()).unwrap();
+
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uusdc"]);
+
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor),
+        None,
+        &[coin(1_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
+
+    mock.unlock_from_vault(&credit_manager, Some(depositor), Uint128::new(1_000_000)).unwrap();
+
+    let unlocks = mock.query_cm_vault_position(depositor).unwrap().unlocks;
+    assert!(!unlocks.is_empty());
+
+    // move time forward
+    mock.increment_by_time(86401u64);
+
+    let min_receive = Uint128::new(2);
+    let res = mock.withdraw_from_vault(&credit_manager, Some(depositor), Some(min_receive));
+    assert_err(
+        res,
+        ContractError::MinimumReceiveExceeded {
+            denom: "uusdc".to_string(),
+            min: min_receive,
+            found: Uint128::new(1),
+        },
+    );
+}
+
+#[test]
+fn max_receive_exceeded_on_deposit_throws_error() {
+    let depositor = "depositor";
+    let cooldown_period = 86400u64;
+    let mut mock = MockEnv::new().cooldown_period(cooldown_period).build().unwrap();
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+
+    // set usdc price
+    mock.set_price(&owner, "uusdc", Decimal::one()).unwrap();
+
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uusdc"]);
+
+    let max_shares_receivable: Uint128 = 100000000u128.into();
+
+    let res = mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor),
+        Some(max_shares_receivable),
+        &[coin(1_000_000_000u128, "uusdc")],
+    );
+
+    assert_err(
+        res,
+        ContractError::MaximumReceiveExceeded {
+            max: max_shares_receivable,
+            found: 1000000000000000u128.into(),
+        },
+    );
 }
 
 #[test]
@@ -188,8 +272,13 @@ fn withdraw_not_possible_if_withdraw_not_enabled() {
 
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uusdc"]);
 
-    mock.deposit_to_vault(&credit_manager, Some(depositor), &[coin(1_000_000_000u128, "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor),
+        None,
+        &[coin(1_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
 
     mock.unlock_from_vault(&credit_manager, Some(depositor), Uint128::new(1_000_000)).unwrap();
 
@@ -199,7 +288,7 @@ fn withdraw_not_possible_if_withdraw_not_enabled() {
     // move time forward
     mock.increment_by_time(86401u64);
 
-    let res = mock.withdraw_from_vault(&credit_manager, Some(depositor));
+    let res = mock.withdraw_from_vault(&credit_manager, Some(depositor), None);
     assert_err(res, ContractError::VaultWithdrawDisabled {});
 }
 
@@ -216,8 +305,13 @@ fn withdraw_unlocked_shares() {
 
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uusdc"]);
 
-    mock.deposit_to_vault(&credit_manager, Some(depositor), &[coin(1_000_000_000u128, "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor),
+        None,
+        &[coin(1_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
 
     // vault state before unlocks
     let vault_state_before_unlocks = mock.query_vault();
@@ -265,7 +359,7 @@ fn withdraw_unlocked_shares() {
     let balance_1 = mock.query_balance(&credit_manager, "uusdc");
 
     // withdraw from vault should succeed for two unlocks
-    mock.withdraw_from_vault(&credit_manager, Some(depositor)).unwrap();
+    mock.withdraw_from_vault(&credit_manager, Some(depositor), None).unwrap();
 
     // check balances after withdraw, it should be increased by amount of two unlocks
     let balance_2 = mock.query_balance(&credit_manager, "uusdc");
@@ -304,7 +398,7 @@ fn withdraw_unlocked_shares() {
     mock.set_block_time(unlock_3_current_time + cooldown_period);
 
     // withdraw from vault should succeed for last unlock
-    mock.withdraw_from_vault(&credit_manager, Some(depositor)).unwrap();
+    mock.withdraw_from_vault(&credit_manager, Some(depositor), None).unwrap();
 
     // check balances after withdraw, it should be increased by amount of last unlock
     let balance_3 = mock.query_balance(&credit_manager, "uusdc");
@@ -358,7 +452,7 @@ fn unlock_and_withdraw_if_zero_withdrawal_balance() {
     mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
 
     // deposit uusdc to vault
-    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1000u128, "uusdc")]).unwrap();
+    mock.deposit_to_vault(&credit_manager, Some(user), None, &[coin(1000u128, "uusdc")]).unwrap();
 
     // open a position
     let size = SignedUint::from_str("50").unwrap();
@@ -395,7 +489,7 @@ fn unlock_and_withdraw_if_zero_withdrawal_balance() {
     mock.increment_by_time(cooldown_period + 1);
 
     // withdraw from vault fails because of zero withdrawal balance
-    let res = mock.withdraw_from_vault(&credit_manager, Some(user));
+    let res = mock.withdraw_from_vault(&credit_manager, Some(user), None);
     assert_err(res, ContractError::ZeroWithdrawalBalance {});
 }
 
@@ -430,8 +524,10 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
     mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
 
     // deposit uusdc to vault
-    mock.deposit_to_vault(&credit_manager, Some(depositor_1), &[coin(1000u128, "uusdc")]).unwrap();
-    mock.deposit_to_vault(&credit_manager, Some(depositor_2), &[coin(4000u128, "uusdc")]).unwrap();
+    mock.deposit_to_vault(&credit_manager, Some(depositor_1), None, &[coin(1000u128, "uusdc")])
+        .unwrap();
+    mock.deposit_to_vault(&credit_manager, Some(depositor_2), None, &[coin(4000u128, "uusdc")])
+        .unwrap();
 
     // check deposits
     let deposit_1_before = mock.query_cm_vault_position(depositor_1).unwrap().deposit;
@@ -457,7 +553,8 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
     assert!(available_liquidity < SignedUint::zero());
 
     // deposit uusdc to vault when zero withdrawal balance
-    mock.deposit_to_vault(&credit_manager, Some(depositor_3), &[coin(2500u128, "uusdc")]).unwrap();
+    mock.deposit_to_vault(&credit_manager, Some(depositor_3), None, &[coin(2500u128, "uusdc")])
+        .unwrap();
 
     // Check deposits. There should be zero amounts because of zero withdrawal balance.
     let deposit_1 = mock.query_cm_vault_position(depositor_1).unwrap().deposit;
@@ -503,11 +600,17 @@ fn query_vault_position() {
     assert!(vault_position.is_none());
 
     let deposit_amt = Uint128::new(1_200_000_000u128);
-    mock.deposit_to_vault(&credit_manager, Some(account_id), &[coin(deposit_amt.u128(), "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(account_id),
+        None,
+        &[coin(deposit_amt.u128(), "uusdc")],
+    )
+    .unwrap();
     mock.deposit_to_vault(
         &credit_manager,
         Some("random-user"),
+        None,
         &[coin(2_400_000_000u128, "uusdc")],
     )
     .unwrap();
@@ -594,7 +697,7 @@ fn query_vault_position() {
     mock.set_block_time(unlock_2_current_time + cooldown_period);
 
     // withdraw from vault should succeed for two unlocks
-    mock.withdraw_from_vault(&credit_manager, Some(account_id)).unwrap();
+    mock.withdraw_from_vault(&credit_manager, Some(account_id), None).unwrap();
 
     // vault position should be empty after withdraw
     let vault_position = mock.query_cm_vault_position(account_id);
@@ -616,7 +719,7 @@ fn use_wallet_for_vault() {
     mock.fund_accounts(&[&credit_manager, &depositor], 1_000_000_000_000u128, &["uusdc"]);
 
     let deposit_amt = Uint128::new(2_400_000_000u128);
-    mock.deposit_to_vault(&depositor, None, &[coin(deposit_amt.u128(), "uusdc")]).unwrap();
+    mock.deposit_to_vault(&depositor, None, None, &[coin(deposit_amt.u128(), "uusdc")]).unwrap();
 
     // balances after deposit
     let depositor_balance_after_deposit = mock.query_balance(&depositor, "uusdc");
@@ -668,7 +771,7 @@ fn use_wallet_for_vault() {
     mock.set_block_time(unlock_current_time + cooldown_period + 1);
 
     // withdraw from vault
-    mock.withdraw_from_vault(&depositor, None).unwrap();
+    mock.withdraw_from_vault(&depositor, None, None).unwrap();
 
     // vault position should contain only deposit
     let vault_position = mock.query_vault_position(depositor.as_str(), None);
@@ -732,12 +835,14 @@ fn withdraw_profits_for_depositors() {
     mock.deposit_to_vault(
         &credit_manager,
         Some(depositor_1),
+        None,
         &[coin(depositor_1_amt.u128(), "uusdc")],
     )
     .unwrap();
     mock.deposit_to_vault(
         &credit_manager,
         Some(depositor_2),
+        None,
         &[coin(depositor_2_amt.u128(), "uusdc")],
     )
     .unwrap();
@@ -800,8 +905,8 @@ fn withdraw_profits_for_depositors() {
     mock.set_block_time(unlock_current_time + cooldown_period + 1);
 
     // withdraw from the vault
-    mock.withdraw_from_vault(&credit_manager, Some(depositor_1)).unwrap();
-    mock.withdraw_from_vault(&credit_manager, Some(depositor_2)).unwrap();
+    mock.withdraw_from_vault(&credit_manager, Some(depositor_1), None).unwrap();
+    mock.withdraw_from_vault(&credit_manager, Some(depositor_2), None).unwrap();
 
     // Check deposits. There should be zero amounts/shares.
     let deposit_1 = mock.query_cm_vault_position(depositor_1);
@@ -865,12 +970,14 @@ fn cannot_withdraw_if_cr_decreases_below_threshold() {
     mock.deposit_to_vault(
         &credit_manager,
         Some(depositor_1),
+        None,
         &[coin(depositor_1_amt.u128(), "uusdc")],
     )
     .unwrap();
     mock.deposit_to_vault(
         &credit_manager,
         Some(depositor_2),
+        None,
         &[coin(depositor_2_amt.u128(), "uusdc")],
     )
     .unwrap();
@@ -905,7 +1012,7 @@ fn cannot_withdraw_if_cr_decreases_below_threshold() {
     assert!(vault.collateralization_ratio.unwrap() > target_collateralization_ratio);
 
     // should fail because CR decreases below the threshold after withdrawal
-    let res = mock.withdraw_from_vault(&credit_manager, Some(depositor_1));
+    let res = mock.withdraw_from_vault(&credit_manager, Some(depositor_1), None);
     assert_err(
         res,
         ContractError::VaultUndercollateralized {

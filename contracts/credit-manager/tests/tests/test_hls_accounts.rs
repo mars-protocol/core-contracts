@@ -474,7 +474,7 @@ fn cannot_have_perps_in_hls_account() {
         &[vault_coin_deposited.clone()],
     )
     .unwrap();
-    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited, None).unwrap();
 
     // open perp position
     let res = mock.update_credit_account(

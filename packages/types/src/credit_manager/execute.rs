@@ -161,14 +161,20 @@ pub enum Action {
         coin: ActionCoin,
     },
     /// Provide liquidity of the base token to the perp vault
-    DepositToPerpVault(ActionCoin),
+    DepositToPerpVault {
+        coin: ActionCoin,
+        max_receivable_shares: Option<Uint128>,
+    },
+
     /// Unlock liquidity from the perp vault. The unlocked tokens will have to wait
     /// a cooldown period before they can be withdrawn.
     UnlockFromPerpVault {
         shares: Uint128,
     },
     /// Withdraw liquidity from the perp vault
-    WithdrawFromPerpVault {},
+    WithdrawFromPerpVault {
+        min_receive: Option<Uint128>,
+    },
     /// Execute a state update against the specified perp market for the given account.
     /// If no position exists in the given market, a position is created. Existing postions are modified.
     /// Note that size is signed
@@ -310,6 +316,7 @@ pub enum CallbackMsg {
     DepositToPerpVault {
         account_id: String,
         coin: ActionCoin,
+        max_receivable_shares: Option<Uint128>,
     },
     /// Corresponding to the UnlockFromPerpVault action
     UnlockFromPerpVault {
@@ -319,6 +326,7 @@ pub enum CallbackMsg {
     /// Corresponding to the WithdrawFromPerpVault action
     WithdrawFromPerpVault {
         account_id: String,
+        min_receive: Option<Uint128>,
     },
     /// Adds coin to a vault strategy
     EnterVault {

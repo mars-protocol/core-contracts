@@ -21,7 +21,10 @@ fn can_only_deposit_to_perp_vault_what_is_whitelisted() {
     let res = mock.update_credit_account(
         &account_id,
         &user,
-        vec![DepositToPerpVault(coin_info.to_action_coin(50))],
+        vec![DepositToPerpVault {
+            coin: coin_info.to_action_coin(50),
+            max_receivable_shares: None,
+        }],
         &[],
     );
 
@@ -38,7 +41,10 @@ fn deposit_zero_to_perp_vault_throws_error() {
     let res = mock.update_credit_account(
         &account_id,
         &user,
-        vec![DepositToPerpVault(coin_info.to_action_coin(0))],
+        vec![DepositToPerpVault {
+            coin: coin_info.to_action_coin(0),
+            max_receivable_shares: None,
+        }],
         &[],
     );
 
@@ -64,7 +70,13 @@ fn raises_when_not_enough_assets_to_deposit_to_perp_vault() {
     let res = mock.update_credit_account(
         &account_id,
         &user,
-        vec![Deposit(coin_info.to_coin(300)), DepositToPerpVault(coin_info.to_action_coin(500))],
+        vec![
+            Deposit(coin_info.to_coin(300)),
+            DepositToPerpVault {
+                coin: coin_info.to_action_coin(500),
+                max_receivable_shares: None,
+            },
+        ],
         &[coin_info.to_coin(300)],
     );
 
@@ -103,10 +115,13 @@ fn deposit_account_balance_to_perp_vault_if_no_funds() {
     let res = mock.update_credit_account(
         &account_id_a,
         &user_a,
-        vec![DepositToPerpVault(ActionCoin {
-            denom: coin_info.denom.clone(),
-            amount: ActionAmount::AccountBalance,
-        })],
+        vec![DepositToPerpVault {
+            coin: ActionCoin {
+                denom: coin_info.denom.clone(),
+                amount: ActionAmount::AccountBalance,
+            },
+            max_receivable_shares: None,
+        }],
         &[],
     );
 
@@ -141,7 +156,10 @@ fn successful_deposit_to_perp_vault() {
         &user,
         vec![
             Deposit(coin_info.to_coin(300)),
-            DepositToPerpVault(coin_info.to_action_coin(vault_deposit_amt.u128())),
+            DepositToPerpVault {
+                coin: coin_info.to_action_coin(vault_deposit_amt.u128()),
+                max_receivable_shares: None,
+            },
         ],
         &[coin(300, coin_info.denom.clone())],
     )
@@ -203,10 +221,13 @@ fn successful_account_balance_deposit_to_perp_vault() {
         &user,
         vec![
             Deposit(coin_info.to_coin(vault_deposit_amt.u128())),
-            DepositToPerpVault(ActionCoin {
-                denom: coin_info.denom.clone(),
-                amount: ActionAmount::AccountBalance,
-            }),
+            DepositToPerpVault {
+                coin: ActionCoin {
+                    denom: coin_info.denom.clone(),
+                    amount: ActionAmount::AccountBalance,
+                },
+                max_receivable_shares: None,
+            },
         ],
         &[coin(vault_deposit_amt.u128(), coin_info.denom.clone())],
     )
@@ -279,7 +300,10 @@ fn unlock_more_shares_than_deposited_throws_error() {
         &user,
         vec![
             Deposit(coin_info.to_coin(300)),
-            DepositToPerpVault(coin_info.to_action_coin(vault_deposit_amt.u128())),
+            DepositToPerpVault {
+                coin: coin_info.to_action_coin(vault_deposit_amt.u128()),
+                max_receivable_shares: None,
+            },
         ],
         &[coin(300, coin_info.denom.clone())],
     )
@@ -321,7 +345,10 @@ fn successful_unlock_and_withdraw_from_perp_vault() {
         &user,
         vec![
             Deposit(coin_info.to_coin(300)),
-            DepositToPerpVault(coin_info.to_action_coin(vault_deposit_amt.u128())),
+            DepositToPerpVault {
+                coin: coin_info.to_action_coin(vault_deposit_amt.u128()),
+                max_receivable_shares: None,
+            },
         ],
         &[coin(300, coin_info.denom.clone())],
     )
@@ -380,7 +407,15 @@ fn successful_unlock_and_withdraw_from_perp_vault() {
     // Move time forward to pass cooldown period
     mock.set_block_time(unlock_current_time + perp_config.cooldown_period + 1);
 
-    mock.update_credit_account(&account_id, &user, vec![WithdrawFromPerpVault {}], &[]).unwrap();
+    mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![WithdrawFromPerpVault {
+            min_receive: None,
+        }],
+        &[],
+    )
+    .unwrap();
 
     // Check contract balances after withdraw
     let cm_balance_after_withdraw = mock.query_balance(&mock.rover, &coin_info.denom);

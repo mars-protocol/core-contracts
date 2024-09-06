@@ -104,7 +104,10 @@ export type Action =
       }
     }
   | {
-      deposit_to_perp_vault: ActionCoin
+      deposit_to_perp_vault: {
+        coin: ActionCoin
+        max_receivable_shares?: Uint128 | null
+      }
     }
   | {
       unlock_from_perp_vault: {
@@ -112,7 +115,9 @@ export type Action =
       }
     }
   | {
-      withdraw_from_perp_vault: {}
+      withdraw_from_perp_vault: {
+        min_receive?: Uint128 | null
+      }
     }
   | {
       execute_perp_order: {
@@ -319,6 +324,7 @@ export type CallbackMsg =
       deposit_to_perp_vault: {
         account_id: string
         coin: ActionCoin
+        max_receivable_shares?: Uint128 | null
       }
     }
   | {
@@ -330,6 +336,7 @@ export type CallbackMsg =
   | {
       withdraw_from_perp_vault: {
         account_id: string
+        min_receive?: Uint128 | null
       }
     }
   | {

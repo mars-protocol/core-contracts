@@ -506,12 +506,14 @@ impl MockEnv {
         &mut self,
         account_id: &str,
         coin: &Coin,
+        max_shares_receivable: Option<Uint128>,
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             self.rover.clone(),
             self.perps.address().clone(),
             &perps::ExecuteMsg::Deposit {
                 account_id: Some(account_id.to_string()),
+                max_shares_receivable,
             },
             &[coin.clone()],
         )

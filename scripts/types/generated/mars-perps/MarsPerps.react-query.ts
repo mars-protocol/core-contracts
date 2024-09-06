@@ -677,6 +677,7 @@ export interface MarsPerpsWithdrawMutation {
   client: MarsPerpsClient
   msg: {
     accountId?: string
+    minReceive?: Uint128
   }
   args?: {
     fee?: number | StdFee | 'auto'
@@ -716,6 +717,7 @@ export interface MarsPerpsDepositMutation {
   client: MarsPerpsClient
   msg: {
     accountId?: string
+    maxSharesReceivable?: Uint128
   }
   args?: {
     fee?: number | StdFee | 'auto'

@@ -306,8 +306,10 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
   deposit: (
     {
       accountId,
+      maxSharesReceivable,
     }: {
       accountId?: string
+      maxSharesReceivable?: Uint128
     },
     fee?: number | StdFee | 'auto',
     memo?: string,
@@ -328,8 +330,10 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
   withdraw: (
     {
       accountId,
+      minReceive,
     }: {
       accountId?: string
+      minReceive?: Uint128
     },
     fee?: number | StdFee | 'auto',
     memo?: string,
@@ -435,8 +439,10 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
   deposit = async (
     {
       accountId,
+      maxSharesReceivable,
     }: {
       accountId?: string
+      maxSharesReceivable?: Uint128
     },
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,
@@ -448,6 +454,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       {
         deposit: {
           account_id: accountId,
+          max_shares_receivable: maxSharesReceivable,
         },
       },
       fee,
@@ -484,8 +491,10 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
   withdraw = async (
     {
       accountId,
+      minReceive,
     }: {
       accountId?: string
+      minReceive?: Uint128
     },
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,
@@ -497,6 +506,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
       {
         withdraw: {
           account_id: accountId,
+          min_receive: minReceive,
         },
       },
       fee,

@@ -70,7 +70,7 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
         &[vault_coin_deposited.clone()],
     )
     .unwrap();
-    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited, None).unwrap();
 
     // setup liquidatee's position
     mock.update_credit_account(
@@ -248,7 +248,7 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
         &[vault_coin_deposited.clone()],
     )
     .unwrap();
-    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited, None).unwrap();
 
     // setup liquidatee's position
     mock.update_credit_account(
@@ -432,7 +432,7 @@ fn close_perps_with_profit() {
         &[vault_coin_deposited.clone()],
     )
     .unwrap();
-    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited, None).unwrap();
 
     // setup liquidatee's position
     mock.update_credit_account(
@@ -620,7 +620,7 @@ fn liquidation_uses_correct_price_kind_if_perps_open() {
         &[vault_coin_deposited.clone()],
     )
     .unwrap();
-    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited, None).unwrap();
 
     // setup liquidatee's position
     mock.update_credit_account(

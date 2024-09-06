@@ -228,9 +228,13 @@ pub fn dispatch_actions(
             Action::ClaimRewards {} => callbacks.push(CallbackMsg::ClaimRewards {
                 account_id: account_id.to_string(),
             }),
-            Action::DepositToPerpVault(coin) => callbacks.push(CallbackMsg::DepositToPerpVault {
+            Action::DepositToPerpVault {
+                coin,
+                max_receivable_shares,
+            } => callbacks.push(CallbackMsg::DepositToPerpVault {
                 account_id: account_id.to_string(),
                 coin,
+                max_receivable_shares,
             }),
             Action::UnlockFromPerpVault {
                 shares,
@@ -238,11 +242,12 @@ pub fn dispatch_actions(
                 account_id: account_id.to_string(),
                 shares,
             }),
-            Action::WithdrawFromPerpVault {} => {
-                callbacks.push(CallbackMsg::WithdrawFromPerpVault {
-                    account_id: account_id.to_string(),
-                })
-            }
+            Action::WithdrawFromPerpVault {
+                min_receive,
+            } => callbacks.push(CallbackMsg::WithdrawFromPerpVault {
+                account_id: account_id.to_string(),
+                min_receive,
+            }),
             Action::ExecutePerpOrder {
                 denom,
                 order_size: size,
@@ -548,14 +553,16 @@ pub fn execute_callback(
         CallbackMsg::DepositToPerpVault {
             account_id,
             coin,
-        } => deposit_to_perp_vault(deps, &account_id, &coin),
+            max_receivable_shares,
+        } => deposit_to_perp_vault(deps, &account_id, &coin, max_receivable_shares),
         CallbackMsg::UnlockFromPerpVault {
             account_id,
             shares,
         } => unlock_from_perp_vault(deps.as_ref(), &account_id, shares),
         CallbackMsg::WithdrawFromPerpVault {
             account_id,
-        } => withdraw_from_perp_vault(deps.as_ref(), env, &account_id),
+            min_receive,
+        } => withdraw_from_perp_vault(deps.as_ref(), env, &account_id, min_receive),
         CallbackMsg::CloseAllPerps {
             account_id,
         } => close_all_perps(deps, &account_id, ActionKind::Liquidation),

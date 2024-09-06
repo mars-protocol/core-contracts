@@ -37,8 +37,13 @@ fn protocol_fee_sent_to_rewards_collector(
     mock.set_price(&owner, "uusdc", base_denom_price).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(user),
+        None,
+        &[coin(1_000_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
 
     // init denoms
     mock.update_perp_params(
@@ -133,8 +138,13 @@ fn close_all_positions_applies_fees() {
     mock.set_price(&owner, denom_2, Decimal::from_str("2.7").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(user),
+        None,
+        &[coin(1_000_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
 
     // init denoms
     mock.update_perp_params(

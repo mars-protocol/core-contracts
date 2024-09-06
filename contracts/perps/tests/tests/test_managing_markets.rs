@@ -227,6 +227,7 @@ fn funding_change_accordingly_to_market_state_modification() {
     mock.deposit_to_vault(
         &credit_manager,
         Some(depositor),
+        None,
         &[coin(1_000_000_000_000u128, "uusdc")],
     )
     .unwrap();

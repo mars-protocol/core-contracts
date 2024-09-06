@@ -526,6 +526,13 @@ pub enum ExecuteMsg {
         /// The user's credit account token ID.
         /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
         account_id: Option<String>,
+
+        /// The maximum amount of shares received from the deposit action.
+        /// This allows the user to protect themselves from unexpected slippage
+        /// or directional exposure that can result from the vault having a
+        /// negative PNL.
+        /// If not provided, defaults to zero.
+        max_shares_receivable: Option<Uint128>,
     },
 
     /// Unlock liquidity from the vault. The unlocked tokens will have to wait
@@ -544,6 +551,11 @@ pub enum ExecuteMsg {
         /// The user's credit account token ID.
         /// If account id is provided Credit Manager calls the contract, otherwise a wallet.
         account_id: Option<String>,
+
+        /// The minimum amount of base token to recieve from the withdraw action.
+        /// Provided to protect user from unexpected slippage.
+        /// If not provided, defaults to zero.
+        min_receive: Option<Uint128>,
     },
 
     /// Execute a perp order against a perp market for a given account.

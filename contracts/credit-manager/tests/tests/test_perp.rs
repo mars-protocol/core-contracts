@@ -170,7 +170,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
         &[vault_coin_deposited.clone()],
     )
     .unwrap();
-    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited, None).unwrap();
 
     let perp_size = SignedUint::from_str("400").unwrap();
 
@@ -315,7 +315,7 @@ fn perp_position_when_no_usdc_in_account() {
         &[vault_coin_deposited.clone()],
     )
     .unwrap();
-    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited, None).unwrap();
 
     let perp_size = SignedUint::from_str("400").unwrap();
 
@@ -1062,7 +1062,7 @@ fn setup(
         &[vault_coin_deposited.clone()],
     )
     .unwrap();
-    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited).unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited, None).unwrap();
 
     mock.update_credit_account(
         &trader_account_id,

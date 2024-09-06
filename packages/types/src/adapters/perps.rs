@@ -42,11 +42,17 @@ impl PerpsUnchecked {
 
 impl Perps {
     /// Generate message for deposit to perp vault
-    pub fn deposit_msg(&self, account_id: impl Into<String>, coin: &Coin) -> StdResult<CosmosMsg> {
+    pub fn deposit_msg(
+        &self,
+        account_id: impl Into<String>,
+        coin: &Coin,
+        max_shares_receivable: Option<Uint128>,
+    ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
             msg: to_json_binary(&ExecuteMsg::Deposit {
                 account_id: Some(account_id.into()),
+                max_shares_receivable,
             })?,
             funds: vec![coin.clone()],
         }))
@@ -69,11 +75,16 @@ impl Perps {
     }
 
     /// Generate message for withdraw from perp vault
-    pub fn withdraw_msg(&self, account_id: impl Into<String>) -> StdResult<CosmosMsg> {
+    pub fn withdraw_msg(
+        &self,
+        account_id: impl Into<String>,
+        min_receive: Option<Uint128>,
+    ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
             msg: to_json_binary(&ExecuteMsg::Withdraw {
                 account_id: Some(account_id.into()),
+                min_receive,
             })?,
             funds: vec![],
         }))

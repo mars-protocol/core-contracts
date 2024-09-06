@@ -25,8 +25,13 @@ fn accounting() {
     mock.set_price(&owner, "uusdc", base_denom_price).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(user),
+        None,
+        &[coin(1_000_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
 
     // init denoms
     mock.update_perp_params(

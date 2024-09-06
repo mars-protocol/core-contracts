@@ -366,8 +366,7 @@ export class Rover {
       [
         {
           deposit_to_perp_vault: {
-            denom,
-            amount: { exact: amount },
+            coin: { denom, amount: { exact: amount } },
           },
         },
       ],

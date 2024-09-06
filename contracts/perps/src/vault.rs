@@ -38,6 +38,7 @@ pub fn deposit(
     info: MessageInfo,
     current_time: u64,
     account_id: Option<String>,
+    max_shares_receivable: Option<Uint128>,
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
@@ -85,6 +86,15 @@ pub fn deposit(
         amount,
         ActionKind::Default,
     )?;
+
+    if let Some(msr) = max_shares_receivable {
+        if shares >= msr {
+            return Err(ContractError::MaximumReceiveExceeded {
+                max: msr,
+                found: shares,
+            });
+        }
+    }
 
     // Increment total liquidity and deposit shares
     vs.total_balance = vs.total_balance.checked_add(amount.into())?;
@@ -163,6 +173,7 @@ pub fn withdraw(
     info: MessageInfo,
     current_time: u64,
     account_id: Option<String>,
+    min_recieve: Option<Uint128>,
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
@@ -234,6 +245,17 @@ pub fn withdraw(
         total_unlocked_shares,
         ActionKind::Default,
     )?;
+
+    // Ensure slippage checks (if provided by user)
+    if let Some(min) = min_recieve {
+        if total_unlocked_amount < min {
+            return Err(ContractError::MinimumReceiveExceeded {
+                min,
+                found: total_unlocked_amount,
+                denom: cfg.base_denom,
+            });
+        }
+    }
 
     // Decrement total liquidity and deposit shares
     vs.total_balance = vs.total_balance.checked_sub(total_unlocked_amount.into())?;

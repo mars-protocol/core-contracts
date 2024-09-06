@@ -158,6 +158,7 @@ impl MockEnv {
         &mut self,
         sender: &Addr,
         account_id: Option<&str>,
+        max_shares_receivable: Option<Uint128>,
         funds: &[Coin],
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
@@ -165,6 +166,7 @@ impl MockEnv {
             self.perps.clone(),
             &perps::ExecuteMsg::Deposit {
                 account_id: account_id.map(|s| s.to_string()),
+                max_shares_receivable,
             },
             funds,
         )
@@ -191,12 +193,14 @@ impl MockEnv {
         &mut self,
         sender: &Addr,
         account_id: Option<&str>,
+        min_receive: Option<Uint128>,
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
             self.perps.clone(),
             &perps::ExecuteMsg::Withdraw {
                 account_id: account_id.map(|s| s.to_string()),
+                min_receive,
             },
             &[],
         )

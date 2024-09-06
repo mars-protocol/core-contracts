@@ -28,6 +28,7 @@ export type ExecuteMsg =
   | {
       deposit: {
         account_id?: string | null
+        max_shares_receivable?: Uint128 | null
       }
     }
   | {
@@ -39,6 +40,7 @@ export type ExecuteMsg =
   | {
       withdraw: {
         account_id?: string | null
+        min_receive?: Uint128 | null
       }
     }
   | {

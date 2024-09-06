@@ -132,6 +132,17 @@
                   "string",
                   "null"
                 ]
+              },
+              "max_shares_receivable": {
+                "description": "The maximum amount of shares received from the deposit action. This allows the user to protect themselves from unexpected slippage or directional exposure that can result from the vault having a negative PNL. If not provided, defaults to zero.",
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Uint128"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "additionalProperties": false
@@ -188,6 +199,17 @@
                 "type": [
                   "string",
                   "null"
+                ]
+              },
+              "min_receive": {
+                "description": "The minimum amount of base token to recieve from the withdraw action. Provided to protect user from unexpected slippage. If not provided, defaults to zero.",
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Uint128"
+                  },
+                  {
+                    "type": "null"
+                  }
                 ]
               }
             },

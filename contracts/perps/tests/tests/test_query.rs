@@ -55,8 +55,13 @@ fn query_market() {
     // Add some position to the perp market state
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &[denom1, base_denom]);
 
-    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(user),
+        None,
+        &[coin(1_000_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
 
     let amount = Uint128::from(200u32);
     let size = SignedUint::from(amount);
@@ -202,8 +207,13 @@ fn query_positions() {
     mock.set_price(&owner, "utia", Decimal::from_str("6.2").unwrap()).unwrap();
 
     // deposit some big number of uusdc to vault
-    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000u128, "uusdc")])
-        .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(user),
+        None,
+        &[coin(1_000_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
 
     // init denoms
     mock.update_perp_params(
