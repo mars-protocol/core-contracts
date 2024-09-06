@@ -109,8 +109,9 @@ impl HealthComputer {
             liquidation_threshold_adjusted_collateral,
             max_ltv_health_factor,
             liquidation_health_factor,
-            perp_pnl_profit: perp_hf_values.pnl_values.profit,
-            perp_pnl_losses: perp_hf_values.pnl_values.loss,
+            perps_pnl_profit: perp_hf_values.pnl_values.profit,
+            perps_pnl_losses: perp_hf_values.pnl_values.loss,
+            has_perps: !self.positions.perps.is_empty(),
         })
     }
 

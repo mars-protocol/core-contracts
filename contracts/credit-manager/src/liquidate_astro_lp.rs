@@ -1,4 +1,5 @@
 use cosmwasm_std::{Coin, DepsMut, Env, Response};
+use mars_types::health::HealthValuesResponse;
 
 use crate::{
     error::{ContractError::NoAstroLp, ContractResult},
@@ -15,6 +16,7 @@ pub fn liquidate_astro_lp(
     liquidatee_account_id: &str,
     debt_coin: Coin,
     request_coin_denom: &str,
+    prev_health: HealthValuesResponse,
 ) -> ContractResult<Response> {
     let incentives = INCENTIVES.load(deps.storage)?;
 
@@ -37,6 +39,7 @@ pub fn liquidate_astro_lp(
         &debt_coin,
         request_coin_denom,
         total_lp_amount,
+        prev_health,
     )?;
 
     // Rewards are not accounted for in the liquidation calculation (health computer includes

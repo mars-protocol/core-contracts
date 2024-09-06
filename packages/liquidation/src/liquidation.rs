@@ -42,8 +42,10 @@ pub fn calculate_liquidation_amounts(
     debt_params: &AssetParams,
     health: &Health,
 ) -> Result<(Uint128, Uint128, Uint128), LiquidationError> {
-    // if health.liquidatable == true, save to unwrap
-    let liquidation_health_factor = health.liquidation_health_factor.unwrap();
+    // After closing all perps positions, HF can become above 1 (liquidation_health_factor = None),
+    // however, the liquidation round continues.
+    // For such case we consider liquidation_health_factor = 1.
+    let liquidation_health_factor = health.liquidation_health_factor.unwrap_or(Decimal::one());
 
     let user_collateral_value = collateral_amount.checked_mul_floor(collateral_price)?;
 

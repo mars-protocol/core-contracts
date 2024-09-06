@@ -20,11 +20,11 @@ pub fn max_swap_prop_test_runner(cases: u32, kind: &SwapKind) {
                     if h.asset_params.len() < 2
                         || h.compute_health()
                             .unwrap()
-                            .perp_pnl_profit
+                            .perps_pnl_profit
                             .gt(&Uint128::new(1000000000000000u128))
                         || h.compute_health()
                             .unwrap()
-                            .perp_pnl_losses
+                            .perps_pnl_losses
                             .gt(&Uint128::new(1000000000000000u128))
                     {
                         false

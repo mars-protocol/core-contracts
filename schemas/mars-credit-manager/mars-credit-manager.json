@@ -1630,6 +1630,7 @@
                   "debt_coin",
                   "liquidatee_account_id",
                   "liquidator_account_id",
+                  "prev_health",
                   "request"
                 ],
                 "properties": {
@@ -1641,6 +1642,9 @@
                   },
                   "liquidator_account_id": {
                     "type": "string"
+                  },
+                  "prev_health": {
+                    "$ref": "#/definitions/HealthValuesResponse"
                   },
                   "request": {
                     "$ref": "#/definitions/LiquidateRequest_for_VaultBase_for_Addr"
@@ -2212,6 +2216,70 @@
             "additionalProperties": false
           }
         ]
+      },
+      "HealthValuesResponse": {
+        "type": "object",
+        "required": [
+          "above_max_ltv",
+          "has_perps",
+          "liquidatable",
+          "liquidation_threshold_adjusted_collateral",
+          "max_ltv_adjusted_collateral",
+          "perps_pnl_losses",
+          "perps_pnl_profit",
+          "total_collateral_value",
+          "total_debt_value"
+        ],
+        "properties": {
+          "above_max_ltv": {
+            "type": "boolean"
+          },
+          "has_perps": {
+            "type": "boolean"
+          },
+          "liquidatable": {
+            "type": "boolean"
+          },
+          "liquidation_health_factor": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "liquidation_threshold_adjusted_collateral": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "max_ltv_adjusted_collateral": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "max_ltv_health_factor": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perps_pnl_losses": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "perps_pnl_profit": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "total_collateral_value": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "total_debt_value": {
+            "$ref": "#/definitions/Uint128"
+          }
+        },
+        "additionalProperties": false
       },
       "IncentivesUnchecked": {
         "type": "string"

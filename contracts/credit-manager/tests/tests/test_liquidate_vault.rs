@@ -24,11 +24,12 @@ use super::helpers::{
 fn liquidatee_must_have_the_request_vault_position() {
     let uatom = uatom_info();
     let uosmo = uosmo_info();
+    let ujake = ujake_info();
     let leverage_vault = unlocked_vault_info();
 
     let liquidatee = Addr::unchecked("liquidatee");
     let mut mock = MockEnv::new()
-        .set_params(&[uatom.clone(), uosmo.clone()])
+        .set_params(&[uatom.clone(), uosmo.clone(), ujake.clone()])
         .vault_configs(&[leverage_vault.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),
@@ -42,10 +43,16 @@ fn liquidatee_must_have_the_request_vault_position() {
     mock.update_credit_account(
         &liquidatee_account_id,
         &liquidatee,
-        vec![Deposit(uatom.to_coin(200)), Deposit(uosmo.to_coin(400))],
+        vec![Deposit(uatom.to_coin(200)), Deposit(uosmo.to_coin(400)), Borrow(ujake.to_coin(175))],
         &[uatom.to_coin(200), uosmo.to_coin(400)],
     )
     .unwrap();
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Liquidation,
+        denom: ujake.denom.clone(),
+        price: Decimal::from_atomics(20u128, 0).unwrap(),
+    });
 
     let liquidator = Addr::unchecked("liquidator");
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -202,11 +209,12 @@ fn liquidator_does_not_have_debt_coin_in_credit_account() {
 #[test]
 fn wrong_position_type_sent_for_unlocked_vault() {
     let lp_token = lp_token_info();
+    let ujake = ujake_info();
     let leverage_vault = unlocked_vault_info();
 
     let liquidatee = Addr::unchecked("liquidatee");
     let mut mock = MockEnv::new()
-        .set_params(&[lp_token.clone()])
+        .set_params(&[lp_token.clone(), ujake.clone()])
         .vault_configs(&[leverage_vault.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),
@@ -227,10 +235,17 @@ fn wrong_position_type_sent_for_unlocked_vault() {
                 vault,
                 coin: lp_token.to_action_coin(200),
             },
+            Borrow(ujake.to_coin(175)),
         ],
         &[lp_token.to_coin(200)],
     )
     .unwrap();
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Liquidation,
+        denom: ujake.denom.clone(),
+        price: Decimal::from_atomics(20u128, 0).unwrap(),
+    });
 
     let liquidator = Addr::unchecked("liquidator");
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -272,10 +287,11 @@ fn wrong_position_type_sent_for_unlocked_vault() {
 fn wrong_position_type_sent_for_locked_vault() {
     let lp_token = lp_token_info();
     let leverage_vault = locked_vault_info();
+    let ujake = ujake_info();
 
     let liquidatee = Addr::unchecked("liquidatee");
     let mut mock = MockEnv::new()
-        .set_params(&[lp_token.clone()])
+        .set_params(&[lp_token.clone(), ujake.clone()])
         .vault_configs(&[leverage_vault.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),
@@ -296,10 +312,17 @@ fn wrong_position_type_sent_for_locked_vault() {
                 vault,
                 coin: lp_token.to_action_coin(200),
             },
+            Borrow(ujake.to_coin(175)),
         ],
         &[lp_token.to_coin(200)],
     )
     .unwrap();
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Liquidation,
+        denom: ujake.denom.clone(),
+        price: Decimal::from_atomics(20u128, 0).unwrap(),
+    });
 
     let liquidator = Addr::unchecked("liquidator");
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();

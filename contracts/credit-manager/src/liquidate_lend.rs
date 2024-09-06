@@ -1,4 +1,5 @@
 use cosmwasm_std::{Coin, DepsMut, Env, Response};
+use mars_types::health::HealthValuesResponse;
 
 use crate::{
     error::{ContractError::NoneLent, ContractResult},
@@ -15,6 +16,7 @@ pub fn liquidate_lend(
     liquidatee_account_id: &str,
     debt_coin: Coin,
     request_coin_denom: &str,
+    prev_health: HealthValuesResponse,
 ) -> ContractResult<Response> {
     // Check how much lent coin is available for reclaim (can be withdrawn from Red Bank)
     let total_lent_amount = RED_BANK.load(deps.storage)?.query_lent(
@@ -34,6 +36,7 @@ pub fn liquidate_lend(
         &debt_coin,
         request_coin_denom,
         total_lent_amount,
+        prev_health,
     )?;
 
     // Liquidator pays down debt on behalf of liquidatee

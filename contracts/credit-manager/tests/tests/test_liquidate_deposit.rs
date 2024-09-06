@@ -368,7 +368,7 @@ fn liquidator_left_in_unhealthy_state() {
         res,
         AboveMaxLTV {
             account_id: liquidator_account_id,
-            max_ltv_health_factor: "0.863136863136863136".to_string(),
+            max_ltv_health_factor: "0.864135864135864135".to_string(),
         },
     )
 }

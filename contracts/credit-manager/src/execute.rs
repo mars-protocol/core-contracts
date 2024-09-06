@@ -21,7 +21,7 @@ use crate::{
     health::{assert_max_ltv, query_health_state},
     hls::assert_hls_rules,
     lend::lend,
-    liquidate::assert_not_self_liquidation,
+    liquidate::{assert_not_self_liquidation, check_health},
     liquidate_astro_lp::liquidate_astro_lp,
     liquidate_deposit::liquidate_deposit,
     liquidate_lend::liquidate_lend,
@@ -271,11 +271,16 @@ pub fn dispatch_actions(
                 debt_coin,
                 request,
             } => {
-                // Close all perp positions before liquidating.
-                // This creates correct state for further liquidation. Health check uses correct position state.
-                callbacks.push(CallbackMsg::CloseAllPerps {
-                    account_id: liquidatee_account_id.to_string(),
-                });
+                assert_not_self_liquidation(account_id, &liquidatee_account_id)?;
+
+                let health = check_health(deps.as_ref(), env.clone(), &liquidatee_account_id)?;
+                if health.has_perps {
+                    // Close all perp positions before liquidating.
+                    // This creates the state of the account with only spot positions.
+                    callbacks.push(CallbackMsg::CloseAllPerps {
+                        account_id: liquidatee_account_id.to_string(),
+                    });
+                }
 
                 match request {
                     LiquidateRequest::Deposit(denom) => callbacks.push(CallbackMsg::Liquidate {
@@ -283,12 +288,14 @@ pub fn dispatch_actions(
                         liquidatee_account_id: liquidatee_account_id.to_string(),
                         debt_coin,
                         request: LiquidateRequest::Deposit(denom),
+                        prev_health: health,
                     }),
                     LiquidateRequest::Lend(denom) => callbacks.push(CallbackMsg::Liquidate {
                         liquidator_account_id: account_id.to_string(),
                         liquidatee_account_id: liquidatee_account_id.to_string(),
                         debt_coin,
                         request: LiquidateRequest::Lend(denom),
+                        prev_health: health,
                     }),
                     LiquidateRequest::Vault {
                         request_vault,
@@ -301,6 +308,7 @@ pub fn dispatch_actions(
                             request_vault: request_vault.check(deps.api)?,
                             position_type,
                         },
+                        prev_health: health,
                     }),
                     LiquidateRequest::StakedAstroLp(lp_denom) => {
                         callbacks.push(CallbackMsg::Liquidate {
@@ -308,6 +316,7 @@ pub fn dispatch_actions(
                             liquidatee_account_id: liquidatee_account_id.to_string(),
                             debt_coin,
                             request: LiquidateRequest::StakedAstroLp(lp_denom),
+                            prev_health: health,
                         })
                     }
                 }
@@ -587,47 +596,49 @@ pub fn execute_callback(
             liquidatee_account_id,
             debt_coin,
             request,
-        } => {
-            assert_not_self_liquidation(&liquidator_account_id, &liquidatee_account_id)?;
-            match request {
-                LiquidateRequest::Deposit(request_coin_denom) => liquidate_deposit(
-                    deps,
-                    env,
-                    &liquidator_account_id,
-                    &liquidatee_account_id,
-                    debt_coin,
-                    &request_coin_denom,
-                ),
-                LiquidateRequest::Lend(request_coin_denom) => liquidate_lend(
-                    deps,
-                    env,
-                    &liquidator_account_id,
-                    &liquidatee_account_id,
-                    debt_coin,
-                    &request_coin_denom,
-                ),
-                LiquidateRequest::Vault {
-                    request_vault,
-                    position_type,
-                } => liquidate_vault(
-                    deps,
-                    env,
-                    &liquidator_account_id,
-                    &liquidatee_account_id,
-                    debt_coin,
-                    request_vault,
-                    position_type,
-                ),
-                LiquidateRequest::StakedAstroLp(request_coin_denom) => liquidate_astro_lp(
-                    deps,
-                    env,
-                    &liquidator_account_id,
-                    &liquidatee_account_id,
-                    debt_coin,
-                    &request_coin_denom,
-                ),
-            }
-        }
+            prev_health,
+        } => match request {
+            LiquidateRequest::Deposit(request_coin_denom) => liquidate_deposit(
+                deps,
+                env,
+                &liquidator_account_id,
+                &liquidatee_account_id,
+                debt_coin,
+                &request_coin_denom,
+                prev_health,
+            ),
+            LiquidateRequest::Lend(request_coin_denom) => liquidate_lend(
+                deps,
+                env,
+                &liquidator_account_id,
+                &liquidatee_account_id,
+                debt_coin,
+                &request_coin_denom,
+                prev_health,
+            ),
+            LiquidateRequest::Vault {
+                request_vault,
+                position_type,
+            } => liquidate_vault(
+                deps,
+                env,
+                &liquidator_account_id,
+                &liquidatee_account_id,
+                debt_coin,
+                request_vault,
+                position_type,
+                prev_health,
+            ),
+            LiquidateRequest::StakedAstroLp(request_coin_denom) => liquidate_astro_lp(
+                deps,
+                env,
+                &liquidator_account_id,
+                &liquidatee_account_id,
+                debt_coin,
+                &request_coin_denom,
+                prev_health,
+            ),
+        },
         CallbackMsg::SwapExactIn {
             account_id,
             coin_in,

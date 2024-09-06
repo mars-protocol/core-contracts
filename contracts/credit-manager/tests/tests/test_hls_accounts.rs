@@ -348,6 +348,9 @@ fn successful_with_asset_correlations() {
             ),
             liquidatable: false,
             above_max_ltv: false,
+            perps_pnl_profit: Uint128::zero(),
+            perps_pnl_losses: Uint128::zero(),
+            has_perps: false,
         },
         hls_health
     );
@@ -426,6 +429,9 @@ fn successful_with_vault_correlations() {
             ),
             liquidatable: false,
             above_max_ltv: false,
+            perps_pnl_profit: Uint128::zero(),
+            perps_pnl_losses: Uint128::zero(),
+            has_perps: false,
         },
         hls_health
     );

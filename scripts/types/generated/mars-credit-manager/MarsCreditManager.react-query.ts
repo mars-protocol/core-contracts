@@ -50,6 +50,7 @@ import {
   ConfigUpdates,
   NftConfigUpdates,
   VaultBaseForAddr,
+  HealthValuesResponse,
   QueryMsg,
   ActionKind,
   VaultPositionAmount,

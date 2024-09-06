@@ -1,5 +1,5 @@
 use cosmwasm_std::{Coin, CosmosMsg, DepsMut, Env, Response, Storage};
-use mars_types::credit_manager::CallbackMsg;
+use mars_types::{credit_manager::CallbackMsg, health::HealthValuesResponse};
 
 use crate::{
     error::{ContractError, ContractResult},
@@ -15,6 +15,7 @@ pub fn liquidate_deposit(
     liquidatee_account_id: &str,
     debt_coin: Coin,
     request_coin_denom: &str,
+    prev_health: HealthValuesResponse,
 ) -> ContractResult<Response> {
     let request_coin_balance = COIN_BALANCES
         .load(deps.storage, (liquidatee_account_id, request_coin_denom))
@@ -27,6 +28,7 @@ pub fn liquidate_deposit(
         &debt_coin,
         request_coin_denom,
         request_coin_balance,
+        prev_health,
     )?;
 
     let repay_msg =

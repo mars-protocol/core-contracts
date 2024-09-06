@@ -8,7 +8,7 @@ use super::ConfigUpdates;
 use crate::{
     account_nft::NftConfigUpdates,
     adapters::vault::{Vault, VaultPositionType, VaultUnchecked},
-    health::{AccountKind, HealthState},
+    health::{AccountKind, HealthState, HealthValuesResponse},
     perps::PnL,
     signed_uint::SignedUint,
     swapper::SwapperRoute,
@@ -377,6 +377,7 @@ pub enum CallbackMsg {
         liquidatee_account_id: String,
         debt_coin: Coin,
         request: LiquidateRequest<Vault>,
+        prev_health: HealthValuesResponse,
     },
     /// Perform a swapper with an exact-in amount. Requires slippage allowance %.
     /// If `coin_in.amount: AccountBalance`, the accounts entire balance of `coin_in.denom` will be used.

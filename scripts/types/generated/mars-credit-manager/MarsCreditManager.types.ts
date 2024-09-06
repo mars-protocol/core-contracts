@@ -392,6 +392,7 @@ export type CallbackMsg =
         debt_coin: Coin
         liquidatee_account_id: string
         liquidator_account_id: string
+        prev_health: HealthValuesResponse
         request: LiquidateRequestForVaultBaseForAddr
       }
     }
@@ -549,6 +550,19 @@ export interface NftConfigUpdates {
 }
 export interface VaultBaseForAddr {
   address: Addr
+}
+export interface HealthValuesResponse {
+  above_max_ltv: boolean
+  has_perps: boolean
+  liquidatable: boolean
+  liquidation_health_factor?: Decimal | null
+  liquidation_threshold_adjusted_collateral: Uint128
+  max_ltv_adjusted_collateral: Uint128
+  max_ltv_health_factor?: Decimal | null
+  perps_pnl_losses: Uint128
+  perps_pnl_profit: Uint128
+  total_collateral_value: Uint128
+  total_debt_value: Uint128
 }
 export type QueryMsg =
   | {

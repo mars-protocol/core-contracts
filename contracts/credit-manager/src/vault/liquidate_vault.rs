@@ -2,9 +2,12 @@ use std::cmp::min;
 
 use cosmwasm_std::{Coin, Decimal, DepsMut, Env, Response, Uint128};
 use cw_vault_standard::VaultInfoResponse;
-use mars_types::adapters::vault::{
-    UnlockingChange, UnlockingPositions, UpdateType, Vault, VaultError, VaultPositionAmount,
-    VaultPositionType, VaultPositionUpdate,
+use mars_types::{
+    adapters::vault::{
+        UnlockingChange, UnlockingPositions, UpdateType, Vault, VaultError, VaultPositionAmount,
+        VaultPositionType, VaultPositionUpdate,
+    },
+    health::HealthValuesResponse,
 };
 
 use crate::{
@@ -21,6 +24,7 @@ pub fn liquidate_vault(
     debt_coin: Coin,
     request_vault: Vault,
     position_type: VaultPositionType,
+    prev_health: HealthValuesResponse,
 ) -> ContractResult<Response> {
     let liquidatee_position = VAULT_POSITIONS
         .load(deps.storage, (liquidatee_account_id, request_vault.address.clone()))?;
@@ -35,6 +39,7 @@ pub fn liquidate_vault(
                 debt_coin,
                 request_vault,
                 a.total(),
+                prev_health,
             ),
             _ => Err(VaultError::MismatchedVaultType.into()),
         },
@@ -47,6 +52,7 @@ pub fn liquidate_vault(
                 debt_coin,
                 request_vault,
                 a.locked.total(),
+                prev_health,
             ),
             VaultPositionType::UNLOCKING => liquidate_unlocking(
                 deps,
@@ -56,6 +62,7 @@ pub fn liquidate_vault(
                 debt_coin,
                 request_vault,
                 liquidatee_position.unlocking(),
+                prev_health,
             ),
             _ => Err(VaultError::MismatchedVaultType.into()),
         },
@@ -70,6 +77,7 @@ fn liquidate_unlocked(
     debt_coin: Coin,
     request_vault: Vault,
     amount: Uint128,
+    prev_health: HealthValuesResponse,
 ) -> ContractResult<Response> {
     let vault_info = request_vault.query_info(&deps.querier)?;
 
@@ -81,6 +89,7 @@ fn liquidate_unlocked(
         &request_vault,
         amount,
         &vault_info,
+        prev_health,
     )?;
 
     let repay_msg =
@@ -133,6 +142,7 @@ fn calculate_vault_liquidation(
     request_vault: &Vault,
     amount: Uint128,
     vault_info: &VaultInfoResponse,
+    prev_health: HealthValuesResponse,
 ) -> ContractResult<(Coin, Coin, Coin)> {
     let total_underlying = request_vault.query_preview_redeem(&deps.querier, amount)?;
     let (debt, mut liquidator_request, mut liquidatee_request) = calculate_liquidation(
@@ -142,6 +152,7 @@ fn calculate_vault_liquidation(
         debt_coin,
         &vault_info.base_token,
         total_underlying,
+        prev_health,
     )?;
     liquidatee_request.denom.clone_from(&vault_info.vault_token);
     liquidatee_request.amount =
@@ -160,6 +171,7 @@ fn liquidate_unlocking(
     debt_coin: Coin,
     request_vault: Vault,
     unlocking_positions: UnlockingPositions,
+    prev_health: HealthValuesResponse,
 ) -> ContractResult<Response> {
     let vault_info = request_vault.query_info(&deps.querier)?;
 
@@ -170,6 +182,7 @@ fn liquidate_unlocking(
         &debt_coin,
         &vault_info.base_token,
         unlocking_positions.total(),
+        prev_health,
     )?;
 
     let repay_msg =
@@ -236,6 +249,7 @@ fn liquidate_locked(
     debt_coin: Coin,
     request_vault: Vault,
     amount: Uint128,
+    prev_health: HealthValuesResponse,
 ) -> ContractResult<Response> {
     let vault_info = request_vault.query_info(&deps.querier)?;
 
@@ -247,6 +261,7 @@ fn liquidate_locked(
         &request_vault,
         amount,
         &vault_info,
+        prev_health,
     )?;
 
     let repay_msg =

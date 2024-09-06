@@ -20,24 +20,28 @@ pub struct Health {
     /// The sum of the value of all collaterals multiplied by their liquidation threshold over the total value of debt
     pub liquidation_health_factor: Option<Decimal>,
     /// The total of winning pnl positions
-    pub perp_pnl_profit: Uint128,
+    pub perps_pnl_profit: Uint128,
     /// the total of pnl losing positions
-    pub perp_pnl_losses: Uint128,
+    pub perps_pnl_losses: Uint128,
+    /// If the account has perps positions.
+    /// `perps_pnl_profit` and `perps_pnl_losses` could be zero even with perps (`BreakEven` case).
+    pub has_perps: bool,
 }
 
 impl fmt::Display for Health {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "(total_debt_value: {}, total_collateral_value: {},  max_ltv_adjusted_collateral: {}, lqdt_threshold_adjusted_collateral: {}, max_ltv_health_factor: {}, liquidation_health_factor: {}, pnl_profit : {}, pnl_losses : {})",
+            "(total_debt_value: {}, total_collateral_value: {},  max_ltv_adjusted_collateral: {}, lqdt_threshold_adjusted_collateral: {}, max_ltv_health_factor: {}, liquidation_health_factor: {}, pnl_profit : {}, pnl_losses : {}, has_perps: {})",
             self.total_debt_value,
             self.total_collateral_value,
             self.max_ltv_adjusted_collateral,
             self.liquidation_threshold_adjusted_collateral,
             self.max_ltv_health_factor.map_or("n/a".to_string(), |x| x.to_string()),
             self.liquidation_health_factor.map_or("n/a".to_string(), |x| x.to_string()),
-            self.perp_pnl_profit,
-            self.perp_pnl_losses
+            self.perps_pnl_profit,
+            self.perps_pnl_losses,
+            self.has_perps
         )
     }
 }
@@ -68,8 +72,11 @@ pub struct HealthValuesResponse {
     pub liquidation_threshold_adjusted_collateral: Uint128,
     pub max_ltv_health_factor: Option<Decimal>,
     pub liquidation_health_factor: Option<Decimal>,
+    pub perps_pnl_profit: Uint128,
+    pub perps_pnl_losses: Uint128,
     pub liquidatable: bool,
     pub above_max_ltv: bool,
+    pub has_perps: bool,
 }
 
 impl From<Health> for HealthValuesResponse {
@@ -81,8 +88,11 @@ impl From<Health> for HealthValuesResponse {
             liquidation_threshold_adjusted_collateral: h.liquidation_threshold_adjusted_collateral,
             max_ltv_health_factor: h.max_ltv_health_factor,
             liquidation_health_factor: h.liquidation_health_factor,
+            perps_pnl_profit: h.perps_pnl_profit,
+            perps_pnl_losses: h.perps_pnl_losses,
             liquidatable: h.is_liquidatable(),
             above_max_ltv: h.is_above_max_ltv(),
+            has_perps: h.has_perps,
         }
     }
 }

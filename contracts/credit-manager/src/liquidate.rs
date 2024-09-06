@@ -1,6 +1,8 @@
-use cosmwasm_std::{Coin, DepsMut, Env, QuerierWrapper, Uint128};
+use cosmwasm_std::{Coin, Deps, DepsMut, Env, QuerierWrapper, Uint128};
 use mars_liquidation::liquidation::calculate_liquidation_amounts;
-use mars_types::{adapters::oracle::Oracle, oracle::ActionKind, traits::Stringify};
+use mars_types::{
+    adapters::oracle::Oracle, health::HealthValuesResponse, oracle::ActionKind, traits::Stringify,
+};
 
 use crate::{
     error::{ContractError, ContractResult},
@@ -8,6 +10,26 @@ use crate::{
     repay::current_debt_for_denom,
     state::{ORACLE, PARAMS},
 };
+
+/// Checks if the liquidatee's credit account is liquidatable.
+/// If not, returns an error.
+/// If liquidatable, returns the health values.
+pub fn check_health(
+    deps: Deps,
+    env: Env,
+    liquidatee_account_id: &str,
+) -> ContractResult<HealthValuesResponse> {
+    // Assert the liquidatee's credit account is liquidatable
+    let health = query_health_values(deps, env, liquidatee_account_id, ActionKind::Liquidation)?;
+    if !health.liquidatable {
+        return Err(ContractError::NotLiquidatable {
+            account_id: liquidatee_account_id.to_string(),
+            lqdt_health_factor: health.liquidation_health_factor.to_string(),
+        });
+    }
+
+    Ok(health)
+}
 
 /// Calculates precise debt, request coin amounts to liquidate, request coin transfered to liquidator and rewards-collector.
 /// The debt amount will be adjusted down if:
@@ -23,16 +45,16 @@ pub fn calculate_liquidation(
     debt_coin: &Coin,
     request_coin: &str,
     request_coin_balance: Uint128,
+    prev_health: HealthValuesResponse,
 ) -> ContractResult<(Coin, Coin, Coin)> {
-    // Assert the liquidatee's credit account is liquidatable
-    let health =
-        query_health_values(deps.as_ref(), env, liquidatee_account_id, ActionKind::Liquidation)?;
-    if !health.liquidatable {
-        return Err(ContractError::NotLiquidatable {
-            account_id: liquidatee_account_id.to_string(),
-            lqdt_health_factor: health.liquidation_health_factor.to_string(),
-        });
-    }
+    // If the account held perps positions before liquidation started, we close those positions first.
+    // Now that only spot assets remain, we need to query the health values again to get an updated view without the perps.
+    // Note: Even if closing the perps improves the health factor enough to avoid liquidation, we still continue with the liquidation process.
+    let health = if prev_health.has_perps {
+        query_health_values(deps.as_ref(), env, liquidatee_account_id, ActionKind::Liquidation)?
+    } else {
+        prev_health
+    };
 
     // Ensure debt repaid does not exceed liquidatee's total debt for denom
     let (total_debt_amount, _) =
