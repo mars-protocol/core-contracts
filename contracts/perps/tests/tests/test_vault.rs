@@ -1016,7 +1016,7 @@ fn cannot_withdraw_if_cr_decreases_below_threshold() {
     assert_err(
         res,
         ContractError::VaultUndercollateralized {
-            current_cr: Decimal::from_str("1.250260688216892596").unwrap(),
+            current_cr: Decimal::from_str("1.249609171443460135").unwrap(),
             threshold_cr: target_collateralization_ratio,
         },
     );

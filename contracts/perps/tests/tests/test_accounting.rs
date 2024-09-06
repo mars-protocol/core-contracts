@@ -1,6 +1,7 @@
 use std::{cmp::max, str::FromStr};
 
-use cosmwasm_std::{coin, Coin, Decimal};
+use cosmwasm_std::{coin, Coin, Decimal, Uint128};
+use mars_perps::error::ContractError;
 use mars_types::{
     params::{PerpParams, PerpParamsUpdate},
     perps::{Accounting, Balance, CashFlow, PerpPosition, PnL, VaultResponse},
@@ -320,4 +321,99 @@ fn assert_vault(mock: &MockEnv, vault_before: &VaultResponse) {
             collateralization_ratio
         }
     );
+}
+
+/// This test ensures that the accounting system handles markets where the denom (asset) has a large number of decimals.
+/// The test alternates between opening long and short positions until the long open interest (OI) limit is reached.
+/// Since the long and short OI limits are symmetric, reaching the long OI limit is sufficient to verify that the system
+/// handles both long and short OI correctly.
+#[test]
+fn accounting_works_up_to_oi_limits() {
+    // Initialize the mock environment and build the necessary contracts
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+
+    // Fund the credit manager's account with a large amount of tokens.
+    // These funds will be used when closing a losing position.
+    mock.fund_accounts(&[&credit_manager], u128::MAX, &["untrn", "ueth", "uusdc"]);
+
+    // Set the initial prices for the assets (uusdc, untrn, ueth).
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9998").unwrap()).unwrap();
+    mock.set_price(&owner, "untrn", Decimal::from_str("1.25").unwrap()).unwrap();
+    mock.set_price(&owner, "ueth", Decimal::from_str("0.000000002389095541").unwrap()).unwrap();
+
+    // Deposit a large amount of uusdc to the vault on behalf of the user.
+    mock.deposit_to_vault(&credit_manager, Some(user), &[coin(1_000_000_000_000_000u128, "uusdc")])
+        .unwrap();
+
+    // Initialize perpetual market parameters for ueth (Ethereum).
+    // Set the maximum long open interest value (max_long_oi_value) and other parameters for ueth.
+    let eth_max_long_oi_value = Uint128::new(19093576000000);
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                denom: "ueth".to_string(),
+                enabled: true,
+                max_net_oi_value: Uint128::new(86049000000),
+                max_long_oi_value: eth_max_long_oi_value,
+                max_short_oi_value: Uint128::new(19093576000000),
+                closing_fee_rate: Decimal::from_str("0.00075").unwrap(),
+                opening_fee_rate: Decimal::from_str("0.00075").unwrap(),
+                liquidation_threshold: Decimal::from_str("0.91").unwrap(),
+                max_loan_to_value: Decimal::from_str("0.90").unwrap(),
+                max_position_value: None,
+                min_position_value: Uint128::zero(),
+                max_funding_velocity: Decimal::from_str("36").unwrap(),
+                skew_scale: Uint128::new(1186268000000000000000000u128),
+            },
+        },
+    );
+
+    // This loop will open long and short positions alternately until the long open interest limit is reached.
+    // Start with a long position, then alternate with short positions.
+    #[allow(unused_assignments)]
+    let mut contract_err: Option<ContractError> = None;
+    let mut acc_id = 1;
+    let mut eth_size = SignedUint::from_str("10000000000000000000").unwrap();
+
+    loop {
+        // Query the opening fee for the given size of the position (eth_size).
+        let eth_opening_fee = mock.query_opening_fee("ueth", eth_size).fee;
+
+        // Attempt to execute a perpetual order using the credit manager for the current position size.
+        let res = mock.execute_perp_order(
+            &credit_manager,
+            acc_id.to_string().as_str(),
+            "ueth",
+            eth_size,
+            None,
+            &[eth_opening_fee.clone()],
+        );
+
+        // Query the accounting details (positions, open interest, etc.) after opening the position to verify it was successful.
+        mock.query_total_accounting();
+        mock.query_vault();
+
+        // If the execution of the order fails, capture the error and break the loop.
+        if let Err(generic_err) = res {
+            let err: ContractError = generic_err.downcast().unwrap();
+            println!("Error: {:?}", err);
+            contract_err = Some(err);
+            break;
+        }
+
+        // Advance the time in the mock environment by 5 seconds.
+        mock.increment_by_time(5);
+
+        // Increment account ID for the next position and alternate the position size (long/short).
+        acc_id += 1;
+        eth_size = SignedUint::zero().checked_sub(eth_size).unwrap(); // Alternate between positive and negative sizes.
+    }
+
+    // Assert that the final error is due to reaching the long open interest limit.
+    assert!(matches!(contract_err, Some(ContractError::LongOpenInterestReached { .. })));
 }

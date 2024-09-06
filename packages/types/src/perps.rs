@@ -4,7 +4,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     coin, Addr, Api, CheckedFromRatioError, CheckedMultiplyFractionError,
     CheckedMultiplyRatioError, Coin, Decimal, DecimalRangeExceeded, OverflowError, StdError,
-    StdResult, Uint128,
+    StdResult, Uint128, Uint256,
 };
 use mars_owner::OwnerUpdate;
 use thiserror::Error;
@@ -225,7 +225,7 @@ pub struct MarketState {
     /// pos_1_size^2 + pos_2_size^2 + ...
     /// if a position is closed, the accumulated squared position is removed from the accumulator:
     /// pos_1_size^2 + pos_2_size^2 + ... - pos_1_size^2
-    pub total_squared_positions: SignedUint, // TODO consider Uint256
+    pub total_squared_positions: Uint256,
 
     /// The accumulated absolute multiplied positions, calculated for open positions as:
     /// pos_1_size * |pos_1_size| + pos_2_size * |pos_2_size| + ...

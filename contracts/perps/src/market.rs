@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{Decimal, Deps, Order, Uint128};
+use cosmwasm_std::{
+    Decimal, Deps, Fraction, Int256, Int512, Order, SignedDecimal256, Uint128, Uint256,
+};
 use mars_types::{
     adapters::oracle::Oracle,
     math::SignedDecimal,
@@ -423,19 +425,24 @@ impl MarketStateExt for MarketState {
         // val_4 = exit_price * val_3
         // finally:
         // val_1 + val_4
-        let val_1 =
-            skew.checked_mul_floor(exit_price.into())?.checked_sub(self.total_entry_cost)?;
-        let skew_squared = skew.checked_mul(skew)?;
-        let val_2 = skew_squared
-            .checked_mul(Uint128::new(2u128).into())?
-            .checked_sub(self.total_squared_positions)?;
-        let two_times_skew_scale = Uint128::new(2u128).checked_mul(self.funding.skew_scale)?;
-        let val_3 = SignedDecimal::checked_from_ratio(val_2, two_times_skew_scale.into())?;
-        // Rounding errors here after rewriting the formula
-        let val_4: SignedUint = val_3.checked_mul(exit_price.into())?.to_signed_uint_floor();
+        let val_1 = Int256::from_str(&skew.to_string())?
+            .checked_multiply_ratio(exit_price.numerator(), exit_price.denominator())?
+            .checked_sub(Int256::from_str(&self.total_entry_cost.to_string())?)?;
+        let skew_squared = Uint256::from(skew.abs).checked_pow(2)?;
+        let two_times_skew_squared = Uint256::from(2u128).checked_mul(skew_squared)?;
+        let val_2 = Int512::from(two_times_skew_squared)
+            .checked_sub(self.total_squared_positions.into())?;
+        let val_2 = Int256::try_from(val_2)?;
+        let two_times_skew_scale =
+            Int256::from(2i128).checked_mul(self.funding.skew_scale.into())?;
+        let val_3 = SignedDecimal256::checked_from_ratio(val_2, two_times_skew_scale)?;
+        let val_4 = val_3.checked_mul(exit_price.into())?.to_int_floor();
         let price_pnl = val_1.checked_add(val_4)?;
-
-        Ok(price_pnl)
+        let price_pnl_signed = SignedUint {
+            negative: price_pnl.is_negative(),
+            abs: Uint128::try_from(price_pnl.unsigned_abs())?,
+        };
+        Ok(price_pnl_signed)
     }
 
     fn compute_closing_fee(
@@ -463,16 +470,24 @@ impl MarketStateExt for MarketState {
         // finally:
         // val_1 * (val_4 - total_size)
         let val_1 = closing_fee_rate.checked_mul(exit_price)?;
-        let val_2 = skew.checked_mul(total_size.checked_mul(Uint128::new(2u128))?.into())?;
-        let val_3 = self.total_abs_multiplied_positions.checked_sub(val_2)?;
-        let two_times_skew_scale = Uint128::new(2u128).checked_mul(self.funding.skew_scale)?;
+        let val_2 = Int256::from(2i128)
+            .checked_mul(Int256::from_str(&skew.to_string())?)?
+            .checked_mul(total_size.into())?;
+        let val_3 = Int256::from_str(&self.total_abs_multiplied_positions.to_string())?
+            .checked_sub(val_2)?;
+        let two_times_skew_scale =
+            Int256::from(2i128).checked_mul(self.funding.skew_scale.into())?;
         // Rounding errors here after rewriting the formula
-        let val_4: SignedUint =
-            SignedDecimal::checked_from_ratio(val_3, two_times_skew_scale.into())?
-                .to_signed_uint_floor();
-        let closing_fee = val_4.checked_sub(total_size.into())?.checked_mul_floor(val_1.into())?;
-
-        Ok(closing_fee)
+        let val_4 =
+            SignedDecimal256::checked_from_ratio(val_3, two_times_skew_scale)?.to_int_floor();
+        let closing_fee = val_4
+            .checked_sub(total_size.into())?
+            .checked_multiply_ratio(val_1.numerator(), val_1.denominator())?;
+        let closing_fee_signed = SignedUint {
+            negative: closing_fee.is_negative(),
+            abs: Uint128::try_from(closing_fee.unsigned_abs())?,
+        };
+        Ok(closing_fee_signed)
     }
 
     fn compute_accrued_funding(
@@ -872,7 +887,7 @@ mod tests {
                 },
                 total_entry_cost: SignedUint::from_str("-435810").unwrap(),
                 total_entry_funding: SignedUint::from_str("-7791").unwrap(),
-                total_squared_positions: SignedUint::from_str("25425").unwrap(),
+                total_squared_positions: Uint256::from_str("25425").unwrap(),
                 total_abs_multiplied_positions: SignedUint::from_str("-11250").unwrap(),
                 short_oi: ds_before_modification.short_oi + Uint128::new(105u128),
                 last_updated: 43400,
@@ -913,7 +928,7 @@ mod tests {
                 },
                 total_entry_cost: SignedUint::from_str("435560").unwrap(),
                 total_entry_funding: SignedUint::from_str("8327").unwrap(),
-                total_squared_positions: SignedUint::from_str("3375").unwrap(),
+                total_squared_positions: Uint256::from_str("3375").unwrap(),
                 total_abs_multiplied_positions: SignedUint::from_str("10800").unwrap(),
                 short_oi: ds_before_modification.short_oi - Uint128::new(105u128),
                 last_updated: 43400,
@@ -1105,7 +1120,7 @@ mod tests {
             last_updated: 200,
             total_entry_cost: SignedUint::from_str("-125").unwrap(),
             total_entry_funding: SignedUint::from_str("268").unwrap(),
-            total_squared_positions: SignedUint::from_str("14400").unwrap(),
+            total_squared_positions: Uint256::from_str("14400").unwrap(),
             total_abs_multiplied_positions: SignedUint::from_str("-225").unwrap(),
             cash_flow: CashFlow::default(),
         }

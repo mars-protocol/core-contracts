@@ -28,6 +28,7 @@ import {
   Balance,
   CashFlow,
   PnlAmounts,
+  Uint256,
   MarketStateResponse,
   Funding,
   PaginationResponseForMarketResponse,

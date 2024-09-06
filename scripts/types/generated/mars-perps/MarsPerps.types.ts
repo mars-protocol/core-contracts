@@ -256,6 +256,7 @@ export interface PnlAmounts {
   pnl: SignedUint
   price_pnl: SignedUint
 }
+export type Uint256 = string
 export interface MarketStateResponse {
   cash_flow: CashFlow
   denom: string
@@ -267,7 +268,7 @@ export interface MarketStateResponse {
   total_abs_multiplied_positions: SignedUint
   total_entry_cost: SignedUint
   total_entry_funding: SignedUint
-  total_squared_positions: SignedUint
+  total_squared_positions: Uint256
 }
 export interface Funding {
   last_funding_accrued_per_unit_in_base_denom: SignedDecimal
