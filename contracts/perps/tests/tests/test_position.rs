@@ -2172,6 +2172,7 @@ fn close_all_positions(
         opening_fee: SignedUint::zero().checked_sub(user_realized_pnl.opening_fee).unwrap(),
         closing_fee: SignedUint::zero().checked_sub(user_realized_pnl.closing_fee).unwrap(),
         accrued_funding: SignedUint::zero().checked_sub(user_realized_pnl.accrued_funding).unwrap(),
+        protocol_fee: Uint128::zero(),
     };
     assert_eq!(
         accounting,

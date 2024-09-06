@@ -13,7 +13,8 @@ use crate::tests::helpers::{default_perp_params, ONE_HOUR_SEC};
 
 #[test]
 fn accounting() {
-    let mut mock = MockEnv::new().build().unwrap();
+    let protocol_fee_rate = Decimal::percent(2);
+    let mut mock = MockEnv::new().protocol_fee_rate(protocol_fee_rate).build().unwrap();
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
@@ -75,6 +76,9 @@ fn accounting() {
     // open few positions for account 1
     let osmo_size = SignedUint::from_str("10000000").unwrap();
     let osmo_opening_fee = mock.query_opening_fee("uosmo", osmo_size).fee;
+    let osmo_opening_protocol_fee =
+        osmo_opening_fee.amount.checked_mul_ceil(protocol_fee_rate).unwrap();
+    assert!(!osmo_opening_protocol_fee.is_zero());
     mock.execute_perp_order(
         &credit_manager,
         "1",
@@ -86,6 +90,9 @@ fn accounting() {
     .unwrap();
     let atom_size = SignedUint::from_str("-260000").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", atom_size).fee;
+    let atom_opening_protocol_fee =
+        atom_opening_fee.amount.checked_mul_ceil(protocol_fee_rate).unwrap();
+    assert!(!atom_opening_protocol_fee.is_zero());
     mock.execute_perp_order(
         &credit_manager,
         "1",
@@ -104,7 +111,10 @@ fn accounting() {
     assert_eq!(
         osmo_accounting.cash_flow,
         CashFlow {
-            opening_fee: SignedUint::from(osmo_opening_fee.amount),
+            opening_fee: SignedUint::from(osmo_opening_fee.amount)
+                .checked_sub(osmo_opening_protocol_fee.into())
+                .unwrap(),
+            protocol_fee: osmo_opening_protocol_fee,
             ..Default::default()
         }
     );
@@ -112,7 +122,10 @@ fn accounting() {
     assert_eq!(
         atom_accounting.cash_flow,
         CashFlow {
-            opening_fee: SignedUint::from(atom_opening_fee.amount),
+            opening_fee: SignedUint::from(atom_opening_fee.amount)
+                .checked_sub(atom_opening_protocol_fee.into())
+                .unwrap(),
+            protocol_fee: atom_opening_protocol_fee,
             ..Default::default()
         }
     );
@@ -120,7 +133,10 @@ fn accounting() {
     assert_eq!(
         total_accounting.cash_flow,
         CashFlow {
-            opening_fee: SignedUint::from(osmo_opening_fee.amount + atom_opening_fee.amount),
+            opening_fee: SignedUint::from(osmo_opening_fee.amount + atom_opening_fee.amount)
+                .checked_sub((osmo_opening_protocol_fee + atom_opening_protocol_fee).into())
+                .unwrap(),
+            protocol_fee: osmo_opening_protocol_fee.checked_add(atom_opening_protocol_fee).unwrap(),
             ..Default::default()
         }
     );
@@ -135,6 +151,8 @@ fn accounting() {
     let vault_state_before_closing = mock.query_vault();
 
     // close uosmo position
+    let fees = mock.query_position_fees("1", "uosmo", SignedUint::zero());
+    let osmo_closing_protocol_fee = fees.closing_fee.checked_mul_ceil(protocol_fee_rate).unwrap();
     let pos = mock.query_position("1", "uosmo");
     mock.execute_perp_order(
         &credit_manager,
@@ -169,13 +187,19 @@ fn accounting() {
         osmo_realized_pnl.accrued_funding.negative,
         osmo_accounting.cash_flow.accrued_funding.negative
     );
-    assert_eq!(osmo_realized_pnl.opening_fee.abs, osmo_accounting.cash_flow.opening_fee.abs);
+    assert_eq!(
+        osmo_realized_pnl.opening_fee.abs,
+        osmo_accounting.cash_flow.opening_fee.abs + osmo_opening_protocol_fee
+    );
     assert!(osmo_realized_pnl.opening_fee.negative);
     assert_ne!(
         osmo_realized_pnl.opening_fee.negative,
         osmo_accounting.cash_flow.opening_fee.negative
     );
-    assert_eq!(osmo_realized_pnl.closing_fee.abs, osmo_accounting.cash_flow.closing_fee.abs);
+    assert_eq!(
+        osmo_realized_pnl.closing_fee.abs,
+        osmo_accounting.cash_flow.closing_fee.abs + osmo_closing_protocol_fee
+    );
     assert!(osmo_realized_pnl.closing_fee.negative);
     assert_ne!(
         osmo_realized_pnl.closing_fee.negative,
@@ -191,6 +215,8 @@ fn accounting() {
     let vault_state_before_closing = mock.query_vault();
 
     // close uatom position
+    let fees = mock.query_position_fees("1", "uatom", SignedUint::zero());
+    let atom_closing_protocol_fee = fees.closing_fee.checked_mul_ceil(protocol_fee_rate).unwrap();
     let pos = mock.query_position("1", "uatom");
     mock.execute_perp_order(
         &credit_manager,
@@ -225,13 +251,19 @@ fn accounting() {
         atom_realized_pnl.accrued_funding.negative,
         atom_accounting.cash_flow.accrued_funding.negative
     );
-    assert_eq!(atom_realized_pnl.opening_fee.abs, atom_accounting.cash_flow.opening_fee.abs);
+    assert_eq!(
+        atom_realized_pnl.opening_fee.abs,
+        atom_accounting.cash_flow.opening_fee.abs + atom_opening_protocol_fee
+    );
     assert!(atom_realized_pnl.opening_fee.negative);
     assert_ne!(
         atom_realized_pnl.opening_fee.negative,
         atom_accounting.cash_flow.opening_fee.negative
     );
-    assert_eq!(atom_realized_pnl.closing_fee.abs, atom_accounting.cash_flow.closing_fee.abs);
+    assert_eq!(
+        atom_realized_pnl.closing_fee.abs,
+        atom_accounting.cash_flow.closing_fee.abs + atom_closing_protocol_fee
+    );
     assert!(atom_realized_pnl.closing_fee.negative);
     assert_ne!(
         atom_realized_pnl.closing_fee.negative,
@@ -272,6 +304,7 @@ fn add_cash_flows(a: &CashFlow, b: &CashFlow) -> CashFlow {
         opening_fee: a.opening_fee.checked_add(b.opening_fee).unwrap(),
         closing_fee: a.closing_fee.checked_add(b.closing_fee).unwrap(),
         accrued_funding: a.accrued_funding.checked_add(b.accrued_funding).unwrap(),
+        protocol_fee: a.protocol_fee.checked_add(b.protocol_fee).unwrap(),
     }
 }
 

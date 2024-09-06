@@ -12,11 +12,8 @@ use mars_types::{
 use crate::error::ContractResult;
 
 pub trait CashFlowExt {
-    /// Update the cash flow opening fees with the given amount
-    fn add_opening_fee(&mut self, opening_fee: Uint128) -> ContractResult<()>;
-
     /// Update the cash flow with the given amounts
-    fn add(&mut self, amounts: &PnlAmounts) -> ContractResult<()>;
+    fn add(&mut self, amounts: &PnlAmounts, protocol_fee: Uint128) -> ContractResult<()>;
 }
 
 pub trait BalanceExt {
@@ -40,18 +37,15 @@ pub trait AccountingExt {
 }
 
 impl CashFlowExt for CashFlow {
-    fn add_opening_fee(&mut self, opening_fee: Uint128) -> ContractResult<()> {
-        self.opening_fee = self.opening_fee.checked_add(opening_fee.into())?;
-        Ok(())
-    }
-
-    fn add(&mut self, amounts: &PnlAmounts) -> ContractResult<()> {
+    fn add(&mut self, amounts: &PnlAmounts, protocol_fee: Uint128) -> ContractResult<()> {
         // Account profit is vault loss and vice versa.
         // If values are positive, vault is losing money.
+        // Protocol fee is always profit for the protocol, so positive.
         self.price_pnl = self.price_pnl.checked_sub(amounts.price_pnl)?;
         self.accrued_funding = self.accrued_funding.checked_sub(amounts.accrued_funding)?;
         self.opening_fee = self.opening_fee.checked_sub(amounts.opening_fee)?;
         self.closing_fee = self.closing_fee.checked_sub(amounts.closing_fee)?;
+        self.protocol_fee = self.protocol_fee.checked_add(protocol_fee)?;
         Ok(())
     }
 }
@@ -135,28 +129,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn update_cash_flow_with_opening_fee() {
-        let mut cf = CashFlow::default();
-
-        let opening_fee = Uint128::new(120);
-        cf.add_opening_fee(opening_fee).unwrap();
-
-        assert_eq!(
-            cf,
-            CashFlow {
-                opening_fee: SignedUint::from(opening_fee),
-                ..Default::default()
-            }
-        );
-    }
-
-    #[test]
     fn update_cash_flow() {
         let opening_fee = Uint128::new(120);
         let mut cf = CashFlow {
             opening_fee: SignedUint::from(opening_fee),
             ..Default::default()
         };
+
+        let protocol_fee = Uint128::from_str("50").unwrap();
 
         // update with negative numbers
         let amounts = PnlAmounts {
@@ -166,7 +146,8 @@ mod tests {
             closing_fee: SignedUint::from_str("-400").unwrap(),
             pnl: SignedUint::from_str("-800").unwrap(),
         };
-        cf.add(&amounts).unwrap();
+
+        cf.add(&amounts, protocol_fee).unwrap();
         assert_eq!(
             cf,
             CashFlow {
@@ -174,8 +155,11 @@ mod tests {
                 price_pnl: SignedUint::from_str("100").unwrap(),
                 accrued_funding: SignedUint::from_str("300").unwrap(),
                 closing_fee: SignedUint::from_str("400").unwrap(),
+                protocol_fee: Uint128::from_str("50").unwrap(),
             }
         );
+
+        let protocol_fee = Uint128::from_str("25").unwrap();
 
         // update with positive numbers
         let amounts = PnlAmounts {
@@ -185,7 +169,7 @@ mod tests {
             closing_fee: SignedUint::from_str("430").unwrap(),
             pnl: SignedUint::from_str("900").unwrap(),
         };
-        cf.add(&amounts).unwrap();
+        cf.add(&amounts, protocol_fee).unwrap();
         assert_eq!(
             cf,
             CashFlow {
@@ -193,6 +177,7 @@ mod tests {
                 price_pnl: SignedUint::from_str("-50").unwrap(),
                 accrued_funding: SignedUint::from_str("-20").unwrap(),
                 closing_fee: SignedUint::from_str("-30").unwrap(),
+                protocol_fee: Uint128::from_str("75").unwrap(),
             }
         );
     }
@@ -204,6 +189,7 @@ mod tests {
             price_pnl: SignedUint::from_str("300").unwrap(),
             accrued_funding: SignedUint::from_str("200").unwrap(),
             closing_fee: SignedUint::from_str("50").unwrap(),
+            protocol_fee: Uint128::from_str("25").unwrap(),
         };
 
         // compute balance with positive numbers
@@ -250,6 +236,7 @@ mod tests {
             price_pnl: SignedUint::from_str("300").unwrap(),
             accrued_funding: SignedUint::from_str("200").unwrap(),
             closing_fee: SignedUint::from_str("50").unwrap(),
+            protocol_fee: Uint128::from_str("40").unwrap(),
         };
 
         // compute withdrawal balance with positive numbers
@@ -298,6 +285,7 @@ mod tests {
             price_pnl: SignedUint::from_str("300").unwrap(),
             accrued_funding: SignedUint::from_str("200").unwrap(),
             closing_fee: SignedUint::from_str("50").unwrap(),
+            protocol_fee: Uint128::from_str("40").unwrap(),
         };
         let unrealized_pnl = PnlAmounts {
             price_pnl: SignedUint::from_str("-400").unwrap(),

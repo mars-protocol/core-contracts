@@ -248,6 +248,7 @@ export interface CashFlow {
   closing_fee: SignedUint
   opening_fee: SignedUint
   price_pnl: SignedUint
+  protocol_fee: Uint128
 }
 export interface PnlAmounts {
   accrued_funding: SignedUint

@@ -617,10 +617,10 @@ pub fn apply_pnl_and_fees(
     };
 
     // Apply pnl to denom cash flow (without protocol fee)
-    ms.cash_flow.add(&pnl_without_protocol_fee)?;
+    ms.cash_flow.add(&pnl_without_protocol_fee, total_protocol_fee)?;
 
     // Apply pnl to total cash flow (without protocol fee)
-    tcf.add(&pnl_without_protocol_fee)?;
+    tcf.add(&pnl_without_protocol_fee, total_protocol_fee)?;
 
     Ok(response
         .add_attribute("protocol_opening_fee", protocol_opening_fee.to_string())

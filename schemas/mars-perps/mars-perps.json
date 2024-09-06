@@ -1346,7 +1346,8 @@
             "accrued_funding",
             "closing_fee",
             "opening_fee",
-            "price_pnl"
+            "price_pnl",
+            "protocol_fee"
           ],
           "properties": {
             "accrued_funding": {
@@ -1360,6 +1361,9 @@
             },
             "price_pnl": {
               "$ref": "#/definitions/SignedUint"
+            },
+            "protocol_fee": {
+              "$ref": "#/definitions/Uint128"
             }
           },
           "additionalProperties": false
@@ -1525,7 +1529,8 @@
             "accrued_funding",
             "closing_fee",
             "opening_fee",
-            "price_pnl"
+            "price_pnl",
+            "protocol_fee"
           ],
           "properties": {
             "accrued_funding": {
@@ -1539,6 +1544,9 @@
             },
             "price_pnl": {
               "$ref": "#/definitions/SignedUint"
+            },
+            "protocol_fee": {
+              "$ref": "#/definitions/Uint128"
             }
           },
           "additionalProperties": false
@@ -2401,7 +2409,8 @@
             "accrued_funding",
             "closing_fee",
             "opening_fee",
-            "price_pnl"
+            "price_pnl",
+            "protocol_fee"
           ],
           "properties": {
             "accrued_funding": {
@@ -2415,6 +2424,9 @@
             },
             "price_pnl": {
               "$ref": "#/definitions/SignedUint"
+            },
+            "protocol_fee": {
+              "$ref": "#/definitions/Uint128"
             }
           },
           "additionalProperties": false

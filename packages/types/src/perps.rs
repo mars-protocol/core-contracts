@@ -280,12 +280,15 @@ impl Default for Funding {
 #[derive(Default)]
 pub struct CashFlow {
     pub price_pnl: SignedUint,
-    pub opening_fee: SignedUint,
-    pub closing_fee: SignedUint,
+    pub opening_fee: SignedUint, // This is without the protocol fee
+    pub closing_fee: SignedUint, // This is without the protocol fee
     pub accrued_funding: SignedUint,
+    pub protocol_fee: Uint128, // Used to track the protocol fee. Excluded from the total
 }
 
 impl CashFlow {
+    /// Calculates the net cashflow for the vault. This is the sum of all cashflows except
+    /// the protocol fee.
     pub fn total(&self) -> Result<SignedUint, MarsError> {
         Ok(self
             .price_pnl
