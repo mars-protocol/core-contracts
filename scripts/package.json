@@ -1,7 +1,7 @@
 {
   "name": "scripts",
   "version": "1.0.0",
-  "license": "GPL-3.0-or-later",
+  "license": "FSL-1.1-Apache-2.0",
   "scripts": {
     "deploy:osmosis-testnet": "yarn build && node build/deploy/osmosis/testnet-index.js",
     "deploy:osmosis-devnet": "yarn build && node build/deploy/osmosis/devnet-index.js",

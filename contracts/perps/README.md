@@ -29,7 +29,3 @@ We use automated tests to verify final numbers (see `tests/tests/test_risk_verif
 These files are shared with the Risk team. The output from the Risk team (`risk_snapshot_state.json`) is compared with the smart contract’s output (`sc_snapshot_state.json`). Any discrepancies cause the test to fail.
 
 When risk formulas are updated, the Risk team re-runs their scripts with the updated `config.json` and `input_actions.json`. The resulting `risk_snapshot_state.json` is committed to the repo, and the tests in `test_risk_verification.rs` are re-run to check for any differences.
-
-## License
-
-The contents of this crate are open source under the [GNU General Public License v3](../../LICENSE) or later.

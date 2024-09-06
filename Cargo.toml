@@ -53,7 +53,7 @@ authors       = [
   "Harry Scholes",
 ]
 edition       = "2021"
-license       = "GPL-3.0-or-later"
+license       = "FSL-1.1-Apache-2.0"
 repository    = "https://github.com/mars-protocol/red-bank"
 homepage      = "https://marsprotocol.io"
 documentation = "https://docs.marsprotocol.io/"
