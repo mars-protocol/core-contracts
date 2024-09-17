@@ -5,8 +5,8 @@ use mars_credit_manager::error::ContractError;
 use mars_mock_oracle::msg::CoinPrice;
 use mars_types::{
     credit_manager::{
-        Action::{Deposit, ExecutePerpOrder},
-        Positions,
+        Action::{Deposit, ExecutePerpOrder, Withdraw},
+        ActionAmount, ActionCoin, Positions,
     },
     oracle::ActionKind,
     params::PerpParamsUpdate,
@@ -1017,6 +1017,82 @@ fn cannot_open_perp_above_max_ltv() {
             max_ltv_health_factor: "0.820408124686912222".to_string(),
         },
     );
+}
+
+#[test]
+fn health_check_works_if_no_spot_base_denom() {
+    let osmo_info = uosmo_info();
+    let atom_info = uatom_info();
+    let usdc_info = coin_info("uusdc");
+
+    let osmo_coin_deposited = osmo_info.to_coin(1000000);
+    let usdc_coin_deposited = usdc_info.to_coin(100000);
+
+    let cm_user = Addr::unchecked("user");
+
+    let (mut mock, account_id) = setup(
+        &osmo_info,
+        &atom_info,
+        &usdc_info,
+        &osmo_coin_deposited,
+        &usdc_coin_deposited,
+        &cm_user,
+    );
+
+    let perp_size = SignedUint::from_str("20000").unwrap();
+
+    // open perp position
+    mock.update_credit_account(
+        &account_id,
+        &cm_user,
+        vec![ExecutePerpOrder {
+            denom: atom_info.denom.clone(),
+            order_size: perp_size,
+            reduce_only: None,
+        }],
+        &[],
+    )
+    .unwrap();
+
+    // withdraw usdc (base denom) from the account
+    mock.update_credit_account(
+        &account_id,
+        &cm_user,
+        vec![Withdraw(ActionCoin {
+            denom: usdc_coin_deposited.denom,
+            amount: ActionAmount::AccountBalance,
+        })],
+        &[],
+    )
+    .unwrap();
+
+    // Check position data.
+    // There should be no spot base denom (deposits, lends, debts etc).
+    let position = mock.query_positions(&account_id);
+    assert_eq!(position.deposits.len(), 1);
+    assert_present(&position, &osmo_coin_deposited.denom, osmo_coin_deposited.amount); // only osmo left
+    assert_eq!(position.lends.len(), 0);
+    assert_eq!(position.debts.len(), 0);
+    assert_eq!(position.perps.len(), 1);
+
+    // Close the perp position.
+    // This should not fail even if the account has no spot base denom (deposits, lends, debts).
+    // Prices and params for base denom should be fetched correctly for Health check.
+    mock.update_credit_account(
+        &account_id,
+        &cm_user,
+        vec![ExecutePerpOrder {
+            denom: atom_info.denom,
+            order_size: perp_size.neg(),
+            reduce_only: Some(true),
+        }],
+        &[],
+    )
+    .unwrap();
+
+    // there should be no perp position
+    let position = mock.query_positions(&account_id);
+    assert!(position.perps.is_empty());
 }
 
 fn setup(

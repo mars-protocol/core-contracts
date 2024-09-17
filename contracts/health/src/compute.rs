@@ -36,6 +36,9 @@ pub fn compute_health(
     let staked_lp_denoms = positions.staked_astro_lps.iter().map(|d| &d.denom).collect::<Vec<_>>();
     let perp_denoms = positions.perps.iter().map(|p| &p.denom).collect::<Vec<_>>();
 
+    // Load the base denom if perps exist
+    let base_denom_opt = positions.perps.first().map(|p| p.base_denom.clone());
+
     // Collect prices + asset
     let mut asset_params: HashMap<String, AssetParams> = HashMap::new();
     let mut oracle_prices: HashMap<String, Decimal> = HashMap::new();
@@ -46,6 +49,7 @@ pub fn compute_health(
         .chain(lend_denoms)
         .chain(vault_base_token_denoms)
         .chain(staked_lp_denoms)
+        .chain(base_denom_opt.iter())
         .try_for_each(|denom| -> StdResult<()> {
             let params_opt = q.params.query_asset_params(&deps.querier, denom)?;
             // If the asset is not supported, we skip it (both params and price)
