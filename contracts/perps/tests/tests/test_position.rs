@@ -2207,3 +2207,47 @@ fn close_all_positions(
     let total_pnl = mock.query_total_accounting().unrealized_pnl;
     assert_eq!(total_pnl, PnlAmounts::default());
 }
+
+#[test]
+fn open_very_small_position_with_zero_opening_fee() {
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
+
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.98").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("0.01").unwrap()).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(user),
+        None,
+        &[coin(1_000_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
+
+    // init denoms
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                opening_fee_rate: Decimal::from_str("0.00000000000000001").unwrap(),
+                ..default_perp_params("uatom")
+            },
+        },
+    );
+
+    // openining fee is zero
+    let size = SignedUint::from_str("1").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    assert!(atom_opening_fee.amount.is_zero());
+
+    // open a very small position where opening fee is zero but opening_fee_rate is not zero
+    mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[]).unwrap();
+}

@@ -4,7 +4,7 @@ use cosmwasm_std::{
     coins, ensure_eq, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Order,
     Response, StdError, Uint128,
 };
-use cw_utils::{may_pay, must_pay};
+use cw_utils::may_pay;
 use mars_perps_common::pricing::opening_execution_price;
 use mars_types::{
     address_provider::{self, MarsAddressType},
@@ -118,11 +118,7 @@ fn open_position(
     let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
 
     // Find the opening fee amount
-    let opening_fee_amt = if !perp_params.opening_fee_rate.is_zero() {
-        must_pay(&info, &cfg.base_denom)?
-    } else {
-        Uint128::zero()
-    };
+    let opening_fee_amt = may_pay(&info, &cfg.base_denom)?;
 
     // Query the asset's price.
     //
