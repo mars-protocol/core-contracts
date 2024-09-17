@@ -6,9 +6,11 @@ use cosmwasm_std::{
 };
 use cw_utils::must_pay;
 use mars_types::{
-    adapters::oracle::Oracle,
-    address_provider,
-    address_provider::MarsAddressType,
+    adapters::{oracle::Oracle, params::Params},
+    address_provider::{
+        helpers::{query_contract_addr, query_contract_addrs},
+        MarsAddressType,
+    },
     incentives::{ExecuteMsg, IncentiveKind},
     oracle::ActionKind,
     perps::{UnlockState, VaultState},
@@ -23,7 +25,7 @@ use crate::{
         decrease_deposit_shares, increase_deposit_shares, CONFIG, DEPOSIT_SHARES, UNLOCKS,
         VAULT_STATE,
     },
-    utils::create_user_id_key,
+    utils::{create_user_id_key, get_oracle_adapter, get_params_adapter},
 };
 
 pub const DEFAULT_SHARES_PER_AMOUNT: u128 = 1_000_000;
@@ -42,10 +44,21 @@ pub fn deposit(
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
+    let addresses = query_contract_addrs(
+        deps.as_ref(),
+        &cfg.address_provider,
+        vec![
+            MarsAddressType::CreditManager,
+            MarsAddressType::Oracle,
+            MarsAddressType::Params,
+            MarsAddressType::Incentives,
+        ],
+    )?;
+
     // Don't allow users to create alternative account ids.
     // Only allow credit manager contract to create them.
     // Even if account_id contains empty string we won't allow it.
-    if account_id.is_some() && info.sender != cfg.credit_manager {
+    if account_id.is_some() && info.sender != addresses[&MarsAddressType::CreditManager] {
         return Err(ContractError::SenderIsNotCreditManager);
     }
 
@@ -58,14 +71,8 @@ pub fn deposit(
 
     let total_vault_shares_before = vs.total_shares;
 
-    let incentives_addr = address_provider::helpers::query_contract_addr(
-        deps.as_ref(),
-        &cfg.address_provider,
-        MarsAddressType::Incentives,
-    )?;
-
     let msg = build_incentives_balance_changed_msg(
-        &incentives_addr,
+        &addresses[&MarsAddressType::Incentives],
         &info.sender,
         account_id,
         &cfg.base_denom,
@@ -76,11 +83,15 @@ pub fn deposit(
     // Find the deposit amount
     let amount = must_pay(&info, &cfg.base_denom)?;
 
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
     // Compute the new shares to be minted to the depositor
     let shares = amount_to_shares(
         &deps.as_ref(),
         &vs,
-        &cfg.oracle,
+        &oracle,
+        &params,
         current_time,
         &cfg.base_denom,
         amount,
@@ -125,10 +136,13 @@ pub fn unlock(
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
+    let cm_address =
+        query_contract_addr(deps.as_ref(), &cfg.address_provider, MarsAddressType::CreditManager)?;
+
     // Don't allow users to create alternative account ids.
     // Only allow credit manager contract to create them.
     // Even if account_id contains empty string we won't allow it.
-    if account_id.is_some() && info.sender != cfg.credit_manager {
+    if account_id.is_some() && info.sender != cm_address {
         return Err(ContractError::SenderIsNotCreditManager);
     }
 
@@ -181,10 +195,21 @@ pub fn withdraw(
         return Err(ContractError::VaultWithdrawDisabled {});
     }
 
+    let addresses = query_contract_addrs(
+        deps.as_ref(),
+        &cfg.address_provider,
+        vec![
+            MarsAddressType::CreditManager,
+            MarsAddressType::Oracle,
+            MarsAddressType::Params,
+            MarsAddressType::Incentives,
+        ],
+    )?;
+
     // Don't allow users to create alternative account ids.
     // Only allow credit manager contract to create them.
     // Even if account_id contains empty string we won't allow it.
-    if account_id.is_some() && info.sender != cfg.credit_manager {
+    if account_id.is_some() && info.sender != addresses[&MarsAddressType::CreditManager] {
         return Err(ContractError::SenderIsNotCreditManager);
     }
 
@@ -215,16 +240,10 @@ pub fn withdraw(
 
     let total_vault_shares_before = vs.total_shares;
 
-    let incentives_addr = address_provider::helpers::query_contract_addr(
-        deps.as_ref(),
-        &cfg.address_provider,
-        MarsAddressType::Incentives,
-    )?;
-
     let mut msgs = vec![];
 
     msgs.push(build_incentives_balance_changed_msg(
-        &incentives_addr,
+        &addresses[&MarsAddressType::Incentives],
         &info.sender,
         account_id,
         &cfg.base_denom,
@@ -235,11 +254,15 @@ pub fn withdraw(
     // Compute the total shares to be withdrawn
     let total_unlocked_shares = unlocked.into_iter().map(|us| us.shares).sum::<Uint128>();
 
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
     // Convert the shares to amount
     let total_unlocked_amount = shares_to_amount(
         &deps.as_ref(),
         &vs,
-        &cfg.oracle,
+        &oracle,
+        &params,
         current_time,
         &cfg.base_denom,
         total_unlocked_shares,
@@ -305,14 +328,21 @@ pub fn compute_global_withdrawal_balance(
     deps: &Deps,
     vs: &VaultState,
     oracle: &Oracle,
+    params: &Params,
     current_time: u64,
     base_denom: &str,
     action: ActionKind,
 ) -> ContractResult<Uint128> {
     let base_denom_price = oracle.query_price(&deps.querier, base_denom, action.clone())?.price;
 
-    let (global_acc_data, _) =
-        compute_total_accounting_data(deps, oracle, current_time, base_denom_price, action)?;
+    let (global_acc_data, _) = compute_total_accounting_data(
+        deps,
+        oracle,
+        params,
+        current_time,
+        base_denom_price,
+        action,
+    )?;
 
     let global_withdrawal_balance =
         global_acc_data.withdrawal_balance.total.checked_add(vs.total_balance)?;
@@ -330,13 +360,21 @@ pub fn amount_to_shares(
     deps: &Deps,
     vs: &VaultState,
     oracle: &Oracle,
+    params: &Params,
     current_time: u64,
     base_denom: &str,
     amount: Uint128,
     action: ActionKind,
 ) -> ContractResult<Uint128> {
-    let available_liquidity =
-        compute_global_withdrawal_balance(deps, vs, oracle, current_time, base_denom, action)?;
+    let available_liquidity = compute_global_withdrawal_balance(
+        deps,
+        vs,
+        oracle,
+        params,
+        current_time,
+        base_denom,
+        action,
+    )?;
 
     if vs.total_shares.is_zero() || available_liquidity.is_zero() {
         return amount.checked_mul(Uint128::new(DEFAULT_SHARES_PER_AMOUNT)).map_err(Into::into);
@@ -354,6 +392,7 @@ pub fn shares_to_amount(
     deps: &Deps,
     vs: &VaultState,
     oracle: &Oracle,
+    params: &Params,
     current_time: u64,
     base_denom: &str,
     shares: Uint128,
@@ -368,8 +407,15 @@ pub fn shares_to_amount(
     }
 
     // We can't continue if there is zero available liquidity in the vault
-    let available_liquidity =
-        compute_global_withdrawal_balance(deps, vs, oracle, current_time, base_denom, action)?;
+    let available_liquidity = compute_global_withdrawal_balance(
+        deps,
+        vs,
+        oracle,
+        params,
+        current_time,
+        base_denom,
+        action,
+    )?;
     if available_liquidity.is_zero() {
         return Err(ContractError::ZeroWithdrawalBalance);
     }

@@ -1,5 +1,6 @@
 use cosmwasm_std::{Addr, Uint128};
 use mars_types::{
+    adapters::{oracle::OracleBase, params::ParamsBase},
     keys::{UserId, UserIdKey},
     params::PerpParams,
 };
@@ -43,4 +44,12 @@ pub fn create_user_id_key(
     let user_id = UserId::credit_manager(user_addr.clone(), acc_id);
     let user_id_key: UserIdKey = user_id.try_into()?;
     Ok(user_id_key)
+}
+
+pub fn get_oracle_adapter(address: &Addr) -> OracleBase<Addr> {
+    OracleBase::new(address.clone())
+}
+
+pub fn get_params_adapter(address: &Addr) -> ParamsBase<Addr> {
+    ParamsBase::new(address.clone())
 }

@@ -1,9 +1,6 @@
 use cosmwasm_std::Decimal;
 use mars_owner::OwnerResponse;
-use mars_types::{
-    adapters::{oracle::OracleBase, params::ParamsBase},
-    perps::Config,
-};
+use mars_types::perps::Config;
 
 use super::helpers::MockEnv;
 
@@ -18,10 +15,7 @@ fn proper_initialization() {
         .unwrap();
 
     let owner = mock.owner.clone();
-    let credit_manager = mock.credit_manager.clone();
     let address_provider = mock.address_provider.clone();
-    let oracle = mock.oracle.clone();
-    let params = mock.params.clone();
 
     let owner_res = mock.query_ownership();
     assert_eq!(
@@ -40,9 +34,6 @@ fn proper_initialization() {
         config,
         Config {
             address_provider,
-            credit_manager,
-            oracle: OracleBase::new(oracle),
-            params: ParamsBase::new(params),
             base_denom: "uusdc".to_string(),
             cooldown_period: 3688,
             max_positions: 9,

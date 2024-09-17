@@ -1,13 +1,13 @@
 use std::mem::take;
 
 use anyhow::Result as AnyResult;
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::{Addr, Decimal, Empty};
 use cw_multi_test::{App, AppResponse, BasicApp, Executor};
 use cw_paginate::PaginationResponse;
 use mars_owner::{OwnerResponse, OwnerUpdate};
 use mars_types::{
-    adapters::{oracle::OracleBase, params::ParamsBase},
     address_provider::{self, AddressResponseItem, MarsAddressType},
+    oracle,
     params::{
         AssetParams, AssetParamsUpdate, ConfigResponse, EmergencyUpdate, ExecuteMsg,
         InstantiateMsg, PerpParams, PerpParamsUpdate, QueryMsg, VaultConfig, VaultConfigUpdate,
@@ -15,7 +15,9 @@ use mars_types::{
     perps::{self, Config},
 };
 
-use super::contracts::{mock_address_provider_contract, mock_params_contract, mock_perps_contract};
+use super::contracts::{
+    mock_address_provider_contract, mock_oracle_contract, mock_params_contract, mock_perps_contract,
+};
 
 pub struct MockEnv {
     pub app: BasicApp,
@@ -268,6 +270,7 @@ impl MockEnvBuilder {
     pub fn build(&mut self) -> AnyResult<MockEnv> {
         let address_provider_contract = self.get_address_provider();
         self.deploy_perps(address_provider_contract.as_str());
+        self.deploy_oracle();
 
         let code_id = self.app.store_code(mock_params_contract());
 
@@ -325,9 +328,6 @@ impl MockEnvBuilder {
                 self.deployer.clone(),
                 &perps::InstantiateMsg {
                     address_provider: address_provider.to_string(),
-                    credit_manager: "credit_manager".to_string(),
-                    oracle: OracleBase::new("oracle".to_string()),
-                    params: ParamsBase::new("params".to_string()),
                     base_denom: "uusdc".to_string(),
                     cooldown_period: 0,
                     max_positions: 4,
@@ -343,6 +343,30 @@ impl MockEnvBuilder {
             .unwrap();
 
         self.set_address(MarsAddressType::Perps, addr.clone());
+
+        addr
+    }
+
+    fn deploy_oracle(&mut self) -> Addr {
+        let code_id = self.app.store_code(mock_oracle_contract());
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &oracle::InstantiateMsg::<Empty> {
+                    owner: self.deployer.to_string(),
+                    base_denom: "uusd".to_string(),
+                    custom_init: None,
+                },
+                &[],
+                "oracle",
+                None,
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::Oracle, addr.clone());
 
         addr
     }

@@ -9,7 +9,6 @@ use mars_oracle_osmosis::OsmosisPriceSourceUnchecked;
 use mars_owner::{OwnerResponse, OwnerUpdate};
 use mars_testing::integration::mock_contracts::mock_rewards_collector_osmosis_contract;
 use mars_types::{
-    adapters::{oracle::OracleBase, params::ParamsBase},
     address_provider::{self, MarsAddressType},
     incentives,
     oracle::{self, ActionKind},
@@ -515,7 +514,7 @@ impl MockEnv {
             .wrap()
             .query_wasm_smart(
                 self.params.clone(),
-                &mars_types::params::QueryMsg::PerpParams {
+                &params::QueryMsg::PerpParams {
                     denom: denom.to_string(),
                 },
             )
@@ -531,12 +530,7 @@ impl MockEnvBuilder {
         let credit_manager_contract = self.deploy_credit_manager();
         let rewards_collector_contract =
             self.deploy_rewards_collector(address_provider_contract.as_str());
-        let perps_contract = self.deploy_perps(
-            address_provider_contract.as_str(),
-            credit_manager_contract.as_str(),
-            oracle_contract.as_str(),
-            params_contract.as_str(),
-        );
+        let perps_contract = self.deploy_perps(address_provider_contract.as_str());
         let incentives_contract = self.deploy_incentives(&address_provider_contract);
 
         self.update_address_provider(
@@ -654,13 +648,7 @@ impl MockEnvBuilder {
             .unwrap()
     }
 
-    fn deploy_perps(
-        &mut self,
-        address_provider: &str,
-        credit_manager: &str,
-        oracle: &str,
-        params: &str,
-    ) -> Addr {
+    fn deploy_perps(&mut self, address_provider: &str) -> Addr {
         let code_id = self.app.store_code(mock_perps_contract());
 
         self.app
@@ -669,9 +657,6 @@ impl MockEnvBuilder {
                 self.deployer.clone(),
                 &perps::InstantiateMsg {
                     address_provider: address_provider.to_string(),
-                    credit_manager: credit_manager.to_string(),
-                    oracle: OracleBase::new(oracle.to_string()),
-                    params: ParamsBase::new(params.to_string()),
                     base_denom: self.perps_base_denom.clone(),
                     cooldown_period: self.cooldown_period,
                     max_positions: self.max_positions,

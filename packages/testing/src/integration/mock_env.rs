@@ -9,7 +9,6 @@ use cw_multi_test::{App, AppResponse, BankSudo, BasicApp, Executor, SudoMsg};
 use cw_paginate::PaginationResponse;
 use mars_oracle_osmosis::OsmosisPriceSourceUnchecked;
 use mars_types::{
-    adapters::{oracle::OracleBase, params::ParamsBase},
     address_provider::{self, MarsAddressType},
     credit_manager::ActionCoin,
     incentives,
@@ -944,8 +943,7 @@ impl MockEnvBuilder {
         let params_addr = self.deploy_params_osmosis(&address_provider_addr);
         let pyth_addr = self.deploy_mock_pyth();
         let astroport_incentives_addr = self.deploy_mock_astroport_incentives();
-        let perps_addr =
-            self.deploy_perps(&address_provider_addr, &cm_addr, &oracle_addr, &params_addr);
+        let perps_addr = self.deploy_perps(&address_provider_addr);
 
         self.update_address_provider(
             &address_provider_addr,
@@ -1126,13 +1124,7 @@ impl MockEnvBuilder {
             .unwrap()
     }
 
-    fn deploy_perps(
-        &mut self,
-        address_provider_addr: &Addr,
-        credit_manager_addr: &Addr,
-        oracle_addr: &Addr,
-        params_addr: &Addr,
-    ) -> Addr {
+    fn deploy_perps(&mut self, address_provider_addr: &Addr) -> Addr {
         let code_id = self.app.store_code(mock_perps_contract());
 
         self.app
@@ -1141,9 +1133,6 @@ impl MockEnvBuilder {
                 self.owner.clone(),
                 &mars_types::perps::InstantiateMsg {
                     address_provider: address_provider_addr.to_string(),
-                    credit_manager: credit_manager_addr.to_string(),
-                    oracle: OracleBase::new(oracle_addr.to_string()),
-                    params: ParamsBase::new(params_addr.to_string()),
                     base_denom: self.perps_base_denom.clone(),
                     cooldown_period: self.cooldown_period,
                     max_positions: self.max_positions,

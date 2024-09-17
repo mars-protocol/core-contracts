@@ -26,21 +26,6 @@ pub fn update_config(
         existing_cfg.address_provider = deps.api.addr_validate(&ap_unchecked)?;
     }
 
-    if let Some(cm_unchecked) = updates.credit_manager {
-        response = response.add_attribute("credit_manager", cm_unchecked.to_string());
-        existing_cfg.credit_manager = deps.api.addr_validate(&cm_unchecked)?;
-    }
-
-    if let Some(oracle) = updates.oracle {
-        response = response.add_attribute("oracle", oracle.address());
-        existing_cfg.oracle = oracle.check(deps.api)?;
-    }
-
-    if let Some(params) = updates.params {
-        response = response.add_attribute("params", params.address());
-        existing_cfg.params = params.check(deps.api)?;
-    }
-
     if let Some(cooldown_period) = updates.cooldown_period {
         response = response.add_attribute("cooldown_period", cooldown_period.to_string());
         existing_cfg.cooldown_period = cooldown_period;

@@ -1,7 +1,6 @@
 use cosmwasm_std::{Addr, Decimal};
 use mars_perps::error::ContractError;
 use mars_types::{
-    adapters::{oracle::OracleBase, params::ParamsBase},
     error::MarsError,
     perps::{Config, ConfigUpdates},
 };
@@ -61,11 +60,8 @@ fn update_total_config() {
         // UUSDC is never updated
         base_denom: "uusdc".to_string(),
         cooldown_period: 20,
-        credit_manager: Addr::unchecked("credit_manager_new"),
         deleverage_enabled: false,
         max_positions: 100,
-        oracle: OracleBase::new(Addr::unchecked("oracle_new")),
-        params: ParamsBase::new(Addr::unchecked("params_new")),
         protocol_fee_rate: Decimal::from_ratio(2u128, 100u128),
         target_vault_collateralization_ratio: Decimal::from_ratio(150u128, 100u128),
         vault_withdraw_enabled: false,
@@ -76,11 +72,8 @@ fn update_total_config() {
         ConfigUpdates {
             address_provider: Some(new_config.address_provider.to_string()),
             cooldown_period: Some(new_config.cooldown_period),
-            credit_manager: Some(new_config.credit_manager.to_string()),
             deleverage_enabled: Some(new_config.deleverage_enabled),
             max_positions: Some(new_config.max_positions),
-            oracle: Some(new_config.oracle.clone().into()),
-            params: Some(new_config.params.clone().into()),
             protocol_fee_rate: Some(new_config.protocol_fee_rate),
             target_vault_collateralization_ratio: Some(
                 new_config.target_vault_collateralization_ratio,

@@ -2480,6 +2480,7 @@ dependencies = [
  "cw2 1.1.2",
  "mars-address-provider",
  "mars-interest-rate",
+ "mars-oracle-osmosis",
  "mars-owner 2.0.0",
  "mars-perps",
  "mars-testing",

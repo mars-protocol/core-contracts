@@ -3,7 +3,11 @@ use cosmwasm_std::{
     QueryRequest, Reply, Response, StdError, SubMsg, Uint128, WasmMsg,
 };
 use mars_types::{
-    address_provider::{self, MarsAddressType},
+    address_provider::{
+        self,
+        helpers::{query_contract_addr, query_contract_addrs},
+        MarsAddressType,
+    },
     credit_manager::ExecuteMsg,
     oracle::ActionKind,
     params::PerpParams,
@@ -20,6 +24,7 @@ use crate::{
         DeleverageRequestTempStorage, CONFIG, DELEVERAGE_REQUEST_TEMP_STORAGE, MARKET_STATES,
         POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW,
     },
+    utils::{get_oracle_adapter, get_params_adapter},
 };
 
 pub const DELEVERAGE_REQUEST_REPLY_ID: u64 = 10_001;
@@ -79,11 +84,20 @@ pub fn deleverage(
     let mut ms = MARKET_STATES.load(deps.storage, &denom)?;
     let mut tcf = TOTAL_CASH_FLOW.may_load(deps.storage)?.unwrap_or_default();
 
+    let addresses = query_contract_addrs(
+        deps.as_ref(),
+        &cfg.address_provider,
+        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+    )?;
+
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
     // Query prices and parameters
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, pricing.clone())?.price;
-    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, pricing.clone())?.price;
-    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
+        oracle.query_price(&deps.querier, &cfg.base_denom, pricing.clone())?.price;
+    let denom_price = oracle.query_price(&deps.querier, &denom, pricing.clone())?.price;
+    let perp_params = params.query_perp_params(&deps.querier, &denom)?;
 
     // Assert CR and OI before deleverage
     let cr_before = query_vault_cr(deps.as_ref(), current_time, pricing.clone())?;
@@ -169,9 +183,12 @@ pub fn deleverage(
     };
     DELEVERAGE_REQUEST_TEMP_STORAGE.save(deps.storage, &temp_storage)?;
 
+    let cm_address =
+        query_contract_addr(deps.as_ref(), &cfg.address_provider, MarsAddressType::CreditManager)?;
+
     // Send a message to the credit manager to update the account's balance
     let msg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: cfg.credit_manager.to_string(),
+        contract_addr: cm_address.to_string(),
         msg: to_json_binary(&ExecuteMsg::UpdateBalanceAfterDeleverage {
             account_id: account_id.clone(),
             pnl: pnl.clone(),

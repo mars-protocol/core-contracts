@@ -5,7 +5,7 @@ use cosmwasm_std::{
 };
 use mars_perps_common::pricing::opening_execution_price;
 use mars_types::{
-    adapters::oracle::Oracle,
+    adapters::{oracle::Oracle, params::Params},
     math::SignedDecimal,
     oracle::ActionKind,
     params::PerpParams,
@@ -605,6 +605,7 @@ fn increase_accumulators(
 pub fn compute_total_pnl(
     deps: &Deps,
     oracle: &Oracle,
+    params: &Params,
     current_time: u64,
     action: ActionKind,
 ) -> ContractResult<PnlValues> {
@@ -627,7 +628,7 @@ pub fn compute_total_pnl(
                 });
             }
 
-            let perp_params = config.params.query_perp_params(&deps.querier, &denom)?;
+            let perp_params = params.query_perp_params(&deps.querier, &denom)?;
             let denom_price = oracle.query_price(&deps.querier, &denom, action.clone())?.price;
 
             let (pnl_values, _) = ms.compute_pnl(
@@ -653,12 +654,13 @@ pub fn compute_total_pnl(
 pub fn compute_total_accounting_data(
     deps: &Deps,
     oracle: &Oracle,
+    params: &Params,
     current_time: u64,
     base_denom_price: Decimal,
     action: ActionKind,
 ) -> ContractResult<(Accounting, PnlAmounts)> {
     let gcf = TOTAL_CASH_FLOW.load(deps.storage)?;
-    let unrealized_pnl_val = compute_total_pnl(deps, oracle, current_time, action)?;
+    let unrealized_pnl_val = compute_total_pnl(deps, oracle, params, current_time, action)?;
     let unrealized_pnl_amt = PnlAmounts::from_pnl_values(unrealized_pnl_val, base_denom_price)?;
     let acc = Accounting::compute(&gcf, &unrealized_pnl_amt)?;
     Ok((acc, unrealized_pnl_amt))

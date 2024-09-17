@@ -5,6 +5,10 @@ use cw_paginate::{paginate_map_query, PaginationResponse};
 use cw_storage_plus::Bound;
 use mars_perps_common::pricing::{closing_execution_price, opening_execution_price};
 use mars_types::{
+    address_provider::{
+        helpers::{query_contract_addr, query_contract_addrs},
+        MarsAddressType,
+    },
     oracle::ActionKind,
     params::PerpParams,
     perps::{
@@ -20,7 +24,7 @@ use crate::{
     market::{compute_total_accounting_data, MarketStateExt},
     position::{PositionExt, PositionModification},
     state::{CONFIG, DEPOSIT_SHARES, MARKET_STATES, POSITIONS, REALIZED_PNL, UNLOCKS, VAULT_STATE},
-    utils::create_user_id_key,
+    utils::{create_user_id_key, get_oracle_adapter, get_params_adapter},
     vault::shares_to_amount,
 };
 
@@ -45,13 +49,28 @@ pub fn query_vault(
     let cfg = CONFIG.load(deps.storage)?;
     let vault_state = VAULT_STATE.load(deps.storage)?;
 
+    let addresses = query_contract_addrs(
+        deps,
+        &cfg.address_provider,
+        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+    )?;
+
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
     // Query the base denomination price from the oracle
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
+        oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
 
     // Compute total accounting data and unrealized PnL amount
-    let (acc_data, unrealized_pnl_amt) =
-        compute_total_accounting_data(&deps, &cfg.oracle, current_time, base_denom_price, action)?;
+    let (acc_data, unrealized_pnl_amt) = compute_total_accounting_data(
+        &deps,
+        &oracle,
+        &params,
+        current_time,
+        base_denom_price,
+        action,
+    )?;
 
     // Calculate total withdrawal balance
     let total_withdrawal_balance =
@@ -101,9 +120,13 @@ pub fn query_market(
 ) -> ContractResult<MarketResponse> {
     let ms = MARKET_STATES.load(deps.storage, &denom)?;
     let cfg = CONFIG.load(deps.storage)?;
+
+    let oracle_address = query_contract_addr(deps, &cfg.address_provider, MarsAddressType::Oracle)?;
+    let oracle = get_oracle_adapter(&oracle_address);
+
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+        oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+    let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
     let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
 
     Ok(MarketResponse {
@@ -125,14 +148,18 @@ pub fn query_markets(
     limit: Option<u32>,
 ) -> ContractResult<PaginationResponse<MarketResponse>> {
     let cfg = CONFIG.load(deps.storage)?;
+
+    let oracle_address = query_contract_addr(deps, &cfg.address_provider, MarsAddressType::Oracle)?;
+    let oracle = get_oracle_adapter(&oracle_address);
+
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+        oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     let start = start_after.as_ref().map(|start_after| Bound::exclusive(start_after.as_str()));
     let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
 
     paginate_map_query(&MARKET_STATES, deps.storage, start, Some(limit), |denom, ms| {
-        let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+        let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
         let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
 
         Ok(MarketResponse {
@@ -156,6 +183,15 @@ pub fn query_vault_position(
 ) -> ContractResult<Option<VaultPositionResponse>> {
     let cfg = CONFIG.load(deps.storage)?;
 
+    let addresses = query_contract_addrs(
+        deps,
+        &cfg.address_provider,
+        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+    )?;
+
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
     let user_id_key = create_user_id_key(&user_addr, account_id)?;
 
     let vs = VAULT_STATE.load(deps.storage)?;
@@ -172,7 +208,8 @@ pub fn query_vault_position(
         amount: shares_to_amount(
             &deps,
             &vs,
-            &cfg.oracle,
+            &oracle,
+            &params,
             current_time,
             &cfg.base_denom,
             shares,
@@ -192,7 +229,8 @@ pub fn query_vault_position(
                 amount: shares_to_amount(
                     &deps,
                     &vs,
-                    &cfg.oracle,
+                    &oracle,
+                    &params,
                     current_time,
                     &cfg.base_denom,
                     unlock.shares,
@@ -222,10 +260,20 @@ pub fn query_position(
     order_size: Option<SignedUint>,
 ) -> ContractResult<PositionResponse> {
     let cfg = CONFIG.load(deps.storage)?;
-    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+    let addresses = query_contract_addrs(
+        deps,
+        &cfg.address_provider,
+        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+    )?;
+
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
+    let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
+        oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+    let perp_params = params.query_perp_params(&deps.querier, &denom)?;
+
     let ms = MARKET_STATES.load(deps.storage, &denom)?;
     let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
     let position_opt = POSITIONS.may_load(deps.storage, (&account_id, &denom))?;
@@ -286,6 +334,15 @@ pub fn query_positions(
 ) -> ContractResult<Vec<PositionResponse>> {
     let cfg = CONFIG.load(deps.storage)?;
 
+    let addresses = query_contract_addrs(
+        deps,
+        &cfg.address_provider,
+        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+    )?;
+
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
     let start = start_after
         .as_ref()
         .map(|(account_id, denom)| Bound::exclusive((account_id.as_str(), denom.as_str())));
@@ -295,7 +352,7 @@ pub fn query_positions(
     let mut cache: HashMap<String, (Decimal, PerpParams, MarketState)> = HashMap::new();
 
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+        oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     POSITIONS
         .range(deps.storage, start, None, Order::Ascending)
@@ -305,23 +362,23 @@ pub fn query_positions(
 
             // If price, params, market state are already in the cache, simply read it
             // otherwise, query/recalculate it, and insert into the cache
-            let (current_price, perp_params, funding, skew) =
-                if let Some((price, params, ms)) = cache.get(&denom) {
-                    (*price, params.clone(), ms.funding.clone(), ms.skew()?)
-                } else {
-                    let price =
-                        cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
-                    let params = cfg.params.query_perp_params(&deps.querier, &denom)?;
+            let (current_price, perp_params, funding, skew) = if let Some((price, params, ms)) =
+                cache.get(&denom)
+            {
+                (*price, params.clone(), ms.funding.clone(), ms.skew()?)
+            } else {
+                let price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+                let params = params.query_perp_params(&deps.querier, &denom)?;
 
-                    let mut ms = MARKET_STATES.load(deps.storage, &denom)?;
-                    let curr_funding = ms.current_funding(current_time, price, base_denom_price)?;
-                    let skew = ms.skew()?;
-                    ms.funding = curr_funding.clone();
+                let mut ms = MARKET_STATES.load(deps.storage, &denom)?;
+                let curr_funding = ms.current_funding(current_time, price, base_denom_price)?;
+                let skew = ms.skew()?;
+                ms.funding = curr_funding.clone();
 
-                    cache.insert(denom.clone(), (price, params.clone(), ms));
+                cache.insert(denom.clone(), (price, params.clone(), ms));
 
-                    (price, params, curr_funding, skew)
-                };
+                (price, params, curr_funding, skew)
+            };
 
             let pnl_amounts = position.compute_pnl(
                 &funding,
@@ -366,6 +423,15 @@ pub fn query_positions_by_account(
 ) -> ContractResult<PositionsByAccountResponse> {
     let cfg = CONFIG.load(deps.storage)?;
 
+    let addresses = query_contract_addrs(
+        deps,
+        &cfg.address_provider,
+        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+    )?;
+
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
     // Don't query the price if there are no positions. This is important during liquidation as
     // the price query might fail (if Default pricing is pased in).
     let mut base_denom_price: Option<Decimal> = None;
@@ -375,18 +441,18 @@ pub fn query_positions_by_account(
         .range(deps.storage, None, None, Order::Ascending)
         .map(|item| {
             let (denom, position) = item?;
-            let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
+            let perp_params = params.query_perp_params(&deps.querier, &denom)?;
 
             let base_denom_price = if let Some(price) = base_denom_price {
                 price
             } else {
                 let price =
-                    cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
+                    oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
                 base_denom_price = Some(price);
                 price
             };
 
-            let denom_price = cfg.oracle.query_price(&deps.querier, &denom, action.clone())?.price;
+            let denom_price = oracle.query_price(&deps.querier, &denom, action.clone())?.price;
 
             let ms = MARKET_STATES.load(deps.storage, &denom)?;
             let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
@@ -449,10 +515,20 @@ pub fn query_market_accounting(
     current_time: u64,
 ) -> ContractResult<AccountingResponse> {
     let cfg = CONFIG.load(deps.storage)?;
-    let perp_params = cfg.params.query_perp_params(&deps.querier, denom)?;
-    let denom_price = cfg.oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
+
+    let addresses = query_contract_addrs(
+        deps,
+        &cfg.address_provider,
+        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+    )?;
+
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
+    let perp_params = params.query_perp_params(&deps.querier, denom)?;
+    let denom_price = oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+        oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     let ms = MARKET_STATES.load(deps.storage, denom)?;
     let (accounting, unrealized_pnl) = ms.compute_accounting_data(
@@ -473,12 +549,23 @@ pub fn query_market_accounting(
 /// Returns an `AccountingResponse` summarizing the total accounting metrics.
 pub fn query_total_accounting(deps: Deps, current_time: u64) -> ContractResult<AccountingResponse> {
     let cfg = CONFIG.load(deps.storage)?;
+
+    let addresses = query_contract_addrs(
+        deps,
+        &cfg.address_provider,
+        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+    )?;
+
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+        oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     let (accounting, unrealized_pnl) = compute_total_accounting_data(
         &deps,
-        &cfg.oracle,
+        &oracle,
+        &params,
         current_time,
         base_denom_price,
         ActionKind::Default,
@@ -498,10 +585,19 @@ pub fn query_opening_fee(deps: Deps, denom: &str, size: SignedUint) -> ContractR
     let cfg = CONFIG.load(deps.storage)?;
     let ms = MARKET_STATES.load(deps.storage, denom)?;
 
+    let addresses = query_contract_addrs(
+        deps,
+        &cfg.address_provider,
+        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+    )?;
+
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-    let denom_price = cfg.oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
-    let perp_params = cfg.params.query_perp_params(&deps.querier, denom)?;
+        oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+    let denom_price = oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
+    let perp_params = params.query_perp_params(&deps.querier, denom)?;
 
     let fees = PositionModification::Increase(size).compute_fees(
         perp_params.opening_fee_rate,
@@ -530,10 +626,19 @@ pub fn query_position_fees(
 ) -> ContractResult<PositionFeesResponse> {
     let cfg = CONFIG.load(deps.storage)?;
 
+    let addresses = query_contract_addrs(
+        deps,
+        &cfg.address_provider,
+        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+    )?;
+
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-    let denom_price = cfg.oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
-    let perp_params = cfg.params.query_perp_params(&deps.querier, denom)?;
+        oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+    let denom_price = oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
+    let perp_params = params.query_perp_params(&deps.querier, denom)?;
     let ms = MARKET_STATES.load(deps.storage, denom)?;
     let skew_scale = ms.funding.skew_scale;
     let skew = ms.skew()?;

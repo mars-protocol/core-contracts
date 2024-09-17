@@ -5,18 +5,13 @@
  * and run the @cosmwasm/ts-codegen generate command to regenerate this file.
  */
 
-export type OracleBaseForString = string
-export type ParamsBaseForString = string
 export type Decimal = string
 export interface InstantiateMsg {
   address_provider: string
   base_denom: string
   cooldown_period: number
-  credit_manager: string
   deleverage_enabled: boolean
   max_positions: number
-  oracle: OracleBaseForString
-  params: ParamsBaseForString
   protocol_fee_rate: Decimal
   target_vault_collateralization_ratio: Decimal
   vault_withdraw_enabled: boolean
@@ -113,11 +108,8 @@ export interface PerpParams {
 export interface ConfigUpdates {
   address_provider?: string | null
   cooldown_period?: number | null
-  credit_manager?: string | null
   deleverage_enabled?: boolean | null
   max_positions?: number | null
-  oracle?: OracleBaseForString | null
-  params?: ParamsBaseForString | null
   protocol_fee_rate?: Decimal | null
   target_vault_collateralization_ratio?: Decimal | null
   vault_withdraw_enabled?: boolean | null
@@ -206,11 +198,8 @@ export interface ConfigForString {
   address_provider: string
   base_denom: string
   cooldown_period: number
-  credit_manager: string
   deleverage_enabled: boolean
   max_positions: number
-  oracle: OracleBaseForString
-  params: ParamsBaseForString
   protocol_fee_rate: Decimal
   target_vault_collateralization_ratio: Decimal
   vault_withdraw_enabled: boolean

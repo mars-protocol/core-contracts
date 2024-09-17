@@ -7,7 +7,7 @@ use cosmwasm_std::{
 use cw_utils::may_pay;
 use mars_perps_common::pricing::opening_execution_price;
 use mars_types::{
-    address_provider::{self, MarsAddressType},
+    address_provider::{self, helpers::query_contract_addrs, MarsAddressType},
     oracle::ActionKind,
     params::PerpParams,
     perps::{CashFlow, Config, MarketState, PnL, PnlAmounts, Position},
@@ -20,7 +20,7 @@ use crate::{
     market::MarketStateExt,
     position::{PositionExt, PositionModification},
     state::{CONFIG, MARKET_STATES, POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW},
-    utils::{ensure_max_position, ensure_min_position},
+    utils::{ensure_max_position, ensure_min_position, get_oracle_adapter, get_params_adapter},
 };
 
 /// Executes a perpetual order for a specific account and denom.
@@ -77,10 +77,20 @@ fn open_position(
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
-    // Only the credit manager contract can open positions
-    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+    let addresses = query_contract_addrs(
+        deps.as_ref(),
+        &cfg.address_provider,
+        vec![MarsAddressType::CreditManager, MarsAddressType::Oracle, MarsAddressType::Params],
+    )?;
 
-    // The denom must exists and have been enabled
+    // Only the credit manager contract can open positions
+    ensure_eq!(
+        info.sender,
+        addresses[&MarsAddressType::CreditManager],
+        ContractError::SenderIsNotCreditManager
+    );
+
+    // The denom must exist and have been enabled
     let mut ms = MARKET_STATES.load(deps.storage, &denom)?;
     if !ms.enabled {
         return Err(ContractError::DenomNotEnabled {
@@ -114,8 +124,11 @@ fn open_position(
         MarsAddressType::RewardsCollector,
     )?;
 
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
     // Params for the given market
-    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
+    let perp_params = params.query_perp_params(&deps.querier, &denom)?;
 
     // Find the opening fee amount
     let opening_fee_amt = may_pay(&info, &cfg.base_denom)?;
@@ -124,9 +137,9 @@ fn open_position(
     //
     // This will be the position's entry price, used to compute PnL when closing
     // the position.
-    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+    let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+        oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     // The position's initial value cannot be too small
     let position_value = size.abs.checked_mul_floor(denom_price)?;
@@ -239,11 +252,27 @@ fn modify_position(
     // Load the contract's configuration
     let cfg = CONFIG.load(deps.storage)?;
 
+    let addresses = query_contract_addrs(
+        deps.as_ref(),
+        &cfg.address_provider,
+        vec![
+            MarsAddressType::CreditManager,
+            MarsAddressType::Oracle,
+            MarsAddressType::Params,
+            MarsAddressType::RewardsCollector,
+        ],
+    )?;
+
+    let cm_address = &addresses[&MarsAddressType::CreditManager];
+
     // Only the credit manager contract can adjust positions
-    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
+    ensure_eq!(info.sender, cm_address, ContractError::SenderIsNotCreditManager);
+
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
 
     // Query the parameters for the given market (denom)
-    let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
+    let perp_params = params.query_perp_params(&deps.querier, &denom)?;
 
     // Load relevant state variables
     let mut realized_pnl =
@@ -251,19 +280,13 @@ fn modify_position(
     let mut ms = MARKET_STATES.load(deps.storage, &denom)?;
     let mut tcf = TOTAL_CASH_FLOW.may_load(deps.storage)?.unwrap_or_default();
 
-    let rewards_collector_addr = address_provider::helpers::query_contract_addr(
-        deps.as_ref(),
-        &cfg.address_provider,
-        MarsAddressType::RewardsCollector,
-    )?;
-
     let entry_size = position.size;
 
     // Query the current prices for the denom and the base denom
     let entry_price = position.entry_price;
-    let denom_price = cfg.oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+    let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+        oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     // When modifying a position, we must realise all PnL. The credit manager
     // may send no coin (in case the position is winning or breaking even) or
@@ -325,12 +348,12 @@ fn modify_position(
     let mut msgs = vec![];
 
     // Apply the payment to the credit manager if necessary
-    apply_payment_to_cm_if_needed(&cfg, &mut msgs, paid_amount, &pnl)?;
+    apply_payment_to_cm_if_needed(&cfg, cm_address, &mut msgs, paid_amount, &pnl)?;
 
     // Update the realized PnL, market state, and total cash flow based on the new amounts
     res = apply_pnl_and_fees(
         &cfg,
-        &rewards_collector_addr,
+        &addresses[&MarsAddressType::RewardsCollector],
         &mut ms,
         &mut tcf,
         &mut realized_pnl,
@@ -402,14 +425,26 @@ pub fn close_all_positions(
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
-    // Only the credit manager contract can adjust positions
-    ensure_eq!(info.sender, cfg.credit_manager, ContractError::SenderIsNotCreditManager);
-
-    let rewards_collector_addr = address_provider::helpers::query_contract_addr(
+    let addresses = query_contract_addrs(
         deps.as_ref(),
         &cfg.address_provider,
-        MarsAddressType::RewardsCollector,
+        vec![
+            MarsAddressType::CreditManager,
+            MarsAddressType::Oracle,
+            MarsAddressType::Params,
+            MarsAddressType::RewardsCollector,
+        ],
     )?;
+
+    // Only the credit manager contract can adjust positions
+    ensure_eq!(
+        info.sender,
+        addresses[&MarsAddressType::CreditManager],
+        ContractError::SenderIsNotCreditManager
+    );
+
+    let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
+    let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
 
     // Read all positions for the account
     let account_positions: Vec<_> = {
@@ -433,7 +468,7 @@ pub fn close_all_positions(
     let paid_amount = may_pay(&info, &cfg.base_denom)?;
 
     let base_denom_price =
-        cfg.oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
+        oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
 
     let mut msgs = vec![];
     let mut res = Response::new();
@@ -444,10 +479,10 @@ pub fn close_all_positions(
         let mut ms = MARKET_STATES.load(deps.storage, &denom)?;
 
         // Params for the given market
-        let perp_params = cfg.params.query_perp_params(&deps.querier, &denom)?;
+        let perp_params = params.query_perp_params(&deps.querier, &denom)?;
 
         // Prices
-        let denom_price = cfg.oracle.query_price(&deps.querier, &denom, action.clone())?.price;
+        let denom_price = oracle.query_price(&deps.querier, &denom, action.clone())?.price;
 
         // skew _before_ modification
         let initial_skew = ms.skew()?;
@@ -471,7 +506,7 @@ pub fn close_all_positions(
 
         res = apply_pnl_and_fees(
             &cfg,
-            &rewards_collector_addr,
+            &addresses[&MarsAddressType::RewardsCollector],
             &mut ms,
             &mut tcf,
             &mut realized_pnl,
@@ -491,7 +526,13 @@ pub fn close_all_positions(
     // Convert PnL amounts to coins
     let pnl = pnl_amounts_accumulator.to_coins(&cfg.base_denom).pnl;
 
-    apply_payment_to_cm_if_needed(&cfg, &mut msgs, paid_amount, &pnl)?;
+    apply_payment_to_cm_if_needed(
+        &cfg,
+        &addresses[&MarsAddressType::CreditManager],
+        &mut msgs,
+        paid_amount,
+        &pnl,
+    )?;
 
     TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
 
@@ -626,6 +667,7 @@ pub fn apply_pnl_and_fees(
 /// Applies payments to the credit manager if necessary based on the PnL and paid amount.
 fn apply_payment_to_cm_if_needed(
     cfg: &Config<Addr>,
+    cm_address: &Addr,
     msgs: &mut Vec<CosmosMsg>,
     paid_amount: Uint128,
     pnl: &PnL,
@@ -634,7 +676,7 @@ fn apply_payment_to_cm_if_needed(
     if !payment_amount.is_zero() {
         // send coins to credit manager
         let send_msg = CosmosMsg::Bank(BankMsg::Send {
-            to_address: cfg.credit_manager.clone().into(),
+            to_address: cm_address.clone().into(),
             amount: coins(payment_amount.u128(), &cfg.base_denom),
         });
         msgs.push(send_msg);

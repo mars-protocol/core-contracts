@@ -1098,7 +1098,7 @@ impl MockEnvBuilder {
             );
         }
 
-        let perps = self.deploy_perps_contract(&rover);
+        let perps = self.deploy_perps_contract();
         self.update_config(
             &rover,
             ConfigUpdates {
@@ -1369,6 +1369,9 @@ impl MockEnvBuilder {
                 None,
             )
             .unwrap();
+
+        self.set_address(MarsAddressType::Oracle, addr.clone());
+
         OracleBase::new(addr)
     }
 
@@ -1405,7 +1408,7 @@ impl MockEnvBuilder {
         Params::new(addr)
     }
 
-    fn deploy_perps_contract(&mut self, cm_addr: &Addr) -> Perps {
+    fn deploy_perps_contract(&mut self) -> Perps {
         let contract_code_id = self.app.store_code(mock_perps_contract());
         let owner = self.get_owner();
         let address_provider = self.get_address_provider();
@@ -1420,9 +1423,6 @@ impl MockEnvBuilder {
                 owner.clone(),
                 &PerpsInstantiateMsg {
                     address_provider: address_provider.into(),
-                    credit_manager: cm_addr.to_string(),
-                    oracle: self.oracle.clone().unwrap().into(),
-                    params: self.params.clone().unwrap().into(),
                     base_denom: "uusdc".to_string(),
                     cooldown_period: 360,
                     max_positions: 4,

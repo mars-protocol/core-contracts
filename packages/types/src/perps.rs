@@ -10,14 +10,7 @@ use mars_owner::OwnerUpdate;
 use thiserror::Error;
 
 use crate::{
-    adapters::{
-        oracle::{OracleBase, OracleUnchecked},
-        params::{ParamsBase, ParamsUnchecked},
-    },
-    error::MarsError,
-    math::SignedDecimal,
-    oracle::ActionKind,
-    params::PerpParams,
+    error::MarsError, math::SignedDecimal, oracle::ActionKind, params::PerpParams,
     signed_uint::SignedUint,
 };
 
@@ -26,19 +19,6 @@ use crate::{
 /// The perp protocol's global configuration
 #[cw_serde]
 pub struct Config<T> {
-    /// Address of the Mars Rover credit manager (CM) contract.
-    ///
-    /// Users open, modify, or close perp positions by interacting with the CM.
-    /// The CM then invokes the appropriate execute method(s) on the perps
-    /// contract to fulfill the user requests.
-    pub credit_manager: T,
-
-    /// Adapter for interacting with the Mars oracle contract
-    pub oracle: OracleBase<T>,
-
-    /// Adapter for interacting with the Mars params contract
-    pub params: ParamsBase<T>,
-
     /// Address provider returns addresses for all protocol contracts
     pub address_provider: T,
 
@@ -86,9 +66,6 @@ impl Config<String> {
     pub fn check(self, api: &dyn Api) -> StdResult<Config<Addr>> {
         Ok(Config {
             address_provider: api.addr_validate(&self.address_provider)?,
-            credit_manager: api.addr_validate(&self.credit_manager)?,
-            oracle: self.oracle.check(api)?,
-            params: self.params.check(api)?,
             base_denom: self.base_denom,
             cooldown_period: self.cooldown_period,
             max_positions: self.max_positions,
@@ -104,9 +81,6 @@ impl From<Config<Addr>> for Config<String> {
     fn from(cfg: Config<Addr>) -> Self {
         Config {
             address_provider: cfg.address_provider.into(),
-            credit_manager: cfg.credit_manager.into(),
-            oracle: cfg.oracle.into(),
-            params: cfg.params.into(),
             base_denom: cfg.base_denom,
             cooldown_period: cfg.cooldown_period,
             max_positions: cfg.max_positions,
@@ -121,9 +95,6 @@ impl From<Config<Addr>> for Config<String> {
 #[derive(Default)]
 pub struct ConfigUpdates {
     pub address_provider: Option<String>,
-    pub credit_manager: Option<String>,
-    pub oracle: Option<OracleUnchecked>,
-    pub params: Option<ParamsUnchecked>,
     pub cooldown_period: Option<u64>,
     pub max_positions: Option<u8>,
     pub protocol_fee_rate: Option<Decimal>,

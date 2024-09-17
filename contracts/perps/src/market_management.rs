@@ -1,6 +1,6 @@
 use cosmwasm_std::{ensure_eq, Addr, Deps, DepsMut, Env, Response};
 use mars_types::{
-    address_provider::{self, MarsAddressType},
+    address_provider::{self, helpers::query_contract_addr, MarsAddressType},
     error::MarsError,
     oracle::ActionKind,
     params::PerpParams,
@@ -11,6 +11,7 @@ use crate::{
     error::{ContractError, ContractResult},
     market::MarketStateExt,
     state::{CONFIG, MARKET_STATES},
+    utils::get_oracle_adapter,
 };
 
 /// Updates the perp parameters for a given market
@@ -90,14 +91,17 @@ fn update_market_state(
     params: &PerpParams,
     current_time: u64,
 ) -> ContractResult<MarketState> {
+    let oracle_address = query_contract_addr(deps, &cfg.address_provider, MarsAddressType::Oracle)?;
+    let oracle = get_oracle_adapter(&oracle_address);
+
     // If the market is enabled and hasn't been updated in the current block,
     // refresh the funding rate and update its parameters.
     if market_state.enabled && market_state.last_updated != current_time {
         // Query the current price of the market and the base market
         let denom_price =
-            cfg.oracle.query_price(&deps.querier, &params.denom, ActionKind::Default)?.price;
+            oracle.query_price(&deps.querier, &params.denom, ActionKind::Default)?.price;
         let base_denom_price =
-            cfg.oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
+            oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
         // Refresh the funding rate and index before updating the parameters
         let current_funding =

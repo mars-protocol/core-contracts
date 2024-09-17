@@ -8,8 +8,6 @@
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from '@cosmjs/cosmwasm-stargate'
 import { StdFee } from '@cosmjs/amino'
 import {
-  OracleBaseForString,
-  ParamsBaseForString,
   Decimal,
   InstantiateMsg,
   ExecuteMsg,

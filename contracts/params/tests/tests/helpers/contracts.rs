@@ -27,3 +27,12 @@ pub fn mock_perps_contract() -> Box<dyn Contract<Empty>> {
     );
     Box::new(contract)
 }
+
+pub fn mock_oracle_contract() -> Box<dyn Contract<Empty>> {
+    let contract = ContractWrapper::new(
+        mars_oracle_osmosis::contract::entry::execute,
+        mars_oracle_osmosis::contract::entry::instantiate,
+        mars_oracle_osmosis::contract::entry::query,
+    );
+    Box::new(contract)
+}
