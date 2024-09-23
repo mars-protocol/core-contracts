@@ -143,6 +143,19 @@ export type Action =
       }
     }
   | {
+      create_trigger_order: {
+        actions: Action[]
+        conditions: Condition[]
+        keeper_fee: Coin
+      }
+    }
+  | {
+      delete_trigger_order: {
+        account_id: string
+        trigger_order_id: string
+      }
+    }
+  | {
       enter_vault: {
         coin: ActionCoin
         vault: VaultBaseForString
@@ -217,6 +230,29 @@ export type ActionAmount =
   | {
       exact: Uint128
     }
+export type Condition =
+  | {
+      oracle_price: {
+        comparison: Comparison
+        denom: string
+        price: Decimal
+      }
+    }
+  | {
+      relative_price: {
+        base_price_denom: string
+        comparison: Comparison
+        price: Decimal
+        quote_price_denom: string
+      }
+    }
+  | {
+      health_factor: {
+        comparison: Comparison
+        threshold: Decimal
+      }
+    }
+export type Comparison = 'greater_than' | 'less_than'
 export type LiquidateRequestForVaultBaseForString =
   | {
       deposit: string

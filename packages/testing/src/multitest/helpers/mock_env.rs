@@ -40,9 +40,10 @@ use mars_types::{
     address_provider::{self, MarsAddressType},
     credit_manager::{
         Account, Action, CallbackMsg, CoinBalanceResponseItem, ConfigResponse, ConfigUpdates,
-        DebtShares, ExecuteMsg, InstantiateMsg, Positions,
+        DebtShares, ExecuteMsg, InstantiateMsg, KeeperFeeConfig, Positions,
         QueryMsg::{self, EstimateProvideLiquidity, VaultPositionValue},
-        SharesResponseItem, VaultBinding, VaultPositionResponseItem, VaultUtilizationResponse,
+        SharesResponseItem, TriggerOrderResponse, VaultBinding, VaultPositionResponseItem,
+        VaultUtilizationResponse,
     },
     health::{
         AccountKind, ExecuteMsg::UpdateConfig, HealthValuesResponse,
@@ -128,6 +129,7 @@ pub struct MockEnvBuilder {
     pub target_vault_collateralization_ratio: Option<Decimal>,
     pub deleverage_enabled: Option<bool>,
     pub withdraw_enabled: Option<bool>,
+    pub keeper_fee_config: Option<KeeperFeeConfig>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -157,6 +159,7 @@ impl MockEnv {
             target_vault_collateralization_ratio: None,
             deleverage_enabled: None,
             withdraw_enabled: None,
+            keeper_fee_config: None,
         }
     }
 
@@ -261,6 +264,23 @@ impl MockEnv {
                 account_id: account_id.to_string(),
             },
             funds,
+        )
+    }
+
+    pub fn execute_trigger_order(
+        &mut self,
+        sender: &Addr,
+        account_id: &str,
+        trigger_order_id: &str,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.rover.clone(),
+            &ExecuteMsg::ExecuteTriggerOrder {
+                account_id: account_id.to_string(),
+                trigger_order_id: trigger_order_id.to_string(),
+            },
+            &[],
         )
     }
 
@@ -926,6 +946,42 @@ impl MockEnv {
             .unwrap()
     }
 
+    pub fn query_trigger_orders_for_account(
+        &self,
+        account_id: String,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> PaginationResponse<TriggerOrderResponse> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.rover.clone(),
+                &QueryMsg::AllAccountTriggerOrders {
+                    account_id,
+                    start_after,
+                    limit,
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_all_trigger_orders(
+        &self,
+        start_after: Option<(String, String)>,
+        limit: Option<u32>,
+    ) -> PaginationResponse<TriggerOrderResponse> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.rover.clone(),
+                &QueryMsg::AllTriggerOrders {
+                    start_after,
+                    limit,
+                },
+            )
+            .unwrap()
+    }
+
     pub fn query_swap_estimate(
         &self,
         coin_in: &Coin,
@@ -1103,6 +1159,9 @@ impl MockEnvBuilder {
             &rover,
             ConfigUpdates {
                 perps: Some(perps.clone().into()),
+                keeper_fee_config: Some(KeeperFeeConfig {
+                    min_fee: coin(1000000, "uusdc"),
+                }),
                 ..Default::default()
             },
         );
@@ -1250,6 +1309,7 @@ impl MockEnvBuilder {
         let zapper = self.deploy_zapper(&oracle)?.into();
         let health_contract = self.get_health_contract().into();
         let params = self.get_params_contract().into();
+        let keeper_fee_config = self.get_keeper_fee_config();
 
         self.deploy_rewards_collector();
         self.deploy_astroport_incentives();
@@ -1270,6 +1330,7 @@ impl MockEnvBuilder {
                     health_contract,
                     params,
                     incentives,
+                    keeper_fee_config,
                 },
                 &[],
                 "mock-rover-contract",
@@ -1730,6 +1791,12 @@ impl MockEnvBuilder {
             .iter()
             .map(|v| self.deploy_vault(v))
             .collect()
+    }
+
+    fn get_keeper_fee_config(&self) -> KeeperFeeConfig {
+        self.keeper_fee_config.clone().unwrap_or(KeeperFeeConfig {
+            min_fee: coin(1000000, "uusdc"),
+        })
     }
 
     fn get_coin_params(&self) -> Vec<CoinInfo> {

@@ -22,6 +22,7 @@ pub mod repay;
 pub mod stake_astro_lp;
 pub mod state;
 pub mod swap;
+pub mod trigger;
 pub mod unstake_astro_lp;
 pub mod update_coin_balances;
 pub mod update_config;

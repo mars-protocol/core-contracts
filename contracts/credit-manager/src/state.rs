@@ -7,6 +7,7 @@ use mars_types::{
         params::Params, perps::Perps, red_bank::RedBank, rewards_collector::RewardsCollector,
         swapper::Swapper, vault::VaultPositionAmount, zapper::Zapper,
     },
+    credit_manager::{KeeperFeeConfig, TriggerOrder},
     health::AccountKind,
 };
 use mars_utils::guard::Guard;
@@ -30,6 +31,9 @@ pub const MAX_UNLOCKING_POSITIONS: Item<Uint128> = Item::new("max_unlocking_posi
 pub const REENTRANCY_GUARD: Guard = Guard::new("reentrancy_guard");
 pub const MAX_SLIPPAGE: Item<Decimal> = Item::new("max_slippage");
 
+// Trigger order id counter
+pub const NEXT_TRIGGER_ID: Item<u64> = Item::new("next_trigger_id");
+pub const KEEPER_FEE_CONFIG: Item<KeeperFeeConfig> = Item::new("keeper_fee_config");
 // Positions
 pub const ACCOUNT_KINDS: Map<&str, AccountKind> = Map::new("account_types"); // Map<AccountId, AccountKind>
 pub const COIN_BALANCES: Map<(&str, &str), Uint128> = Map::new("coin_balance"); // Map<(AccountId, Denom), Amount>
@@ -37,6 +41,7 @@ pub const DEBT_SHARES: Map<(&str, &str), Uint128> = Map::new("debt_shares"); // 
 pub const TOTAL_DEBT_SHARES: Map<&str, Uint128> = Map::new("total_debt_shares"); // Map<Denom, Shares>
 
 pub const VAULT_POSITIONS: Map<(&str, Addr), VaultPositionAmount> = Map::new("vault_positions"); // Map<(AccountId, VaultAddr), VaultPositionAmount>
+pub const TRIGGER_ORDERS: Map<(&str, &str), TriggerOrder> = Map::new("trigger_orders"); // Map<(AccountId, TriggerOrderId), TriggerOrder>
 
 // Temporary state to save variables to be used on reply handling
 pub const VAULT_REQUEST_TEMP_STORAGE: Item<RequestTempStorage> =

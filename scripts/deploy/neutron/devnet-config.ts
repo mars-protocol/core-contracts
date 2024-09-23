@@ -461,6 +461,9 @@ export const neutronDevnetConfig: DeploymentConfig = {
       astroport_factory: astroportFactory,
     },
   },
+  keeperFeeConfig: {
+    min_fee: { amount: '1000000', denom: nobleUsdcDenom },
+  },
   rewardsCollector: {
     name: 'neutron',
     timeoutSeconds: 600,

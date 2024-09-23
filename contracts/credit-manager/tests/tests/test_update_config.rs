@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Decimal, Empty, Uint128};
+use cosmwasm_std::{coin, Addr, Decimal, Empty, Uint128};
 use cw_multi_test::Executor;
 use mars_credit_manager::error::ContractError;
 use mars_mock_oracle::msg::{CoinPrice, InstantiateMsg as OracleInstantiateMsg};
@@ -9,7 +9,7 @@ use mars_types::{
         params::ParamsUnchecked, perps::PerpsUnchecked, red_bank::RedBankUnchecked,
         rewards_collector::RewardsCollector, swapper::SwapperBase, zapper::ZapperBase,
     },
-    credit_manager::ConfigUpdates,
+    credit_manager::{ConfigUpdates, KeeperFeeConfig},
     health::AccountKind,
     oracle::ActionKind,
 };
@@ -36,6 +36,7 @@ fn only_owner_can_update_config() {
             rewards_collector: None,
             params: None,
             perps: None,
+            keeper_fee_config: None,
         },
     );
 
@@ -95,6 +96,9 @@ fn update_config_works_with_full_config() {
     let new_rewards_collector = "rewards_collector_contract_new".to_string();
     let new_params_contract = ParamsUnchecked::new("new_params_contract".to_string());
     let new_perps_contract = PerpsUnchecked::new("new_perps_contract".to_string());
+    let keeper_fee_config = KeeperFeeConfig {
+        min_fee: coin(100000, "uusdc"),
+    };
 
     mock.update_config(
         &Addr::unchecked(original_config.ownership.owner.clone().unwrap()),
@@ -111,6 +115,7 @@ fn update_config_works_with_full_config() {
             rewards_collector: Some(new_rewards_collector.clone()),
             params: Some(new_params_contract.clone()),
             perps: Some(new_perps_contract.clone()),
+            keeper_fee_config: Some(keeper_fee_config.clone()),
         },
     )
     .unwrap();
@@ -151,6 +156,9 @@ fn update_config_works_with_full_config() {
 
     assert_eq!(&new_config.perps, new_perps_contract.address());
     assert_ne!(new_config.perps, original_config.perps);
+
+    assert_eq!(new_config.keeper_fee_config, keeper_fee_config);
+    assert_ne!(new_config.keeper_fee_config, original_config.keeper_fee_config);
 
     let rc_accounts = mock.query_accounts(&new_rewards_collector, None, None);
     let rc_account = rc_accounts.first().unwrap();

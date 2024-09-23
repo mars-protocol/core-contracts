@@ -14,6 +14,7 @@ use crate::{
     swapper::SwapperRoute,
 };
 
+#[allow(clippy::large_enum_variant)]
 #[cw_serde]
 pub enum ExecuteMsg {
     //--------------------------------------------------------------------------------------------------
@@ -31,6 +32,11 @@ pub enum ExecuteMsg {
     /// Allows repaying debts of assets that have been de-listed from credit manager.
     RepayFromWallet {
         account_id: String,
+    },
+
+    ExecuteTriggerOrder {
+        account_id: String,
+        trigger_order_id: String,
     },
 
     //--------------------------------------------------------------------------------------------------
@@ -131,6 +137,46 @@ pub enum LiquidateRequest<T> {
     StakedAstroLp(String),
 }
 
+#[cw_serde]
+pub enum Comparison {
+    GreaterThan,
+    LessThan,
+}
+
+impl Comparison {
+    pub fn is_met(&self, lhs: Decimal, rhs: Decimal) -> bool {
+        match self {
+            Comparison::GreaterThan => lhs > rhs,
+            Comparison::LessThan => lhs < rhs,
+        }
+    }
+}
+
+#[cw_serde]
+pub enum Condition {
+    /// If the oracle price is above or below the specified threshold, depending
+    /// on the comparison, the condition is met.
+    OraclePrice {
+        denom: String,
+        price: Decimal,
+        comparison: Comparison,
+    },
+    /// Trigger based on a relative price or price ratio of two prices.
+    /// The given price is compared to the Base / Quote ratio.
+    RelativePrice {
+        base_price_denom: String,
+        quote_price_denom: String,
+        price: Decimal,
+        comparison: Comparison,
+    },
+    /// If the health factor of the account is above or below the specified
+    /// threshold, depending on the comparison, the condition is met.
+    HealthFactor {
+        threshold: Decimal,
+        comparison: Comparison,
+    },
+}
+
 /// The list of actions that users can perform on their positions
 #[cw_serde]
 pub enum Action {
@@ -185,6 +231,19 @@ pub enum Action {
         order_size: SignedUint,
         reduce_only: Option<bool>,
     },
+
+    /// Dispatch orders to be triggered under specified conditions
+    CreateTriggerOrder {
+        actions: Vec<Action>,
+        conditions: Vec<Condition>,
+        keeper_fee: Coin,
+    },
+
+    DeleteTriggerOrder {
+        account_id: String,
+        trigger_order_id: String,
+    },
+
     /// Deposit coins into vault strategy
     /// If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault
     EnterVault {
@@ -327,6 +386,18 @@ pub enum CallbackMsg {
     WithdrawFromPerpVault {
         account_id: String,
         min_receive: Option<Uint128>,
+    },
+    // Creates a trigger order for an account
+    CreateTriggerOrder {
+        account_id: String,
+        actions: Vec<Action>,
+        conditions: Vec<Condition>,
+        keeper_fee: Coin,
+    },
+    // Deletes an accounts trigger order
+    DeleteTriggerOrder {
+        account_id: String,
+        trigger_order_id: String,
     },
     /// Adds coin to a vault strategy
     EnterVault {

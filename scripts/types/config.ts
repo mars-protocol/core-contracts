@@ -88,6 +88,9 @@ export interface DeploymentConfig {
   assets: AssetConfig[]
   vaults: VaultConfig[]
   oracleConfigs: OracleConfig[]
+  keeperFeeConfig: {
+    min_fee: { amount: string; denom: string }
+  }
   astroportConfig?: AstroportConfig
   perps?: {
     baseDenom: string

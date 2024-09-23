@@ -23,7 +23,7 @@ const protocolAdminAddr = 'neutron1ke0vqqzyymlp5esr8gjwuzh94ysnpvj8er5hm7'
 
 const marsNeutronChannelId = 'channel-97'
 const chainId = 'pion-1'
-const rpcEndpoint = 'https://rpc-palvus.pion-1.ntrn.tech'
+const rpcEndpoint = 'https://neutron-testnet-rpc.polkachu.com'
 
 // Astroport configuration
 const astroportFactory = 'neutron1jj0scx400pswhpjes589aujlqagxgcztw04srynmhf0f6zplzn2qqmhwj7'
@@ -632,6 +632,9 @@ export const neutronTestnetConfig: DeploymentConfig = {
   safetyFundAddr: safetyFundAddr,
   protocolAdminAddr: protocolAdminAddr,
   feeCollectorAddr: feeCollectorAddr,
+  keeperFeeConfig: {
+    min_fee: { amount: '1000000', denom: nobleUsdcDenom },
+  },
   chain: {
     baseDenom: 'untrn',
     defaultGasPrice: 0.02,

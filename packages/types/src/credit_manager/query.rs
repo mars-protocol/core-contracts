@@ -2,6 +2,7 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Coin, Decimal, Uint128};
 use mars_owner::OwnerResponse;
 
+use super::{Action, Condition};
 use crate::{
     adapters::{
         rewards_collector::RewardsCollector,
@@ -93,6 +94,20 @@ pub enum QueryMsg {
     VaultPositionValue {
         vault_position: VaultPosition,
     },
+    /// Return all trigger orders.
+    #[returns(cw_paginate::PaginationResponse<TriggerOrderResponse>)]
+    AllTriggerOrders {
+        start_after: Option<(String, String)>,
+        limit: Option<u32>,
+    },
+    /// Return all trigger orders for an account.
+    #[returns(cw_paginate::PaginationResponse<TriggerOrderResponse>)]
+    AllAccountTriggerOrders {
+        account_id: String,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
     /// Enumerate all vault bindings; start_after accepts account_id
     #[returns(Vec<VaultBinding>)]
     VaultBindings {
@@ -142,6 +157,20 @@ pub struct DebtAmount {
     pub amount: Uint128,
 }
 
+#[cw_serde]
+#[derive(Default)]
+pub struct KeeperFeeConfig {
+    pub min_fee: Coin,
+}
+
+#[cw_serde]
+pub struct TriggerOrder {
+    pub order_id: String,
+    pub actions: Vec<Action>,
+    pub conditions: Vec<Condition>,
+    pub keeper_fee: Coin,
+}
+
 impl Coins for Vec<DebtAmount> {
     fn to_coins(&self) -> Vec<Coin> {
         self.iter()
@@ -172,6 +201,12 @@ pub struct VaultPositionResponseItem {
 }
 
 #[cw_serde]
+pub struct TriggerOrderResponse {
+    pub account_id: String,
+    pub order: TriggerOrder,
+}
+
+#[cw_serde]
 pub struct VaultWithBalance {
     pub vault: Vault,
     pub balance: Uint128,
@@ -192,6 +227,7 @@ pub struct ConfigResponse {
     pub zapper: String,
     pub health_contract: String,
     pub rewards_collector: Option<RewardsCollector>,
+    pub keeper_fee_config: KeeperFeeConfig,
 }
 
 #[cw_serde]

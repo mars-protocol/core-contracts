@@ -12,8 +12,9 @@ use crate::{
     error::ContractResult,
     execute::create_credit_account,
     state::{
-        ACCOUNT_NFT, HEALTH_CONTRACT, INCENTIVES, MAX_SLIPPAGE, MAX_UNLOCKING_POSITIONS, ORACLE,
-        OWNER, PARAMS, PERPS, RED_BANK, REWARDS_COLLECTOR, SWAPPER, ZAPPER,
+        ACCOUNT_NFT, HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE,
+        MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS, RED_BANK, REWARDS_COLLECTOR,
+        SWAPPER, ZAPPER,
     },
     utils::assert_max_slippage,
 };
@@ -106,6 +107,15 @@ pub fn update_config(
         PERPS.save(deps.storage, &unchecked.check(deps.api)?)?;
         response =
             response.add_attribute("key", "perps").add_attribute("value", unchecked.address());
+    }
+
+    if let Some(kfc) = updates.keeper_fee_config {
+        KEEPER_FEE_CONFIG.save(deps.storage, &kfc)?;
+        response = response.add_attributes(vec![
+            ("key", "keeper_fee_config"),
+            ("keeper_fee_denom", &kfc.min_fee.denom),
+            ("keeper_fee_min", &kfc.min_fee.to_string()),
+        ]);
     }
 
     if let Some(unchecked) = updates.rewards_collector {

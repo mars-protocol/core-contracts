@@ -629,6 +629,67 @@
             "additionalProperties": false
           },
           {
+            "description": "Dispatch orders to be triggered under specified conditions",
+            "type": "object",
+            "required": [
+              "create_trigger_order"
+            ],
+            "properties": {
+              "create_trigger_order": {
+                "type": "object",
+                "required": [
+                  "actions",
+                  "conditions",
+                  "keeper_fee"
+                ],
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/Action"
+                    }
+                  },
+                  "conditions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/Condition"
+                    }
+                  },
+                  "keeper_fee": {
+                    "$ref": "#/definitions/Coin"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "delete_trigger_order"
+            ],
+            "properties": {
+              "delete_trigger_order": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "trigger_order_id"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "trigger_order_id": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Deposit coins into vault strategy If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault",
             "type": "object",
             "required": [
@@ -1042,6 +1103,107 @@
             "type": "string"
           }
         }
+      },
+      "Comparison": {
+        "type": "string",
+        "enum": [
+          "greater_than",
+          "less_than"
+        ]
+      },
+      "Condition": {
+        "oneOf": [
+          {
+            "description": "If the oracle price is above or below the specified threshold, depending on the comparison, the condition is met.",
+            "type": "object",
+            "required": [
+              "oracle_price"
+            ],
+            "properties": {
+              "oracle_price": {
+                "type": "object",
+                "required": [
+                  "comparison",
+                  "denom",
+                  "price"
+                ],
+                "properties": {
+                  "comparison": {
+                    "$ref": "#/definitions/Comparison"
+                  },
+                  "denom": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "$ref": "#/definitions/Decimal"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Trigger based on a relative price or price ratio of two prices. The given price is compared to the Base / Quote ratio.",
+            "type": "object",
+            "required": [
+              "relative_price"
+            ],
+            "properties": {
+              "relative_price": {
+                "type": "object",
+                "required": [
+                  "base_price_denom",
+                  "comparison",
+                  "price",
+                  "quote_price_denom"
+                ],
+                "properties": {
+                  "base_price_denom": {
+                    "type": "string"
+                  },
+                  "comparison": {
+                    "$ref": "#/definitions/Comparison"
+                  },
+                  "price": {
+                    "$ref": "#/definitions/Decimal"
+                  },
+                  "quote_price_denom": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "If the health factor of the account is above or below the specified threshold, depending on the comparison, the condition is met.",
+            "type": "object",
+            "required": [
+              "health_factor"
+            ],
+            "properties": {
+              "health_factor": {
+                "type": "object",
+                "required": [
+                  "comparison",
+                  "threshold"
+                ],
+                "properties": {
+                  "comparison": {
+                    "$ref": "#/definitions/Comparison"
+                  },
+                  "threshold": {
+                    "$ref": "#/definitions/Decimal"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "Decimal": {
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",

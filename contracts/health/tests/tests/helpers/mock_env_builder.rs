@@ -138,6 +138,7 @@ impl MockEnvBuilder {
                         health_contract: "n/a".to_string(),
                         rewards_collector: None,
                         perps: "n/a".to_string(),
+                        keeper_fee_config: Default::default(),
                     },
                 },
                 &[],

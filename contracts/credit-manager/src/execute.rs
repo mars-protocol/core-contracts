@@ -33,6 +33,7 @@ use crate::{
     stake_astro_lp::stake_lp,
     state::{ACCOUNT_KINDS, ACCOUNT_NFT, REENTRANCY_GUARD, VAULTS},
     swap::swap_exact_in,
+    trigger::{create_trigger_order, delete_trigger_order},
     unstake_astro_lp::unstake_lp,
     update_coin_balances::{update_coin_balance, update_coin_balance_after_vault_liquidation},
     utils::{assert_is_authorized, get_account_kind},
@@ -101,12 +102,13 @@ pub fn dispatch_actions(
     account_id: Option<String>,
     account_kind: Option<AccountKind>,
     actions: Vec<Action>,
+    enforce_ownership: bool,
 ) -> ContractResult<Response> {
     let mut response = Response::new();
 
     let account_id = match account_id {
         Some(acc_id) => {
-            validate_account(&deps, &info, &acc_id, &actions)?;
+            validate_account(&deps, &info, &acc_id, &actions, enforce_ownership)?;
             acc_id
         }
         None => {
@@ -257,6 +259,23 @@ pub fn dispatch_actions(
                 denom,
                 size,
                 reduce_only,
+            }),
+            Action::CreateTriggerOrder {
+                actions,
+                conditions,
+                keeper_fee,
+            } => callbacks.push(CallbackMsg::CreateTriggerOrder {
+                account_id: account_id.to_string(),
+                actions,
+                conditions,
+                keeper_fee,
+            }),
+            Action::DeleteTriggerOrder {
+                account_id,
+                trigger_order_id,
+            } => callbacks.push(CallbackMsg::DeleteTriggerOrder {
+                account_id: account_id.to_string(),
+                trigger_order_id: trigger_order_id.to_string(),
             }),
             Action::EnterVault {
                 vault,
@@ -473,6 +492,7 @@ fn validate_account(
     info: &MessageInfo,
     acc_id: &String,
     actions: &[Action],
+    enforce_ownership: bool,
 ) -> Result<(), ContractError> {
     let kind = get_account_kind(deps.storage, acc_id)?;
     match kind {
@@ -481,7 +501,9 @@ fn validate_account(
         AccountKind::FundManager {
             vault_addr,
         } if info.sender != vault_addr => {
-            assert_is_authorized(deps, &info.sender, acc_id)?;
+            if enforce_ownership {
+                assert_is_authorized(deps, &info.sender, acc_id)?;
+            }
 
             let actions_not_allowed = actions.iter().any(|action| {
                 matches!(
@@ -506,7 +528,9 @@ fn validate_account(
             ..
         } => {}
         AccountKind::Default | AccountKind::HighLeveredStrategy => {
-            assert_is_authorized(deps, &info.sender, acc_id)?
+            if enforce_ownership {
+                assert_is_authorized(deps, &info.sender, acc_id)?;
+            }
         }
     }
 
@@ -572,6 +596,16 @@ pub fn execute_callback(
             account_id,
             min_receive,
         } => withdraw_from_perp_vault(deps.as_ref(), env, &account_id, min_receive),
+        CallbackMsg::CreateTriggerOrder {
+            account_id,
+            actions,
+            conditions,
+            keeper_fee,
+        } => create_trigger_order(deps, &account_id, actions, conditions, keeper_fee),
+        CallbackMsg::DeleteTriggerOrder {
+            account_id,
+            trigger_order_id,
+        } => delete_trigger_order(deps, &account_id, &trigger_order_id),
         CallbackMsg::CloseAllPerps {
             account_id,
         } => close_all_perps(deps, &account_id, ActionKind::Liquidation),

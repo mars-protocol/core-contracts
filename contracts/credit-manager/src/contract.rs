@@ -15,11 +15,14 @@ use crate::{
     perp::update_balance_after_deleverage,
     query::{
         query_accounts, query_all_coin_balances, query_all_debt_shares,
-        query_all_total_debt_shares, query_all_vault_positions, query_all_vault_utilizations,
-        query_config, query_positions, query_total_debt_shares, query_vault_bindings,
-        query_vault_position_value, query_vault_utilization,
+        query_all_total_debt_shares, query_all_trigger_orders,
+        query_all_trigger_orders_for_account, query_all_vault_positions,
+        query_all_vault_utilizations, query_config, query_positions, query_total_debt_shares,
+        query_vault_bindings, query_vault_position_value, query_vault_utilization,
     },
     repay::repay_from_wallet,
+    state::NEXT_TRIGGER_ID,
+    trigger::execute_trigger_order,
     update_config::{update_config, update_nft_config, update_owner},
     utils::get_account_kind,
     vault::handle_unlock_request_reply,
@@ -37,6 +40,7 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> ContractResult<Response> {
     set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), CONTRACT_VERSION)?;
+    NEXT_TRIGGER_ID.save(deps.storage, &1)?;
     store_config(deps, env, &msg)?;
     Ok(Response::default())
 }
@@ -65,7 +69,7 @@ pub fn execute(
             account_id,
             account_kind,
             actions,
-        } => dispatch_actions(deps, env, info, account_id, account_kind, actions),
+        } => dispatch_actions(deps, env, info, account_id, account_kind, actions, true),
         ExecuteMsg::RepayFromWallet {
             account_id,
         } => repay_from_wallet(deps, env, info, account_id),
@@ -80,6 +84,10 @@ pub fn execute(
             pnl,
             ActionKind::Liquidation,
         ),
+        ExecuteMsg::ExecuteTriggerOrder {
+            account_id,
+            trigger_order_id,
+        } => execute_trigger_order(deps, env, info, &account_id, &trigger_order_id),
     }
 }
 
@@ -145,6 +153,20 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::VaultPositionValue {
             vault_position,
         } => to_json_binary(&query_vault_position_value(deps, vault_position)?),
+        QueryMsg::AllAccountTriggerOrders {
+            account_id,
+            start_after,
+            limit,
+        } => to_json_binary(&query_all_trigger_orders_for_account(
+            deps,
+            account_id,
+            start_after,
+            limit,
+        )?),
+        QueryMsg::AllTriggerOrders {
+            start_after,
+            limit,
+        } => to_json_binary(&query_all_trigger_orders(deps, start_after, limit)?),
         QueryMsg::VaultBindings {
             start_after,
             limit,

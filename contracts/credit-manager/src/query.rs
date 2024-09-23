@@ -1,11 +1,15 @@
 use cosmwasm_std::{Coin, Deps, Env, Order, StdResult};
-use cw_paginate::{paginate_map, paginate_map_query, PaginationResponse, DEFAULT_LIMIT, MAX_LIMIT};
+use cw_paginate::{
+    paginate_map, paginate_map_query, paginate_prefix_query, PaginationResponse, DEFAULT_LIMIT,
+    MAX_LIMIT,
+};
 use cw_storage_plus::Bound;
 use mars_types::{
     adapters::vault::{Vault, VaultBase, VaultPosition, VaultPositionValue, VaultUnchecked},
     credit_manager::{
         Account, CoinBalanceResponseItem, ConfigResponse, DebtAmount, DebtShares, Positions,
-        SharesResponseItem, VaultBinding, VaultPositionResponseItem, VaultUtilizationResponse,
+        SharesResponseItem, TriggerOrderResponse, VaultBinding, VaultPositionResponseItem,
+        VaultUtilizationResponse,
     },
     health::AccountKind,
     oracle::ActionKind,
@@ -15,8 +19,9 @@ use crate::{
     error::ContractResult,
     state::{
         ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, DEBT_SHARES, HEALTH_CONTRACT, INCENTIVES,
-        MAX_SLIPPAGE, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS, RED_BANK,
-        REWARDS_COLLECTOR, SWAPPER, TOTAL_DEBT_SHARES, VAULTS, VAULT_POSITIONS, ZAPPER,
+        KEEPER_FEE_CONFIG, MAX_SLIPPAGE, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS,
+        RED_BANK, REWARDS_COLLECTOR, SWAPPER, TOTAL_DEBT_SHARES, TRIGGER_ORDERS, VAULTS,
+        VAULT_POSITIONS, ZAPPER,
     },
     utils::debt_shares_to_amount,
     vault::vault_utilization_in_deposit_cap_denom,
@@ -60,6 +65,7 @@ pub fn query_config(deps: Deps) -> ContractResult<ConfigResponse> {
         zapper: ZAPPER.load(deps.storage)?.address().into(),
         health_contract: HEALTH_CONTRACT.load(deps.storage)?.address().into(),
         rewards_collector: REWARDS_COLLECTOR.may_load(deps.storage)?,
+        keeper_fee_config: KEEPER_FEE_CONFIG.load(deps.storage)?,
     })
 }
 
@@ -138,7 +144,7 @@ pub fn query_all_debt_shares(
     start_after: Option<(String, String)>,
     limit: Option<u32>,
 ) -> StdResult<Vec<SharesResponseItem>> {
-    let start = start_after
+    let start: Option<Bound<'_, (&str, &str)>> = start_after
         .as_ref()
         .map(|(account_id, denom)| Bound::exclusive((account_id.as_str(), denom.as_str())));
     paginate_map(&DEBT_SHARES, deps.storage, start, limit, |(account_id, denom), shares| {
@@ -148,6 +154,54 @@ pub fn query_all_debt_shares(
             shares,
         })
     })
+}
+
+pub fn query_all_trigger_orders_for_account(
+    deps: Deps,
+    account_id: String,
+    start_after_order_id: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<PaginationResponse<TriggerOrderResponse>> {
+    let start = start_after_order_id.as_ref().map(|order_id| Bound::exclusive(order_id.as_str()));
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+
+    paginate_prefix_query(
+        &TRIGGER_ORDERS,
+        deps.storage,
+        &account_id,
+        start,
+        Some(limit),
+        |_order_id, order| {
+            Ok(TriggerOrderResponse {
+                account_id: account_id.clone(),
+                order,
+            })
+        },
+    )
+}
+
+pub fn query_all_trigger_orders(
+    deps: Deps,
+    start_after: Option<(String, String)>,
+    limit: Option<u32>,
+) -> StdResult<PaginationResponse<TriggerOrderResponse>> {
+    let start: Option<Bound<'_, (&str, &str)>> = start_after
+        .as_ref()
+        .map(|(account_id, order_id)| Bound::exclusive((account_id.as_str(), order_id.as_str())));
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+
+    paginate_map_query(
+        &TRIGGER_ORDERS,
+        deps.storage,
+        start,
+        Some(limit),
+        |(account_id, _order_id), order| {
+            Ok(TriggerOrderResponse {
+                account_id: account_id.to_string(),
+                order,
+            })
+        },
+    )
 }
 
 pub fn query_vault_utilization(

@@ -204,6 +204,9 @@ pub enum ContractError {
     #[error(transparent)]
     Oracle(#[from] OracleError),
 
+    #[error("Order conditions not met")]
+    IllegalExecuteTriggerOrder,
+
     #[error("Debt cannot be represented by zero debt shares")]
     ZeroDebtShares,
 
@@ -212,4 +215,27 @@ pub enum ContractError {
 
     #[error("{0}")]
     Health(#[from] HealthError),
+
+    #[error("Trigger order with id {order_id:?} for account id {account_id:?} not found")]
+    TriggerOrderNotFound {
+        order_id: String,
+        account_id: String,
+    },
+
+    #[error("Received keeper fee is less than the min required fee. Expected: {expected_min_amount:?}, received: {received_amount:?}")]
+    KeeperFeeTooSmall {
+        expected_min_amount: Uint128,
+        received_amount: Uint128,
+    },
+
+    #[error("Received invalid keeper fee denom. Expected: {expected_denom:?}, received: {received_denom:?}")]
+    InvalidKeeperFeeDenom {
+        expected_denom: String,
+        received_denom: String,
+    },
+
+    #[error(
+        "Illegal trigger action. Trigger actions may not contain deposit or liquidate actions"
+    )]
+    IllegalTriggerAction,
 }

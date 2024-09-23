@@ -37,6 +37,7 @@ mod test_repay_for_recipient;
 mod test_repay_from_wallet;
 mod test_stake_astro_lp;
 mod test_swap;
+mod test_trigger;
 mod test_unstake_astro_lp;
 mod test_update_admin;
 mod test_update_config;

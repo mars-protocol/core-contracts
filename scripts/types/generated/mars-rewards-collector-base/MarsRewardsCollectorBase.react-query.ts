@@ -18,6 +18,8 @@ import {
   OwnerUpdate,
   Action,
   ActionAmount,
+  Condition,
+  Comparison,
   LiquidateRequestForVaultBaseForString,
   VaultPositionType,
   SwapperRoute,

@@ -269,6 +269,9 @@ export const osmosisTestnetConfig: DeploymentConfig = {
     safetyFundDenom: aUSDC,
     slippageTolerance: '0.01',
   },
+  keeperFeeConfig: {
+    min_fee: { amount: '1000000', denom: aUSDC },
+  },
   incentives: {
     epochDuration: 604800, // 1 week
     maxWhitelistedIncentiveDenoms: 10,
