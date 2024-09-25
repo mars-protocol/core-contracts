@@ -1336,7 +1336,7 @@ dependencies = [
 [[package]]
 name = "cw721"
 version = "0.18.0"
-source = "git+https://github.com/CosmWasm/cw-nfts/?branch=main#177a993dfb5a1a3164be1baf274f43b1ca53da53"
+source = "git+https://github.com/CosmWasm/cw-nfts/?rev=177a993#177a993dfb5a1a3164be1baf274f43b1ca53da53"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -1365,7 +1365,7 @@ dependencies = [
 [[package]]
 name = "cw721-base"
 version = "0.18.0"
-source = "git+https://github.com/CosmWasm/cw-nfts/?branch=main#177a993dfb5a1a3164be1baf274f43b1ca53da53"
+source = "git+https://github.com/CosmWasm/cw-nfts/?rev=177a993#177a993dfb5a1a3164be1baf274f43b1ca53da53"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -2969,7 +2969,7 @@ dependencies = [
 [[package]]
 name = "neutron-sdk"
 version = "0.10.0"
-source = "git+https://github.com/neutron-org/neutron-sdk?rev=98d81ea8dfdab87483eccf0acc22264263e789f8#98d81ea8dfdab87483eccf0acc22264263e789f8"
+source = "git+https://github.com/neutron-org/neutron-sdk?rev=98d81ea#98d81ea8dfdab87483eccf0acc22264263e789f8"
 dependencies = [
  "bech32 0.9.1",
  "cosmos-sdk-proto 0.20.0",
