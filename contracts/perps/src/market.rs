@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use cosmwasm_std::{
     Decimal, Deps, Fraction, Int256, Int512, Order, SignedDecimal256, Uint128, Uint256,
@@ -16,7 +16,8 @@ use mars_types::{
 use crate::{
     accounting::AccountingExt,
     error::{ContractError, ContractResult},
-    state::{CONFIG, MARKET_STATES, TOTAL_CASH_FLOW},
+    state::{MARKET_STATES, TOTAL_CASH_FLOW},
+    utils::get_markets_and_base_denom_prices,
 };
 
 pub const SECONDS_IN_DAY: u64 = 86400;
@@ -604,15 +605,11 @@ fn increase_accumulators(
 /// This PnL is denominated in uusd (1 USD = 1e6 uusd -> configured in Oracle).
 pub fn compute_total_pnl(
     deps: &Deps,
-    oracle: &Oracle,
     params: &Params,
+    prices: HashMap<String, Decimal>,
+    base_denom_price: Decimal,
     current_time: u64,
-    action: ActionKind,
 ) -> ContractResult<PnlValues> {
-    let config = CONFIG.load(deps.storage)?;
-
-    let base_denom_price =
-        oracle.query_price(&deps.querier, &config.base_denom, action.clone())?.price;
     let total_pnl = MARKET_STATES.range(deps.storage, None, None, Order::Ascending).try_fold(
         PnlValues::default(),
         |acc, item| -> ContractResult<_> {
@@ -629,7 +626,10 @@ pub fn compute_total_pnl(
             }
 
             let perp_params = params.query_perp_params(&deps.querier, &denom)?;
-            let denom_price = oracle.query_price(&deps.querier, &denom, action.clone())?.price;
+            // The prices hashmap provider is certain to contain the denom. The oracle is queried
+            // for all the denoms present in MARKET_STATES, so if a price is not available, the
+            // error would have thrown earlier.
+            let denom_price = prices[&denom];
 
             let (pnl_values, _) = ms.compute_pnl(
                 current_time,
@@ -656,11 +656,17 @@ pub fn compute_total_accounting_data(
     oracle: &Oracle,
     params: &Params,
     current_time: u64,
-    base_denom_price: Decimal,
+    base_denom: &str,
     action: ActionKind,
 ) -> ContractResult<(Accounting, PnlAmounts)> {
     let gcf = TOTAL_CASH_FLOW.load(deps.storage)?;
-    let unrealized_pnl_val = compute_total_pnl(deps, oracle, params, current_time, action)?;
+
+    let prices = get_markets_and_base_denom_prices(deps, oracle, base_denom, action)?;
+    let base_denom_price = prices[base_denom];
+
+    // Pass all market_prices to this fn
+    let unrealized_pnl_val =
+        compute_total_pnl(deps, params, prices, base_denom_price, current_time)?;
     let unrealized_pnl_amt = PnlAmounts::from_pnl_values(unrealized_pnl_val, base_denom_price)?;
     let acc = Accounting::compute(&gcf, &unrealized_pnl_amt)?;
     Ok((acc, unrealized_pnl_amt))

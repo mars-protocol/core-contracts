@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    Addr, Api, CheckedMultiplyFractionError, Coin, QuerierWrapper, StdError, StdResult, Uint128,
+    Addr, Api, CheckedMultiplyFractionError, Coin, Decimal, QuerierWrapper, StdError, StdResult,
+    Uint128,
 };
 
 use crate::oracle::{ActionKind, PriceResponse, QueryMsg};
@@ -44,6 +47,21 @@ impl Oracle {
             self.address().to_string(),
             &QueryMsg::Price {
                 denom: denom.to_string(),
+                kind: Some(pricing),
+            },
+        )
+    }
+
+    pub fn query_prices_by_denoms(
+        &self,
+        querier: &QuerierWrapper,
+        denoms: Vec<String>,
+        pricing: ActionKind,
+    ) -> StdResult<HashMap<String, Decimal>> {
+        querier.query_wasm_smart(
+            self.address().to_string(),
+            &QueryMsg::PricesByDenoms {
+                denoms,
                 kind: Some(pricing),
             },
         )

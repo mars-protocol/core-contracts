@@ -88,6 +88,15 @@ pub enum QueryMsg {
         limit: Option<u32>,
         kind: Option<ActionKind>,
     },
+    /// Get prices for list of provided denoms.
+    ///
+    /// NOTE: This query may be dependent on block time (e.g. if the price source is TWAP), so may not
+    /// work properly with time travel queries on archive nodes.
+    #[returns(Vec<PriceResponse>)]
+    PricesByDenoms {
+        denoms: Vec<String>,
+        kind: Option<ActionKind>,
+    },
 }
 
 #[cw_serde]

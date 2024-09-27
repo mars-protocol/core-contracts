@@ -58,17 +58,13 @@ pub fn query_vault(
     let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
     let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
 
-    // Query the base denomination price from the oracle
-    let base_denom_price =
-        oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
-
     // Compute total accounting data and unrealized PnL amount
     let (acc_data, unrealized_pnl_amt) = compute_total_accounting_data(
         &deps,
         &oracle,
         &params,
         current_time,
-        base_denom_price,
+        &cfg.base_denom,
         action,
     )?;
 
@@ -559,15 +555,12 @@ pub fn query_total_accounting(deps: Deps, current_time: u64) -> ContractResult<A
     let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
     let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
 
-    let base_denom_price =
-        oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
-
     let (accounting, unrealized_pnl) = compute_total_accounting_data(
         &deps,
         &oracle,
         &params,
         current_time,
-        base_denom_price,
+        &cfg.base_denom,
         ActionKind::Default,
     )?;
 

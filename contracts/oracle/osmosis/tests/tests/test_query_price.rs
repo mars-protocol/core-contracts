@@ -1,9 +1,10 @@
-use std::str::FromStr;
+use std::{collections::HashMap, str::FromStr};
 
 use cosmwasm_std::{
     coin, from_json,
     testing::{mock_env, MockApi, MockStorage},
     Decimal, OwnedDeps, StdError,
+    StdError::GenericErr,
 };
 use helpers::prepare_query_balancer_pool_response;
 use ica_oracle::msg::RedemptionRateResponse;
@@ -1074,5 +1075,101 @@ fn querying_all_prices() {
                 price: Decimal::one(),
             },
         ]
+    );
+}
+
+#[test]
+fn querying_prices_by_denoms() {
+    let mut deps = helpers::setup_test_with_pools();
+
+    let denom_1 = "umars";
+    let denom_2 = "uusdc";
+    let denom_3 = "utia";
+
+    let price_1 = Decimal::from_ratio(88888u128, 12345u128);
+    let price_2 = Decimal::from_str("1.25").unwrap();
+    let price_3 = Decimal::from_str("1.83645").unwrap();
+
+    helpers::set_price_source(
+        deps.as_mut(),
+        denom_1,
+        OsmosisPriceSourceUnchecked::Spot {
+            pool_id: 89,
+        },
+    );
+
+    deps.querier.set_spot_price(
+        89,
+        denom_1,
+        "uosmo",
+        SpotPriceResponse {
+            spot_price: Decimal::from_ratio(88888u128, 12345u128).to_string(),
+        },
+    );
+
+    helpers::set_price_source(
+        deps.as_mut(),
+        denom_2,
+        OsmosisPriceSourceUnchecked::Fixed {
+            price: price_2,
+        },
+    );
+
+    helpers::set_price_source(
+        deps.as_mut(),
+        denom_3,
+        OsmosisPriceSourceUnchecked::Fixed {
+            price: price_3,
+        },
+    );
+
+    let res: HashMap<String, Decimal> = helpers::query(
+        deps.as_ref(),
+        QueryMsg::PricesByDenoms {
+            denoms: vec![],
+            kind: None,
+        },
+    );
+
+    assert_eq!(res, HashMap::new());
+
+    let res: HashMap<String, Decimal> = helpers::query(
+        deps.as_ref(),
+        QueryMsg::PricesByDenoms {
+            denoms: vec![denom_1.to_string(), denom_3.to_string()],
+            kind: None,
+        },
+    );
+
+    let expected_prices: HashMap<String, Decimal> =
+        HashMap::from([(denom_1.to_string(), price_1), (denom_3.to_string(), price_3)]);
+
+    assert_eq!(res, expected_prices);
+
+    let res: HashMap<String, Decimal> = helpers::query(
+        deps.as_ref(),
+        QueryMsg::PricesByDenoms {
+            denoms: vec![denom_2.to_string()],
+            kind: None,
+        },
+    );
+
+    let expected_prices: HashMap<String, Decimal> = HashMap::from([(denom_2.to_string(), price_2)]);
+
+    assert_eq!(res, expected_prices);
+
+    let err = helpers::query_err(
+        deps.as_ref(),
+        QueryMsg::PricesByDenoms {
+            denoms: vec![denom_1.to_string(), "denom_no_price".to_string()],
+            kind: None,
+        },
+    );
+
+    assert_eq!(
+        err,
+        ContractError::Std(GenericErr {
+            msg: "No price source found for denom: denom_no_price".to_string()
+        })
     );
 }

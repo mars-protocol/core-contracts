@@ -333,16 +333,8 @@ pub fn compute_global_withdrawal_balance(
     base_denom: &str,
     action: ActionKind,
 ) -> ContractResult<Uint128> {
-    let base_denom_price = oracle.query_price(&deps.querier, base_denom, action.clone())?.price;
-
-    let (global_acc_data, _) = compute_total_accounting_data(
-        deps,
-        oracle,
-        params,
-        current_time,
-        base_denom_price,
-        action,
-    )?;
+    let (global_acc_data, _) =
+        compute_total_accounting_data(deps, oracle, params, current_time, base_denom, action)?;
 
     let global_withdrawal_balance =
         global_acc_data.withdrawal_balance.total.checked_add(vs.total_balance)?;
