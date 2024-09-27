@@ -1,5 +1,5 @@
 use cosmwasm_std::{Coin, Deps, DepsMut, Env, QuerierWrapper, Uint128};
-use mars_liquidation::liquidation::calculate_liquidation_amounts;
+use mars_liquidation::liquidation::{calculate_liquidation_amounts, HealthData};
 use mars_types::{
     adapters::oracle::Oracle, health::HealthValuesResponse, oracle::ActionKind, traits::Stringify,
 };
@@ -51,9 +51,18 @@ pub fn calculate_liquidation(
     // Now that only spot assets remain, we need to query the health values again to get an updated view without the perps.
     // Note: Even if closing the perps improves the health factor enough to avoid liquidation, we still continue with the liquidation process.
     let health = if prev_health.has_perps {
-        query_health_values(deps.as_ref(), env, liquidatee_account_id, ActionKind::Liquidation)?
+        let mut health: HealthData = query_health_values(
+            deps.as_ref(),
+            env,
+            liquidatee_account_id,
+            ActionKind::Liquidation,
+        )?
+        .into();
+        // The health factor may already be above 1 after closing perps, so we retain the previous value — the one that triggered the liquidation.
+        health.liquidation_health_factor = prev_health.liquidation_health_factor;
+        health
     } else {
-        prev_health
+        prev_health.into()
     };
 
     // Ensure debt repaid does not exceed liquidatee's total debt for denom
@@ -83,7 +92,7 @@ pub fn calculate_liquidation(
             debt_coin.amount,
             debt_coin_price,
             &debt_coin_params,
-            &health.into(),
+            &health,
         )?;
 
     // (Debt Coin, Liquidator Request Coin, Liquidatee Request Coin)

@@ -5,9 +5,35 @@ use std::{
 
 use cosmwasm_std::{Decimal, StdError, Uint128};
 use mars_health::health::Health;
-use mars_types::params::AssetParams;
+use mars_types::{health::HealthValuesResponse, params::AssetParams};
 
 use crate::error::LiquidationError;
+
+pub struct HealthData {
+    pub total_debt_value: Uint128,
+    pub total_collateral_value: Uint128,
+    pub liquidation_health_factor: Option<Decimal>,
+}
+
+impl From<HealthValuesResponse> for HealthData {
+    fn from(health: HealthValuesResponse) -> Self {
+        Self {
+            total_debt_value: health.total_debt_value,
+            total_collateral_value: health.total_collateral_value,
+            liquidation_health_factor: health.liquidation_health_factor,
+        }
+    }
+}
+
+impl From<Health> for HealthData {
+    fn from(health: Health) -> Self {
+        Self {
+            total_debt_value: health.total_debt_value,
+            total_collateral_value: health.total_collateral_value,
+            liquidation_health_factor: health.liquidation_health_factor,
+        }
+    }
+}
 
 /// Within this new system, the close factor (CF) will be determined dynamically using a parameter
 /// known as the Target Health Factor (THF). The THF determines the ideal HF a position should be left
@@ -40,12 +66,12 @@ pub fn calculate_liquidation_amounts(
     debt_requested_to_repay: Uint128,
     debt_price: Decimal,
     debt_params: &AssetParams,
-    health: &Health,
+    health: &HealthData,
 ) -> Result<(Uint128, Uint128, Uint128), LiquidationError> {
-    // After closing all perps positions, HF can become above 1 (liquidation_health_factor = None),
-    // however, the liquidation round continues.
-    // For such case we consider liquidation_health_factor = 1.
-    let liquidation_health_factor = health.liquidation_health_factor.unwrap_or(Decimal::one());
+    // just in case, throw an error if the health factor is not available (this shouldn’t happen, as liquidation only occurs if HF < 1)
+    let liquidation_health_factor = health.liquidation_health_factor.ok_or_else(|| {
+        LiquidationError::Std(StdError::generic_err("Liquidation health factor not available"))
+    })?;
 
     let user_collateral_value = collateral_amount.checked_mul_floor(collateral_price)?;
 

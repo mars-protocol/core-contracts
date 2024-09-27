@@ -158,7 +158,7 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
     assert_eq!(usdc_balance.amount, Uint128::new(21)); // initial usdc deposit - perps opening fees - perps loss
     assert_eq!(usdc_balance.amount, usdc_deposit_before_liq.amount - loss_amt);
     let osmo_balance = get_coin("uosmo", &position.deposits);
-    assert_eq!(osmo_balance.amount, Uint128::new(1944));
+    assert_eq!(osmo_balance.amount, Uint128::new(1912));
     let atom_balance = get_coin("uatom", &position.deposits);
     assert_eq!(atom_balance.amount, Uint128::new(2400));
 
@@ -173,7 +173,7 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
     assert_eq!(position.deposits.len(), 2);
     assert_eq!(position.debts.len(), 0);
     let osmo_balance = get_coin("uosmo", &position.deposits);
-    assert_eq!(osmo_balance.amount, Uint128::new(1052));
+    assert_eq!(osmo_balance.amount, Uint128::new(1084));
     let atom_balance = get_coin("uatom", &position.deposits);
     assert_eq!(atom_balance.amount, Uint128::new(900));
 
@@ -341,7 +341,7 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
 
     assert_eq!(position.deposits.len(), 2);
     let osmo_balance = get_coin("uosmo", &position.deposits);
-    assert_eq!(osmo_balance.amount, Uint128::new(1892));
+    assert_eq!(osmo_balance.amount, Uint128::new(1868));
     let atom_balance = get_coin("uatom", &position.deposits);
     assert_eq!(atom_balance.amount, Uint128::new(2400));
 
@@ -352,7 +352,7 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
     assert_eq!(position.deposits.len(), 2);
     assert_eq!(position.debts.len(), 0);
     let osmo_balance = get_coin("uosmo", &position.deposits);
-    assert_eq!(osmo_balance.amount, Uint128::new(1104));
+    assert_eq!(osmo_balance.amount, Uint128::new(1128));
     let atom_balance = get_coin("uatom", &position.deposits);
     assert_eq!(atom_balance.amount, Uint128::new(900));
 

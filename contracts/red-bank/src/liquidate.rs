@@ -146,7 +146,7 @@ pub fn liquidate(
         sent_debt_amount,
         debt_price,
         &debt_params,
-        &health,
+        &health.into(),
     )?;
     let protocol_fee = collateral_amount_to_liquidate - collateral_amount_received_by_liquidator;
 
