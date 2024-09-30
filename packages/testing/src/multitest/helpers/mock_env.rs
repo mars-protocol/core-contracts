@@ -1159,9 +1159,7 @@ impl MockEnvBuilder {
             &rover,
             ConfigUpdates {
                 perps: Some(perps.clone().into()),
-                keeper_fee_config: Some(KeeperFeeConfig {
-                    min_fee: coin(1000000, "uusdc"),
-                }),
+                keeper_fee_config: Some(self.get_keeper_fee_config()),
                 ..Default::default()
             },
         );
@@ -1879,6 +1877,11 @@ impl MockEnvBuilder {
 
     pub fn params(mut self, addr: &str) -> Self {
         self.params = Some(Params::new(Addr::unchecked(addr)));
+        self
+    }
+
+    pub fn keeper_fee_config(mut self, config: KeeperFeeConfig) -> Self {
+        self.keeper_fee_config = Some(config);
         self
     }
 
