@@ -412,7 +412,7 @@ fn modify_position(
         .add_attribute("new_size", new_size.to_string())
         .add_attribute("entry_price", entry_price.to_string())
         .add_attribute("current_price", denom_price.to_string())
-        .add_attribute("realised_pnl", pnl.to_string()))
+        .add_attribute("realised_pnl", pnl_amounts.pnl.to_string()))
 }
 
 /// Closes all positions for a given account.
@@ -540,7 +540,7 @@ pub fn close_all_positions(
         .add_messages(msgs)
         .add_attribute("action", "close_all_positions")
         .add_attribute("account_id", account_id)
-        .add_attribute("realised_pnl", pnl.to_string()))
+        .add_attribute("realised_pnl", pnl_amounts_accumulator.pnl.to_string()))
 }
 
 /// Adjusts the position size with validation and determines the type of position modification.

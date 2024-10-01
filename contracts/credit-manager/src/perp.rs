@@ -72,7 +72,7 @@ pub fn execute_perp_order(
         Some(position) => {
             // Modify existing position
             let pnl = position.unrealised_pnl.to_coins(&position.base_denom).pnl;
-            let pnl_string = pnl.to_string();
+            let pnl_string = position.unrealised_pnl.pnl.to_string();
             let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
             let funds = funds.map_or_else(Vec::new, |c| vec![c]);
 
@@ -221,7 +221,7 @@ pub fn update_balance_after_deleverage(
         }
     );
 
-    let pnl_string = pnl.to_string();
+    let pnl_string = pnl.to_signed_uint()?.to_string();
     let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, &account_id, pnl)?;
 
     // Amount sent will be validated in the perps contract in reply entry point

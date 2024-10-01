@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Decimal;
 use mars_types::oracle::ActionKind;
@@ -39,7 +37,7 @@ pub enum QueryMsg {
         kind: Option<ActionKind>,
     },
 
-    #[returns(HashMap<String,Decimal>)]
+    #[returns(std::collections::HashMap<String,Decimal>)]
     PricesByDenoms {
         denoms: Vec<String>,
         kind: Option<ActionKind>,
