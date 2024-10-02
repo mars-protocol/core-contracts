@@ -167,6 +167,23 @@ impl MockEnv {
             .unwrap()
     }
 
+    pub fn query_all_asset_params_v2(
+        &self,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> PaginationResponse<AssetParams> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.params_contract.clone(),
+                &QueryMsg::AllAssetParamsV2 {
+                    start_after,
+                    limit,
+                },
+            )
+            .unwrap()
+    }
+
     pub fn query_vault_config(&self, addr: &str) -> VaultConfig {
         self.app
             .wrap()
@@ -235,6 +252,23 @@ impl MockEnv {
             .query_wasm_smart(
                 self.params_contract.clone(),
                 &QueryMsg::AllPerpParams {
+                    start_after,
+                    limit,
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_all_perp_params_v2(
+        &self,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> PaginationResponse<PerpParams> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.params_contract.clone(),
+                &QueryMsg::AllPerpParamsV2 {
                     start_after,
                     limit,
                 },

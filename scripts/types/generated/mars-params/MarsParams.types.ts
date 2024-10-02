@@ -192,6 +192,12 @@ export type QueryMsg =
       }
     }
   | {
+      all_asset_params_v2: {
+        limit?: number | null
+        start_after?: string | null
+      }
+    }
+  | {
       vault_config: {
         address: string
       }
@@ -215,6 +221,12 @@ export type QueryMsg =
     }
   | {
       all_perp_params: {
+        limit?: number | null
+        start_after?: string | null
+      }
+    }
+  | {
+      all_perp_params_v2: {
         limit?: number | null
         start_after?: string | null
       }
@@ -264,7 +276,18 @@ export interface HlsParamsBaseForAddr {
   liquidation_threshold: Decimal
   max_loan_to_value: Decimal
 }
+export interface PaginationResponseForAssetParamsBaseForAddr {
+  data: AssetParamsBaseForAddr[]
+  metadata: Metadata
+}
+export interface Metadata {
+  has_more: boolean
+}
 export type ArrayOfPerpParams = PerpParams[]
+export interface PaginationResponseForPerpParams {
+  data: PerpParams[]
+  metadata: Metadata
+}
 export interface PaginationResponseForTotalDepositResponse {
   data: TotalDepositResponse[]
   metadata: Metadata
@@ -273,9 +296,6 @@ export interface TotalDepositResponse {
   amount: Uint128
   cap: Uint128
   denom: string
-}
-export interface Metadata {
-  has_more: boolean
 }
 export type ArrayOfVaultConfigBaseForAddr = VaultConfigBaseForAddr[]
 export interface VaultConfigBaseForAddr {

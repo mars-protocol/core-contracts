@@ -610,6 +610,8 @@ pub fn compute_total_pnl(
     base_denom_price: Decimal,
     current_time: u64,
 ) -> ContractResult<PnlValues> {
+    let perp_params_map = params.query_all_perp_params_v2(&deps.querier)?;
+
     let total_pnl = MARKET_STATES.range(deps.storage, None, None, Order::Ascending).try_fold(
         PnlValues::default(),
         |acc, item| -> ContractResult<_> {
@@ -625,7 +627,11 @@ pub fn compute_total_pnl(
                 });
             }
 
-            let perp_params = params.query_perp_params(&deps.querier, &denom)?;
+            // Load the perp params for the denom
+            let perp_params = perp_params_map.get(&denom).ok_or(ContractError::DenomNotFound {
+                denom: denom.clone(),
+            })?;
+
             // The prices hashmap provider is certain to contain the denom. The oracle is queried
             // for all the denoms present in MARKET_STATES, so if a price is not available, the
             // error would have thrown earlier.

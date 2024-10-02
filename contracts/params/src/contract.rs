@@ -17,9 +17,9 @@ use crate::{
     error::ContractResult,
     execute::{update_asset_params, update_config, update_perp_params, update_vault_config},
     query::{
-        query_all_asset_params, query_all_perp_params, query_all_total_deposits_v2,
-        query_all_vault_configs, query_all_vault_configs_v2, query_config, query_total_deposit,
-        query_vault_config,
+        query_all_asset_params, query_all_asset_params_v2, query_all_perp_params,
+        query_all_perp_params_v2, query_all_total_deposits_v2, query_all_vault_configs,
+        query_all_vault_configs_v2, query_config, query_total_deposit, query_vault_config,
     },
     state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, PERP_PARAMS},
 };
@@ -109,6 +109,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             start_after,
             limit,
         } => to_json_binary(&query_all_asset_params(deps, start_after, limit)?),
+        QueryMsg::AllAssetParamsV2 {
+            start_after,
+            limit,
+        } => to_json_binary(&query_all_asset_params_v2(deps, start_after, limit)?),
         QueryMsg::VaultConfig {
             address,
         } => to_json_binary(&query_vault_config(deps, &address)?),
@@ -127,6 +131,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             start_after,
             limit,
         } => to_json_binary(&query_all_perp_params(deps, start_after, limit)?),
+        QueryMsg::AllPerpParamsV2 {
+            start_after,
+            limit,
+        } => to_json_binary(&query_all_perp_params_v2(deps, start_after, limit)?),
         QueryMsg::TotalDeposit {
             denom,
         } => to_json_binary(&query_total_deposit(deps, &env, denom)?),

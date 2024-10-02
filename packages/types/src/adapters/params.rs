@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Api, QuerierWrapper, StdResult};
-use cw_paginate::PaginationResponse;
+use cw_paginate::{PaginationResponse, MAX_LIMIT};
 
 use crate::params::{AssetParams, PerpParams, QueryMsg, TotalDepositResponse, VaultConfig};
 
@@ -98,5 +100,30 @@ impl Params {
                 limit,
             },
         )
+    }
+
+    pub fn query_all_perp_params_v2(
+        &self,
+        querier: &QuerierWrapper,
+    ) -> StdResult<HashMap<String, PerpParams>> {
+        let mut start_after = Option::<String>::None;
+        let mut has_more = true;
+        let mut all_perp_params = HashMap::new();
+        while has_more {
+            let response: PaginationResponse<PerpParams> = querier.query_wasm_smart(
+                self.address().to_string(),
+                &QueryMsg::AllPerpParamsV2 {
+                    start_after: start_after.clone(),
+                    limit: Some(MAX_LIMIT - 1),
+                },
+            )?;
+            for item in response.data {
+                let denom = item.denom.clone();
+                all_perp_params.insert(denom.clone(), item);
+                start_after = Some(denom);
+            }
+            has_more = response.metadata.has_more;
+        }
+        Ok(all_perp_params)
     }
 }

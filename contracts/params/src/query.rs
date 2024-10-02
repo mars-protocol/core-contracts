@@ -36,6 +36,18 @@ pub fn query_all_asset_params(
         .collect()
 }
 
+pub fn query_all_asset_params_v2(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> Result<PaginationResponse<AssetParams>, ContractError> {
+    let start = start_after.as_ref().map(|denom| Bound::exclusive(denom.as_str()));
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+    paginate_map_query(&ASSET_PARAMS, deps.storage, start, Some(limit), |_res, params| {
+        Ok::<AssetParams, ContractError>(params)
+    })
+}
+
 pub fn query_vault_config(deps: Deps, unchecked: &str) -> StdResult<VaultConfig> {
     let addr = deps.api.addr_validate(unchecked)?;
     VAULT_CONFIGS.load(deps.storage, &addr)
@@ -97,6 +109,18 @@ pub fn query_all_perp_params(
         .take(limit)
         .map(|res| Ok(res?.1))
         .collect()
+}
+
+pub fn query_all_perp_params_v2(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> Result<PaginationResponse<PerpParams>, ContractError> {
+    let start = start_after.as_ref().map(|denom| Bound::exclusive(denom.as_str()));
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+    paginate_map_query(&PERP_PARAMS, deps.storage, start, Some(limit), |_res, params| {
+        Ok::<PerpParams, ContractError>(params)
+    })
 }
 
 /// Query and compute the total deposited amount of the given asset across Red

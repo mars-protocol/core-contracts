@@ -188,49 +188,24 @@ fn pagination_query() {
     let denom3 = "mars".to_string();
     let denom4 = "ion".to_string();
     let denom5 = "usdc".to_string();
+    let denoms = [
+        denom0.clone(),
+        denom1.clone(),
+        denom2.clone(),
+        denom3.clone(),
+        denom4.clone(),
+        denom5.clone(),
+    ];
 
-    mock.update_asset_params(
-        &owner,
-        AssetParamsUpdate::AddOrUpdate {
-            params: default_asset_params(&denom0),
-        },
-    )
-    .unwrap();
-    mock.update_asset_params(
-        &owner,
-        AssetParamsUpdate::AddOrUpdate {
-            params: default_asset_params(&denom1),
-        },
-    )
-    .unwrap();
-    mock.update_asset_params(
-        &owner,
-        AssetParamsUpdate::AddOrUpdate {
-            params: default_asset_params(&denom2),
-        },
-    )
-    .unwrap();
-    mock.update_asset_params(
-        &owner,
-        AssetParamsUpdate::AddOrUpdate {
-            params: default_asset_params(&denom3),
-        },
-    )
-    .unwrap();
-    mock.update_asset_params(
-        &owner,
-        AssetParamsUpdate::AddOrUpdate {
-            params: default_asset_params(&denom4),
-        },
-    )
-    .unwrap();
-    mock.update_asset_params(
-        &owner,
-        AssetParamsUpdate::AddOrUpdate {
-            params: default_asset_params(&denom5),
-        },
-    )
-    .unwrap();
+    for denom in denoms.iter() {
+        mock.update_asset_params(
+            &owner,
+            AssetParamsUpdate::AddOrUpdate {
+                params: default_asset_params(denom),
+            },
+        )
+        .unwrap();
+    }
 
     let asset_params_a = mock.query_all_asset_params(None, Some(2));
     let asset_params_b =
@@ -248,5 +223,64 @@ fn pagination_query() {
 
     assert_eq!(6, combined.len());
 
-    assert_contents_equal(&[denom0, denom1, denom2, denom3, denom4, denom5], &combined)
+    assert_contents_equal(&denoms, &combined)
+}
+
+#[test]
+fn pagination_query_v2() {
+    let mut mock = MockEnv::new().build().unwrap();
+    let owner = mock.query_owner();
+    let denom0 = "atom".to_string();
+    let denom1 = "osmo".to_string();
+    let denom2 = "juno".to_string();
+    let denom3 = "mars".to_string();
+    let denom4 = "ion".to_string();
+    let denom5 = "usdc".to_string();
+    let mut denoms = [
+        denom0.clone(),
+        denom1.clone(),
+        denom2.clone(),
+        denom3.clone(),
+        denom4.clone(),
+        denom5.clone(),
+    ];
+    denoms.sort();
+
+    for denom in denoms.iter() {
+        mock.update_asset_params(
+            &owner,
+            AssetParamsUpdate::AddOrUpdate {
+                params: default_asset_params(denom),
+            },
+        )
+        .unwrap();
+    }
+
+    let asset_params_a_res = mock.query_all_asset_params_v2(None, Some(2));
+    assert!(asset_params_a_res.metadata.has_more);
+    assert_eq!(asset_params_a_res.data.len(), 2);
+    let asset_params_b_res = mock.query_all_asset_params_v2(
+        asset_params_a_res.data.iter().last().map(|r| r.denom.clone()),
+        Some(2),
+    );
+    assert!(asset_params_b_res.metadata.has_more);
+    assert_eq!(asset_params_b_res.data.len(), 2);
+    let asset_params_c_res = mock.query_all_asset_params_v2(
+        asset_params_b_res.data.iter().last().map(|r| r.denom.clone()),
+        None,
+    );
+    assert!(!asset_params_c_res.metadata.has_more);
+    assert_eq!(asset_params_c_res.data.len(), 2);
+
+    let combined = asset_params_a_res
+        .data
+        .iter()
+        .cloned()
+        .chain(asset_params_b_res.data.iter().cloned())
+        .chain(asset_params_c_res.data.iter().cloned())
+        .map(|r| r.denom)
+        .collect::<Vec<_>>();
+
+    assert_eq!(combined.len(), 6);
+    assert_eq!(&denoms, combined.as_slice());
 }

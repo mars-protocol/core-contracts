@@ -44,6 +44,12 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
 
+    #[returns(cw_paginate::PaginationResponse<super::asset::AssetParams>)]
+    AllAssetParamsV2 {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
     #[returns(super::vault::VaultConfig)]
     VaultConfig {
         /// Address of vault
@@ -69,6 +75,12 @@ pub enum QueryMsg {
 
     #[returns(Vec<super::perp::PerpParams>)]
     AllPerpParams {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
+    #[returns(cw_paginate::PaginationResponse<super::perp::PerpParams>)]
+    AllPerpParamsV2 {
         start_after: Option<String>,
         limit: Option<u32>,
     },

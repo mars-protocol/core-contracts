@@ -1,6 +1,7 @@
 use std::{cmp::max, str::FromStr};
 
 use cosmwasm_std::{coin, Coin, Decimal, Uint128};
+use cw_paginate::MAX_LIMIT;
 use mars_perps::error::ContractError;
 use mars_types::{
     params::{PerpParams, PerpParamsUpdate},
@@ -454,4 +455,58 @@ fn accounting_works_up_to_oi_limits() {
 
     // Assert that the final error is due to reaching the long open interest limit.
     assert!(matches!(contract_err, Some(ContractError::LongOpenInterestReached { .. })));
+}
+
+#[test]
+fn accounting_works_if_more_markets_than_paginated_max_limit() {
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
+
+    let base_denom_price = Decimal::from_str("0.9").unwrap();
+    mock.set_price(&owner, "uusdc", base_denom_price).unwrap();
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(user),
+        None,
+        &[coin(1_000_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
+
+    // create more markets than paginated max limit
+    let max = MAX_LIMIT + 10u32;
+    for i in 0..max {
+        // init denoms
+        mock.update_perp_params(
+            &owner,
+            PerpParamsUpdate::AddOrUpdate {
+                params: default_perp_params(&format!("asset{}", i)),
+            },
+        );
+
+        // set entry prices
+        mock.set_price(&owner, &format!("asset{}", i), Decimal::from_str("1.25").unwrap()).unwrap();
+
+        // open few positions for account
+        let size = SignedUint::from_str("1000000").unwrap();
+        mock.execute_perp_order(
+            &credit_manager,
+            &i.to_string(),
+            &format!("asset{}", i),
+            size,
+            None,
+            &[],
+        )
+        .unwrap();
+    }
+
+    // should not panic
+    mock.query_total_accounting();
 }
