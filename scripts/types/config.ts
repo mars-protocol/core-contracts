@@ -103,6 +103,7 @@ export interface DeploymentConfig {
     vaultWithdrawEnabled: boolean
     maxUnlocks: number
   }
+  maxPerpParams: number
 }
 
 export interface AssetConfig {

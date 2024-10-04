@@ -31,6 +31,7 @@ pub struct MockEnvBuilder {
     pub target_health_factor: Option<Decimal>,
     pub emergency_owner: Option<String>,
     pub address_provider: Option<Addr>,
+    pub max_perp_params: Option<u8>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -42,6 +43,7 @@ impl MockEnv {
             target_health_factor: None,
             emergency_owner: None,
             address_provider: None,
+            max_perp_params: None,
         }
     }
 
@@ -101,12 +103,14 @@ impl MockEnv {
         &mut self,
         sender: &Addr,
         address_provider: Option<String>,
+        max_perp_params: Option<u8>,
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),
             self.params_contract.clone(),
             &ExecuteMsg::UpdateConfig {
                 address_provider,
+                max_perp_params,
             },
             &[],
         )
@@ -314,6 +318,7 @@ impl MockEnvBuilder {
             &InstantiateMsg {
                 owner: self.deployer.clone().to_string(),
                 address_provider: address_provider_contract.to_string(),
+                max_perp_params: self.max_perp_params.unwrap_or(40),
             },
             &[],
             "mock-params-contract",
@@ -449,6 +454,11 @@ impl MockEnvBuilder {
     //--------------------------------------------------------------------------------------------------
     pub fn emergency_owner(&mut self, eo: &str) -> &mut Self {
         self.emergency_owner = Some(eo.to_string());
+        self
+    }
+
+    pub fn max_perp_params(&mut self, max: u8) -> &mut Self {
+        self.max_perp_params = Some(max);
         self
     }
 }

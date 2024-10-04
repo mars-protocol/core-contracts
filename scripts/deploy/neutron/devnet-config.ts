@@ -514,4 +514,5 @@ export const neutronDevnetConfig: DeploymentConfig = {
     router: astroportRouter,
     incentives: astroportIncentives,
   },
+  maxPerpParams: 20,
 }

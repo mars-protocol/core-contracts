@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use cosmwasm_std::{Addr, Decimal, Uint128};
 use mars_owner::OwnerError;
-use mars_params::error::ContractError::Owner;
+use mars_params::error::ContractError::{self, Owner};
 use mars_types::params::{PerpParams, PerpParamsUpdate};
 
 use super::helpers::{assert_contents_equal, assert_err, default_perp_params, MockEnv};
@@ -246,4 +246,38 @@ fn pagination_query_v2() {
 
     assert_eq!(combined.len(), 6);
     assert_eq!(&denoms, combined.as_slice());
+}
+
+#[test]
+fn max_perp_params_reached() {
+    let max_perp_params = 22;
+    let mut mock = MockEnv::new().max_perp_params(max_perp_params).build().unwrap();
+    let owner = mock.query_owner();
+
+    for i in 0..max_perp_params {
+        mock.update_perp_params(
+            &owner,
+            PerpParamsUpdate::AddOrUpdate {
+                params: default_perp_params(&format!("denom{}", i)),
+            },
+        )
+        .unwrap();
+    }
+    let res = mock.query_all_perp_params_v2(None, Some(max_perp_params as u32 + 1));
+    assert!(!res.metadata.has_more);
+    assert_eq!(res.data.len(), max_perp_params as usize);
+
+    // max_perp_params is already reached
+    let res = mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("uatom"),
+        },
+    );
+    assert_err(
+        res,
+        ContractError::MaxPerpParamsReached {
+            max: max_perp_params,
+        },
+    );
 }

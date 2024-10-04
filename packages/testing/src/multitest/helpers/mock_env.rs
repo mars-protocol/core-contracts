@@ -1455,6 +1455,7 @@ impl MockEnvBuilder {
                 &ParamsInstantiateMsg {
                     owner: owner.to_string(),
                     address_provider: address_provider.into(),
+                    max_perp_params: 40,
                 },
                 &[],
                 "mock-params-contract",

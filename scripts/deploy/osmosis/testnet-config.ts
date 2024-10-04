@@ -294,4 +294,5 @@ export const osmosisTestnetConfig: DeploymentConfig = {
   assets: [osmoAsset, atomAsset, USDCAsset],
   vaults: [usdcOsmoVault, atomOsmoVault],
   oracleConfigs: [osmoOracle, atomOracle, USDCOracle, atomOsmoOracle, usdcOsmoOracle],
+  maxPerpParams: 20,
 }

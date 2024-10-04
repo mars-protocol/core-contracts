@@ -7,6 +7,7 @@
 
 export interface InstantiateMsg {
   address_provider: string
+  max_perp_params: number
   owner: string
 }
 export type ExecuteMsg =
@@ -16,6 +17,7 @@ export type ExecuteMsg =
   | {
       update_config: {
         address_provider?: string | null
+        max_perp_params?: number | null
       }
     }
   | {
@@ -313,6 +315,7 @@ export interface PaginationResponseForVaultConfigBaseForAddr {
 export type NullableAssetParamsBaseForAddr = AssetParamsBaseForAddr | null
 export interface ConfigResponse {
   address_provider: string
+  max_perp_params: number
 }
 export interface OwnerResponse {
   abolished: boolean

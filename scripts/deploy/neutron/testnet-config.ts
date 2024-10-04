@@ -721,4 +721,5 @@ export const neutronTestnetConfig: DeploymentConfig = {
       solPerpDenom,
     ],
   },
+  maxPerpParams: 20,
 }

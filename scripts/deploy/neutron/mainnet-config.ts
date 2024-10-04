@@ -416,4 +416,5 @@ export const neutronMainnetConfig: DeploymentConfig = {
   assets: [ntrnAsset, atomAsset, axlUSDCAsset],
   vaults: [],
   oracleConfigs: [usdOracle, axlUSDCOracle, marsOracle, atomOracle, ntrnOracle],
+  maxPerpParams: 20,
 }

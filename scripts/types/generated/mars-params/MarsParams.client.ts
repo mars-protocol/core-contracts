@@ -276,8 +276,10 @@ export interface MarsParamsInterface extends MarsParamsReadOnlyInterface {
   updateConfig: (
     {
       addressProvider,
+      maxPerpParams,
     }: {
       addressProvider?: string
+      maxPerpParams?: number
     },
     fee?: number | StdFee | 'auto',
     memo?: string,
@@ -344,8 +346,10 @@ export class MarsParamsClient extends MarsParamsQueryClient implements MarsParam
   updateConfig = async (
     {
       addressProvider,
+      maxPerpParams,
     }: {
       addressProvider?: string
+      maxPerpParams?: number
     },
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,
@@ -357,6 +361,7 @@ export class MarsParamsClient extends MarsParamsQueryClient implements MarsParam
       {
         update_config: {
           address_provider: addressProvider,
+          max_perp_params: maxPerpParams,
         },
       },
       fee,

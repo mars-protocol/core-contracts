@@ -10,7 +10,7 @@ use mars_types::{
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::{ADDRESS_PROVIDER, ASSET_PARAMS, PERP_PARAMS, VAULT_CONFIGS},
+    state::{ADDRESS_PROVIDER, ASSET_PARAMS, MAX_PERP_PARAMS, PERP_PARAMS, VAULT_CONFIGS},
 };
 
 pub const DEFAULT_LIMIT: u32 = 10;
@@ -19,6 +19,7 @@ pub const MAX_LIMIT: u32 = 30;
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     Ok(ConfigResponse {
         address_provider: ADDRESS_PROVIDER.load(deps.storage)?.to_string(),
+        max_perp_params: MAX_PERP_PARAMS.load(deps.storage)?,
     })
 }
 

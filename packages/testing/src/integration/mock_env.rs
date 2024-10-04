@@ -1118,6 +1118,7 @@ impl MockEnvBuilder {
                 &mars_types::params::InstantiateMsg {
                     owner: self.owner.to_string(),
                     address_provider: address_provider_addr.to_string(),
+                    max_perp_params: 40,
                 },
                 &[],
                 "params",

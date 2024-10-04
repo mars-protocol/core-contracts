@@ -26,4 +26,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     Version(#[from] VersionError),
+
+    #[error("Reached the maximum number of perp params: {max}")]
+    MaxPerpParamsReached {
+        max: u8,
+    },
 }

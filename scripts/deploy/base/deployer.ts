@@ -431,6 +431,7 @@ export class Deployer {
     const msg: ParamsInstantiateMsg = {
       owner: this.deployerAddr,
       address_provider: this.storage.addresses['addressProvider']!,
+      max_perp_params: this.config.maxPerpParams,
     }
     await this.instantiate('params', this.storage.codeIds.params!, msg)
   }

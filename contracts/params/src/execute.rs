@@ -1,4 +1,6 @@
-use cosmwasm_std::{to_json_binary, CosmosMsg, DepsMut, MessageInfo, Response, WasmMsg};
+use cosmwasm_std::{
+    ensure, to_json_binary, CosmosMsg, DepsMut, MessageInfo, Order, Response, WasmMsg,
+};
 use mars_types::{
     address_provider::{self, MarsAddressType},
     params::{AssetParamsUpdate, PerpParamsUpdate, VaultConfigUpdate},
@@ -8,7 +10,7 @@ use mars_utils::helpers::option_string_to_addr;
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, PERP_PARAMS, VAULT_CONFIGS},
+    state::{ADDRESS_PROVIDER, ASSET_PARAMS, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, VAULT_CONFIGS},
 };
 
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -18,6 +20,7 @@ pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
     address_provider: Option<String>,
+    max_perp_params: Option<u8>,
 ) -> Result<Response, ContractError> {
     OWNER.assert_owner(deps.storage, &info.sender)?;
 
@@ -25,9 +28,16 @@ pub fn update_config(
     let updated_addr = option_string_to_addr(deps.api, address_provider, current_addr)?;
     ADDRESS_PROVIDER.save(deps.storage, &updated_addr)?;
 
-    Ok(Response::new()
+    let mut res = Response::new()
         .add_attribute("action", "update_config")
-        .add_attribute("address_provider", updated_addr.to_string()))
+        .add_attribute("address_provider", updated_addr.to_string());
+
+    if let Some(max) = max_perp_params {
+        MAX_PERP_PARAMS.save(deps.storage, &max)?;
+        res = res.add_attribute("max_perp_params", max.to_string());
+    }
+
+    Ok(res)
 }
 
 pub fn update_asset_params(
@@ -117,6 +127,16 @@ pub fn update_perp_params(
                 .add_attribute("denom", params.denom);
         }
     }
+
+    // Check if the number of perp params is within the limit
+    let max_perp_params = MAX_PERP_PARAMS.load(deps.storage)?;
+    let num = PERP_PARAMS.keys(deps.storage, None, None, Order::Ascending).count();
+    ensure!(
+        num <= max_perp_params as usize,
+        ContractError::MaxPerpParamsReached {
+            max: max_perp_params
+        }
+    );
 
     Ok(response)
 }

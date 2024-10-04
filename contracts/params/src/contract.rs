@@ -21,7 +21,7 @@ use crate::{
         query_all_perp_params_v2, query_all_total_deposits_v2, query_all_vault_configs,
         query_all_vault_configs_v2, query_config, query_total_deposit, query_vault_config,
     },
-    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, PERP_PARAMS},
+    state::{ADDRESS_PROVIDER, ASSET_PARAMS, MAX_PERP_PARAMS, OWNER, PERP_PARAMS},
 };
 
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -47,6 +47,8 @@ pub fn instantiate(
     let address_provider_addr = deps.api.addr_validate(&msg.address_provider)?;
     ADDRESS_PROVIDER.save(deps.storage, &address_provider_addr)?;
 
+    MAX_PERP_PARAMS.save(deps.storage, &msg.max_perp_params)?;
+
     Ok(Response::default())
 }
 
@@ -61,7 +63,8 @@ pub fn execute(
         ExecuteMsg::UpdateOwner(update) => Ok(OWNER.update(deps, info, update)?),
         ExecuteMsg::UpdateConfig {
             address_provider,
-        } => update_config(deps, info, address_provider),
+            max_perp_params,
+        } => update_config(deps, info, address_provider, max_perp_params),
         ExecuteMsg::UpdateAssetParams(update) => update_asset_params(deps, info, update),
         ExecuteMsg::UpdateVaultConfig(update) => update_vault_config(deps, info, update),
         ExecuteMsg::UpdatePerpParams(update) => update_perp_params(deps, info, update),

@@ -576,6 +576,7 @@ export interface MarsParamsUpdateConfigMutation {
   client: MarsParamsClient
   msg: {
     addressProvider?: string
+    maxPerpParams?: number
   }
   args?: {
     fee?: number | StdFee | 'auto'

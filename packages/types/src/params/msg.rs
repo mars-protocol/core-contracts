@@ -10,6 +10,8 @@ pub struct InstantiateMsg {
     pub owner: String,
     /// Address of the address provider contract
     pub address_provider: String,
+    /// Maximum number of perps that can be created
+    pub max_perp_params: u8,
 }
 
 #[cw_serde]
@@ -17,6 +19,7 @@ pub enum ExecuteMsg {
     UpdateOwner(OwnerUpdate),
     UpdateConfig {
         address_provider: Option<String>,
+        max_perp_params: Option<u8>,
     },
     UpdateAssetParams(AssetParamsUpdate),
     UpdateVaultConfig(VaultConfigUpdate),
@@ -105,6 +108,8 @@ pub enum QueryMsg {
 pub struct ConfigResponse {
     /// Address provider returns addresses for all protocol contracts
     pub address_provider: String,
+    /// Maximum number of perps that can be created
+    pub max_perp_params: u8,
 }
 
 #[cw_serde]

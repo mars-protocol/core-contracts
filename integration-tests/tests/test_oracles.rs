@@ -1295,6 +1295,7 @@ fn setup_redbank(wasm: &Wasm<OsmosisTestApp>, signer: &SigningAccount) -> (Strin
         &mars_types::params::InstantiateMsg {
             owner: (signer.address()),
             address_provider: addr_provider_addr.clone(),
+            max_perp_params: 40,
         },
     );
 
