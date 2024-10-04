@@ -489,6 +489,7 @@ export class Deployer {
         address_provider: this.storage.addresses.addressProvider!,
         deleverage_enabled: this.config.perps.deleverageEnabled,
         vault_withdraw_enabled: this.config.perps.vaultWithdrawEnabled,
+        max_unlocks: this.config.perps.maxUnlocks,
       }
       await this.instantiate('perps', this.storage.codeIds.perps!, msg)
     } else {

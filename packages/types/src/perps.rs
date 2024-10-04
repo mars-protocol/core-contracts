@@ -60,6 +60,9 @@ pub struct Config<T> {
 
     /// True by default, it can be set to false to disable perp counterparty vault withdrawals
     pub vault_withdraw_enabled: bool,
+
+    /// The maximum number of unlocks that can be requested by a single user
+    pub max_unlocks: u8,
 }
 
 impl Config<String> {
@@ -73,6 +76,7 @@ impl Config<String> {
             target_vault_collateralization_ratio: self.target_vault_collateralization_ratio,
             deleverage_enabled: self.deleverage_enabled,
             vault_withdraw_enabled: self.vault_withdraw_enabled,
+            max_unlocks: self.max_unlocks,
         })
     }
 }
@@ -88,6 +92,7 @@ impl From<Config<Addr>> for Config<String> {
             target_vault_collateralization_ratio: cfg.target_vault_collateralization_ratio,
             deleverage_enabled: cfg.deleverage_enabled,
             vault_withdraw_enabled: cfg.vault_withdraw_enabled,
+            max_unlocks: cfg.max_unlocks,
         }
     }
 }
@@ -101,6 +106,7 @@ pub struct ConfigUpdates {
     pub target_vault_collateralization_ratio: Option<Decimal>,
     pub deleverage_enabled: Option<bool>,
     pub vault_withdraw_enabled: Option<bool>,
+    pub max_unlocks: Option<u8>,
 }
 
 /// Global state of the counterparty vault

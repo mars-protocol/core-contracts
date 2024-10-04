@@ -13,6 +13,7 @@
       "cooldown_period",
       "deleverage_enabled",
       "max_positions",
+      "max_unlocks",
       "protocol_fee_rate",
       "target_vault_collateralization_ratio",
       "vault_withdraw_enabled"
@@ -38,6 +39,12 @@
       },
       "max_positions": {
         "description": "The maximum number of positions that can be opened by a single user",
+        "type": "integer",
+        "format": "uint8",
+        "minimum": 0.0
+      },
+      "max_unlocks": {
+        "description": "The maximum number of unlocks that can be requested by a single user",
         "type": "integer",
         "format": "uint8",
         "minimum": 0.0
@@ -361,6 +368,14 @@
             ]
           },
           "max_positions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint8",
+            "minimum": 0.0
+          },
+          "max_unlocks": {
             "type": [
               "integer",
               "null"
@@ -1050,6 +1065,7 @@
         "cooldown_period",
         "deleverage_enabled",
         "max_positions",
+        "max_unlocks",
         "protocol_fee_rate",
         "target_vault_collateralization_ratio",
         "vault_withdraw_enabled"
@@ -1075,6 +1091,12 @@
         },
         "max_positions": {
           "description": "The maximum number of positions that can be opened by a single user",
+          "type": "integer",
+          "format": "uint8",
+          "minimum": 0.0
+        },
+        "max_unlocks": {
+          "description": "The maximum number of unlocks that can be requested by a single user",
           "type": "integer",
           "format": "uint8",
           "minimum": 0.0

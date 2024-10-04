@@ -1489,6 +1489,7 @@ impl MockEnvBuilder {
                     target_vault_collateralization_ratio,
                     deleverage_enabled,
                     vault_withdraw_enabled,
+                    max_unlocks: 5,
                 },
                 &[],
                 "mock-perps-contract",

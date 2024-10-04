@@ -860,6 +860,7 @@ pub struct MockEnvBuilder {
     perps_base_denom: String,
     cooldown_period: u64,
     max_positions: u8,
+    max_unlocks: u8,
 }
 
 impl MockEnvBuilder {
@@ -885,6 +886,7 @@ impl MockEnvBuilder {
             perps_base_denom: "uusdc".to_string(),
             cooldown_period: 3600,
             max_positions: 4,
+            max_unlocks: 5,
         }
     }
 
@@ -1140,6 +1142,7 @@ impl MockEnvBuilder {
                     target_vault_collateralization_ratio: Decimal::percent(125),
                     deleverage_enabled: true,
                     vault_withdraw_enabled: true,
+                    max_unlocks: self.max_unlocks,
                 },
                 &[],
                 "perps",

@@ -101,6 +101,7 @@ export interface DeploymentConfig {
     targetCollaterizationRatio: Decimal
     deleverageEnabled: boolean
     vaultWithdrawEnabled: boolean
+    maxUnlocks: number
   }
 }
 

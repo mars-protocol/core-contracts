@@ -705,6 +705,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
     baseDenom: nobleUsdcDenom,
     cooldownPeriod: 300, // 5 min
     maxPositions: 4,
+    maxUnlocks: 5,
     protocolFeeRate: '0.1',
     targetCollaterizationRatio: '1.2',
     deleverageEnabled: true,

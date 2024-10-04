@@ -1,8 +1,8 @@
 use std::cmp::max;
 
 use cosmwasm_std::{
-    coins, to_json_binary, Addr, BankMsg, CosmosMsg, Deps, DepsMut, MessageInfo, Response,
-    StdError, Uint128, WasmMsg,
+    coins, ensure, to_json_binary, Addr, BankMsg, CosmosMsg, Deps, DepsMut, MessageInfo, Response,
+    Uint128, WasmMsg,
 };
 use cw_utils::must_pay;
 use mars_types::{
@@ -161,13 +161,20 @@ pub fn unlock(
     UNLOCKS.update(deps.storage, &user_id_key, |maybe_unlocks| {
         let mut unlocks = maybe_unlocks.unwrap_or_default();
 
+        ensure!(
+            unlocks.len() < cfg.max_unlocks as usize,
+            ContractError::MaxUnlocksReached {
+                max_unlocks: cfg.max_unlocks
+            }
+        );
+
         unlocks.push(UnlockState {
             created_at: current_time,
             cooldown_end,
             shares,
         });
 
-        Ok::<Vec<UnlockState>, StdError>(unlocks)
+        Ok::<Vec<UnlockState>, ContractError>(unlocks)
     })?;
 
     Ok(Response::new()

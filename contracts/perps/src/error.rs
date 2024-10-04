@@ -197,6 +197,11 @@ pub enum ContractError {
         current_cr: Decimal,
         threshold_cr: Decimal,
     },
+
+    #[error("Reached the maximum number of unlocks: {max_unlocks}")]
+    MaxUnlocksReached {
+        max_unlocks: u8,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

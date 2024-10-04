@@ -56,6 +56,11 @@ pub fn update_config(
         existing_cfg.vault_withdraw_enabled = vwe
     }
 
+    if let Some(max_unlocks) = updates.max_unlocks {
+        response = response.add_attribute("max_unlocks", max_unlocks.to_string());
+        existing_cfg.max_unlocks = max_unlocks;
+    }
+
     CONFIG.save(deps.storage, &existing_cfg)?;
 
     Ok(response)

@@ -10,6 +10,7 @@ fn proper_initialization() {
         .perps_base_denom("uusdc")
         .cooldown_period(3688)
         .max_positions(9)
+        .max_unlocks(102)
         .protocol_fee_rate(Decimal::percent(25))
         .build()
         .unwrap();
@@ -41,6 +42,7 @@ fn proper_initialization() {
             target_vault_collateralization_ratio: Decimal::percent(125),
             deleverage_enabled: true,
             vault_withdraw_enabled: true,
+            max_unlocks: 102,
         }
     );
 }

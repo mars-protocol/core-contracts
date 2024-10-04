@@ -12,6 +12,7 @@ export interface InstantiateMsg {
   cooldown_period: number
   deleverage_enabled: boolean
   max_positions: number
+  max_unlocks: number
   protocol_fee_rate: Decimal
   target_vault_collateralization_ratio: Decimal
   vault_withdraw_enabled: boolean
@@ -110,6 +111,7 @@ export interface ConfigUpdates {
   cooldown_period?: number | null
   deleverage_enabled?: boolean | null
   max_positions?: number | null
+  max_unlocks?: number | null
   protocol_fee_rate?: Decimal | null
   target_vault_collateralization_ratio?: Decimal | null
   vault_withdraw_enabled?: boolean | null
@@ -200,6 +202,7 @@ export interface ConfigForString {
   cooldown_period: number
   deleverage_enabled: boolean
   max_positions: number
+  max_unlocks: number
   protocol_fee_rate: Decimal
   target_vault_collateralization_ratio: Decimal
   vault_withdraw_enabled: boolean

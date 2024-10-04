@@ -58,6 +58,7 @@ pub struct MockEnvBuilder {
     pub emergency_owner: Option<String>,
     deleverage_enabled: bool,
     withdraw_enabled: bool,
+    max_unlocks: u8,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -76,6 +77,7 @@ impl MockEnv {
             emergency_owner: None,
             deleverage_enabled: true,
             withdraw_enabled: true,
+            max_unlocks: 5,
         }
     }
 
@@ -664,6 +666,7 @@ impl MockEnvBuilder {
                     target_vault_collateralization_ratio: self.target_vault_collateralization_ratio,
                     deleverage_enabled: self.deleverage_enabled,
                     vault_withdraw_enabled: self.withdraw_enabled,
+                    max_unlocks: self.max_unlocks,
                 },
                 &[],
                 "mock-perps",
@@ -822,6 +825,11 @@ impl MockEnvBuilder {
 
     pub fn emergency_owner(&mut self, eo: &str) -> &mut Self {
         self.emergency_owner = Some(eo.to_string());
+        self
+    }
+
+    pub fn max_unlocks(&mut self, max_unlocks: u8) -> &mut Self {
+        self.max_unlocks = max_unlocks;
         self
     }
 }

@@ -1021,3 +1021,47 @@ fn cannot_withdraw_if_cr_decreases_below_threshold() {
         },
     );
 }
+
+#[test]
+fn max_unlocks_reached() {
+    let depositor = "depositor";
+    let cooldown_period = 1225u64;
+    let mut mock = MockEnv::new().cooldown_period(cooldown_period).max_unlocks(3).build().unwrap();
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+
+    // set usdc price
+    mock.set_price(&owner, "uusdc", Decimal::one()).unwrap();
+
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uusdc"]);
+
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor),
+        None,
+        &[coin(1_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
+
+    // unlocks should be empty
+    let unlocks = mock.query_cm_vault_position(depositor).unwrap().unlocks;
+    assert!(unlocks.is_empty());
+
+    // amounts to unlock
+    let deposit = mock.query_cm_vault_position(depositor).unwrap().deposit;
+    let shares = deposit.shares.multiply_ratio(1u128, 10u128); // 10%
+
+    // 3 unlocks should be allowed (max_unlocks = 3)
+    mock.unlock_from_vault(&credit_manager, Some(depositor), shares).unwrap();
+    mock.unlock_from_vault(&credit_manager, Some(depositor), shares).unwrap();
+    mock.unlock_from_vault(&credit_manager, Some(depositor), shares).unwrap();
+
+    // 4th unlock should fail
+    let res = mock.unlock_from_vault(&credit_manager, Some(depositor), shares);
+    assert_err(
+        res,
+        ContractError::MaxUnlocksReached {
+            max_unlocks: 3,
+        },
+    );
+}

@@ -369,6 +369,7 @@ impl MockEnvBuilder {
                     target_vault_collateralization_ratio: Decimal::from_ratio(125u128, 100u128),
                     deleverage_enabled: true,
                     vault_withdraw_enabled: true,
+                    max_unlocks: 5,
                 },
                 &[],
                 "mock-perps",
