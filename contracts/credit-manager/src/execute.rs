@@ -271,7 +271,6 @@ pub fn dispatch_actions(
                 keeper_fee,
             }),
             Action::DeleteTriggerOrder {
-                account_id,
                 trigger_order_id,
             } => callbacks.push(CallbackMsg::DeleteTriggerOrder {
                 account_id: account_id.to_string(),

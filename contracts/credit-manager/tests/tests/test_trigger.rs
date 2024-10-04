@@ -169,7 +169,6 @@ fn delete_trigger_order() {
         &account_id,
         &user,
         vec![DeleteTriggerOrder {
-            account_id: account_id.to_string(),
             trigger_order_id: 1.to_string(),
         }],
         &[],

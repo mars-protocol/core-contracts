@@ -711,13 +711,9 @@
               "delete_trigger_order": {
                 "type": "object",
                 "required": [
-                  "account_id",
                   "trigger_order_id"
                 ],
                 "properties": {
-                  "account_id": {
-                    "type": "string"
-                  },
                   "trigger_order_id": {
                     "type": "string"
                   }
@@ -4080,13 +4076,9 @@
                 "delete_trigger_order": {
                   "type": "object",
                   "required": [
-                    "account_id",
                     "trigger_order_id"
                   ],
                   "properties": {
-                    "account_id": {
-                      "type": "string"
-                    },
                     "trigger_order_id": {
                       "type": "string"
                     }
@@ -5260,13 +5252,9 @@
                 "delete_trigger_order": {
                   "type": "object",
                   "required": [
-                    "account_id",
                     "trigger_order_id"
                   ],
                   "properties": {
-                    "account_id": {
-                      "type": "string"
-                    },
                     "trigger_order_id": {
                       "type": "string"
                     }

@@ -240,7 +240,6 @@ pub enum Action {
     },
 
     DeleteTriggerOrder {
-        account_id: String,
         trigger_order_id: String,
     },
 
