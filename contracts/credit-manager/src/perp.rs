@@ -133,11 +133,9 @@ pub fn close_all_perps(
     account_id: &str,
     action: ActionKind,
 ) -> ContractResult<Response> {
-    let perp_positions = PERPS.load(deps.storage)?.query_positions_by_account(
-        &deps.querier,
-        account_id,
-        action.clone(),
-    )?;
+    let perps = PERPS.load(deps.storage)?;
+    let perp_positions =
+        perps.query_positions_by_account(&deps.querier, account_id, action.clone())?;
     if perp_positions.is_empty() {
         return Ok(Response::new()
             .add_attribute("action", "close_all_perps")
@@ -159,7 +157,6 @@ pub fn close_all_perps(
     let funds = funds.map_or_else(Vec::new, |c| vec![c]);
 
     // Close all perp positions at once
-    let perps = PERPS.load(deps.storage)?;
     let close_msg = perps.close_all_msg(account_id, funds, action)?;
     msgs.push(close_msg);
 

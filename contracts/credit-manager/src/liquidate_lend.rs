@@ -18,12 +18,11 @@ pub fn liquidate_lend(
     request_coin_denom: &str,
     prev_health: HealthValuesResponse,
 ) -> ContractResult<Response> {
+    let red_bank = RED_BANK.load(deps.storage)?;
+
     // Check how much lent coin is available for reclaim (can be withdrawn from Red Bank)
-    let total_lent_amount = RED_BANK.load(deps.storage)?.query_lent(
-        &deps.querier,
-        liquidatee_account_id,
-        request_coin_denom,
-    )?;
+    let total_lent_amount =
+        red_bank.query_lent(&deps.querier, liquidatee_account_id, request_coin_denom)?;
 
     if total_lent_amount.is_zero() {
         return Err(NoneLent);
@@ -44,7 +43,6 @@ pub fn liquidate_lend(
         repay_debt(deps.storage, &env, liquidator_account_id, liquidatee_account_id, &debt)?;
 
     // Liquidatee's lent coin reclaimed from Red Bank
-    let red_bank = RED_BANK.load(deps.storage)?;
     let reclaim_from_liquidatee_msg =
         red_bank.reclaim_msg(&liquidatee_request, liquidatee_account_id, true)?;
 
