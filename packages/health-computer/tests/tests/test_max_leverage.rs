@@ -30,9 +30,9 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     Some(PerpParams {
         opening_fee_rate: Decimal::from_str("0.2").unwrap(),
         closing_fee_rate: Decimal::from_str("0.003").unwrap(),
-        max_long_oi_value: Uint128::new(60000000),
-        max_short_oi_value: Uint128::new(60000000),
-        max_net_oi_value: Uint128::new(400000000),
+        max_long_oi_value: Uint128::new(600000000000),
+        max_short_oi_value: Uint128::new(600000000000),
+        max_net_oi_value: Uint128::new(40000000),
         ..produce_eth_perp_params()
     });
     "Max size 0 if NET OI exceeded"

@@ -12,10 +12,10 @@ pub fn calculate_remaining_oi_value(
 ) -> HealthResult<SignedUint> {
     let long_oi_value = long_oi_amount.checked_mul_floor(perp_oracle_price)?;
     let short_oi_value = short_oi_amount.checked_mul_floor(perp_oracle_price)?;
-    let total_oi_value = long_oi_value.checked_add(short_oi_value)?;
+    let net_oi_value = long_oi_value.abs_diff(short_oi_value);
 
     // If we are already at the OI limits, we can't open a new position
-    let net_oi_valid = total_oi_value < perp_params.max_net_oi_value;
+    let net_oi_valid = net_oi_value < perp_params.max_net_oi_value;
     if !net_oi_valid {
         return Ok(SignedUint::zero());
     }
