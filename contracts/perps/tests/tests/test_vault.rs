@@ -1023,6 +1023,130 @@ fn cannot_withdraw_if_cr_decreases_below_threshold() {
 }
 
 #[test]
+fn calculate_incentives_correctly() {
+    let cooldown_period = 86400u64;
+    let mut mock = MockEnv::new().cooldown_period(cooldown_period).build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let depositor_1 = "bob";
+    let depositor_2 = "dane";
+
+    // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
+
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+
+    // deposit uusdc to vault
+    let depositor_1_amt = Uint128::new(1000u128);
+    let depositor_2_amt = Uint128::new(4000u128);
+
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor_1),
+        None,
+        &[coin(depositor_1_amt.u128(), "uusdc")],
+    )
+    .unwrap();
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(depositor_2),
+        None,
+        &[coin(depositor_2_amt.u128(), "uusdc")],
+    )
+    .unwrap();
+
+    // check deposits
+    let deposit_1_before = mock.query_cm_vault_position(depositor_1).unwrap().deposit;
+    let deposit_2_before = mock.query_cm_vault_position(depositor_2).unwrap().deposit;
+    assert_eq!(deposit_1_before.amount, depositor_1_amt);
+    assert_eq!(deposit_1_before.shares, depositor_1_amt * Uint128::new(DEFAULT_SHARES_PER_AMOUNT));
+    assert_eq!(deposit_2_before.amount, depositor_2_amt);
+    assert_eq!(deposit_2_before.shares, deposit_1_before.shares.multiply_ratio(4u128, 1u128)); // 4 times more than depositor_1
+
+    // unlock part of the shares
+    let unlock_current_time = mock.query_block_time();
+    mock.unlock_from_vault(
+        &credit_manager,
+        Some(depositor_1),
+        Uint128::new(600u128) * Uint128::new(DEFAULT_SHARES_PER_AMOUNT),
+    )
+    .unwrap();
+
+    let block_time_passed_unlock_1 = unlock_current_time + cooldown_period + 1;
+
+    // move time forward to pass cooldown period
+    mock.set_block_time(block_time_passed_unlock_1);
+
+    // Create another unlock, this time not passing the unlock_period
+    mock.unlock_from_vault(
+        &credit_manager,
+        Some(depositor_1),
+        Uint128::new(100u128) * Uint128::new(DEFAULT_SHARES_PER_AMOUNT),
+    )
+    .unwrap();
+
+    // withdraw from the vault
+    let res = mock.withdraw_from_vault(&credit_manager, Some(depositor_1), None).unwrap();
+
+    let user_shares_for_incentive_msg: Vec<&String> = res
+        .events
+        .iter()
+        .flat_map(|event| &event.attributes)
+        .filter(|attr| attr.key == "total_user_shares")
+        .map(|attr| &attr.value)
+        .collect();
+
+    let shares = Uint128::from_str(user_shares_for_incentive_msg.first().unwrap()).unwrap();
+
+    // The user shares should be equal to the shares before the unlocks: locked + unlocked + unlocking
+    assert_eq!(deposit_1_before.shares, shares);
+
+    // The user should have 1000 - 600 - 100 = 300 shares locked in the vault
+    let deposit_1 = mock.query_cm_vault_position(depositor_1).unwrap();
+
+    assert_eq!(
+        deposit_1.deposit.shares,
+        Uint128::new(DEFAULT_SHARES_PER_AMOUNT) * Uint128::new(300u128)
+    );
+
+    assert_eq!(deposit_1.unlocks.len(), 1);
+    assert_eq!(
+        deposit_1.unlocks.first(),
+        Some(&VaultUnlock {
+            created_at: block_time_passed_unlock_1,
+            cooldown_end: block_time_passed_unlock_1 + cooldown_period,
+            shares: Uint128::new(DEFAULT_SHARES_PER_AMOUNT) * Uint128::new(100u128),
+            amount: Uint128::new(100u128),
+        })
+    );
+
+    // Deposit another 1000 uusdc to the vault
+    let res = mock
+        .deposit_to_vault(
+            &credit_manager,
+            Some(depositor_1),
+            None,
+            &[coin(depositor_1_amt.u128(), "uusdc")],
+        )
+        .unwrap();
+
+    let user_shares_for_incentive_msg: Vec<&String> = res
+        .events
+        .iter()
+        .flat_map(|event| &event.attributes)
+        .filter(|attr| attr.key == "user_shares_before")
+        .map(|attr| &attr.value)
+        .collect();
+
+    let shares = Uint128::from_str(user_shares_for_incentive_msg.first().unwrap()).unwrap();
+
+    // User had 300 + 100 uusdc left in the vault before deposit, so that should be used for the incentive msg
+    assert_eq!(shares, deposit_1.deposit.shares + deposit_1.unlocks.first().unwrap().shares);
+}
+
+#[test]
 fn max_unlocks_reached() {
     let depositor = "depositor";
     let cooldown_period = 1225u64;

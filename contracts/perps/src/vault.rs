@@ -12,6 +12,7 @@ use mars_types::{
         MarsAddressType,
     },
     incentives::{ExecuteMsg, IncentiveKind},
+    keys::UserIdKey,
     oracle::ActionKind,
     perps::{UnlockState, VaultState},
     signed_uint::SignedUint,
@@ -66,8 +67,9 @@ pub fn deposit(
 
     let mut vs = VAULT_STATE.load(deps.storage)?;
 
-    let user_shares_before =
-        DEPOSIT_SHARES.may_load(deps.storage, &user_id_key)?.unwrap_or_else(Uint128::zero);
+    // Load the user's shares
+    let user_vault_shares = UserVaultShares::load(deps.as_ref(), current_time, &user_id_key)?;
+    let user_shares_before = user_vault_shares.total()?;
 
     let total_vault_shares_before = vs.total_shares;
 
@@ -120,7 +122,8 @@ pub fn deposit(
         .add_attribute("action", "deposit")
         .add_attribute("denom", cfg.base_denom)
         .add_attribute("amount", amount)
-        .add_attribute("shares", shares))
+        .add_attribute("shares", shares)
+        .add_attribute("user_shares_before", user_shares_before))
 }
 
 /// Handles the unlocking of deposited shares, initiating a cooldown period before the user can withdraw.
@@ -222,29 +225,24 @@ pub fn withdraw(
 
     let user_id_key = create_user_id_key(&info.sender, account_id.clone())?;
 
-    let unlocks = UNLOCKS.load(deps.storage, &user_id_key)?;
-
-    // Find all unlocked positions
-    let (unlocked, unlocking): (Vec<_>, Vec<_>) =
-        unlocks.into_iter().partition(|us| us.cooldown_end <= current_time);
+    // Load the user's shares
+    let user_vault_shares = UserVaultShares::load(deps.as_ref(), current_time, &user_id_key)?;
 
     // Cannot withdraw when there is zero unlocked positions
-    if unlocked.is_empty() {
+    if user_vault_shares.unlocked.is_empty() {
         return Err(ContractError::UnlockedPositionsNotFound {});
     }
 
     // Clear state if no more unlocking positions
-    if unlocking.is_empty() {
+    if user_vault_shares.unlocking.is_empty() {
         UNLOCKS.remove(deps.storage, &user_id_key);
     } else {
-        UNLOCKS.save(deps.storage, &user_id_key, &unlocking)?;
+        UNLOCKS.save(deps.storage, &user_id_key, &user_vault_shares.unlocking)?;
     }
 
     let mut vs = VAULT_STATE.load(deps.storage)?;
 
-    let user_shares_before =
-        DEPOSIT_SHARES.may_load(deps.storage, &user_id_key)?.unwrap_or_else(Uint128::zero);
-
+    let total_user_shares = user_vault_shares.total()?;
     let total_vault_shares_before = vs.total_shares;
 
     let mut msgs = vec![];
@@ -254,45 +252,42 @@ pub fn withdraw(
         &info.sender,
         account_id,
         &cfg.base_denom,
-        user_shares_before,
+        total_user_shares,
         total_vault_shares_before,
     )?);
-
-    // Compute the total shares to be withdrawn
-    let total_unlocked_shares = unlocked.into_iter().map(|us| us.shares).sum::<Uint128>();
 
     let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
     let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
 
     // Convert the shares to amount
-    let total_unlocked_amount = shares_to_amount(
+    let unlocked_user_amount = shares_to_amount(
         &deps.as_ref(),
         &vs,
         &oracle,
         &params,
         current_time,
         &cfg.base_denom,
-        total_unlocked_shares,
+        user_vault_shares.unlocked_amount,
         ActionKind::Default,
     )?;
 
     // Ensure slippage checks (if provided by user)
     if let Some(min) = min_recieve {
-        if total_unlocked_amount < min {
+        if unlocked_user_amount < min {
             return Err(ContractError::MinimumReceiveExceeded {
                 min,
-                found: total_unlocked_amount,
+                found: unlocked_user_amount,
                 denom: cfg.base_denom,
             });
         }
     }
 
     // Decrement total liquidity and deposit shares
-    vs.total_balance = vs.total_balance.checked_sub(total_unlocked_amount.into())?;
-    vs.total_shares = vs.total_shares.checked_sub(total_unlocked_shares)?;
+    vs.total_balance = vs.total_balance.checked_sub(unlocked_user_amount.into())?;
+    vs.total_shares = vs.total_shares.checked_sub(user_vault_shares.unlocked_amount)?;
     VAULT_STATE.save(deps.storage, &vs)?;
 
-    // Check if the vault is undercollateralized after the withdrawal
+    // Check if the vault is under-collateralized after the withdrawal
     let current_cr = query_vault_cr(deps.as_ref(), current_time, ActionKind::Default)?;
     if current_cr < cfg.target_vault_collateralization_ratio {
         return Err(ContractError::VaultUndercollateralized {
@@ -303,15 +298,16 @@ pub fn withdraw(
 
     msgs.push(CosmosMsg::from(BankMsg::Send {
         to_address: info.sender.into(),
-        amount: coins(total_unlocked_amount.u128(), &cfg.base_denom),
+        amount: coins(unlocked_user_amount.u128(), &cfg.base_denom),
     }));
 
     Ok(Response::new()
         .add_messages(msgs)
         .add_attribute("action", "withdraw")
         .add_attribute("denom", &cfg.base_denom)
-        .add_attribute("shares", total_unlocked_shares)
-        .add_attribute("amount", total_unlocked_amount))
+        .add_attribute("unlocked_user_shares", user_vault_shares.unlocked_amount)
+        .add_attribute("amount", unlocked_user_amount)
+        .add_attribute("total_user_shares", total_user_shares))
 }
 
 /// Compute the counterparty vault's net asset value (NAV), denominated in the
@@ -447,4 +443,36 @@ fn build_incentives_balance_changed_msg(
         funds: vec![],
     }
     .into())
+}
+
+struct UserVaultShares {
+    pub locked_amount: Uint128,
+    pub unlocking_amount: Uint128,
+    pub unlocking: Vec<UnlockState>,
+    pub unlocked_amount: Uint128,
+    pub unlocked: Vec<UnlockState>,
+}
+
+impl UserVaultShares {
+    pub fn load(deps: Deps, current_time: u64, user_id_key: &UserIdKey) -> ContractResult<Self> {
+        let locked_amount =
+            DEPOSIT_SHARES.may_load(deps.storage, user_id_key)?.unwrap_or_else(Uint128::zero);
+        let unlocks = UNLOCKS.may_load(deps.storage, user_id_key)?.unwrap_or(vec![]);
+        let (unlocked, unlocking): (Vec<_>, Vec<_>) =
+            unlocks.into_iter().partition(|us| us.cooldown_end <= current_time);
+        Ok(Self {
+            locked_amount,
+            unlocking_amount: unlocking.iter().map(|us| us.shares).sum::<Uint128>(),
+            unlocking,
+            unlocked_amount: unlocked.iter().map(|us| us.shares).sum::<Uint128>(),
+            unlocked,
+        })
+    }
+
+    pub fn total(&self) -> ContractResult<Uint128> {
+        Ok(self
+            .locked_amount
+            .checked_add(self.unlocking_amount)?
+            .checked_add(self.unlocked_amount)?)
+    }
 }
