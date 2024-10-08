@@ -67,6 +67,9 @@ pub enum ContractError {
         denom: String,
     },
 
+    #[error("Invalid migration call")]
+    InvalidMigrationCall {},
+
     #[error("{0}")]
     Version(#[from] cw2::VersionError),
 

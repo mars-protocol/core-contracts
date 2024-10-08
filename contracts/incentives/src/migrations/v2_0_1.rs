@@ -136,11 +136,6 @@ fn migrate_user_unclaimed_rewards(deps: DepsMut, limit: usize) -> Result<Respons
         )?;
     }
 
-    if !has_more {
-        // incentives locked via `migrate` entrypoint. Unlock incentives after full migration
-        MIGRATION_GUARD.try_unlock(deps.storage)?;
-    }
-
     Ok(Response::new()
         .add_attribute("action", "migrate_user_unclaimed_rewards")
         .add_attribute(
@@ -159,6 +154,15 @@ fn migrate_user_unclaimed_rewards(deps: DepsMut, limit: usize) -> Result<Respons
 fn migrate_user_asset_indices(deps: DepsMut, limit: usize) -> Result<Response, ContractError> {
     // Only allow to migrate users asset indices if guard is locked via `migrate` entrypoint
     MIGRATION_GUARD.assert_locked(deps.storage)?;
+
+    // Don't allow to migrate `user_asset_indices` before the `user_unclaimed_rewards` have been migrated
+    let count = USER_UNCLAIMED_REWARDS.range(deps.storage, None, None, Order::Ascending).count();
+    let v2_count =
+        v2_state::USER_UNCLAIMED_REWARDS.range(deps.storage, None, None, Order::Ascending).count();
+
+    if count != v2_count {
+        return Err(ContractError::InvalidMigrationCall {});
+    };
 
     // convert last key from v2_0_1 to v2
     let last_key = USER_ASSET_INDICES.last(deps.storage)?.map(|kv| kv.0);
@@ -241,6 +245,7 @@ pub mod tests {
     use mars_utils::error::GuardError;
 
     use super::*;
+    use crate::error::ContractError;
     #[test]
     fn cannot_migrate_without_lock() {
         let mut deps = mock_dependencies();
@@ -387,6 +392,34 @@ pub mod tests {
             .collect::<StdResult<Vec<_>>>()
             .unwrap();
         assert_eq!(unclaimed_rewards.len(), 6);
+    }
+
+    #[test]
+    fn cannot_migrate_asset_indices_before_unclaimed_rewards() {
+        let mut deps = mock_dependencies();
+
+        MIGRATION_GUARD.try_lock(deps.as_mut().storage).unwrap();
+
+        // Prepare the unclaimed rewards V2 state
+        let acc_1: UserIdKey =
+            UserId::credit_manager(Addr::unchecked("user1"), "1".to_string()).try_into().unwrap();
+        let acc_2: UserIdKey =
+            UserId::credit_manager(Addr::unchecked("user1"), "2".to_string()).try_into().unwrap();
+
+        v2_state::USER_UNCLAIMED_REWARDS
+            .save(deps.as_mut().storage, (&acc_1, "umars", "untrn"), &Uint128::from(133u128))
+            .unwrap();
+        v2_state::USER_UNCLAIMED_REWARDS
+            .save(deps.as_mut().storage, (&acc_1, "umars", "uusdc"), &Uint128::from(133u128))
+            .unwrap();
+        v2_state::USER_UNCLAIMED_REWARDS
+            .save(deps.as_mut().storage, (&acc_2, "umars", "uusdc"), &Uint128::from(133u128))
+            .unwrap();
+
+        // Migrate first two
+        let err = migrate_user_asset_indices(deps.as_mut(), 2).unwrap_err();
+
+        assert_eq!(err, ContractError::InvalidMigrationCall {});
     }
 
     #[test]
