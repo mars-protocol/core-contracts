@@ -502,3 +502,90 @@ fn max_when_perp_in_profit() {
     let max_withdraw_amount = h.max_withdraw_amount_estimate(&udai.denom).unwrap();
     assert_eq!(Uint128::zero(), max_withdraw_amount);
 }
+
+#[test]
+fn staked_astro_lp() {
+    let ustars = ustars_info();
+
+    let asset_params = HashMap::from([(ustars.denom.clone(), ustars.params.clone())]);
+    let oracle_prices = HashMap::from([(ustars.denom.clone(), ustars.price)]);
+
+    let vaults_data = VaultsData {
+        vault_values: Default::default(),
+        vault_configs: Default::default(),
+    };
+    let perps_data = PerpsData {
+        params: Default::default(),
+    };
+
+    let staked_amount = Uint128::new(1200);
+    let h = HealthComputer {
+        kind: AccountKind::Default,
+        positions: Positions {
+            account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+            deposits: vec![],
+            debts: vec![],
+            lends: vec![],
+            vaults: vec![],
+            staked_astro_lps: vec![coin(staked_amount.u128(), &ustars.denom)],
+            perps: vec![],
+        },
+        asset_params,
+        oracle_prices,
+        vaults_data,
+        perps_data,
+    };
+
+    let max_withdraw_amount = h.max_withdraw_amount_estimate(&ustars.denom).unwrap();
+    assert_eq!(staked_amount, max_withdraw_amount);
+}
+
+#[test]
+fn staked_astro_lp_with_deposits() {
+    let umars = umars_info();
+    let udai_info = udai_info();
+
+    let asset_params = HashMap::from([
+        (udai_info.denom.clone(), udai_info.params.clone()),
+        (umars.denom.clone(), umars.params.clone()),
+    ]);
+    let oracle_prices = HashMap::from([
+        (udai_info.denom.clone(), udai_info.price),
+        (umars.denom.clone(), umars.price),
+    ]);
+
+    let vaults_data = VaultsData {
+        vault_values: Default::default(),
+        vault_configs: Default::default(),
+    };
+    let perps_data = PerpsData {
+        params: Default::default(),
+    };
+
+    let staked_amount = Uint128::new(1200);
+    let h = HealthComputer {
+        kind: AccountKind::Default,
+        positions: Positions {
+            account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+            deposits: vec![coin(1200, &umars.denom)],
+            debts: vec![DebtAmount {
+                denom: umars.denom.clone(),
+                amount: Uint128::from(1000u32),
+                shares: Uint128::zero(),
+            }],
+            lends: vec![],
+            vaults: vec![],
+            staked_astro_lps: vec![coin(staked_amount.u128(), &udai_info.denom)],
+            perps: vec![],
+        },
+        asset_params,
+        oracle_prices,
+        vaults_data,
+        perps_data,
+    };
+
+    let max_withdraw_amount = h.max_withdraw_amount_estimate(&udai_info.denom).unwrap();
+    assert_eq!(Uint128::from(1043u32), max_withdraw_amount);
+}

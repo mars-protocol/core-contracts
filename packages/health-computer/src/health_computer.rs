@@ -114,9 +114,12 @@ impl HealthComputer {
     /// Note: This is an estimate. Guarantees to leave account healthy, but in edge cases,
     /// due to rounding, it may be slightly too conservative.
     pub fn max_withdraw_amount_estimate(&self, withdraw_denom: &str) -> HealthResult<Uint128> {
-        // Both deposits and lends should be considered, as the funds can automatically be un-lent and
+        // Both deposits and lends should be considered, as the funds can automatically be un-lent
         // and also used to withdraw.
-        let withdraw_coin = self.get_coin_from_deposits_and_lends(withdraw_denom)?;
+        // Staked astro lps are also considered, given that the user will provide an unstake msg
+        // before the actual withdraw msg
+        let withdraw_coin =
+            self.get_coin_from_deposits_lends_and_staked_astro_lps(withdraw_denom)?;
         if withdraw_coin.amount.is_zero() {
             return Ok(Uint128::zero());
         };
@@ -1223,6 +1226,22 @@ impl HealthComputer {
         Ok(Coin {
             denom: denom.to_string(),
             amount: deposited_amount.checked_add(lent_amount)?,
+        })
+    }
+
+    fn get_coin_from_deposits_lends_and_staked_astro_lps(&self, denom: &str) -> HealthResult<Coin> {
+        let amount_deposited_lent = self.get_coin_from_deposits_and_lends(denom)?.amount;
+
+        let staked_amount = self
+            .positions
+            .staked_astro_lps
+            .iter()
+            .find(|c| c.denom == denom)
+            .map_or(Uint128::zero(), |c| c.amount);
+
+        Ok(Coin {
+            denom: denom.to_string(),
+            amount: amount_deposited_lent.checked_add(staked_amount)?,
         })
     }
 
