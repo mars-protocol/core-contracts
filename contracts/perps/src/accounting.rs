@@ -3,11 +3,8 @@
 /// Accounting represents the state of the base denom balance (vault) after applying the given cash flow, unrealized PnL and base denom price.
 use std::cmp::max;
 
-use cosmwasm_std::Uint128;
-use mars_types::{
-    perps::{Accounting, Balance, CashFlow, PnlAmounts},
-    signed_uint::SignedUint,
-};
+use cosmwasm_std::{Int128, Uint128};
+use mars_types::perps::{Accounting, Balance, CashFlow, PnlAmounts};
 
 use crate::error::ContractResult;
 
@@ -85,10 +82,10 @@ impl BalanceExt for Balance {
         // If unrealized price pnl or accrued funding is negative it means that the vault is making money.
         // We have to cap the amount to zero because we don't have that money in the vault (we will have once pnl is realized).
         let price_pnl =
-            cash_flow.price_pnl.checked_sub(max(SignedUint::zero(), unrealized_pnl.price_pnl))?;
+            cash_flow.price_pnl.checked_sub(max(Int128::zero(), unrealized_pnl.price_pnl))?;
         let accrued_funding = cash_flow
             .accrued_funding
-            .checked_sub(max(SignedUint::zero(), unrealized_pnl.accrued_funding))?;
+            .checked_sub(max(Int128::zero(), unrealized_pnl.accrued_funding))?;
 
         let balance = Balance {
             price_pnl,
@@ -132,7 +129,7 @@ mod tests {
     fn update_cash_flow() {
         let opening_fee = Uint128::new(120);
         let mut cf = CashFlow {
-            opening_fee: SignedUint::from(opening_fee),
+            opening_fee: Int128::try_from(opening_fee).unwrap(),
             ..Default::default()
         };
 
@@ -140,21 +137,21 @@ mod tests {
 
         // update with negative numbers
         let amounts = PnlAmounts {
-            price_pnl: SignedUint::from_str("-100").unwrap(),
-            accrued_funding: SignedUint::from_str("-300").unwrap(),
-            opening_fee: SignedUint::zero(),
-            closing_fee: SignedUint::from_str("-400").unwrap(),
-            pnl: SignedUint::from_str("-800").unwrap(),
+            price_pnl: Int128::from_str("-100").unwrap(),
+            accrued_funding: Int128::from_str("-300").unwrap(),
+            opening_fee: Int128::zero(),
+            closing_fee: Int128::from_str("-400").unwrap(),
+            pnl: Int128::from_str("-800").unwrap(),
         };
 
         cf.add(&amounts, protocol_fee).unwrap();
         assert_eq!(
             cf,
             CashFlow {
-                opening_fee: SignedUint::from(opening_fee),
-                price_pnl: SignedUint::from_str("100").unwrap(),
-                accrued_funding: SignedUint::from_str("300").unwrap(),
-                closing_fee: SignedUint::from_str("400").unwrap(),
+                opening_fee: Int128::try_from(opening_fee).unwrap(),
+                price_pnl: Int128::from_str("100").unwrap(),
+                accrued_funding: Int128::from_str("300").unwrap(),
+                closing_fee: Int128::from_str("400").unwrap(),
                 protocol_fee: Uint128::from_str("50").unwrap(),
             }
         );
@@ -163,20 +160,20 @@ mod tests {
 
         // update with positive numbers
         let amounts = PnlAmounts {
-            price_pnl: SignedUint::from_str("150").unwrap(),
-            accrued_funding: SignedUint::from_str("320").unwrap(),
-            opening_fee: SignedUint::zero(),
-            closing_fee: SignedUint::from_str("430").unwrap(),
-            pnl: SignedUint::from_str("900").unwrap(),
+            price_pnl: Int128::from_str("150").unwrap(),
+            accrued_funding: Int128::from_str("320").unwrap(),
+            opening_fee: Int128::zero(),
+            closing_fee: Int128::from_str("430").unwrap(),
+            pnl: Int128::from_str("900").unwrap(),
         };
         cf.add(&amounts, protocol_fee).unwrap();
         assert_eq!(
             cf,
             CashFlow {
-                opening_fee: SignedUint::from(opening_fee),
-                price_pnl: SignedUint::from_str("-50").unwrap(),
-                accrued_funding: SignedUint::from_str("-20").unwrap(),
-                closing_fee: SignedUint::from_str("-30").unwrap(),
+                opening_fee: Int128::try_from(opening_fee).unwrap(),
+                price_pnl: Int128::from_str("-50").unwrap(),
+                accrued_funding: Int128::from_str("-20").unwrap(),
+                closing_fee: Int128::from_str("-30").unwrap(),
                 protocol_fee: Uint128::from_str("75").unwrap(),
             }
         );
@@ -185,45 +182,45 @@ mod tests {
     #[test]
     fn compute_balance() {
         let cash_flow = CashFlow {
-            opening_fee: SignedUint::from_str("100").unwrap(),
-            price_pnl: SignedUint::from_str("300").unwrap(),
-            accrued_funding: SignedUint::from_str("200").unwrap(),
-            closing_fee: SignedUint::from_str("50").unwrap(),
+            opening_fee: Int128::from_str("100").unwrap(),
+            price_pnl: Int128::from_str("300").unwrap(),
+            accrued_funding: Int128::from_str("200").unwrap(),
+            closing_fee: Int128::from_str("50").unwrap(),
             protocol_fee: Uint128::from_str("25").unwrap(),
         };
 
         // compute balance with positive numbers
         let unrealized_pnl = PnlAmounts {
-            price_pnl: SignedUint::from_str("400").unwrap(),
-            accrued_funding: SignedUint::from_str("240").unwrap(),
-            closing_fee: SignedUint::from_str("60").unwrap(),
-            pnl: SignedUint::from_str("700").unwrap(),
-            opening_fee: SignedUint::zero(),
+            price_pnl: Int128::from_str("400").unwrap(),
+            accrued_funding: Int128::from_str("240").unwrap(),
+            closing_fee: Int128::from_str("60").unwrap(),
+            pnl: Int128::from_str("700").unwrap(),
+            opening_fee: Int128::zero(),
         };
         let expected_balance = Balance {
-            price_pnl: SignedUint::from_str("-100").unwrap(),
-            opening_fee: SignedUint::from_str("100").unwrap(),
-            closing_fee: SignedUint::from_str("-10").unwrap(),
-            accrued_funding: SignedUint::from_str("-40").unwrap(),
-            total: SignedUint::from_str("-50").unwrap(),
+            price_pnl: Int128::from_str("-100").unwrap(),
+            opening_fee: Int128::from_str("100").unwrap(),
+            closing_fee: Int128::from_str("-10").unwrap(),
+            accrued_funding: Int128::from_str("-40").unwrap(),
+            total: Int128::from_str("-50").unwrap(),
         };
         let actual_balance = Balance::compute_balance(&cash_flow, &unrealized_pnl).unwrap();
         assert_eq!(actual_balance, expected_balance);
 
         // compute balance with negative numbers
         let unrealized_pnl = PnlAmounts {
-            price_pnl: SignedUint::from_str("-400").unwrap(),
-            accrued_funding: SignedUint::from_str("-240").unwrap(),
-            closing_fee: SignedUint::from_str("-60").unwrap(),
-            pnl: SignedUint::from_str("-700").unwrap(),
-            opening_fee: SignedUint::zero(),
+            price_pnl: Int128::from_str("-400").unwrap(),
+            accrued_funding: Int128::from_str("-240").unwrap(),
+            closing_fee: Int128::from_str("-60").unwrap(),
+            pnl: Int128::from_str("-700").unwrap(),
+            opening_fee: Int128::zero(),
         };
         let expected_balance = Balance {
-            price_pnl: SignedUint::from_str("700").unwrap(),
-            opening_fee: SignedUint::from_str("100").unwrap(),
-            closing_fee: SignedUint::from_str("110").unwrap(),
-            accrued_funding: SignedUint::from_str("440").unwrap(),
-            total: SignedUint::from_str("1350").unwrap(),
+            price_pnl: Int128::from_str("700").unwrap(),
+            opening_fee: Int128::from_str("100").unwrap(),
+            closing_fee: Int128::from_str("110").unwrap(),
+            accrued_funding: Int128::from_str("440").unwrap(),
+            total: Int128::from_str("1350").unwrap(),
         };
         let actual_balance = Balance::compute_balance(&cash_flow, &unrealized_pnl).unwrap();
         assert_eq!(actual_balance, expected_balance);
@@ -232,27 +229,27 @@ mod tests {
     #[test]
     fn compute_withdrawal_balance() {
         let cash_flow = CashFlow {
-            opening_fee: SignedUint::from_str("100").unwrap(),
-            price_pnl: SignedUint::from_str("300").unwrap(),
-            accrued_funding: SignedUint::from_str("200").unwrap(),
-            closing_fee: SignedUint::from_str("50").unwrap(),
+            opening_fee: Int128::from_str("100").unwrap(),
+            price_pnl: Int128::from_str("300").unwrap(),
+            accrued_funding: Int128::from_str("200").unwrap(),
+            closing_fee: Int128::from_str("50").unwrap(),
             protocol_fee: Uint128::from_str("40").unwrap(),
         };
 
         // compute withdrawal balance with positive numbers
         let unrealized_pnl = PnlAmounts {
-            price_pnl: SignedUint::from_str("400").unwrap(),
-            accrued_funding: SignedUint::from_str("240").unwrap(),
-            closing_fee: SignedUint::from_str("60").unwrap(),
-            pnl: SignedUint::from_str("700").unwrap(),
-            opening_fee: SignedUint::zero(),
+            price_pnl: Int128::from_str("400").unwrap(),
+            accrued_funding: Int128::from_str("240").unwrap(),
+            closing_fee: Int128::from_str("60").unwrap(),
+            pnl: Int128::from_str("700").unwrap(),
+            opening_fee: Int128::zero(),
         };
         let expected_balance = Balance {
-            price_pnl: SignedUint::from_str("-100").unwrap(),
+            price_pnl: Int128::from_str("-100").unwrap(),
             opening_fee: cash_flow.opening_fee,
             closing_fee: cash_flow.closing_fee,
-            accrued_funding: SignedUint::from_str("-40").unwrap(),
-            total: SignedUint::from_str("10").unwrap(),
+            accrued_funding: Int128::from_str("-40").unwrap(),
+            total: Int128::from_str("10").unwrap(),
         };
         let actual_balance =
             Balance::compute_withdrawal_balance(&cash_flow, &unrealized_pnl).unwrap();
@@ -260,18 +257,18 @@ mod tests {
 
         // compute withdrawal balance with negative numbers
         let unrealized_pnl = PnlAmounts {
-            price_pnl: SignedUint::from_str("-400").unwrap(),
-            accrued_funding: SignedUint::from_str("-240").unwrap(),
-            closing_fee: SignedUint::from_str("-60").unwrap(),
-            pnl: SignedUint::from_str("-700").unwrap(),
-            opening_fee: SignedUint::zero(),
+            price_pnl: Int128::from_str("-400").unwrap(),
+            accrued_funding: Int128::from_str("-240").unwrap(),
+            closing_fee: Int128::from_str("-60").unwrap(),
+            pnl: Int128::from_str("-700").unwrap(),
+            opening_fee: Int128::zero(),
         };
         let expected_balance = Balance {
             price_pnl: cash_flow.price_pnl,
             opening_fee: cash_flow.opening_fee,
             closing_fee: cash_flow.closing_fee,
             accrued_funding: cash_flow.accrued_funding,
-            total: SignedUint::from_str("650").unwrap(),
+            total: Int128::from_str("650").unwrap(),
         };
         let actual_balance =
             Balance::compute_withdrawal_balance(&cash_flow, &unrealized_pnl).unwrap();
@@ -281,18 +278,18 @@ mod tests {
     #[test]
     fn compute_accounting() {
         let cash_flow = CashFlow {
-            opening_fee: SignedUint::from_str("100").unwrap(),
-            price_pnl: SignedUint::from_str("300").unwrap(),
-            accrued_funding: SignedUint::from_str("200").unwrap(),
-            closing_fee: SignedUint::from_str("50").unwrap(),
+            opening_fee: Int128::from_str("100").unwrap(),
+            price_pnl: Int128::from_str("300").unwrap(),
+            accrued_funding: Int128::from_str("200").unwrap(),
+            closing_fee: Int128::from_str("50").unwrap(),
             protocol_fee: Uint128::from_str("40").unwrap(),
         };
         let unrealized_pnl = PnlAmounts {
-            price_pnl: SignedUint::from_str("-400").unwrap(),
-            accrued_funding: SignedUint::from_str("-240").unwrap(),
-            closing_fee: SignedUint::from_str("-60").unwrap(),
-            pnl: SignedUint::from_str("-700").unwrap(),
-            opening_fee: SignedUint::zero(),
+            price_pnl: Int128::from_str("-400").unwrap(),
+            accrued_funding: Int128::from_str("-240").unwrap(),
+            closing_fee: Int128::from_str("-60").unwrap(),
+            pnl: Int128::from_str("-700").unwrap(),
+            opening_fee: Int128::zero(),
         };
 
         let balance = Balance::compute_balance(&cash_flow, &unrealized_pnl).unwrap();

@@ -1,11 +1,10 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, Addr, Decimal, Uint128};
+use cosmwasm_std::{coin, Addr, Decimal, Int128, Uint128};
 use mars_perps::{error::ContractError, vault::DEFAULT_SHARES_PER_AMOUNT};
 use mars_types::{
     params::{PerpParams, PerpParamsUpdate},
     perps::{VaultDeposit, VaultPositionResponse, VaultResponse, VaultUnlock},
-    signed_uint::SignedUint,
 };
 
 use super::helpers::MockEnv;
@@ -91,7 +90,7 @@ fn unlock_few_times() {
     assert_eq!(
         vault_state_before_unlocks,
         VaultResponse {
-            total_balance: deposit.amount.into(),
+            total_balance: deposit.amount.try_into().unwrap(),
             total_shares: deposit.shares,
             total_withdrawal_balance: deposit.amount,
             share_price: Some(Decimal::from_ratio(deposit.amount, deposit.shares)),
@@ -367,12 +366,12 @@ fn withdraw_unlocked_shares() {
 
     // check vault state after withdraw, it should be decreased by amount of two unlocks
     let vault_state_after_two_unlocks = mock.query_vault();
-    let total_deposits = vault_state_before_unlocks.total_balance.abs - amt_1 - amt_2;
+    let total_deposits = vault_state_before_unlocks.total_balance.unsigned_abs() - amt_1 - amt_2;
     let total_shares = vault_state_before_unlocks.total_shares - shares_1 - shares_2;
     assert_eq!(
         vault_state_after_two_unlocks,
         VaultResponse {
-            total_balance: total_deposits.into(),
+            total_balance: total_deposits.try_into().unwrap(),
             total_shares,
             total_withdrawal_balance: total_deposits,
             share_price: Some(Decimal::from_ratio(total_deposits, total_shares)),
@@ -411,7 +410,7 @@ fn withdraw_unlocked_shares() {
         VaultResponse {
             total_balance: vault_state_after_two_unlocks
                 .total_balance
-                .checked_sub(amt_3.into())
+                .checked_sub(amt_3.try_into().unwrap())
                 .unwrap(),
             total_shares: vault_state_after_two_unlocks.total_shares - shares_3,
             ..Default::default()
@@ -455,7 +454,7 @@ fn unlock_and_withdraw_if_zero_withdrawal_balance() {
     mock.deposit_to_vault(&credit_manager, Some(user), None, &[coin(1000u128, "uusdc")]).unwrap();
 
     // open a position
-    let size = SignedUint::from_str("50").unwrap();
+    let size = Int128::from_str("50").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
@@ -537,7 +536,7 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
     assert_eq!(deposit_2_before.shares, deposit_1_before.shares.multiply_ratio(4u128, 1u128)); // 4 times more than depositor_1
 
     // open a position
-    let size = SignedUint::from_str("100").unwrap();
+    let size = Int128::from_str("100").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
@@ -550,7 +549,7 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
     let accounting = mock.query_total_accounting().accounting;
     let available_liquidity =
         accounting.withdrawal_balance.total.checked_add(vault_state.total_balance).unwrap();
-    assert!(available_liquidity < SignedUint::zero());
+    assert!(available_liquidity < Int128::zero());
 
     // deposit uusdc to vault when zero withdrawal balance
     mock.deposit_to_vault(&credit_manager, Some(depositor_3), None, &[coin(2500u128, "uusdc")])
@@ -856,7 +855,7 @@ fn withdraw_profits_for_depositors() {
     assert_eq!(deposit_2_before.shares, deposit_1_before.shares.multiply_ratio(4u128, 1u128)); // 4 times more than depositor_1
 
     // open a position
-    let size = SignedUint::from_str("100").unwrap();
+    let size = Int128::from_str("100").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     assert_eq!(atom_opening_fee, coin(23, "uusdc"));
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
@@ -866,12 +865,12 @@ fn withdraw_profits_for_depositors() {
     mock.set_price(&owner, "uatom", Decimal::from_str("5").unwrap()).unwrap();
 
     // close the position
-    let atom_closing_pnl = coin(562, "uusdc");
+    let atom_closing_pnl = coin(561, "uusdc");
     mock.execute_perp_order(
         &credit_manager,
         "1",
         "uatom",
-        size.neg(),
+        Int128::zero() - size,
         None,
         &[atom_closing_pnl.clone()],
     )
@@ -886,7 +885,7 @@ fn withdraw_profits_for_depositors() {
     assert_eq!(
         vault,
         VaultResponse {
-            total_balance: total_deposits.into(),
+            total_balance: total_deposits.try_into().unwrap(),
             total_shares,
             total_withdrawal_balance: total_liquidity, // total cash flow is equal to total withdrawal balance when no open positions
             share_price: Some(Decimal::from_ratio(total_liquidity, total_shares)),
@@ -919,7 +918,9 @@ fn withdraw_profits_for_depositors() {
     assert_eq!(
         vault,
         VaultResponse {
-            total_balance: SignedUint::zero().checked_sub(total_amt_from_perp_pos.into()).unwrap(), // negative number because of profits from perp positions
+            total_balance: Int128::zero()
+                .checked_sub(total_amt_from_perp_pos.try_into().unwrap())
+                .unwrap(), // negative number because of profits from perp positions
             total_shares: Uint128::zero(),
             total_withdrawal_balance: Uint128::zero(),
             share_price: None,
@@ -995,7 +996,7 @@ fn cannot_withdraw_if_cr_decreases_below_threshold() {
     mock.set_block_time(unlock_current_time + cooldown_period + 1);
 
     // open a position
-    let size = SignedUint::from_str("100").unwrap();
+    let size = Int128::from_str("100").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
         .unwrap();

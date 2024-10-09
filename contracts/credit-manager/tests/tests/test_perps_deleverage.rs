@@ -1,6 +1,6 @@
 use std::{cmp::min, str::FromStr};
 
-use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Int128, Uint128};
 use mars_credit_manager::error::ContractError;
 use mars_mock_oracle::msg::CoinPrice;
 use mars_perps::error::ContractError as PerpsContractError;
@@ -13,7 +13,6 @@ use mars_types::{
     oracle::ActionKind,
     params::{PerpParams, PerpParamsUpdate},
     perps::PnL,
-    signed_uint::SignedUint,
 };
 use test_case::test_case;
 
@@ -44,7 +43,7 @@ fn unauthorized_update_balance_after_deleverage() {
 #[test_case(0, "0", 0; "pnl break even when no usdc in account")]
 #[test_case(100, "0", 0; "pnl break even when usdc in account")]
 fn update_balance_after_deleverage(usdc_deposit_amt: u128, pnl: &str, expected_debt: u128) {
-    let pnl_signed_uint = SignedUint::from_str(pnl).unwrap();
+    let pnl_signed_uint = Int128::from_str(pnl).unwrap();
 
     let cm_user = Addr::unchecked("cm_user");
     let contract_owner = Addr::unchecked("owner");
@@ -182,10 +181,10 @@ fn deleverage(
     deleverage_enabled: Option<bool>,
     exp_error: Option<PerpsContractError>,
 ) {
-    let acc_1_atom_pos = SignedUint::from_str(acc_1_atom_pos).unwrap();
-    let acc_2_atom_pos = SignedUint::from_str(acc_2_atom_pos).unwrap();
-    let acc_3_atom_pos = SignedUint::from_str(acc_3_atom_pos).unwrap();
-    let acc_4_atom_pos = SignedUint::from_str(acc_4_atom_pos).unwrap();
+    let acc_1_atom_pos = Int128::from_str(acc_1_atom_pos).unwrap();
+    let acc_2_atom_pos = Int128::from_str(acc_2_atom_pos).unwrap();
+    let acc_3_atom_pos = Int128::from_str(acc_3_atom_pos).unwrap();
+    let acc_4_atom_pos = Int128::from_str(acc_4_atom_pos).unwrap();
 
     let atom_price = Decimal::from_str(atom_price).unwrap();
 
@@ -293,14 +292,14 @@ fn deleverage(
         &cm_user_1,
         &acc_1,
         &tia_info.denom,
-        SignedUint::from_str("-100000000").unwrap(),
+        Int128::from_str("-100000000").unwrap(),
     );
     open_perp(
         &mut mock,
         &cm_user_2,
         &acc_2,
         &tia_info.denom,
-        SignedUint::from_str("100000000").unwrap(),
+        Int128::from_str("100000000").unwrap(),
     );
 
     // open perp positions
@@ -416,15 +415,15 @@ fn deleverage(
 }
 
 fn prepare_max_oi(
-    positions: Vec<SignedUint>,
+    positions: Vec<Int128>,
     atom_price: Decimal,
     long_oi_above_max: bool,
     short_oi_above_max: bool,
 ) -> (Uint128, Uint128) {
     let (shorts, longs): (Vec<_>, Vec<_>) =
         positions.into_iter().partition(|pos| pos.is_negative());
-    let short_total_size = shorts.iter().map(|pos| pos.abs).sum::<Uint128>();
-    let long_total_size = longs.iter().map(|pos| pos.abs).sum::<Uint128>();
+    let short_total_size = shorts.iter().map(|pos| pos.unsigned_abs()).sum::<Uint128>();
+    let long_total_size = longs.iter().map(|pos| pos.unsigned_abs()).sum::<Uint128>();
     let short_oi = short_total_size * atom_price;
     let long_oi = long_total_size * atom_price;
 
@@ -443,7 +442,7 @@ fn prepare_max_oi(
     (max_long_oi, max_short_oi)
 }
 
-fn open_perp(mock: &mut MockEnv, user: &Addr, acc_id: &str, denom: &str, size: SignedUint) {
+fn open_perp(mock: &mut MockEnv, user: &Addr, acc_id: &str, denom: &str, size: Int128) {
     mock.update_credit_account(
         acc_id,
         user,

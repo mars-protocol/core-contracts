@@ -1,11 +1,10 @@
 use std::{fs::File, io::Read, str::FromStr};
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Decimal, Int128, Uint128};
 use mars_types::{
     params::{PerpParams, PerpParamsUpdate},
     perps::Balance,
-    signed_uint::SignedUint,
 };
 
 use super::helpers::MockEnv;
@@ -37,7 +36,7 @@ enum ActionType {
     ExecutePerpOrder {
         account_id: String,
         denom: String,
-        order_size: SignedUint,
+        order_size: Int128,
         reduce_only: Option<bool>,
     },
     ChangePrice {
@@ -176,8 +175,9 @@ fn verify_accounting_with_input_actions() {
                 let pos_res =
                     mock.query_position_with_order_size(account_id, denom, Some(*order_size));
                 let funds = if let Some(pos) = pos_res.position {
-                    if pos.unrealised_pnl.pnl < SignedUint::zero() {
-                        let fund = coin(pos.unrealised_pnl.pnl.abs.u128(), pos.base_denom);
+                    if pos.unrealised_pnl.pnl < Int128::zero() {
+                        let fund =
+                            coin(pos.unrealised_pnl.pnl.unsigned_abs().u128(), pos.base_denom);
                         vec![fund]
                     } else {
                         vec![]

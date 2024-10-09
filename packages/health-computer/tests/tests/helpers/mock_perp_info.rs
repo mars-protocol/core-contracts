@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{Decimal, Uint128};
-use mars_types::{math::SignedDecimal, params::PerpParams, perps::Funding};
+use cosmwasm_std::{Decimal, SignedDecimal, Uint128};
+use mars_types::{params::PerpParams, perps::Funding};
 
 pub struct PerpInfo {
     pub denom: String,

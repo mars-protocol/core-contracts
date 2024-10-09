@@ -1,7 +1,7 @@
 use cosmwasm_std::{
     attr, coin, coins,
     testing::{mock_env, mock_info},
-    Addr, BankMsg, CosmosMsg, Decimal, SubMsg, Timestamp, Uint128,
+    Addr, BankMsg, CosmosMsg, Decimal, Int128, SubMsg, Timestamp, Uint128,
 };
 use mars_incentives::{
     contract::execute,
@@ -15,7 +15,6 @@ use mars_types::{
     keys::{IncentiveId, IncentiveIdKey, IncentiveKindKey, UserId, UserIdKey},
     perps::{VaultDeposit, VaultPositionResponse, VaultResponse},
     red_bank::{Market, UserCollateralResponse},
-    signed_uint::SignedUint,
 };
 
 use super::helpers::{th_setup, ths_setup_with_epoch_duration};
@@ -358,7 +357,7 @@ fn execute_claim_rewards_perp_vault() {
 
     deps.querier.set_perp_vault_state(VaultResponse {
         total_shares,
-        total_balance: SignedUint::zero(),
+        total_balance: Int128::zero(),
         total_liquidity: Uint128::zero(),
         collateralization_ratio: None,
         share_price: None,

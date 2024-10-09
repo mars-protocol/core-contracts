@@ -162,11 +162,11 @@ pub fn deleverage(
     let signed_uint_pnl = pnl.to_signed_uint()?;
     let mut requested_amount_from_cm = Uint128::zero();
     let mut send_amount_from_perps = Uint128::zero();
-    let funds = if signed_uint_pnl.is_positive() {
-        send_amount_from_perps = signed_uint_pnl.abs;
-        coins(signed_uint_pnl.abs.u128(), cfg.base_denom.clone())
+    let funds = if !signed_uint_pnl.is_negative() {
+        send_amount_from_perps = signed_uint_pnl.unsigned_abs();
+        coins(signed_uint_pnl.unsigned_abs().u128(), cfg.base_denom.clone())
     } else {
-        requested_amount_from_cm = signed_uint_pnl.abs;
+        requested_amount_from_cm = signed_uint_pnl.unsigned_abs();
         vec![]
     };
 

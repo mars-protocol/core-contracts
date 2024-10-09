@@ -1,6 +1,7 @@
 use cosmwasm_std::{
-    CheckedFromRatioError, CheckedMultiplyFractionError, ConversionOverflowError,
-    DecimalRangeExceeded, DivideByZeroError, OverflowError, StdError,
+    CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError,
+    ConversionOverflowError, DecimalRangeExceeded, DivideByZeroError, OverflowError,
+    SignedDecimalRangeExceeded, StdError,
 };
 use mars_owner::OwnerError;
 use thiserror::Error;
@@ -19,6 +20,9 @@ pub enum HealthError {
 
     #[error("{0}")]
     CheckedMultiplyFraction(#[from] CheckedMultiplyFractionError),
+
+    #[error("{0}")]
+    SignedDecimalRangeExceeded(#[from] SignedDecimalRangeExceeded),
 
     #[error("{0} not found in account's positions")]
     DenomNotPresent(String),
@@ -72,4 +76,7 @@ pub enum HealthError {
 
     #[error("{0}")]
     ConversionOverflowError(#[from] ConversionOverflowError),
+
+    #[error("{0}")]
+    CheckedMultiplyRatio(#[from] CheckedMultiplyRatioError),
 }

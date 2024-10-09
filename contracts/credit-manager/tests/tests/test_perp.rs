@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Int128, Uint128};
 use mars_credit_manager::error::ContractError;
 use mars_mock_oracle::msg::CoinPrice;
 use mars_types::{
@@ -11,7 +11,6 @@ use mars_types::{
     oracle::ActionKind,
     params::PerpParamsUpdate,
     perps::PnL,
-    signed_uint::SignedUint,
 };
 
 use super::helpers::{coin_info, uatom_info, uosmo_info, AccountToFund, CoinInfo, MockEnv};
@@ -37,7 +36,7 @@ fn perp_position_when_usdc_in_account() {
         &cm_user,
     );
 
-    let perp_size = SignedUint::from_str("20000").unwrap();
+    let perp_size = Int128::from_str("20000").unwrap();
 
     // check perp data before any action
     let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
@@ -94,7 +93,7 @@ fn perp_position_when_usdc_in_account() {
         &cm_user,
         vec![ExecutePerpOrder {
             denom: atom_info.denom,
-            order_size: perp_size.neg(),
+            order_size: Int128::zero() - perp_size,
             reduce_only: Some(true),
         }],
         &[],
@@ -172,7 +171,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
     .unwrap();
     mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited, None).unwrap();
 
-    let perp_size = SignedUint::from_str("400").unwrap();
+    let perp_size = Int128::from_str("400").unwrap();
 
     // check perp data before any action
     let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
@@ -244,7 +243,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
         &cm_user,
         vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
-            order_size: perp_size.neg(),
+            order_size: Int128::zero() - perp_size,
             reduce_only: Some(true),
         }],
         &[],
@@ -317,7 +316,7 @@ fn perp_position_when_no_usdc_in_account() {
     .unwrap();
     mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited, None).unwrap();
 
-    let perp_size = SignedUint::from_str("400").unwrap();
+    let perp_size = Int128::from_str("400").unwrap();
 
     // check perp data before any action
     let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
@@ -378,7 +377,7 @@ fn perp_position_when_no_usdc_in_account() {
         &cm_user,
         vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
-            order_size: perp_size.neg(),
+            order_size: Int128::zero() - perp_size,
             reduce_only: Some(true),
         }],
         &[],
@@ -424,7 +423,7 @@ fn close_perp_position_with_profit() {
         &cm_user,
     );
 
-    let perp_size = SignedUint::from_str("200").unwrap();
+    let perp_size = Int128::from_str("200").unwrap();
 
     // check perp data before any action
     let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
@@ -482,7 +481,7 @@ fn close_perp_position_with_profit() {
         &cm_user,
         vec![ExecutePerpOrder {
             denom: atom_info.denom.clone(),
-            order_size: perp_size.neg(),
+            order_size: Int128::zero() - perp_size,
             reduce_only: Some(true),
         }],
         &[],
@@ -530,7 +529,7 @@ fn increase_position_with_realized_pnl() {
         &cm_user,
     );
 
-    let perp_size = SignedUint::from_str("200").unwrap();
+    let perp_size = Int128::from_str("200").unwrap();
 
     // open perp position
     mock.update_credit_account(
@@ -560,7 +559,7 @@ fn increase_position_with_realized_pnl() {
     });
 
     // increase perp position size
-    let new_size = SignedUint::from_str("350").unwrap();
+    let new_size = Int128::from_str("350").unwrap();
     let delta_change = new_size.checked_sub(perp_size).unwrap();
 
     // check perp position pnl
@@ -619,7 +618,7 @@ fn increase_position_with_realized_pnl() {
     });
 
     // increase perp position size
-    let new_size = SignedUint::from_str("460").unwrap();
+    let new_size = Int128::from_str("460").unwrap();
     let delta_change = new_size.checked_sub(perp_size).unwrap();
 
     // check perp position pnl
@@ -684,7 +683,7 @@ fn decrease_position_with_realized_pnl() {
         &cm_user,
     );
 
-    let perp_size = SignedUint::from_str("-400").unwrap();
+    let perp_size = Int128::from_str("-400").unwrap();
 
     // open perp position
     mock.update_credit_account(
@@ -714,7 +713,7 @@ fn decrease_position_with_realized_pnl() {
     });
 
     // decrease perp position size
-    let new_size = SignedUint::from_str("-320").unwrap();
+    let new_size = Int128::from_str("-320").unwrap();
     let delta_change = new_size.checked_sub(perp_size).unwrap();
     // check perp position pnl
     let perp_position = mock
@@ -772,7 +771,7 @@ fn decrease_position_with_realized_pnl() {
     });
 
     // increase perp position size
-    let new_size = SignedUint::from_str("-250").unwrap();
+    let new_size = Int128::from_str("-250").unwrap();
     let delta_change = new_size.checked_sub(perp_size).unwrap();
 
     // check perp position pnl
@@ -838,7 +837,7 @@ fn flip_position_with_realized_pnl() {
     );
 
     // start in short position
-    let perp_size = SignedUint::from_str("-400").unwrap();
+    let perp_size = Int128::from_str("-400").unwrap();
 
     // open the perp position
     mock.update_credit_account(
@@ -869,7 +868,7 @@ fn flip_position_with_realized_pnl() {
     });
 
     // flip perp position to long
-    let new_size = SignedUint::from_str("100").unwrap();
+    let new_size = Int128::from_str("100").unwrap();
     let delta_change = new_size.checked_sub(perp_size).unwrap();
 
     // check perp position pnl
@@ -928,7 +927,7 @@ fn flip_position_with_realized_pnl() {
     });
 
     // flip position to short again
-    let new_size = SignedUint::from_str("-250").unwrap();
+    let new_size = Int128::from_str("-250").unwrap();
     let delta_change = new_size.checked_sub(perp_size).unwrap();
 
     // check perp position pnl
@@ -993,7 +992,7 @@ fn cannot_open_perp_above_max_ltv() {
         &cm_user,
     );
 
-    let perp_size = SignedUint::from_str("100000").unwrap();
+    let perp_size = Int128::from_str("100000").unwrap();
 
     let health = mock.query_health(&account_id, ActionKind::Default);
     assert!(!health.above_max_ltv);
@@ -1039,7 +1038,7 @@ fn health_check_works_if_no_spot_base_denom() {
         &cm_user,
     );
 
-    let perp_size = SignedUint::from_str("20000").unwrap();
+    let perp_size = Int128::from_str("20000").unwrap();
 
     // open perp position
     mock.update_credit_account(
@@ -1083,7 +1082,7 @@ fn health_check_works_if_no_spot_base_denom() {
         &cm_user,
         vec![ExecutePerpOrder {
             denom: atom_info.denom,
-            order_size: perp_size.neg(),
+            order_size: Int128::zero().checked_sub(perp_size).unwrap(),
             reduce_only: Some(true),
         }],
         &[],

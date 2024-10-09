@@ -1,5 +1,6 @@
 use cosmwasm_std::{
-    CheckedFromRatioError, CheckedMultiplyFractionError, DivideByZeroError, OverflowError, StdError,
+    CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError,
+    ConversionOverflowError, DivideByZeroError, OverflowError, StdError,
 };
 use mars_utils::error::ValidationError;
 use thiserror::Error;
@@ -37,6 +38,12 @@ pub enum MarsError {
 
     #[error("{0}")]
     CheckedMultiplyFraction(#[from] CheckedMultiplyFractionError),
+
+    #[error("{0}")]
+    CheckedMultiplyRatio(#[from] CheckedMultiplyRatioError),
+
+    #[error("{0}")]
+    ConversionOverflow(#[from] ConversionOverflowError),
 
     #[error("{0}")]
     Validation(#[from] ValidationError),

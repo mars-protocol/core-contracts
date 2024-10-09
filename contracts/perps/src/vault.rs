@@ -1,8 +1,8 @@
 use std::cmp::max;
 
 use cosmwasm_std::{
-    coins, ensure, to_json_binary, Addr, BankMsg, CosmosMsg, Deps, DepsMut, MessageInfo, Response,
-    Uint128, WasmMsg,
+    coins, ensure, to_json_binary, Addr, BankMsg, CosmosMsg, Deps, DepsMut, Int128, MessageInfo,
+    Response, Uint128, WasmMsg,
 };
 use cw_utils::must_pay;
 use mars_types::{
@@ -15,7 +15,6 @@ use mars_types::{
     keys::UserIdKey,
     oracle::ActionKind,
     perps::{UnlockState, VaultState},
-    signed_uint::SignedUint,
 };
 
 use crate::{
@@ -110,7 +109,7 @@ pub fn deposit(
     }
 
     // Increment total liquidity and deposit shares
-    vs.total_balance = vs.total_balance.checked_add(amount.into())?;
+    vs.total_balance = vs.total_balance.checked_add(amount.try_into()?)?;
     vs.total_shares = vs.total_shares.checked_add(shares)?;
     VAULT_STATE.save(deps.storage, &vs)?;
 
@@ -283,7 +282,7 @@ pub fn withdraw(
     }
 
     // Decrement total liquidity and deposit shares
-    vs.total_balance = vs.total_balance.checked_sub(unlocked_user_amount.into())?;
+    vs.total_balance = vs.total_balance.checked_sub(unlocked_user_amount.try_into()?)?;
     vs.total_shares = vs.total_shares.checked_sub(user_vault_shares.unlocked_amount)?;
     VAULT_STATE.save(deps.storage, &vs)?;
 
@@ -341,9 +340,9 @@ pub fn compute_global_withdrawal_balance(
 
     let global_withdrawal_balance =
         global_acc_data.withdrawal_balance.total.checked_add(vs.total_balance)?;
-    let global_withdrawal_balance = max(global_withdrawal_balance, SignedUint::zero());
+    let global_withdrawal_balance = max(global_withdrawal_balance, Int128::zero());
 
-    Ok(global_withdrawal_balance.abs)
+    Ok(global_withdrawal_balance.unsigned_abs())
 }
 
 /// Convert a deposit amount to shares, given the current total amount and

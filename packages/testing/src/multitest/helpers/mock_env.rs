@@ -2,8 +2,8 @@ use std::default::Default;
 
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{
-    coin, coins, testing::MockApi, Addr, Coin, Decimal, Empty, StdError, StdResult, Timestamp,
-    Uint128,
+    coin, coins, testing::MockApi, Addr, Coin, Decimal, Empty, Int128, StdError, StdResult,
+    Timestamp, Uint128,
 };
 use cw721::TokensResponse;
 use cw721_base::{Action::TransferOwnership, Ownership};
@@ -73,7 +73,6 @@ use mars_types::{
         UserCollateralResponse, UserDebtResponse,
     },
     rewards_collector,
-    signed_uint::SignedUint,
     swapper::{
         EstimateExactInSwapResponse, InstantiateMsg as SwapperInstantiateMsg,
         QueryMsg::EstimateExactInSwap, SwapperRoute,
@@ -1072,7 +1071,7 @@ impl MockEnv {
         &self,
         account_id: &str,
         denom: &str,
-        modification_size: Option<SignedUint>,
+        modification_size: Option<Int128>,
     ) -> PositionResponse {
         self.app
             .wrap()
@@ -1087,7 +1086,7 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_perp_opening_fee(&self, denom: &str, size: SignedUint) -> TradingFee {
+    pub fn query_perp_opening_fee(&self, denom: &str, size: Int128) -> TradingFee {
         self.app
             .wrap()
             .query_wasm_smart(

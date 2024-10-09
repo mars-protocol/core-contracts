@@ -2,7 +2,7 @@
 use std::mem::take;
 
 use anyhow::Result as AnyResult;
-use cosmwasm_std::{coin, Addr, Coin, Decimal, Empty, Timestamp, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Empty, Int128, Timestamp, Uint128};
 use cw_multi_test::{App, AppResponse, BankSudo, BasicApp, Executor, SudoMsg};
 use cw_paginate::PaginationResponse;
 use mars_oracle_osmosis::OsmosisPriceSourceUnchecked;
@@ -23,7 +23,6 @@ use mars_types::{
         VaultPositionResponse, VaultResponse,
     },
     rewards_collector,
-    signed_uint::SignedUint,
 };
 
 use super::{
@@ -212,7 +211,7 @@ impl MockEnv {
         sender: &Addr,
         account_id: &str,
         denom: &str,
-        size: SignedUint,
+        size: Int128,
         reduce_only: Option<bool>,
         funds: &[Coin],
     ) -> AnyResult<AppResponse> {
@@ -394,7 +393,7 @@ impl MockEnv {
         &self,
         account_id: &str,
         denom: &str,
-        order_size: Option<SignedUint>,
+        order_size: Option<Int128>,
     ) -> PositionResponse {
         self.app
             .wrap()
@@ -479,7 +478,7 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_opening_fee(&self, denom: &str, size: SignedUint) -> TradingFee {
+    pub fn query_opening_fee(&self, denom: &str, size: Int128) -> TradingFee {
         self.app
             .wrap()
             .query_wasm_smart(
@@ -496,7 +495,7 @@ impl MockEnv {
         &self,
         account_id: &str,
         denom: &str,
-        new_size: SignedUint,
+        new_size: Int128,
     ) -> PositionFeesResponse {
         self.app
             .wrap()

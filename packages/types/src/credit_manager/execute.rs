@@ -1,7 +1,9 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_binary, Addr, Coin, CosmosMsg, Decimal, StdResult, Uint128, WasmMsg};
+use cosmwasm_std::{
+    to_json_binary, Addr, Coin, CosmosMsg, Decimal, Int128, StdResult, Uint128, WasmMsg,
+};
 use mars_owner::OwnerUpdate;
 
 use super::ConfigUpdates;
@@ -10,7 +12,6 @@ use crate::{
     adapters::vault::{Vault, VaultPositionType, VaultUnchecked},
     health::{AccountKind, HealthState, HealthValuesResponse},
     perps::PnL,
-    signed_uint::SignedUint,
     swapper::SwapperRoute,
 };
 
@@ -228,7 +229,7 @@ pub enum Action {
     ///     - to reduce short or increase long, use a positive value
     ExecutePerpOrder {
         denom: String,
-        order_size: SignedUint,
+        order_size: Int128,
         reduce_only: Option<bool>,
     },
 
@@ -422,7 +423,7 @@ pub enum CallbackMsg {
     ExecutePerpOrder {
         account_id: String,
         denom: String,
-        size: SignedUint,
+        size: Int128,
         reduce_only: Option<bool>,
     },
     /// Requests unlocking of shares for a vault with a lock period

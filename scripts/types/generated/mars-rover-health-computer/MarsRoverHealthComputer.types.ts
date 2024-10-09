@@ -26,6 +26,7 @@ export type AccountKind =
         vault_addr: string
       }
     }
+export type Int128 = string
 export type VaultPositionAmount =
   | {
       unlocked: VaultAmount
@@ -128,20 +129,15 @@ export interface PerpPosition {
   entry_exec_price: Decimal
   entry_price: Decimal
   realised_pnl: PnlAmounts
-  size: SignedUint
+  size: Int128
   unrealised_pnl: PnlAmounts
 }
 export interface PnlAmounts {
-  accrued_funding: SignedUint
-  closing_fee: SignedUint
-  opening_fee: SignedUint
-  pnl: SignedUint
-  price_pnl: SignedUint
-}
-export interface SignedUint {
-  abs: Uint128
-  negative: boolean
-  [k: string]: unknown
+  accrued_funding: Int128
+  closing_fee: Int128
+  opening_fee: Int128
+  pnl: Int128
+  price_pnl: Int128
 }
 export interface VaultPosition {
   amount: VaultPositionAmount

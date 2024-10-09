@@ -1,6 +1,6 @@
 use std::{cmp::max, collections::HashMap};
 
-use cosmwasm_std::{coin, Addr, Decimal, Deps, Order, StdResult, Storage};
+use cosmwasm_std::{coin, Addr, Decimal, Deps, Int128, Order, StdResult, Storage};
 use cw_paginate::{paginate_map_query, PaginationResponse};
 use cw_storage_plus::Bound;
 use mars_perps_common::pricing::{closing_execution_price, opening_execution_price};
@@ -16,7 +16,6 @@ use mars_types::{
         PnlAmounts, PositionFeesResponse, PositionResponse, PositionsByAccountResponse, TradingFee,
         VaultDeposit, VaultPositionResponse, VaultResponse, VaultUnlock,
     },
-    signed_uint::SignedUint,
 };
 
 use crate::{
@@ -71,7 +70,7 @@ pub fn query_vault(
     // Calculate total withdrawal balance
     let total_withdrawal_balance =
         acc_data.withdrawal_balance.total.checked_add(vault_state.total_balance)?;
-    let total_withdrawal_balance = max(total_withdrawal_balance, SignedUint::zero()).abs;
+    let total_withdrawal_balance = max(total_withdrawal_balance, Int128::zero()).unsigned_abs();
 
     // Calculate share price if total shares are non-zero
     let share_price = if vault_state.total_shares.is_zero() {
@@ -82,10 +81,10 @@ pub fn query_vault(
 
     // Calculate total cash flow
     let total_cash_flow = acc_data.cash_flow.total()?.checked_add(vault_state.total_balance)?;
-    let total_cash_flow = max(total_cash_flow, SignedUint::zero()).abs;
+    let total_cash_flow = max(total_cash_flow, Int128::zero()).unsigned_abs();
 
     // Calculate total debt
-    let total_debt = max(unrealized_pnl_amt.pnl, SignedUint::zero()).abs;
+    let total_debt = max(unrealized_pnl_amt.pnl, Int128::zero()).unsigned_abs();
 
     // Calculate collateralization ratio if total debt is non-zero
     let collateralization_ratio = if total_debt.is_zero() {
@@ -253,7 +252,7 @@ pub fn query_position(
     current_time: u64,
     account_id: String,
     denom: String,
-    order_size: Option<SignedUint>,
+    order_size: Option<Int128>,
 ) -> ContractResult<PositionResponse> {
     let cfg = CONFIG.load(deps.storage)?;
     let addresses = query_contract_addrs(
@@ -574,7 +573,7 @@ pub fn query_total_accounting(deps: Deps, current_time: u64) -> ContractResult<A
 /// This function retrieves market and configuration data, including the current prices of the base denomination and the market asset.
 /// It then computes the opening trading fee based on the provided position size and market parameters.
 /// Returns a `TradingFee` structure containing the fee rate and the calculated fee amount.
-pub fn query_opening_fee(deps: Deps, denom: &str, size: SignedUint) -> ContractResult<TradingFee> {
+pub fn query_opening_fee(deps: Deps, denom: &str, size: Int128) -> ContractResult<TradingFee> {
     let cfg = CONFIG.load(deps.storage)?;
     let ms = MARKET_STATES.load(deps.storage, denom)?;
 
@@ -603,7 +602,7 @@ pub fn query_opening_fee(deps: Deps, denom: &str, size: SignedUint) -> ContractR
 
     Ok(TradingFee {
         rate: perp_params.opening_fee_rate,
-        fee: coin(fees.opening_fee.abs.u128(), cfg.base_denom),
+        fee: coin(fees.opening_fee.unsigned_abs().u128(), cfg.base_denom),
     })
 }
 
@@ -615,7 +614,7 @@ pub fn query_position_fees(
     deps: Deps,
     account_id: &str,
     denom: &str,
-    new_size: SignedUint,
+    new_size: Int128,
 ) -> ContractResult<PositionFeesResponse> {
     let cfg = CONFIG.load(deps.storage)?;
 
@@ -645,7 +644,7 @@ pub fn query_position_fees(
             let exec_price = closing_execution_price(skew, skew_scale, position.size, denom_price)?;
             closing_exec_price = Some(exec_price);
 
-            if position.size.negative != new_size.negative && !new_size.is_zero() {
+            if position.size.is_negative() != new_size.is_negative() && !new_size.is_zero() {
                 // Position is being flipped
 
                 // Update the skew to reflect the position flip
@@ -680,8 +679,8 @@ pub fn query_position_fees(
 
     Ok(PositionFeesResponse {
         base_denom: cfg.base_denom,
-        opening_fee: fees.opening_fee.abs,
-        closing_fee: fees.closing_fee.abs,
+        opening_fee: fees.opening_fee.unsigned_abs(),
+        closing_fee: fees.closing_fee.unsigned_abs(),
         opening_exec_price,
         closing_exec_price,
     })

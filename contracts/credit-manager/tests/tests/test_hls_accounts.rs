@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, coins, Addr, Decimal, Uint128};
+use cosmwasm_std::{coin, coins, Addr, Decimal, Int128, Uint128};
 use mars_credit_manager::error::ContractError;
 use mars_testing::multitest::helpers::{coin_info, default_perp_params, uosmo_info};
 use mars_types::{
@@ -8,7 +8,6 @@ use mars_types::{
     health::{AccountKind, HealthValuesResponse},
     oracle::ActionKind,
     params::{AssetParamsUpdate::AddOrUpdate, HlsAssetType, PerpParamsUpdate},
-    signed_uint::SignedUint,
 };
 
 use super::helpers::{
@@ -490,7 +489,7 @@ fn cannot_have_perps_in_hls_account() {
             Deposit(osmo_coin_deposited.clone()),
             ExecutePerpOrder {
                 denom: atom_info.denom.clone(),
-                order_size: SignedUint::from_str("400").unwrap(),
+                order_size: Int128::from_str("400").unwrap(),
                 reduce_only: None,
             },
         ],

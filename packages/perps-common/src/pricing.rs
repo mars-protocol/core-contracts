@@ -1,13 +1,13 @@
 use std::{cmp::max, str::FromStr};
 
-use cosmwasm_std::{Decimal, Uint128};
-use mars_types::{math::SignedDecimal, perps::PerpsError, signed_uint::SignedUint};
+use cosmwasm_std::{Decimal, Fraction, Int128, SignedDecimal, Uint128};
+use mars_types::perps::PerpsError;
 
 /// Price with market impact applied for opening a position
 pub fn opening_execution_price(
-    skew: SignedUint,
+    skew: Int128,
     skew_scale: Uint128,
-    size: SignedUint,
+    size: Int128,
     oracle_price: Decimal,
 ) -> Result<Decimal, PerpsError> {
     let initial_premium = initial_premium(skew, skew_scale)?;
@@ -17,9 +17,9 @@ pub fn opening_execution_price(
 }
 /// Price with market impact applied for closing a position
 pub fn closing_execution_price(
-    skew: SignedUint,
+    skew: Int128,
     skew_scale: Uint128,
-    size: SignedUint,
+    size: Int128,
     oracle_price: Decimal,
 ) -> Result<Decimal, PerpsError> {
     let initial_premium = initial_premium(skew, skew_scale)?;
@@ -33,8 +33,8 @@ pub fn closing_execution_price(
 /// InitialPremium(i) = Skew(i) / SkewScale
 /// where:
 /// i = t0, t
-fn initial_premium(skew: SignedUint, skew_scale: Uint128) -> Result<SignedDecimal, PerpsError> {
-    Ok(SignedDecimal::checked_from_ratio(skew, skew_scale.into())?)
+fn initial_premium(skew: Int128, skew_scale: Uint128) -> Result<SignedDecimal, PerpsError> {
+    Ok(SignedDecimal::checked_from_ratio(skew, Int128::try_from(skew_scale)?)?)
 }
 
 /// Calculate the final premium for a given skew before modification by opening size.
@@ -43,12 +43,12 @@ fn initial_premium(skew: SignedUint, skew_scale: Uint128) -> Result<SignedDecima
 /// where:
 /// FinalSkew(t0) = Skew(t0) + Size
 fn final_premium_opening(
-    skew: SignedUint,
+    skew: Int128,
     skew_scale: Uint128,
-    size: SignedUint,
+    size: Int128,
 ) -> Result<SignedDecimal, PerpsError> {
     let final_skew = skew.checked_add(size)?;
-    Ok(SignedDecimal::checked_from_ratio(final_skew, skew_scale.into())?)
+    Ok(SignedDecimal::checked_from_ratio(final_skew, Int128::try_from(skew_scale)?)?)
 }
 
 /// Calculate the final premium for a given skew before modification by closing size.
@@ -57,12 +57,12 @@ fn final_premium_opening(
 /// where:
 /// FinalSkew(t) = Skew(t) - Size
 fn final_premium_closing(
-    skew: SignedUint,
+    skew: Int128,
     skew_scale: Uint128,
-    size: SignedUint,
+    size: Int128,
 ) -> Result<SignedDecimal, PerpsError> {
     let final_skew = skew.checked_sub(size)?;
-    Ok(SignedDecimal::checked_from_ratio(final_skew, skew_scale.into())?)
+    Ok(SignedDecimal::checked_from_ratio(final_skew, Int128::try_from(skew_scale)?)?)
 }
 
 /// Price with market impact applied
@@ -73,15 +73,17 @@ fn execution_price(
 ) -> Result<Decimal, PerpsError> {
     let avg_premium = initial_premium
         .checked_add(final_premium)?
-        .checked_div(Decimal::from_atomics(2u128, 0)?.into())?;
+        .checked_div(SignedDecimal::from_atomics(2i128, 0)?)?;
 
     // Price being negative is very unlikely scenario as we're using quite large skewScale compared to the maxSkew (risk team methodology),
     // but we add hard restriction on the market impact, just in case.
     let avg_premium_bounded = max(avg_premium, SignedDecimal::from_str("-1").unwrap());
 
-    let res =
-        SignedDecimal::one().checked_add(avg_premium_bounded)?.checked_mul(oracle_price.into())?;
+    let res = SignedDecimal::one()
+        .checked_add(avg_premium_bounded)?
+        .checked_mul(oracle_price.try_into()?)?;
 
     // Price won't be negative, so it is safe to return Decimal
-    Ok(res.abs)
+    let res = Decimal::from_ratio(res.numerator().unsigned_abs(), res.denominator().unsigned_abs());
+    Ok(res)
 }

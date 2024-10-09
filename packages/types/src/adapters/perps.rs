@@ -1,6 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    to_json_binary, Addr, Api, Coin, CosmosMsg, QuerierWrapper, StdResult, Uint128, WasmMsg,
+    to_json_binary, Addr, Api, Coin, CosmosMsg, Int128, QuerierWrapper, StdResult, Uint128, WasmMsg,
 };
 
 use crate::{
@@ -9,7 +9,6 @@ use crate::{
         Config, ExecuteMsg, MarketResponse, PerpPosition, PositionResponse,
         PositionsByAccountResponse, QueryMsg, TradingFee, VaultPositionResponse,
     },
-    signed_uint::SignedUint,
 };
 
 #[cw_serde]
@@ -94,7 +93,7 @@ impl Perps {
         &self,
         account_id: impl Into<String>,
         denom: impl Into<String>,
-        size: SignedUint,
+        size: Int128,
         reduce_only: Option<bool>,
         funds: Vec<Coin>,
     ) -> StdResult<CosmosMsg> {
@@ -132,7 +131,7 @@ impl Perps {
         querier: &QuerierWrapper,
         account_id: impl Into<String>,
         denom: impl Into<String>,
-        order_size: Option<SignedUint>,
+        order_size: Option<Int128>,
     ) -> StdResult<Option<PerpPosition>> {
         let res: PositionResponse = querier.query_wasm_smart(
             self.address(),
@@ -165,7 +164,7 @@ impl Perps {
         &self,
         querier: &QuerierWrapper,
         denom: impl Into<String>,
-        size: SignedUint,
+        size: Int128,
     ) -> StdResult<TradingFee> {
         let res: TradingFee = querier.query_wasm_smart(
             self.address(),

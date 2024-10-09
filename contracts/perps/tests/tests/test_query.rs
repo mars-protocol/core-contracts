@@ -1,11 +1,9 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Decimal, Int128, SignedDecimal, Uint128};
 use mars_types::{
-    math::SignedDecimal,
     params::{PerpParams, PerpParamsUpdate},
     perps::MarketResponse,
-    signed_uint::SignedUint,
 };
 
 use crate::tests::helpers::{default_perp_params, MockEnv};
@@ -64,7 +62,7 @@ fn query_market() {
     .unwrap();
 
     let amount = Uint128::from(200u32);
-    let size = SignedUint::from(amount);
+    let size = Int128::try_from(amount).unwrap();
 
     mock.execute_perp_order(&credit_manager, "2", denom1, size, None, &[]).unwrap();
 
@@ -238,13 +236,13 @@ fn query_positions() {
     );
 
     // open few positions
-    let size = SignedUint::from_str("50").unwrap();
+    let size = Int128::from_str("50").unwrap();
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[]).unwrap();
 
-    let size = SignedUint::from_str("70").unwrap();
+    let size = Int128::from_str("70").unwrap();
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[]).unwrap();
 
-    let size = SignedUint::from_str("40").unwrap();
+    let size = Int128::from_str("40").unwrap();
     mock.execute_perp_order(&credit_manager, "2", "utia", size, None, &[]).unwrap();
 
     let acc_1_atom_position = mock.query_position("1", "uatom").position.unwrap();

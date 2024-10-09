@@ -1,13 +1,11 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, coins, Addr, Decimal, Uint128};
+use cosmwasm_std::{coin, coins, Addr, Decimal, Int128, SignedDecimal, Uint128};
 use mars_perps::{accounting::BalanceExt, error::ContractError};
 use mars_types::{
-    math::SignedDecimal,
     oracle::ActionKind,
     params::{PerpParams, PerpParamsUpdate},
     perps::{Accounting, Balance, CashFlow, PnL, PnlAmounts, PositionFeesResponse},
-    signed_uint::SignedUint,
 };
 use test_case::test_case;
 
@@ -22,7 +20,7 @@ fn random_user_cannot_open_position() {
         &Addr::unchecked("random-user-123"),
         "2",
         "uatom",
-        SignedUint::from_str("-125").unwrap(),
+        Int128::from_str("-125").unwrap(),
         None,
         &[],
     );
@@ -65,7 +63,7 @@ fn random_user_cannot_modify_position() {
         },
     );
 
-    let size = SignedUint::from_str("-125").unwrap();
+    let size = Int128::from_str("-125").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
@@ -74,7 +72,7 @@ fn random_user_cannot_modify_position() {
         &Addr::unchecked("random-user-123"),
         "2",
         "uatom",
-        SignedUint::from_str("-125").unwrap(),
+        Int128::from_str("-125").unwrap(),
         None,
         &[],
     );
@@ -108,7 +106,7 @@ fn cannot_open_position_for_disabled_denom() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("-125").unwrap(),
+        Int128::from_str("-125").unwrap(),
         None,
         &[],
     );
@@ -156,7 +154,7 @@ fn cannot_modify_position_for_disabled_denom() {
         },
     );
 
-    let size = SignedUint::from_str("-125").unwrap();
+    let size = Int128::from_str("-125").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
@@ -177,7 +175,7 @@ fn cannot_modify_position_for_disabled_denom() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("-175").unwrap(),
+        Int128::from_str("-175").unwrap(),
         None,
         &[], // fees are not important for this test
     );
@@ -193,7 +191,7 @@ fn cannot_modify_position_for_disabled_denom() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("-100").unwrap(),
+        Int128::from_str("-100").unwrap(),
         None,
         &[], // fees are not important for this test
     );
@@ -241,7 +239,7 @@ fn only_close_position_possible_for_disabled_denom() {
         },
     );
 
-    let size = SignedUint::from_str("125").unwrap();
+    let size = Int128::from_str("125").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
@@ -259,7 +257,15 @@ fn only_close_position_possible_for_disabled_denom() {
 
     mock.set_price(&owner, "uatom", Decimal::from_str("10.2").unwrap()).unwrap();
 
-    mock.execute_perp_order(&credit_manager, "2", "uatom", size.neg(), None, &[]).unwrap();
+    mock.execute_perp_order(
+        &credit_manager,
+        "2",
+        "uatom",
+        Int128::zero().checked_sub(size).unwrap(),
+        None,
+        &[],
+    )
+    .unwrap();
 }
 
 #[test]
@@ -286,7 +292,7 @@ fn only_one_position_possible_for_denom() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("-125").unwrap(),
+        Int128::from_str("-125").unwrap(),
         None,
         &[],
     )
@@ -297,14 +303,14 @@ fn only_one_position_possible_for_denom() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("-125").unwrap(),
+        Int128::from_str("-125").unwrap(),
         None,
         &[],
     )
     .unwrap();
 
     let position = mock.query_position("2", "uatom");
-    assert_eq!(position.position.unwrap().size, SignedUint::from_str("-250").unwrap());
+    assert_eq!(position.position.unwrap().size, Int128::from_str("-250").unwrap());
 }
 
 #[test]
@@ -336,7 +342,7 @@ fn open_position_cannot_be_too_small() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("100").unwrap(),
+        Int128::from_str("100").unwrap(),
         None,
         &[],
     );
@@ -387,7 +393,7 @@ fn max_open_perps_reached() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("-125").unwrap(),
+        Int128::from_str("-125").unwrap(),
         None,
         &[],
     )
@@ -396,7 +402,7 @@ fn max_open_perps_reached() {
         &credit_manager,
         "2",
         "utia",
-        SignedUint::from_str("100").unwrap(),
+        Int128::from_str("100").unwrap(),
         None,
         &[],
     )
@@ -407,7 +413,7 @@ fn max_open_perps_reached() {
         &credit_manager,
         "2",
         "untrn",
-        SignedUint::from_str("-125").unwrap(),
+        Int128::from_str("-125").unwrap(),
         None,
         &[],
     );
@@ -459,7 +465,7 @@ fn reduced_position_cannot_be_too_small() {
     );
 
     // create valid position
-    let size = SignedUint::from_str("200").unwrap();
+    let size = Int128::from_str("200").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
@@ -469,7 +475,7 @@ fn reduced_position_cannot_be_too_small() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("-100").unwrap(),
+        Int128::from_str("-100").unwrap(),
         None,
         &[],
     );
@@ -512,7 +518,7 @@ fn open_position_cannot_be_too_big() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("100").unwrap(),
+        Int128::from_str("100").unwrap(),
         None,
         &[],
     );
@@ -565,7 +571,7 @@ fn increased_position_cannot_be_too_big() {
 
     // position size is too big
     // 100 * 12.5 = 1250
-    let size = SignedUint::from_str("50").unwrap();
+    let size = Int128::from_str("50").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
@@ -574,7 +580,7 @@ fn increased_position_cannot_be_too_big() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("50").unwrap(),
+        Int128::from_str("50").unwrap(),
         None,
         &[], // fees are not important for this test
     );
@@ -619,7 +625,7 @@ fn validate_opening_position() {
         &credit_manager,
         "1",
         "uatom",
-        SignedUint::from_str("200").unwrap(),
+        Int128::from_str("200").unwrap(),
         None,
         &[],
     )
@@ -628,7 +634,7 @@ fn validate_opening_position() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("-400").unwrap(),
+        Int128::from_str("-400").unwrap(),
         None,
         &[],
     )
@@ -639,7 +645,7 @@ fn validate_opening_position() {
         &credit_manager,
         "3",
         "uatom",
-        SignedUint::from_str("403").unwrap(),
+        Int128::from_str("403").unwrap(),
         None,
         &[],
     ); // (200 + 403) * 10 = 6030
@@ -656,7 +662,7 @@ fn validate_opening_position() {
         &credit_manager,
         "3",
         "uatom",
-        SignedUint::from_str("401").unwrap(),
+        Int128::from_str("401").unwrap(),
         None,
         &[],
     ); // 200 + 401 = 601, abs(601 - 400) = 201 * 10 = 2010
@@ -673,7 +679,7 @@ fn validate_opening_position() {
         &credit_manager,
         "4",
         "uatom",
-        SignedUint::from_str("-101").unwrap(),
+        Int128::from_str("-101").unwrap(),
         None,
         &[],
     ); // (400 + 101) * 10 = 5010
@@ -690,7 +696,7 @@ fn validate_opening_position() {
         &credit_manager,
         "4",
         "uatom",
-        SignedUint::from_str("-1").unwrap(),
+        Int128::from_str("-1").unwrap(),
         None,
         &[],
     ); // 400 + 1 = 401, abs(200 - 401) = 201 * 10 = 2010
@@ -744,12 +750,12 @@ fn error_when_new_size_equals_old_size() {
     );
 
     // Test with positive size
-    let size = SignedUint::from_str("12").unwrap();
+    let size = Int128::from_str("12").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
     // Try to modify position of 12 to 12
-    let res = mock.execute_perp_order(&credit_manager, "1", "uatom", SignedUint::zero(), None, &[]);
+    let res = mock.execute_perp_order(&credit_manager, "1", "uatom", Int128::zero(), None, &[]);
 
     assert_err(
         res,
@@ -759,13 +765,13 @@ fn error_when_new_size_equals_old_size() {
     );
 
     // Test with negative size
-    let size = SignedUint::from_str("-3").unwrap();
+    let size = Int128::from_str("-3").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("-3").unwrap(),
+        Int128::from_str("-3").unwrap(),
         None,
         &[atom_opening_fee],
     )
@@ -775,7 +781,7 @@ fn error_when_new_size_equals_old_size() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::zero(),
+        Int128::zero(),
         None,
         &[coin(1, "uusdc")],
     );
@@ -835,11 +841,11 @@ fn error_when_oi_limits_exceeded() {
     // Long OI = (0) + 30 = 30
     // Short OI = (0) -40 = -40
     // Net OI = (0) + 30 - 40 = -10
-    let size = SignedUint::from_str("30").unwrap();
+    let size = Int128::from_str("30").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
-    let size = SignedUint::from_str("-40").unwrap();
+    let size = Int128::from_str("-40").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
@@ -853,7 +859,7 @@ fn error_when_oi_limits_exceeded() {
         &credit_manager,
         "1",
         "uatom",
-        SignedUint::from_str("371").unwrap(),
+        Int128::from_str("371").unwrap(),
         None,
         &[],
     );
@@ -877,7 +883,7 @@ fn error_when_oi_limits_exceeded() {
         &credit_manager,
         "1",
         "uatom",
-        SignedUint::from_str("-41").unwrap(),
+        Int128::from_str("-41").unwrap(),
         None,
         &[],
     );
@@ -898,7 +904,7 @@ fn error_when_oi_limits_exceeded() {
         "2",
         "uatom",
         // Move size from +91 to -421
-        SignedUint::from_str("-381").unwrap(),
+        Int128::from_str("-381").unwrap(),
         None,
         &[],
     );
@@ -918,7 +924,7 @@ fn error_when_oi_limits_exceeded() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("-41").unwrap(),
+        Int128::from_str("-41").unwrap(),
         None,
         &[],
     ); // abs(30 - 81) = 51 * 10 = 510
@@ -937,7 +943,7 @@ fn error_when_oi_limits_exceeded() {
         &credit_manager,
         "2",
         "uatom",
-        SignedUint::from_str("461").unwrap(),
+        Int128::from_str("461").unwrap(),
         None,
         &[],
     );
@@ -956,7 +962,7 @@ fn error_when_oi_limits_exceeded() {
         &credit_manager,
         "1",
         "uatom",
-        SignedUint::from_str("-542").unwrap(),
+        Int128::from_str("-542").unwrap(),
         None,
         &[],
     );
@@ -1006,7 +1012,7 @@ fn modify_position_realises_pnl() {
     );
 
     // prepare some OI
-    let size = SignedUint::from_str("300").unwrap();
+    let size = Int128::from_str("300").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
         .unwrap();
@@ -1016,14 +1022,14 @@ fn modify_position_realises_pnl() {
 
     // how much opening fee we will pay for increase from 300 to 400
     let atom_opening_fee_for_increase =
-        mock.query_opening_fee("uatom", SignedUint::from_str("100").unwrap()).fee;
+        mock.query_opening_fee("uatom", Int128::from_str("100").unwrap()).fee;
 
     // modify and verify that our pnl is realised
     mock.execute_perp_order(
         &credit_manager,
         "1",
         "uatom",
-        SignedUint::from_str("100").unwrap(),
+        Int128::from_str("100").unwrap(),
         None,
         &[],
     )
@@ -1033,17 +1039,17 @@ fn modify_position_realises_pnl() {
 
     let atom_opening_fee_total = atom_opening_fee.amount + atom_opening_fee_for_increase.amount;
     let atom_opening_fee_total =
-        SignedDecimal::zero().checked_sub(atom_opening_fee_total.into()).unwrap(); // make it negative because it's a cost
-    assert_eq!(atom_opening_fee_total, SignedDecimal::from_str("-43").unwrap());
+        Int128::zero().checked_sub(atom_opening_fee_total.try_into().unwrap()).unwrap(); // make it negative because it's a cost
+    assert_eq!(atom_opening_fee_total, Int128::from_str("-43").unwrap());
     assert_eq!(
         position.position.unwrap().realised_pnl,
         PnlAmounts {
-            accrued_funding: SignedUint::zero(),
-            price_pnl: SignedUint::from_str("300").unwrap(),
+            accrued_funding: Int128::zero(),
+            price_pnl: Int128::from_str("300").unwrap(),
             // opening_fee: atom_opening_fee_total,
-            opening_fee: SignedUint::from_str("-43").unwrap(), // rounding error
-            closing_fee: SignedUint::zero(), // increased position does not have closing fee
-            pnl: SignedUint::from_str("257").unwrap(),
+            opening_fee: Int128::from_str("-43").unwrap(), // rounding error
+            closing_fee: Int128::zero(), // increased position does not have closing fee
+            pnl: Int128::from_str("257").unwrap(),
         }
     );
 
@@ -1054,9 +1060,9 @@ fn modify_position_realises_pnl() {
         &credit_manager,
         "1",
         "uatom",
-        SignedUint::from_str("-100").unwrap(),
+        Int128::from_str("-100").unwrap(),
         None,
-        &[coin(212u128, "uusdc")],
+        &[coin(211u128, "uusdc")],
     )
     .unwrap();
 
@@ -1065,12 +1071,12 @@ fn modify_position_realises_pnl() {
     assert_eq!(
         position.position.unwrap().realised_pnl,
         PnlAmounts {
-            accrued_funding: SignedUint::zero(),
-            price_pnl: SignedUint::from_str("99").unwrap(),
+            accrued_funding: Int128::zero(),
+            price_pnl: Int128::from_str("100").unwrap(),
             // opening_fee: atom_opening_fee_total, // we are not paying opening fee for decrease
-            opening_fee: SignedUint::from_str("-43").unwrap(), // rounding error
-            closing_fee: SignedUint::from_str("-11").unwrap(),
-            pnl: SignedUint::from_str("45").unwrap(),
+            opening_fee: Int128::from_str("-43").unwrap(), // rounding error
+            closing_fee: Int128::from_str("-11").unwrap(),
+            pnl: Int128::from_str("46").unwrap(),
         }
     );
 }
@@ -1113,7 +1119,7 @@ fn shouldnt_open_when_reduce_only() {
         },
     );
 
-    let size = SignedUint::from_str("50").unwrap();
+    let size = Int128::from_str("50").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     let res = mock.execute_perp_order(
         &credit_manager,
@@ -1170,7 +1176,7 @@ fn should_open_when_reduce_only_false_or_none() {
         },
     );
 
-    let size = SignedUint::from_str("50").unwrap();
+    let size = Int128::from_str("50").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(
         &credit_manager,
@@ -1234,8 +1240,8 @@ fn should_reduce_when_reduce_only_true() {
         },
     );
 
-    let size_long_position = SignedUint::from_str("50").unwrap();
-    let size_short_position = SignedUint::from_str("-50").unwrap();
+    let size_long_position = Int128::from_str("50").unwrap();
+    let size_short_position = Int128::from_str("-50").unwrap();
 
     let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
 
@@ -1263,8 +1269,8 @@ fn should_reduce_when_reduce_only_true() {
     assert_eq!(long_position.size, size_long_position);
     assert_eq!(long_position.denom, denom);
 
-    let new_long_size = SignedUint::from_str("25").unwrap();
-    let new_short_size = SignedUint::from_str("-25").unwrap();
+    let new_long_size = Int128::from_str("25").unwrap();
+    let new_short_size = Int128::from_str("-25").unwrap();
     let long_modification_size = new_long_size.checked_sub(size_long_position).unwrap();
     let short_modification_size = new_short_size.checked_sub(size_short_position).unwrap();
 
@@ -1272,7 +1278,7 @@ fn should_reduce_when_reduce_only_true() {
         mock.query_position_fees("2", denom, new_long_size);
 
     let long_pnl_losses = if long_position.unrealised_pnl.price_pnl.is_negative() {
-        long_position.unrealised_pnl.price_pnl.abs
+        long_position.unrealised_pnl.price_pnl.unsigned_abs()
     } else {
         Uint128::zero()
     };
@@ -1299,7 +1305,7 @@ fn should_reduce_when_reduce_only_true() {
     assert_eq!(short_position.denom, denom);
 
     let short_pnl_losses = if short_position.unrealised_pnl.price_pnl.is_negative() {
-        short_position.unrealised_pnl.price_pnl.abs
+        short_position.unrealised_pnl.price_pnl.unsigned_abs()
     } else {
         Uint128::zero()
     };
@@ -1330,7 +1336,7 @@ fn should_reduce_when_reduce_only_true() {
 
 #[test]
 fn shouldnt_increase_when_reduce_only_true() {
-    let max_position_value = Uint128::new(1249u128);
+    let max_position_value = Uint128::new(6250u128);
     let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
@@ -1367,11 +1373,10 @@ fn shouldnt_increase_when_reduce_only_true() {
         },
     );
 
-    let size_long_position = SignedUint::from_str("50").unwrap();
-    let size_short_position = SignedUint::from_str("-50").unwrap();
+    let size_long_position = Int128::from_str("500").unwrap();
+    let size_short_position = Int128::from_str("-500").unwrap();
 
     let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
-
     mock.execute_perp_order(
         &credit_manager,
         "2",
@@ -1382,6 +1387,7 @@ fn shouldnt_increase_when_reduce_only_true() {
     )
     .unwrap();
 
+    let atom_opening_fee = mock.query_opening_fee(denom, size_short_position).fee;
     mock.execute_perp_order(
         &credit_manager,
         "3",
@@ -1396,8 +1402,8 @@ fn shouldnt_increase_when_reduce_only_true() {
     assert_eq!(long_position.size, size_long_position);
     assert_eq!(long_position.denom, denom);
 
-    let new_long_size = SignedUint::from_str("75").unwrap();
-    let new_short_size = SignedUint::from_str("-75").unwrap();
+    let new_long_size = Int128::from_str("700").unwrap();
+    let new_short_size = Int128::from_str("-750").unwrap();
     let long_modification_size = new_long_size.checked_sub(size_long_position).unwrap();
     let short_modification_size = new_short_size.checked_sub(size_short_position).unwrap();
 
@@ -1405,7 +1411,7 @@ fn shouldnt_increase_when_reduce_only_true() {
         mock.query_position_fees("2", denom, new_long_size);
 
     let long_pnl_losses = if long_position.unrealised_pnl.price_pnl.is_negative() {
-        long_position.unrealised_pnl.price_pnl.abs
+        long_position.unrealised_pnl.price_pnl.unsigned_abs()
     } else {
         Uint128::zero()
     };
@@ -1501,8 +1507,8 @@ fn increase_when_reduce_only_false() {
         },
     );
 
-    let size_long_position = SignedUint::from_str("50").unwrap();
-    let size_short_position = SignedUint::from_str("-50").unwrap();
+    let size_long_position = Int128::from_str("50").unwrap();
+    let size_short_position = Int128::from_str("-50").unwrap();
 
     let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
 
@@ -1530,8 +1536,8 @@ fn increase_when_reduce_only_false() {
     assert_eq!(long_position.size, size_long_position);
     assert_eq!(long_position.denom, denom);
 
-    let new_long_size = SignedUint::from_str("75").unwrap();
-    let new_short_size = SignedUint::from_str("-75").unwrap();
+    let new_long_size = Int128::from_str("75").unwrap();
+    let new_short_size = Int128::from_str("-75").unwrap();
     let long_modification_size = new_long_size.checked_sub(size_long_position).unwrap();
     let short_modification_size = new_short_size.checked_sub(size_short_position).unwrap();
 
@@ -1544,7 +1550,7 @@ fn increase_when_reduce_only_false() {
         Some(false),
         &coins(
             // add pnl to the closing fee
-            5, base_denom,
+            4, base_denom,
         ),
     )
     .unwrap();
@@ -1560,7 +1566,7 @@ fn increase_when_reduce_only_false() {
         denom,
         short_modification_size,
         Some(false),
-        &coins(5, base_denom),
+        &coins(4, base_denom),
     )
     .unwrap();
 
@@ -1613,8 +1619,8 @@ fn flip_position_when_reduce_only_true() {
         },
     );
 
-    let size_long_position = SignedUint::from_str("50").unwrap();
-    let size_short_position = SignedUint::from_str("-50").unwrap();
+    let size_long_position = Int128::from_str("50").unwrap();
+    let size_short_position = Int128::from_str("-50").unwrap();
 
     let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
 
@@ -1643,9 +1649,9 @@ fn flip_position_when_reduce_only_true() {
     assert_eq!(long_position.denom, denom);
 
     // Flip short
-    let new_long_size = SignedUint::from_str("-25").unwrap();
+    let new_long_size = Int128::from_str("-25").unwrap();
     // Flip long
-    let new_short_size = SignedUint::from_str("25").unwrap();
+    let new_short_size = Int128::from_str("25").unwrap();
     let long_modification_size = new_long_size.checked_sub(size_long_position).unwrap();
     let short_modification_size = new_short_size.checked_sub(size_short_position).unwrap();
 
@@ -1653,7 +1659,7 @@ fn flip_position_when_reduce_only_true() {
         mock.query_position_fees("2", denom, new_long_size);
 
     let long_pnl_losses = if long_position.unrealised_pnl.price_pnl.is_negative() {
-        long_position.unrealised_pnl.price_pnl.abs
+        long_position.unrealised_pnl.price_pnl.unsigned_abs()
     } else {
         Uint128::zero()
     };
@@ -1680,7 +1686,7 @@ fn flip_position_when_reduce_only_true() {
     assert_eq!(short_position.denom, denom);
 
     let short_pnl_losses = if short_position.unrealised_pnl.price_pnl.is_negative() {
-        short_position.unrealised_pnl.price_pnl.abs
+        short_position.unrealised_pnl.price_pnl.unsigned_abs()
     } else {
         Uint128::zero()
     };
@@ -1746,8 +1752,8 @@ fn flip_position_when_reduce_only_false() {
         },
     );
 
-    let size_long_position = SignedUint::from_str("50").unwrap();
-    let size_short_position = SignedUint::from_str("-50").unwrap();
+    let size_long_position = Int128::from_str("50").unwrap();
+    let size_short_position = Int128::from_str("-50").unwrap();
 
     let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
 
@@ -1776,9 +1782,9 @@ fn flip_position_when_reduce_only_false() {
     assert_eq!(long_position.denom, denom);
 
     // Flip short
-    let new_long_size = SignedUint::from_str("-25").unwrap();
+    let new_long_size = Int128::from_str("-25").unwrap();
     // Flip long
-    let new_short_size = SignedUint::from_str("25").unwrap();
+    let new_short_size = Int128::from_str("25").unwrap();
     let long_modification_size = new_long_size.checked_sub(size_long_position).unwrap();
     let short_modification_size = new_short_size.checked_sub(size_short_position).unwrap();
 
@@ -1789,7 +1795,7 @@ fn flip_position_when_reduce_only_false() {
         denom,
         long_modification_size,
         Some(false),
-        &coins(13, base_denom),
+        &coins(12, base_denom),
     )
     .unwrap();
 
@@ -1820,7 +1826,7 @@ fn flip_position_when_reduce_only_false() {
 
 #[test_case(
     None,
-    SignedUint::from_str("250").unwrap(),
+    Int128::from_str("250").unwrap(),
     PositionFeesResponse {
         base_denom: "uusdc".to_string(),
         opening_fee: Uint128::new(2u128),
@@ -1831,8 +1837,8 @@ fn flip_position_when_reduce_only_false() {
     "open long"
 )]
 #[test_case(
-    Some(SignedUint::from_str("1200").unwrap()),
-    SignedUint::from_str("2500").unwrap(),
+    Some(Int128::from_str("1200").unwrap()),
+    Int128::from_str("2500").unwrap(),
     PositionFeesResponse {
         base_denom: "uusdc".to_string(),
         opening_fee: Uint128::new(8u128),
@@ -1843,8 +1849,8 @@ fn flip_position_when_reduce_only_false() {
     "increase long"
 )]
 #[test_case(
-    Some(SignedUint::from_str("1200").unwrap()),
-    SignedUint::from_str("800").unwrap(),
+    Some(Int128::from_str("1200").unwrap()),
+    Int128::from_str("800").unwrap(),
     PositionFeesResponse {
         base_denom: "uusdc".to_string(),
         opening_fee: Uint128::zero(),
@@ -1855,8 +1861,8 @@ fn flip_position_when_reduce_only_false() {
     "decrease long"
 )]
 #[test_case(
-    Some(SignedUint::from_str("1200").unwrap()),
-    SignedUint::from_str("0").unwrap(),
+    Some(Int128::from_str("1200").unwrap()),
+    Int128::from_str("0").unwrap(),
     PositionFeesResponse {
         base_denom: "uusdc".to_string(),
         opening_fee: Uint128::zero(),
@@ -1868,7 +1874,7 @@ fn flip_position_when_reduce_only_false() {
 )]
 #[test_case(
     None,
-    SignedUint::from_str("-2500").unwrap(),
+    Int128::from_str("-2500").unwrap(),
     PositionFeesResponse {
         base_denom: "uusdc".to_string(),
         opening_fee: Uint128::new(15u128),
@@ -1879,8 +1885,8 @@ fn flip_position_when_reduce_only_false() {
     "open short"
 )]
 #[test_case(
-    Some(SignedUint::from_str("-1200").unwrap()),
-    SignedUint::from_str("-2500").unwrap(),
+    Some(Int128::from_str("-1200").unwrap()),
+    Int128::from_str("-2500").unwrap(),
     PositionFeesResponse {
         base_denom: "uusdc".to_string(),
         opening_fee: Uint128::new(8u128),
@@ -1891,8 +1897,8 @@ fn flip_position_when_reduce_only_false() {
     "increase short"
 )]
 #[test_case(
-    Some(SignedUint::from_str("-1200").unwrap()),
-    SignedUint::from_str("-600").unwrap(),
+    Some(Int128::from_str("-1200").unwrap()),
+    Int128::from_str("-600").unwrap(),
     PositionFeesResponse {
         base_denom: "uusdc".to_string(),
         opening_fee: Uint128::zero(),
@@ -1903,8 +1909,8 @@ fn flip_position_when_reduce_only_false() {
     "decrease short"
 )]
 #[test_case(
-    Some(SignedUint::from_str("-1200").unwrap()),
-    SignedUint::from_str("0").unwrap(),
+    Some(Int128::from_str("-1200").unwrap()),
+    Int128::from_str("0").unwrap(),
     PositionFeesResponse {
         base_denom: "uusdc".to_string(),
         opening_fee: Uint128::zero(),
@@ -1915,8 +1921,8 @@ fn flip_position_when_reduce_only_false() {
     "close short"
 )]
 #[test_case(
-    Some(SignedUint::from_str("1200").unwrap()),
-    SignedUint::from_str("-2500").unwrap(),
+    Some(Int128::from_str("1200").unwrap()),
+    Int128::from_str("-2500").unwrap(),
     PositionFeesResponse {
     base_denom: "uusdc".to_string(),
     opening_fee: Uint128::new(15u128),
@@ -1927,8 +1933,8 @@ fn flip_position_when_reduce_only_false() {
     "flip long to short"
 )]
 #[test_case(
-    Some(SignedUint::from_str("-500").unwrap()),
-    SignedUint::from_str("500").unwrap(),
+    Some(Int128::from_str("-500").unwrap()),
+    Int128::from_str("500").unwrap(),
     PositionFeesResponse {
     base_denom: "uusdc".to_string(),
     opening_fee: Uint128::new(3u128),
@@ -1939,8 +1945,8 @@ fn flip_position_when_reduce_only_false() {
     "flip short to long"
 )]
 fn query_position_fees(
-    old_size: Option<SignedUint>,
-    new_size: SignedUint,
+    old_size: Option<Int128>,
+    new_size: Int128,
     expected_fees: PositionFeesResponse,
 ) {
     let mut mock = MockEnv::new().build().unwrap();
@@ -1978,7 +1984,7 @@ fn query_position_fees(
     );
 
     // open a position to change skew
-    let size = SignedUint::from_str("10000").unwrap();
+    let size = Int128::from_str("10000").unwrap();
     let opening_fee = mock.query_opening_fee("uosmo", size).fee;
     mock.execute_perp_order(&credit_manager, "2", "uosmo", size, None, &[opening_fee]).unwrap();
 
@@ -2083,17 +2089,17 @@ fn close_all_positions(
     }
 
     // open few positions
-    let size = SignedUint::from_str("300").unwrap();
+    let size = Int128::from_str("300").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
         .unwrap();
 
-    let size = SignedUint::from_str("-500").unwrap();
+    let size = Int128::from_str("-500").unwrap();
     let ntrn_opening_fee = mock.query_opening_fee("untrn", size).fee;
     mock.execute_perp_order(&credit_manager, "1", "untrn", size, None, &[ntrn_opening_fee.clone()])
         .unwrap();
 
-    let size = SignedUint::from_str("100").unwrap();
+    let size = Int128::from_str("100").unwrap();
     let osmo_opening_fee = mock.query_opening_fee("uosmo", size).fee;
     mock.execute_perp_order(&credit_manager, "1", "uosmo", size, None, &[osmo_opening_fee.clone()])
         .unwrap();
@@ -2168,10 +2174,10 @@ fn close_all_positions(
 
     // profit for a user is a loss for the contract and vice versa
     let expected_cash_flow = CashFlow {
-        price_pnl: SignedUint::zero().checked_sub(user_realized_pnl.price_pnl).unwrap(),
-        opening_fee: SignedUint::zero().checked_sub(user_realized_pnl.opening_fee).unwrap(),
-        closing_fee: SignedUint::zero().checked_sub(user_realized_pnl.closing_fee).unwrap(),
-        accrued_funding: SignedUint::zero().checked_sub(user_realized_pnl.accrued_funding).unwrap(),
+        price_pnl: Int128::zero().checked_sub(user_realized_pnl.price_pnl).unwrap(),
+        opening_fee: Int128::zero().checked_sub(user_realized_pnl.opening_fee).unwrap(),
+        closing_fee: Int128::zero().checked_sub(user_realized_pnl.closing_fee).unwrap(),
+        accrued_funding: Int128::zero().checked_sub(user_realized_pnl.accrued_funding).unwrap(),
         protocol_fee: Uint128::zero(),
     };
     assert_eq!(
@@ -2244,7 +2250,7 @@ fn open_very_small_position_with_zero_opening_fee() {
     );
 
     // openining fee is zero
-    let size = SignedUint::from_str("1").unwrap();
+    let size = Int128::from_str("1").unwrap();
     let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
     assert!(atom_opening_fee.amount.is_zero());
 

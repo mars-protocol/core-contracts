@@ -3,11 +3,10 @@ use std::cmp::{max, min};
 use std::{cmp::Ordering, str::FromStr};
 
 use cosmwasm_std::{
-    CheckedFromRatioError, Decimal, Decimal256, Fraction, StdError, Uint128, Uint256,
+    CheckedFromRatioError, Decimal, Decimal256, Fraction, Int128, SignedDecimal, StdError, Uint128,
+    Uint256,
 };
 use schemars::JsonSchema;
-
-use crate::{math::SignedDecimal, signed_uint::SignedUint};
 
 #[derive(Default, Clone, Copy, Debug, PartialEq, Eq, JsonSchema)]
 pub struct SignedRational {
@@ -41,13 +40,14 @@ impl SignedRational {
         }
     }
 
-    pub fn to_signed_uint(&self) -> Result<SignedUint, StdError> {
+    pub fn to_signed_uint(&self) -> Result<Int128, StdError> {
         let result = self.numerator.checked_div(self.denominator)?;
         let raw = Uint128::try_from(result)?;
-        Ok(SignedUint {
-            negative: self.negative,
-            abs: raw,
-        })
+        if self.negative {
+            Ok(-Int128::try_from(raw)?)
+        } else {
+            Ok(Int128::try_from(raw)?)
+        }
     }
 
     pub fn to_decimal_256(&self) -> Result<Decimal256, CheckedFromRatioError> {
@@ -202,18 +202,18 @@ impl SignedRational {
 impl From<SignedDecimal> for SignedRational {
     fn from(signed_decimal: SignedDecimal) -> Self {
         SignedRational {
-            negative: signed_decimal.negative,
-            numerator: signed_decimal.abs.numerator().into(),
-            denominator: signed_decimal.abs.denominator().into(),
+            negative: signed_decimal.is_negative(),
+            numerator: signed_decimal.numerator().unsigned_abs().into(),
+            denominator: signed_decimal.denominator().unsigned_abs().into(),
         }
     }
 }
 
-impl From<SignedUint> for SignedRational {
-    fn from(signed_uint: SignedUint) -> Self {
+impl From<Int128> for SignedRational {
+    fn from(signed_uint: Int128) -> Self {
         SignedRational {
-            negative: signed_uint.negative,
-            numerator: signed_uint.abs.into(),
+            negative: signed_uint.is_negative(),
+            numerator: signed_uint.unsigned_abs().into(),
             denominator: Uint256::one(),
         }
     }
@@ -274,15 +274,15 @@ fn subtract() {
 
     // 1/2 - 1/2 = 0
     let result = half.sub_rational(half).unwrap();
-    assert_eq!(result.to_signed_uint(), Ok(SignedUint::zero()));
+    assert_eq!(result.to_signed_uint(), Ok(Int128::zero()));
 
     // 1/2 - -1/2 = 1
     let result = half.sub_rational(negative_half).unwrap();
-    assert_eq!(result.to_signed_uint(), Ok(SignedUint::one()));
+    assert_eq!(result.to_signed_uint(), Ok(Int128::one()));
 
     // 2 - 1/2 = 1
     let result = two.sub_rational(half).unwrap();
-    assert_eq!(result.to_signed_uint(), Ok(SignedUint::from_str("1").unwrap()));
+    assert_eq!(result.to_signed_uint(), Ok(Int128::one()));
 }
 #[test]
 
@@ -317,11 +317,11 @@ fn multiply() {
 
     // 2 * 0.5 = 1
     let result = half.mul_rational(two).unwrap();
-    assert_eq!(SignedUint::one(), result.to_signed_uint().unwrap());
+    assert_eq!(Int128::one(), result.to_signed_uint().unwrap());
 
     // 10 * 2 = 20
     let result = ten.mul_rational(two).unwrap();
-    assert_eq!(result.to_signed_uint().unwrap(), SignedUint::from_str("20").unwrap());
+    assert_eq!(result.to_signed_uint().unwrap(), Int128::from_str("20").unwrap());
 
     //-0.5 * -0.5 = 0.25
     let result = negative_half.mul_rational(negative_half).unwrap();
@@ -359,12 +359,12 @@ fn divide() {
 
     // 2 / 0.5 = 4
     let result = two.div_rational(half).unwrap();
-    assert_eq!(result.to_signed_uint().unwrap(), SignedUint::from_str("4").unwrap());
+    assert_eq!(result.to_signed_uint().unwrap(), Int128::from_str("4").unwrap());
 
     // -2 / 2 = -1
     assert_eq!(
         negative_two.div_rational(two).unwrap().to_signed_uint().unwrap(),
-        SignedUint::from_str("-1").unwrap()
+        Int128::from_str("-1").unwrap()
     );
 
     // 2 / 4 = 0.5
@@ -416,20 +416,17 @@ fn add() {
     assert_eq!(result.to_decimal_256().unwrap(), Decimal256::from_str("2.5").unwrap());
 
     // 2 + -2 = 0
-    assert_eq!(
-        two.add_rational(negative_two).unwrap().to_signed_uint().unwrap(),
-        SignedUint::zero()
-    );
+    assert_eq!(two.add_rational(negative_two).unwrap().to_signed_uint().unwrap(), Int128::zero());
 
     // 2 + 4 = 6
     assert_eq!(
         two.add_rational(four).unwrap().to_signed_uint().unwrap(),
-        SignedUint::from_str("6").unwrap()
+        Int128::from_str("6").unwrap()
     );
 
     // 2 + -4 = -2
     assert_eq!(
         two.add_rational(negative_four).unwrap().to_signed_uint().unwrap(),
-        SignedUint::from_str("-2").unwrap()
+        Int128::from_str("-2").unwrap()
     );
 }

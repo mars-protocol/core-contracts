@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use cosmwasm_std::{
-    coins, ensure_eq, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, MessageInfo, Order,
-    Response, StdError, Uint128,
+    coins, ensure_eq, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, Int128, MessageInfo,
+    Order, Response, StdError, Uint128,
 };
 use cw_utils::may_pay;
 use mars_perps_common::pricing::opening_execution_price;
@@ -11,7 +11,6 @@ use mars_types::{
     oracle::ActionKind,
     params::PerpParams,
     perps::{CashFlow, Config, MarketState, PnL, PnlAmounts, Position},
-    signed_uint::SignedUint,
 };
 
 use crate::{
@@ -33,7 +32,7 @@ pub fn execute_order(
     info: MessageInfo,
     account_id: String,
     denom: String,
-    size: SignedUint,
+    size: Int128,
     reduce_only: Option<bool>,
 ) -> ContractResult<Response> {
     let position = POSITIONS.may_load(deps.storage, (&account_id, &denom))?;
@@ -45,15 +44,15 @@ pub fn execute_order(
         }),
         None => open_position(deps, env, info, account_id, denom, size),
         Some(position)
-            if reduce_only_checked && size.is_positive() == position.size.is_positive() =>
+            if reduce_only_checked && size.is_negative() == position.size.is_negative() =>
         {
             Err(ContractError::IllegalPositionModification {
                 reason: "Cannot increase position if reduce_only = true".to_string(),
             })
         }
         Some(position) => {
-            let new_size = if reduce_only_checked && size.abs > position.size.abs {
-                SignedUint::zero()
+            let new_size = if reduce_only_checked && size.abs() > position.size.abs() {
+                Int128::zero()
             } else {
                 position.size.checked_add(size)?
             };
@@ -73,7 +72,7 @@ fn open_position(
     info: MessageInfo,
     account_id: String,
     denom: String,
-    size: SignedUint,
+    size: Int128,
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
@@ -142,7 +141,7 @@ fn open_position(
         oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
 
     // The position's initial value cannot be too small
-    let position_value = size.abs.checked_mul_floor(denom_price)?;
+    let position_value = size.unsigned_abs().checked_mul_floor(denom_price)?;
     ensure_min_position(position_value, &perp_params)?;
 
     // The position's initial value cannot be too big
@@ -160,16 +159,16 @@ fn open_position(
     // Ensure the opening fee amount sent is correct
     ensure_eq!(
         opening_fee_amt,
-        fees.opening_fee.abs,
+        fees.opening_fee.unsigned_abs(),
         ContractError::InvalidPayment {
             denom,
-            required: fees.opening_fee.abs,
+            required: fees.opening_fee.unsigned_abs(),
             received: opening_fee_amt,
         }
     );
 
     // Validate the position's size against OI limits
-    ms.validate_open_interest(size, SignedUint::zero(), denom_price, &perp_params)?;
+    ms.validate_open_interest(size, Int128::zero(), denom_price, &perp_params)?;
 
     // Skew _before_ modification
     let initial_skew = ms.skew()?;
@@ -247,7 +246,7 @@ fn modify_position(
     position: Position,
     account_id: String,
     denom: String,
-    new_size: SignedUint,
+    new_size: Int128,
 ) -> ContractResult<Response> {
     // Load the contract's configuration
     let cfg = CONFIG.load(deps.storage)?;
@@ -549,13 +548,13 @@ pub fn close_all_positions(
 /// market parameters, and open interest limits. Depending on whether the new size is an increase,
 /// decrease, or flip of the position, it returns the appropriate `PositionModification`.
 fn adjust_position_with_validation(
-    new_size: SignedUint,
-    entry_size: SignedUint,
+    new_size: Int128,
+    entry_size: Int128,
     denom_price: Decimal,
     perp_params: &PerpParams,
     ms: &MarketState,
 ) -> Result<PositionModification, ContractError> {
-    let position_value = new_size.abs.checked_mul_floor(denom_price)?;
+    let position_value = new_size.unsigned_abs().checked_mul_floor(denom_price)?;
     let modification = PositionModification::from_new_size(entry_size, new_size)?;
     match modification {
         PositionModification::Increase(..) => {
@@ -607,9 +606,9 @@ pub fn apply_pnl_and_fees(
     // Absolute values are used, as unrealized opening/closing fee are a cost (negative) to
     // the user, but a revenue (positive) to the protocol
     let protocol_opening_fee =
-        unrealized_pnl.opening_fee.abs.checked_mul_ceil(cfg.protocol_fee_rate)?;
+        unrealized_pnl.opening_fee.unsigned_abs().checked_mul_ceil(cfg.protocol_fee_rate)?;
     let protocol_closing_fee =
-        unrealized_pnl.closing_fee.abs.checked_mul_ceil(cfg.protocol_fee_rate)?;
+        unrealized_pnl.closing_fee.unsigned_abs().checked_mul_ceil(cfg.protocol_fee_rate)?;
 
     let total_protocol_fee = protocol_opening_fee + protocol_closing_fee;
 
@@ -644,12 +643,12 @@ pub fn apply_pnl_and_fees(
     // pnl - protocol_opening_fee - protocol_closing_fee = -3 - 1 - 2 = -6 which is equal to pnl_without_protocol
 
     let pnl_without_protocol_fee = PnlAmounts {
-        opening_fee: unrealized_pnl.opening_fee.checked_add(protocol_opening_fee.into())?,
-        closing_fee: unrealized_pnl.closing_fee.checked_add(protocol_closing_fee.into())?,
+        opening_fee: unrealized_pnl.opening_fee.checked_add(protocol_opening_fee.try_into()?)?,
+        closing_fee: unrealized_pnl.closing_fee.checked_add(protocol_closing_fee.try_into()?)?,
         pnl: unrealized_pnl
             .pnl
-            .checked_sub(protocol_opening_fee.into())?
-            .checked_sub(protocol_closing_fee.into())?,
+            .checked_sub(protocol_opening_fee.try_into()?)?
+            .checked_sub(protocol_closing_fee.try_into()?)?,
         ..unrealized_pnl.clone()
     };
 

@@ -1,25 +1,22 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, Coin, Decimal, Uint128};
-use mars_types::{
-    params::{PerpParams, PerpParamsUpdate},
-    signed_uint::SignedUint,
-};
+use cosmwasm_std::{coin, Coin, Decimal, Int128, Uint128};
+use mars_types::params::{PerpParams, PerpParamsUpdate};
 use test_case::test_case;
 
 use crate::tests::helpers::{default_perp_params, MockEnv};
 
-#[test_case(Decimal::percent(25), Decimal::percent(2), Decimal::percent(1), SignedUint::from_str("1000").unwrap(), Uint128::from(7u128), Uint128::from(4u128); "25 percent on open and close")]
-#[test_case(Decimal::percent(25), Decimal::percent(2), Decimal::percent(0), SignedUint::from_str("1000").unwrap(), Uint128::from(7u128), Uint128::from(0u128); "25 percent on open")]
-#[test_case(Decimal::percent(25), Decimal::percent(0), Decimal::percent(2), SignedUint::from_str("1000").unwrap(), Uint128::from(0u128), Uint128::from(7u128); "25 percent on close")]
-#[test_case(Decimal::percent(0), Decimal::percent(3), Decimal::percent(3), SignedUint::from_str("5000").unwrap(), Uint128::from(0u128), Uint128::from(0u128); "0 percent on open and close")]
-#[test_case(Decimal::percent(100), Decimal::percent(2), Decimal::percent(3), SignedUint::from_str("1000").unwrap(), Uint128::from(28u128), Uint128::from(42u128); "100 percent on open and close")]
-#[test_case(Decimal::percent(1), Decimal::percent(2), Decimal::percent(1), SignedUint::from_str("1").unwrap(), Uint128::from(1u128), Uint128::from(1u128); "1 percent on open and close, testing rounding")]
+#[test_case(Decimal::percent(25), Decimal::percent(2), Decimal::percent(1), Int128::from_str("1000").unwrap(), Uint128::from(7u128), Uint128::from(4u128); "25 percent on open and close")]
+#[test_case(Decimal::percent(25), Decimal::percent(2), Decimal::percent(0), Int128::from_str("1000").unwrap(), Uint128::from(7u128), Uint128::from(0u128); "25 percent on open")]
+#[test_case(Decimal::percent(25), Decimal::percent(0), Decimal::percent(2), Int128::from_str("1000").unwrap(), Uint128::from(0u128), Uint128::from(7u128); "25 percent on close")]
+#[test_case(Decimal::percent(0), Decimal::percent(3), Decimal::percent(3), Int128::from_str("5000").unwrap(), Uint128::from(0u128), Uint128::from(0u128); "0 percent on open and close")]
+#[test_case(Decimal::percent(100), Decimal::percent(2), Decimal::percent(3), Int128::from_str("1000").unwrap(), Uint128::from(28u128), Uint128::from(42u128); "100 percent on open and close")]
+#[test_case(Decimal::percent(1), Decimal::percent(2), Decimal::percent(1), Int128::from_str("1").unwrap(), Uint128::from(1u128), Uint128::from(1u128); "1 percent on open and close, testing rounding")]
 fn protocol_fee_sent_to_rewards_collector(
     protocol_fee_rate: Decimal,
     opening_fee_rate: Decimal,
     closing_fee_rate: Decimal,
-    size: SignedUint,
+    size: Int128,
     expected_protocol_fee_opening: Uint128,
     expected_protocol_fee_closing: Uint128,
 ) {
@@ -87,14 +84,15 @@ fn protocol_fee_sent_to_rewards_collector(
         vault_state_before_opening + osmo_opening_fee - expected_protocol_fee_opening
     );
 
-    let osmo_closing_fee = mock.query_position_fees("1", "uosmo", SignedUint::zero()).closing_fee;
+    let osmo_closing_fee = mock.query_position_fees("1", "uosmo", Int128::zero()).closing_fee;
 
     let funds = if osmo_closing_fee.is_zero() {
         vec![]
     } else {
         vec![Coin::new(osmo_closing_fee.u128(), "uusdc")]
     };
-    mock.execute_perp_order(&credit_manager, "1", "uosmo", size.neg(), None, &funds).unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "uosmo", Int128::zero() - size, None, &funds)
+        .unwrap();
 
     // check vault state after closing position
     let rewards_collector_after_closing = mock.query_balance(&rewards_collector, "uusdc");
@@ -126,8 +124,8 @@ fn close_all_positions_applies_fees() {
     let denom_1 = "uosmo";
     let denom_2 = "umars";
 
-    let size_1 = SignedUint::from_str("1000").unwrap();
-    let size_2 = SignedUint::from_str("500").unwrap();
+    let size_1 = Int128::from_str("1000").unwrap();
+    let size_2 = Int128::from_str("500").unwrap();
 
     // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &[denom_1, "uusdc"]);
@@ -217,9 +215,9 @@ fn close_all_positions_applies_fees() {
             - expected_protocol_fee_opening_2
     );
 
-    let closing_fee_1 = mock.query_position_fees("1", denom_1, SignedUint::zero()).closing_fee;
+    let closing_fee_1 = mock.query_position_fees("1", denom_1, Int128::zero()).closing_fee;
     assert!(!closing_fee_1.is_zero());
-    let closing_fee_2 = mock.query_position_fees("1", denom_2, SignedUint::zero()).closing_fee;
+    let closing_fee_2 = mock.query_position_fees("1", denom_2, Int128::zero()).closing_fee;
     assert!(!closing_fee_2.is_zero());
 
     let total_closing_fee = closing_fee_1 + closing_fee_2;

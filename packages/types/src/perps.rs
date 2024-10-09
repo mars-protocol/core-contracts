@@ -1,18 +1,16 @@
-use std::{fmt, str::FromStr};
+use std::fmt;
 
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{
     coin, Addr, Api, CheckedFromRatioError, CheckedMultiplyFractionError,
-    CheckedMultiplyRatioError, Coin, Decimal, DecimalRangeExceeded, OverflowError, StdError,
+    CheckedMultiplyRatioError, Coin, ConversionOverflowError, Decimal, DecimalRangeExceeded,
+    Fraction, Int128, Int256, OverflowError, SignedDecimal, SignedDecimalRangeExceeded, StdError,
     StdResult, Uint128, Uint256,
 };
 use mars_owner::OwnerUpdate;
 use thiserror::Error;
 
-use crate::{
-    error::MarsError, math::SignedDecimal, oracle::ActionKind, params::PerpParams,
-    signed_uint::SignedUint,
-};
+use crate::{error::MarsError, oracle::ActionKind, params::PerpParams};
 
 // ------------------------------- message types -------------------------------
 
@@ -118,7 +116,7 @@ pub struct VaultState {
     /// The value is updated when a user deposits or withdraws from the vault.
     /// The value can be negative if the liquidity providers withdraw more than
     /// the total balance. This can happen if the vault earns a profit from trading.
-    pub total_balance: SignedUint,
+    pub total_balance: Int128,
 
     /// Total shares minted to liquidity providers
     pub total_shares: Uint128,
@@ -132,7 +130,7 @@ pub struct VaultResponse {
     /// The value is updated when a user deposits or withdraws from the vault.
     /// The value can be negative if the liquidity providers withdraw more than
     /// the total balance. This can happen if the vault earns a profit from trading.
-    pub total_balance: SignedUint,
+    pub total_balance: Int128,
 
     /// Total shares minted to liquidity providers.
     pub total_shares: Uint128,
@@ -189,14 +187,14 @@ pub struct MarketState {
     /// if a position is closed, the accumulated entry cost is removed from the accumulator:
     /// pos_1_size * pos_1_entry_exec_price + pos_2_size * pos_2_entry_exec_price + ... - pos_1_size * pos_1_entry_exec_price
     /// pos_2_size * pos_2_entry_exec_price + ...
-    pub total_entry_cost: SignedUint,
+    pub total_entry_cost: Int128,
 
     /// The accumulated entry funding, calculated for open positions as:
     /// pos_1_size * pos_1_entry_funding + pos_2_size * pos_2_entry_funding + ...
     /// if a position is closed, the accumulated entry funding is removed from the accumulator:
     /// pos_1_size * pos_1_entry_funding + pos_2_size * pos_2_entry_funding + ... - pos_1_size * pos_1_entry_funding
     /// pos_2_size * pos_2_entry_funding + ...
-    pub total_entry_funding: SignedUint,
+    pub total_entry_funding: Int128,
 
     /// The accumulated squared positions, calculated for open positions as:
     /// pos_1_size^2 + pos_2_size^2 + ...
@@ -208,7 +206,7 @@ pub struct MarketState {
     /// pos_1_size * |pos_1_size| + pos_2_size * |pos_2_size| + ...
     /// if a position is closed, the accumulated absolute multiplied position is removed from the accumulator:
     /// pos_1_size * |pos_1_size| + pos_2_size * |pos_2_size| + ... - pos_1_size * |pos_1_size|
-    pub total_abs_multiplied_positions: SignedUint,
+    pub total_abs_multiplied_positions: Int256,
 
     /// The actual amount of money, includes only realized payments
     pub cash_flow: CashFlow,
@@ -256,17 +254,17 @@ impl Default for Funding {
 #[cw_serde]
 #[derive(Default)]
 pub struct CashFlow {
-    pub price_pnl: SignedUint,
-    pub opening_fee: SignedUint, // This is without the protocol fee
-    pub closing_fee: SignedUint, // This is without the protocol fee
-    pub accrued_funding: SignedUint,
+    pub price_pnl: Int128,
+    pub opening_fee: Int128, // This is without the protocol fee
+    pub closing_fee: Int128, // This is without the protocol fee
+    pub accrued_funding: Int128,
     pub protocol_fee: Uint128, // Used to track the protocol fee. Excluded from the total
 }
 
 impl CashFlow {
     /// Calculates the net cashflow for the vault. This is the sum of all cashflows except
     /// the protocol fee.
-    pub fn total(&self) -> Result<SignedUint, MarsError> {
+    pub fn total(&self) -> Result<Int128, MarsError> {
         Ok(self
             .price_pnl
             .checked_add(self.opening_fee)?
@@ -279,11 +277,11 @@ impl CashFlow {
 #[cw_serde]
 #[derive(Default)]
 pub struct Balance {
-    pub price_pnl: SignedUint,
-    pub opening_fee: SignedUint,
-    pub closing_fee: SignedUint,
-    pub accrued_funding: SignedUint,
-    pub total: SignedUint,
+    pub price_pnl: Int128,
+    pub opening_fee: Int128,
+    pub closing_fee: Int128,
+    pub accrued_funding: Int128,
+    pub total: Int128,
 }
 
 /// Accounting in the base denom (e.g. UUSDC)
@@ -325,11 +323,11 @@ pub struct MarketResponse {
 #[cw_serde]
 #[derive(Default)]
 pub struct Position {
-    pub size: SignedUint,
+    pub size: Int128,
     pub entry_price: Decimal,
     pub entry_exec_price: Decimal,
     pub entry_accrued_funding_per_unit_in_base_denom: SignedDecimal,
-    pub initial_skew: SignedUint,
+    pub initial_skew: Int128,
     pub realized_pnl: PnlAmounts,
 }
 
@@ -339,7 +337,7 @@ pub struct Position {
 pub struct PerpPosition {
     pub denom: String,
     pub base_denom: String,
-    pub size: SignedUint,
+    pub size: Int128,
     pub entry_price: Decimal,
     pub current_price: Decimal,
     pub entry_exec_price: Decimal,
@@ -357,19 +355,19 @@ pub enum PnL {
 }
 
 impl PnL {
-    pub fn from_signed_uint(denom: impl Into<String>, amount: SignedUint) -> Self {
-        if amount.is_positive() {
-            PnL::Profit(Coin {
-                denom: denom.into(),
-                amount: amount.abs,
-            })
+    pub fn from_signed_uint(denom: impl Into<String>, amount: Int128) -> Self {
+        if amount.is_zero() {
+            PnL::BreakEven
         } else if amount.is_negative() {
             PnL::Loss(Coin {
                 denom: denom.into(),
-                amount: amount.abs,
+                amount: amount.unsigned_abs(),
             })
         } else {
-            PnL::BreakEven
+            PnL::Profit(Coin {
+                denom: denom.into(),
+                amount: amount.unsigned_abs(),
+            })
         }
     }
 }
@@ -378,12 +376,12 @@ impl PnL {
 #[cw_serde]
 #[derive(Default)]
 pub struct PnlValues {
-    pub price_pnl: SignedUint,
-    pub accrued_funding: SignedUint,
-    pub closing_fee: SignedUint,
+    pub price_pnl: Int128,
+    pub accrued_funding: Int128,
+    pub closing_fee: Int128,
 
     /// PnL: price PnL + accrued funding + closing fee
-    pub pnl: SignedUint,
+    pub pnl: Int128,
 }
 
 /// Coins with Perp Vault base denom (uusdc) as a denom
@@ -397,13 +395,13 @@ pub struct PnlCoins {
 #[cw_serde]
 #[derive(Default)]
 pub struct PnlAmounts {
-    pub price_pnl: SignedUint,
-    pub accrued_funding: SignedUint,
-    pub opening_fee: SignedUint,
-    pub closing_fee: SignedUint,
+    pub price_pnl: Int128,
+    pub accrued_funding: Int128,
+    pub opening_fee: Int128,
+    pub closing_fee: Int128,
 
     /// PnL: price PnL + accrued funding + opening fee + closing fee
-    pub pnl: SignedUint,
+    pub pnl: Int128,
 }
 
 impl PnlAmounts {
@@ -411,7 +409,7 @@ impl PnlAmounts {
     /// It can be used when opening a new position.
     pub fn from_opening_fee(opening_fee: Uint128) -> StdResult<Self> {
         // make opening fee negative to show that it's a cost for the user
-        let opening_fee = SignedUint::zero().checked_sub(opening_fee.into())?;
+        let opening_fee = Int128::zero().checked_sub(opening_fee.try_into()?)?;
         Ok(PnlAmounts {
             opening_fee,
             pnl: opening_fee,
@@ -421,7 +419,7 @@ impl PnlAmounts {
 
     pub fn add_opening_fee(&mut self, opening_fee: Uint128) -> StdResult<()> {
         // make opening fee negative to show that it's a cost for the user
-        let opening_fee = SignedUint::zero().checked_sub(opening_fee.into())?;
+        let opening_fee = Int128::zero().checked_sub(opening_fee.try_into()?)?;
         self.opening_fee = self.opening_fee.checked_add(opening_fee)?;
         self.pnl = self.pnl.checked_add(opening_fee)?;
         Ok(())
@@ -438,7 +436,7 @@ impl PnlAmounts {
 
     pub fn to_coins(&self, base_denom: &str) -> PnlCoins {
         PnlCoins {
-            closing_fee: coin(self.closing_fee.abs.u128(), base_denom),
+            closing_fee: coin(self.closing_fee.unsigned_abs().u128(), base_denom),
             pnl: PnL::from_signed_uint(base_denom, self.pnl),
         }
     }
@@ -447,15 +445,20 @@ impl PnlAmounts {
         pnl_values: PnlValues,
         base_denom_price: Decimal,
     ) -> Result<Self, MarsError> {
-        let price_pnl = pnl_values.price_pnl.checked_div_floor(base_denom_price.into())?;
-        let accrued_funding =
-            pnl_values.accrued_funding.checked_div_floor(base_denom_price.into())?;
-        let closing_fee = pnl_values.closing_fee.checked_div_floor(base_denom_price.into())?;
+        let price_pnl_int256 = Int256::from(pnl_values.price_pnl)
+            .checked_multiply_ratio(base_denom_price.denominator(), base_denom_price.numerator())?;
+        let price_pnl = Int128::try_from(price_pnl_int256)?;
+        let accrued_funding_int256 = Int256::from(pnl_values.accrued_funding)
+            .checked_multiply_ratio(base_denom_price.denominator(), base_denom_price.numerator())?;
+        let accrued_funding = Int128::try_from(accrued_funding_int256)?;
+        let closing_fee_int256 = Int256::from(pnl_values.closing_fee)
+            .checked_multiply_ratio(base_denom_price.denominator(), base_denom_price.numerator())?;
+        let closing_fee = Int128::try_from(closing_fee_int256)?;
         let pnl = price_pnl.checked_add(accrued_funding)?.checked_add(closing_fee)?;
         Ok(PnlAmounts {
             price_pnl,
             accrued_funding,
-            opening_fee: SignedUint::zero(),
+            opening_fee: Int128::zero(),
             closing_fee,
             pnl,
         })
@@ -463,11 +466,11 @@ impl PnlAmounts {
 }
 
 impl PnL {
-    pub fn to_signed_uint(&self) -> StdResult<SignedUint> {
+    pub fn to_signed_uint(&self) -> StdResult<Int128> {
         let value = match self {
-            PnL::Profit(c) => SignedUint::from_str(c.amount.to_string().as_str())?,
-            PnL::Loss(c) => SignedUint::zero().checked_sub(c.amount.into())?,
-            PnL::BreakEven => SignedUint::zero(),
+            PnL::Profit(c) => Int128::try_from(c.amount)?,
+            PnL::Loss(c) => Int128::zero().checked_sub(Int128::try_from(c.amount)?)?,
+            PnL::BreakEven => Int128::zero(),
         };
         Ok(value)
     }
@@ -548,7 +551,7 @@ pub enum ExecuteMsg {
         // The amount of size to execute against the position.
         // Positive numbers will increase longs and decrease shorts
         // Negative numbers will decrease longs and increase shorts
-        size: SignedUint,
+        size: Int128,
 
         // Reduce Only enforces a position size cannot increase in absolute terms, ensuring a position will never flip
         // from long to short or vice versa
@@ -638,7 +641,7 @@ pub enum QueryMsg {
     Position {
         account_id: String,
         denom: String,
-        order_size: Option<SignedUint>,
+        order_size: Option<Int128>,
     },
 
     /// List positions of all accounts and denoms.
@@ -679,7 +682,7 @@ pub enum QueryMsg {
     #[returns(TradingFee)]
     OpeningFee {
         denom: String,
-        size: SignedUint,
+        size: Int128,
     },
 
     /// Query the fees associated with modifying a specific position.
@@ -687,7 +690,7 @@ pub enum QueryMsg {
     PositionFees {
         account_id: String,
         denom: String,
-        new_size: SignedUint,
+        new_size: Int128,
     },
 }
 
@@ -782,4 +785,10 @@ pub enum PerpsError {
 
     #[error("{0}")]
     DecimalRangeExceeded(#[from] DecimalRangeExceeded),
+
+    #[error("{0}")]
+    ConversionOverflow(#[from] ConversionOverflowError),
+
+    #[error("{0}")]
+    SignedDecimalRangeExceeded(#[from] SignedDecimalRangeExceeded),
 }

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use anyhow::Error;
-use cosmwasm_std::{Addr, Coin, Decimal, OverflowError, OverflowOperation, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Int128, OverflowError, OverflowOperation, Uint128};
 use cw_multi_test::AppResponse;
 use mars_credit_manager::error::ContractError;
 use mars_testing::multitest::helpers::AccountToFund;
@@ -15,7 +15,6 @@ use mars_types::{
         LiquidateRequest, TriggerOrder, TriggerOrderResponse,
     },
     params::PerpParamsUpdate,
-    signed_uint::SignedUint,
 };
 use test_case::test_case;
 
@@ -45,9 +44,9 @@ fn query_all_trigger_orders() {
     // create 9 trigger orders
     let mut orders = vec![];
     for num in 1..10 {
-        let order_size = SignedUint::from_str("-10")
+        let order_size = Int128::from_str("-10")
             .unwrap()
-            .checked_mul(SignedUint::from_str(&num.to_string()).unwrap())
+            .checked_mul(Int128::from_str(&num.to_string()).unwrap())
             .unwrap();
         orders.push(TriggerOrderResponse {
             account_id: account_id.clone(),
@@ -123,7 +122,7 @@ fn delete_trigger_order() {
             CreateTriggerOrder {
                 actions: vec![ExecutePerpOrder {
                     denom: "perp1".to_string(),
-                    order_size: SignedUint::from_str("-10").unwrap(),
+                    order_size: Int128::from_str("-10").unwrap(),
                     reduce_only: None,
                 }],
                 conditions: vec![OraclePrice {
@@ -147,7 +146,7 @@ fn delete_trigger_order() {
         response.data[0].order.actions,
         [ExecutePerpOrder {
             denom: "perp1".to_string(),
-            order_size: SignedUint::from_str("-10").unwrap(),
+            order_size: Int128::from_str("-10").unwrap(),
             reduce_only: None,
         }]
     );
@@ -192,7 +191,7 @@ fn delete_trigger_order() {
         CreateTriggerOrder {
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
-                order_size: SignedUint::from_str("-10").unwrap(),
+                order_size: Int128::from_str("-10").unwrap(),
                 reduce_only: None,
             }],
             conditions: vec![OraclePrice {
@@ -217,7 +216,7 @@ fn delete_trigger_order() {
         CreateTriggerOrder {
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
-                order_size: SignedUint::from_str("-10").unwrap(),
+                order_size: Int128::from_str("-10").unwrap(),
                 reduce_only: None,
             }],
             conditions: vec![OraclePrice {
@@ -243,7 +242,7 @@ fn delete_trigger_order() {
         CreateTriggerOrder {
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
-                order_size: SignedUint::from_str("-10").unwrap(),
+                order_size: Int128::from_str("-10").unwrap(),
                 reduce_only: None,
             }],
             conditions: vec![OraclePrice {
@@ -272,7 +271,7 @@ fn delete_trigger_order() {
         CreateTriggerOrder {
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
-                order_size: SignedUint::from_str("-10").unwrap(),
+                order_size: Int128::from_str("-10").unwrap(),
                 reduce_only: None,
             }],
             conditions: vec![OraclePrice {
@@ -296,7 +295,7 @@ fn delete_trigger_order() {
         CreateTriggerOrder {
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
-                order_size: SignedUint::from_str("-10").unwrap(),
+                order_size: Int128::from_str("-10").unwrap(),
                 reduce_only: None,
             }],
             conditions: vec![OraclePrice {
@@ -320,7 +319,7 @@ fn delete_trigger_order() {
         CreateTriggerOrder {
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
-                order_size: SignedUint::from_str("-1").unwrap(),
+                order_size: Int128::from_str("-1").unwrap(),
                 reduce_only: None,
             }],
             conditions: vec![OraclePrice {
@@ -344,7 +343,7 @@ fn delete_trigger_order() {
         CreateTriggerOrder {
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
-                order_size: SignedUint::from_str("-1").unwrap(),
+                order_size: Int128::from_str("-1").unwrap(),
                 reduce_only: None,
             }],
             conditions: vec![
@@ -410,7 +409,7 @@ fn delete_trigger_order() {
         CreateTriggerOrder {
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
-                order_size: SignedUint::from_str("-1").unwrap(),
+                order_size: Int128::from_str("-1").unwrap(),
                 reduce_only: None,
             }],
             conditions: vec![

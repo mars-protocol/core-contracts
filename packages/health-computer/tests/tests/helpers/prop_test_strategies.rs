@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ops::RangeInclusive, str::FromStr};
 
-use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Int128, SignedDecimal, Uint128};
 use mars_perps::position::{PositionExt, PositionModification};
 use mars_perps_common::pricing::opening_execution_price;
 use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
@@ -11,13 +11,11 @@ use mars_types::{
     },
     credit_manager::{DebtAmount, Positions},
     health::AccountKind,
-    math::SignedDecimal,
     params::{
         AssetParams, CmSettings, HlsAssetType, HlsParams, LiquidationBonus, PerpParams,
         RedBankSettings, VaultConfig,
     },
     perps::{Funding, PerpPosition, PnlAmounts, Position},
-    signed_uint::SignedUint,
 };
 use proptest::{
     collection::vec,
@@ -51,10 +49,13 @@ fn random_price() -> impl Strategy<Value = Decimal> {
         .prop_map(|(price, offset)| Decimal::from_atomics(price as u128, offset as u32).unwrap())
 }
 
-fn random_perp_size() -> impl Strategy<Value = SignedUint> {
-    (1000..=10000000000000000u128, random_bool()).prop_map(|(size, negative)| SignedUint {
-        abs: Uint128::new(size),
-        negative,
+fn random_perp_size() -> impl Strategy<Value = Int128> {
+    (1000..=10000000000000000i128, random_bool()).prop_map(|(size, negative)| {
+        if negative {
+            -Int128::new(size)
+        } else {
+            Int128::new(size)
+        }
     })
 }
 
@@ -73,10 +74,13 @@ fn random_uint128(range: RangeInclusive<i128>) -> impl Strategy<Value = Uint128>
     range.prop_map(|val| Uint128::new(val as u128))
 }
 
-fn random_signed_uint(range: RangeInclusive<i128>) -> impl Strategy<Value = SignedUint> {
-    (range, random_bool()).prop_map(|(price, negative)| SignedUint {
-        abs: Uint128::new(price as u128),
-        negative,
+fn random_signed_uint(range: RangeInclusive<i128>) -> impl Strategy<Value = Int128> {
+    (range, random_bool()).prop_map(|(num, negative)| {
+        if negative {
+            -Int128::new(num)
+        } else {
+            Int128::new(num)
+        }
     })
 }
 
@@ -85,10 +89,12 @@ fn random_signed_decimal(
     decimal_range: RangeInclusive<i32>,
 ) -> impl Strategy<Value = SignedDecimal> {
     (random_decimal(range, decimal_range), random_bool()).prop_map(|(price, negative)| {
-        SignedDecimal {
-            abs: price,
-            negative,
-        }
+        let s = if negative {
+            format!("-{}", price)
+        } else {
+            format!("{}", price)
+        };
+        SignedDecimal::from_str(&s).unwrap()
     })
 }
 
@@ -428,7 +434,7 @@ fn random_perps(perp_denoms_data: PerpsData) -> impl Strategy<Value = Vec<PerpPo
                     let funding = Funding {
                         max_funding_velocity: Decimal::from_str("3").unwrap(),
                         skew_scale,
-                        last_funding_rate: rate.into(),
+                        last_funding_rate: rate.try_into().unwrap(),
                         last_funding_accrued_per_unit_in_base_denom:
                             entry_accrued_funding_per_unit_in_base_denom
                                 .checked_add(exit_funding_diff)

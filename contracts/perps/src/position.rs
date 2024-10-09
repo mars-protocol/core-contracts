@@ -1,12 +1,8 @@
 use std::cmp::Ordering;
 
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::{Decimal, Fraction, Int128, SignedDecimal, Uint128};
 use mars_perps_common::pricing::{closing_execution_price, opening_execution_price};
-use mars_types::{
-    math::SignedDecimal,
-    perps::{Funding, PnlAmounts, Position},
-    signed_uint::SignedUint,
-};
+use mars_types::perps::{Funding, PnlAmounts, Position};
 
 use crate::error::{ContractError, ContractResult};
 
@@ -15,7 +11,7 @@ pub trait PositionExt {
     fn compute_pnl(
         &self,
         funding: &Funding,
-        skew: SignedUint,
+        skew: Int128,
         denom_price: Decimal,
         base_denom_price: Decimal,
         opening_fee_rate: Decimal,
@@ -28,7 +24,7 @@ impl PositionExt for Position {
     fn compute_pnl(
         &self,
         funding: &Funding,
-        skew: SignedUint,
+        skew: Int128,
         denom_price: Decimal,
         base_denom_price: Decimal,
         opening_fee_rate: Decimal,
@@ -38,16 +34,22 @@ impl PositionExt for Position {
         let exit_exec_price =
             closing_execution_price(skew, funding.skew_scale, self.size, denom_price)?;
         // size * (exit_exec_price - entry_exec_price)
-        let price_diff =
-            SignedDecimal::from(exit_exec_price).checked_sub(self.entry_exec_price.into())?;
-        let price_pnl_in_base_denom =
-            self.size.checked_mul_floor(price_diff.checked_div(base_denom_price.into())?)?;
+        let price_diff = SignedDecimal::try_from(exit_exec_price)?
+            .checked_sub(self.entry_exec_price.try_into()?)?;
+        let price_diff_div_base_denom = price_diff.checked_div(base_denom_price.try_into()?)?;
+        let price_pnl_in_base_denom = self.size.checked_multiply_ratio(
+            price_diff_div_base_denom.numerator(),
+            price_diff_div_base_denom.denominator(),
+        )?;
 
         // size * (current_accrued_funding_per_unit - entry_accrued_funding_per_unit)
         let accrued_funding_diff = funding
             .last_funding_accrued_per_unit_in_base_denom
             .checked_sub(self.entry_accrued_funding_per_unit_in_base_denom)?;
-        let accrued_funding_in_base_denom = self.size.checked_mul_floor(accrued_funding_diff)?;
+        let accrued_funding_in_base_denom = self.size.checked_multiply_ratio(
+            accrued_funding_diff.numerator(),
+            accrued_funding_diff.denominator(),
+        )?;
 
         // Only charge:
         // - opening fee if we are increasing size
@@ -79,32 +81,33 @@ impl PositionExt for Position {
 pub struct PositionModificationFees {
     /// The fee charged when opening/increasing a position.
     /// Negative value to show that it's a cost for the user.
-    pub opening_fee: SignedUint,
+    pub opening_fee: Int128,
 
     /// The fee charged when closing/reducing a position.
     /// Negative value to show that it's a cost for the user.
-    pub closing_fee: SignedUint,
+    pub closing_fee: Int128,
 }
 
 /// PositionModification is used to specify the type of position modification in order to calculate the fees
 pub enum PositionModification {
-    Increase(SignedUint),
-    Decrease(SignedUint),
+    Increase(Int128),
+    Decrease(Int128),
     // new_size, old_size
-    Flip(SignedUint, SignedUint),
+    Flip(Int128, Int128),
 }
 
 impl PositionModification {
     /// Determines the type of position modification based on the old size and the new order size
-    pub fn from_order_size(old_size: SignedUint, order_size: SignedUint) -> ContractResult<Self> {
+    pub fn from_order_size(old_size: Int128, order_size: Int128) -> ContractResult<Self> {
         let new_size = old_size.checked_add(order_size)?;
         Self::from_new_size(old_size, new_size)
     }
 
     /// Determines the type of position modification based on the old size and the new size
-    pub fn from_new_size(old_size: SignedUint, new_size: SignedUint) -> ContractResult<Self> {
-        let is_flipped = new_size.negative != old_size.negative;
-        let modification = match (is_flipped, new_size.abs.cmp(&old_size.abs)) {
+    pub fn from_new_size(old_size: Int128, new_size: Int128) -> ContractResult<Self> {
+        let is_flipped = new_size.is_negative() != old_size.is_negative();
+        let modification = match (is_flipped, new_size.unsigned_abs().cmp(&old_size.unsigned_abs()))
+        {
             // Position is not changed
             (false, Ordering::Equal) => {
                 return Err(ContractError::IllegalPositionModification {
@@ -140,7 +143,7 @@ impl PositionModification {
         closing_fee_rate: Decimal,
         denom_price: Decimal,
         base_denom_price: Decimal,
-        skew: SignedUint,
+        skew: Int128,
         skew_scale: Uint128,
     ) -> ContractResult<PositionModificationFees> {
         // Extract the relevant size based on the modification type
@@ -155,7 +158,7 @@ impl PositionModification {
                     compute_fee(opening_fee_rate, *size, denom_exec_price, base_denom_price)?;
                 let fees = PositionModificationFees {
                     opening_fee,
-                    closing_fee: SignedUint::zero(),
+                    closing_fee: Int128::zero(),
                 };
                 Ok(fees)
             }
@@ -169,7 +172,7 @@ impl PositionModification {
                 let closing_fee =
                     compute_fee(closing_fee_rate, *size, denom_exec_price, base_denom_price)?;
                 let fees = PositionModificationFees {
-                    opening_fee: SignedUint::zero(),
+                    opening_fee: Int128::zero(),
                     closing_fee,
                 };
                 Ok(fees)
@@ -178,7 +181,7 @@ impl PositionModification {
             // - closing fee is applied to the old size
             // - opening fee is applied to the new size
             PositionModification::Flip(new_size, old_size) => {
-                if new_size.negative == old_size.negative {
+                if new_size.is_negative() == old_size.is_negative() {
                     return Err(ContractError::InvalidPositionFlip {
                         reason: "old_size and new_size must have opposite signs".to_string(),
                     });
@@ -211,16 +214,17 @@ impl PositionModification {
 
 fn compute_fee(
     rate: Decimal,
-    size: SignedUint,
+    size: Int128,
     denom_price: Decimal,
     base_denom_price: Decimal,
-) -> ContractResult<SignedUint> {
+) -> ContractResult<Int128> {
     // Calculate the fee amount in base denom. Use ceil in favor of the protocol
-    let fee_amount =
-        size.abs.checked_mul_ceil(denom_price.checked_mul(rate)?.checked_div(base_denom_price)?)?;
+    let fee_amount = size
+        .unsigned_abs()
+        .checked_mul_ceil(denom_price.checked_mul(rate)?.checked_div(base_denom_price)?)?;
 
     // Make the fee negative to show that it's a cost for the user
-    let fee_amount: SignedUint = SignedUint::zero().checked_sub(fee_amount.into())?;
+    let fee_amount: Int128 = Int128::zero().checked_sub(fee_amount.try_into()?)?;
 
     Ok(fee_amount)
 }
@@ -239,121 +243,121 @@ mod tests {
 
     #[test_case(
         Position {
-            size: SignedUint::from_str("100").unwrap(),
+            size: Int128::from_str("100").unwrap(),
             entry_price: Decimal::from_str("4200").unwrap(), 
             entry_exec_price: Decimal::from_str("4200.966").unwrap(),
             entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("-14").unwrap(),
-            initial_skew: SignedUint::from_str("180").unwrap(),
+            initial_skew: Int128::from_str("180").unwrap(),
             realized_pnl: PnlAmounts::default()
         },
         Decimal::from_str("4200").unwrap(),
         Decimal::zero(),
         PnlAmounts {
-            opening_fee: SignedUint::zero(),
-            price_pnl: SignedUint::zero(),
-            accrued_funding: SignedUint::zero(),
-            closing_fee: SignedUint::zero(),
-            pnl: SignedUint::zero(),
+            opening_fee: Int128::zero(),
+            price_pnl: Int128::zero(),
+            accrued_funding: Int128::zero(),
+            closing_fee: Int128::zero(),
+            pnl: Int128::zero(),
         };
         "long position - break even"
     )]
     #[test_case(
         Position {
-            size: SignedUint::from_str("100").unwrap(),
+            size: Int128::from_str("100").unwrap(),
             entry_price: Decimal::from_str("4200").unwrap(), 
             entry_exec_price: Decimal::from_str("4201.134").unwrap(),
             entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("-12.826").unwrap(),
-            initial_skew: SignedUint::from_str("220").unwrap(),
+            initial_skew: Int128::from_str("220").unwrap(),
             realized_pnl: PnlAmounts::default()
         },
         Decimal::from_str("4400").unwrap(),
         Decimal::from_str("0.02").unwrap(),
         PnlAmounts {
-            opening_fee: SignedUint::zero(),
-            price_pnl: SignedUint::from_str("24984").unwrap(),
-            accrued_funding: SignedUint::from_str("-118").unwrap(),
-            closing_fee: SignedUint::from_str("-11003").unwrap(),
-            pnl: SignedUint::from_str("13863").unwrap(),
+            opening_fee: Int128::zero(),
+            price_pnl: Int128::from_str("24984").unwrap(),
+            accrued_funding: Int128::from_str("-117").unwrap(),
+            closing_fee: Int128::from_str("-11003").unwrap(),
+            pnl: Int128::from_str("13864").unwrap(),
         };
         "long position - price up"
     )]
     #[test_case(
         Position {
-            size: SignedUint::from_str("100").unwrap(),
+            size: Int128::from_str("100").unwrap(),
             entry_price: Decimal::from_str("4200").unwrap(), 
             entry_exec_price: Decimal::from_str("4201.134").unwrap(),
             entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("-12.826").unwrap(),
-            initial_skew: SignedUint::from_str("220").unwrap(),
+            initial_skew: Int128::from_str("220").unwrap(),
             realized_pnl: PnlAmounts::default()
         },
         Decimal::from_str("4000").unwrap(),
         Decimal::from_str("0.02").unwrap(),
         PnlAmounts {
-            opening_fee: SignedUint::zero(),
-            price_pnl: SignedUint::from_str("-25027").unwrap(),
-            accrued_funding: SignedUint::from_str("-118").unwrap(),
-            closing_fee: SignedUint::from_str("-10003").unwrap(),
-            pnl: SignedUint::from_str("-35148").unwrap(),
+            opening_fee: Int128::zero(),
+            price_pnl: Int128::from_str("-25026").unwrap(),
+            accrued_funding: Int128::from_str("-117").unwrap(),
+            closing_fee: Int128::from_str("-10003").unwrap(),
+            pnl: Int128::from_str("-35146").unwrap(),
         };
         "long position - price down"
     )]
     #[test_case(
         Position {
-            size: SignedUint::from_str("-100").unwrap(),
+            size: Int128::from_str("-100").unwrap(),
             entry_price: Decimal::from_str("4200").unwrap(), 
             entry_exec_price: Decimal::from_str("4201.386").unwrap(),
             entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("-14").unwrap(),
-            initial_skew: SignedUint::from_str("380").unwrap(),
+            initial_skew: Int128::from_str("380").unwrap(),
             realized_pnl: PnlAmounts::default()
         },
         Decimal::from_str("4200").unwrap(),
         Decimal::zero(),
         PnlAmounts {
-            opening_fee: SignedUint::zero(),
-            price_pnl: SignedUint::zero(),
-            accrued_funding: SignedUint::zero(),
-            closing_fee: SignedUint::zero(),
-            pnl: SignedUint::zero(),
+            opening_fee: Int128::zero(),
+            price_pnl: Int128::zero(),
+            accrued_funding: Int128::zero(),
+            closing_fee: Int128::zero(),
+            pnl: Int128::zero(),
         };
         "short position - break even"
     )]
     #[test_case(
         Position {
-            size: SignedUint::from_str("-100").unwrap(),
+            size: Int128::from_str("-100").unwrap(),
             entry_price: Decimal::from_str("4200").unwrap(), 
             entry_exec_price: Decimal::from_str("4200.714").unwrap(),
             entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("-12.826").unwrap(),
-            initial_skew: SignedUint::from_str("220").unwrap(),
+            initial_skew: Int128::from_str("220").unwrap(),
             realized_pnl: PnlAmounts::default()
         },
         Decimal::from_str("4400").unwrap(),
         Decimal::from_str("0.02").unwrap(),
         PnlAmounts {
-            opening_fee: SignedUint::zero(),
-            price_pnl: SignedUint::from_str("-25093").unwrap(),
-            accrued_funding: SignedUint::from_str("117").unwrap(),
-            closing_fee: SignedUint::from_str("-11004").unwrap(),
-            pnl: SignedUint::from_str("-35980").unwrap(),
+            opening_fee: Int128::zero(),
+            price_pnl: Int128::from_str("-25092").unwrap(),
+            accrued_funding: Int128::from_str("117").unwrap(),
+            closing_fee: Int128::from_str("-11004").unwrap(),
+            pnl: Int128::from_str("-35979").unwrap(),
         };
         "short position - price up"
     )]
     #[test_case(
         Position {
-            size: SignedUint::from_str("-100").unwrap(),
+            size: Int128::from_str("-100").unwrap(),
             entry_price: Decimal::from_str("4200").unwrap(), 
             entry_exec_price: Decimal::from_str("4200.714").unwrap(),
             entry_accrued_funding_per_unit_in_base_denom: SignedDecimal::from_str("-12.826").unwrap(),
-            initial_skew: SignedUint::from_str("220").unwrap(),
+            initial_skew: Int128::from_str("220").unwrap(),
             realized_pnl: PnlAmounts::default()
         },
         Decimal::from_str("4000").unwrap(),
         Decimal::from_str("0.02").unwrap(),
         PnlAmounts {
-            opening_fee: SignedUint::zero(),
-            price_pnl: SignedUint::from_str("24924").unwrap(),
-            accrued_funding: SignedUint::from_str("117").unwrap(),
-            closing_fee: SignedUint::from_str("-10004").unwrap(),
-            pnl: SignedUint::from_str("15037").unwrap(),
+            opening_fee: Int128::zero(),
+            price_pnl: Int128::from_str("24924").unwrap(),
+            accrued_funding: Int128::from_str("117").unwrap(),
+            closing_fee: Int128::from_str("-10004").unwrap(),
+            pnl: Int128::from_str("15037").unwrap(),
         };
         "short position - price down"
     )]
@@ -371,7 +375,7 @@ mod tests {
         let pnl_amounts = position
             .compute_pnl(
                 &funding,
-                SignedUint::from_str("280").unwrap(),
+                Int128::from_str("280").unwrap(),
                 current_price,
                 Decimal::from_str("0.8").unwrap(),
                 Decimal::zero(),
@@ -383,38 +387,38 @@ mod tests {
     }
 
     #[test_case(
-        PositionModification::Increase(SignedUint::from_str("100").unwrap()),
+        PositionModification::Increase(Int128::from_str("100").unwrap()),
         Decimal::from_str("4000").unwrap(),
         Decimal::from_str("0.8").unwrap(),
-        (SignedUint::from_str("-1501").unwrap(), SignedUint::zero());
+        (Int128::from_str("-1501").unwrap(), Int128::zero());
         "modification increase"
     )]
     #[test_case(
-        PositionModification::Decrease(SignedUint::from_str("45").unwrap()),
+        PositionModification::Decrease(Int128::from_str("45").unwrap()),
         Decimal::from_str("4000").unwrap(),
         Decimal::from_str("0.8").unwrap(),
-        (SignedUint::zero(), SignedUint::from_str("-1126").unwrap());
+        (Int128::zero(), Int128::from_str("-1126").unwrap());
         "modification decrease"
     )]
     #[test_case(
-        PositionModification::Flip(SignedUint::from_str("-50").unwrap(),SignedUint::from_str("35").unwrap()),
+        PositionModification::Flip(Int128::from_str("-50").unwrap(),Int128::from_str("35").unwrap()),
         Decimal::from_str("4000").unwrap(),
         Decimal::from_str("0.8").unwrap(),
-        (SignedUint::from_str("-751").unwrap(), SignedUint::from_str("-876").unwrap());
+        (Int128::from_str("-751").unwrap(), Int128::from_str("-876").unwrap());
         "modification flip - long to short"
     )]
     #[test_case(
-        PositionModification::Flip(SignedUint::from_str("82").unwrap(),SignedUint::from_str("-37").unwrap()),
+        PositionModification::Flip(Int128::from_str("82").unwrap(),Int128::from_str("-37").unwrap()),
         Decimal::from_str("4000").unwrap(),
         Decimal::from_str("0.8").unwrap(),
-        (SignedUint::from_str("-1231").unwrap(), SignedUint::from_str("-926").unwrap());
+        (Int128::from_str("-1231").unwrap(), Int128::from_str("-926").unwrap());
         "modification flip - short to long"
     )]
     fn computing_fees(
         position: PositionModification,
         current_price: Decimal,
         base_denom_price: Decimal,
-        expected_fees: (SignedUint, SignedUint),
+        expected_fees: (Int128, Int128),
     ) {
         let fees = position
             .compute_fees(
@@ -422,7 +426,7 @@ mod tests {
                 Decimal::from_str("0.005").unwrap(),
                 current_price,
                 base_denom_price,
-                SignedUint::from_str("280").unwrap(),
+                Int128::from_str("280").unwrap(),
                 Uint128::new(1000000u128),
             )
             .unwrap();

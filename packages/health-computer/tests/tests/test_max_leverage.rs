@@ -1,15 +1,13 @@
 use std::{collections::HashMap, str::FromStr};
 
-use cosmwasm_std::{coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Decimal, Int128, SignedDecimal, Uint128};
 use mars_perps::position::{self, PositionExt};
 use mars_rover_health_computer::{HealthComputer, PerpsData};
 use mars_types::{
     credit_manager::{DebtAmount, Positions},
     health::AccountKind,
-    math::SignedDecimal,
     params::{AssetParams, PerpParams},
     perps::{PerpPosition, Position},
-    signed_uint::SignedUint,
 };
 use test_case::test_case;
 
@@ -26,7 +24,7 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
 #[test_case(
     "0",
     "0",
-    vec![SignedUint::from_str("500000").unwrap()],
+    vec![Int128::from_str("500000").unwrap()],
     Some(PerpParams {
         opening_fee_rate: Decimal::from_str("0.2").unwrap(),
         closing_fee_rate: Decimal::from_str("0.003").unwrap(),
@@ -40,7 +38,7 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
 #[test_case(
     "0",
     "-1462546",
-    vec![SignedUint::from_str("500000").unwrap()],
+    vec![Int128::from_str("500000").unwrap()],
     Some(PerpParams {
         opening_fee_rate: Decimal::from_str("0.2").unwrap(),
         closing_fee_rate: Decimal::from_str("0.003").unwrap(),
@@ -54,7 +52,7 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
 #[test_case(
     "1838102",
     "0",
-    vec![SignedUint::from_str("500000").unwrap()],
+    vec![Int128::from_str("500000").unwrap()],
     Some(PerpParams {
         opening_fee_rate: Decimal::from_str("0.2").unwrap(),
         closing_fee_rate: Decimal::from_str("0.003").unwrap(),
@@ -68,14 +66,14 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
 #[test_case(
     "1453092",
     "-2204204",
-    vec![SignedUint::from_str("-1000000").unwrap()],
+    vec![Int128::from_str("-1000000").unwrap()],
     None;
     "Existing short position"
 )]
 #[test_case(
     "1838102",
     "-1462546",
-    vec![SignedUint::from_str("500000").unwrap()],
+    vec![Int128::from_str("500000").unwrap()],
     None;
     "Existing long position"
 )]
@@ -83,7 +81,7 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
 fn asserting_health_factor(
     max_size_long: &str,
     max_size_short: &str,
-    perp_position_sizes: Vec<SignedUint>,
+    perp_position_sizes: Vec<Int128>,
     perp_params: Option<PerpParams>,
 ) {
     // inputs
@@ -97,8 +95,8 @@ fn asserting_health_factor(
     let base_denom_price = Decimal::one();
 
     // market state
-    let long_oi = SignedUint::from_str("100000000").unwrap();
-    let short_oi = SignedUint::from_str("500000000").unwrap();
+    let long_oi = Int128::from_str("100000000").unwrap();
+    let short_oi = Int128::from_str("500000000").unwrap();
     let skew = long_oi.checked_sub(short_oi).unwrap();
 
     // perp state
@@ -159,7 +157,7 @@ fn asserting_health_factor(
                         entry_price: entry_exec_price,
                         entry_exec_price,
                         entry_accrued_funding_per_unit_in_base_denom,
-                        initial_skew: SignedUint::zero(),
+                        initial_skew: Int128::zero(),
                         realized_pnl: Default::default(),
                     };
 
@@ -199,25 +197,25 @@ fn asserting_health_factor(
         .max_perp_size_estimate(
             &eth_perp_denom.clone(),
             &base_denom.clone(),
-            long_oi.abs,
-            short_oi.abs,
+            long_oi.unsigned_abs(),
+            short_oi.unsigned_abs(),
             &mars_rover_health_computer::Direction::Long,
         )
         .unwrap();
 
-    assert_eq!(result, SignedUint::from_str(max_size_long).unwrap());
+    assert_eq!(result, Int128::from_str(max_size_long).unwrap());
 
     let result = h
         .max_perp_size_estimate(
             &eth_perp_denom.clone(),
             &base_denom.clone(),
-            long_oi.abs,
-            short_oi.abs,
+            long_oi.unsigned_abs(),
+            short_oi.unsigned_abs(),
             &mars_rover_health_computer::Direction::Short,
         )
         .unwrap();
 
-    assert_eq!(result, SignedUint::from_str(max_size_short).unwrap());
+    assert_eq!(result, Int128::from_str(max_size_short).unwrap());
 }
 
 // COINS

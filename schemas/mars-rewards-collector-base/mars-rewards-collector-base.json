@@ -614,7 +614,7 @@
                     "type": "string"
                   },
                   "order_size": {
-                    "$ref": "#/definitions/SignedUint"
+                    "$ref": "#/definitions/Int128"
                   },
                   "reduce_only": {
                     "type": [
@@ -1212,6 +1212,10 @@
           "perp_vault"
         ]
       },
+      "Int128": {
+        "description": "An implementation of i128 that is using strings for JSON encoding/decoding, such that the full i128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `i128` to get the value out:\n\n``` # use cosmwasm_std::Int128; let a = Int128::from(258i128); assert_eq!(a.i128(), 258); ```",
+        "type": "string"
+      },
       "LiquidateRequest_for_VaultBase_for_String": {
         "oneOf": [
           {
@@ -1418,21 +1422,6 @@
             ]
           }
         ]
-      },
-      "SignedUint": {
-        "type": "object",
-        "required": [
-          "abs",
-          "negative"
-        ],
-        "properties": {
-          "abs": {
-            "$ref": "#/definitions/Uint128"
-          },
-          "negative": {
-            "type": "boolean"
-          }
-        }
       },
       "SwapperRoute": {
         "oneOf": [

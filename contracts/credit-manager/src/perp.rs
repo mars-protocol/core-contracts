@@ -1,10 +1,9 @@
 use cosmwasm_std::{
-    coin, ensure_eq, BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128,
+    coin, ensure_eq, BankMsg, Coin, CosmosMsg, DepsMut, Env, Int128, MessageInfo, Response, Uint128,
 };
 use mars_types::{
     oracle::ActionKind,
     perps::{PnL, PnlAmounts},
-    signed_uint::SignedUint,
 };
 
 use crate::{
@@ -55,7 +54,7 @@ pub fn execute_perp_order(
     mut deps: DepsMut,
     account_id: &str,
     denom: &str,
-    order_size: SignedUint,
+    order_size: Int128,
     reduce_only: Option<bool>,
 ) -> ContractResult<Response> {
     let perps = PERPS.load(deps.storage)?;

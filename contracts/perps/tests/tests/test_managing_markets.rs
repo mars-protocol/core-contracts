@@ -1,13 +1,11 @@
 use std::{collections::HashMap, str::FromStr};
 
-use cosmwasm_std::{coin, Addr, Decimal, Uint128};
+use cosmwasm_std::{coin, Addr, Decimal, Int128, SignedDecimal, Uint128};
 use mars_perps::{error::ContractError, market::SECONDS_IN_DAY};
 use mars_types::{
     error::MarsError,
-    math::SignedDecimal,
     params::{EmergencyUpdate, PerpParams, PerpParamsUpdate, PerpsEmergencyUpdate},
     perps::{Funding, MarketResponse, MarketState, MarketStateResponse},
-    signed_uint::SignedUint,
 };
 
 use super::helpers::MockEnv;
@@ -247,7 +245,7 @@ fn funding_change_accordingly_to_market_state_modification() {
         &credit_manager,
         "1",
         "ueth",
-        SignedUint::from_str("300").unwrap(),
+        Int128::from_str("300").unwrap(),
         None,
         &[],
     )

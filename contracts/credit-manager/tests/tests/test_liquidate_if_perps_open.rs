@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, coins, Addr, Decimal, Uint128};
+use cosmwasm_std::{coin, coins, Addr, Decimal, Int128, Uint128};
 use mars_mock_oracle::msg::CoinPrice;
 use mars_types::{
     credit_manager::{
@@ -10,7 +10,6 @@ use mars_types::{
     oracle::ActionKind,
     params::PerpParamsUpdate,
     perps::{PnL, PnlAmounts},
-    signed_uint::SignedUint,
 };
 
 use super::helpers::{get_coin, get_debt, uatom_info, uosmo_info, AccountToFund, MockEnv};
@@ -82,12 +81,12 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
             Borrow(uatom_info.to_coin(2400)),
             ExecutePerpOrder {
                 denom: uosmo_info.denom.clone(),
-                order_size: SignedUint::from_str("200").unwrap(),
+                order_size: Int128::from_str("200").unwrap(),
                 reduce_only: None,
             },
             ExecutePerpOrder {
                 denom: uatom_info.denom.clone(),
-                order_size: SignedUint::from_str("-400").unwrap(),
+                order_size: Int128::from_str("-400").unwrap(),
                 reduce_only: None,
             },
         ],
@@ -155,7 +154,7 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
     let position = mock.query_positions(&liquidatee_account_id);
     assert_eq!(position.deposits.len(), 3);
     let usdc_balance = get_coin("uusdc", &position.deposits);
-    assert_eq!(usdc_balance.amount, Uint128::new(21)); // initial usdc deposit - perps opening fees - perps loss
+    assert_eq!(usdc_balance.amount, Uint128::new(22)); // initial usdc deposit - perps opening fees - perps loss
     assert_eq!(usdc_balance.amount, usdc_deposit_before_liq.amount - loss_amt);
     let osmo_balance = get_coin("uosmo", &position.deposits);
     assert_eq!(osmo_balance.amount, Uint128::new(1912));
@@ -260,12 +259,12 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
             Borrow(uatom_info.to_coin(2400)),
             ExecutePerpOrder {
                 denom: uosmo_info.denom.clone(),
-                order_size: SignedUint::from_str("200").unwrap(),
+                order_size: Int128::from_str("200").unwrap(),
                 reduce_only: None,
             },
             ExecutePerpOrder {
                 denom: uatom_info.denom.clone(),
-                order_size: SignedUint::from_str("-400").unwrap(),
+                order_size: Int128::from_str("-400").unwrap(),
                 reduce_only: None,
             },
         ],
@@ -335,7 +334,7 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
     let position = mock.query_positions(&liquidatee_account_id);
     assert_eq!(position.debts.len(), 2);
     let usdc_debt = get_debt("uusdc", &position.debts);
-    assert_eq!(usdc_debt.amount, Uint128::new(130));
+    assert_eq!(usdc_debt.amount, Uint128::new(129));
     let atom_debt = get_debt("uatom", &position.debts);
     assert_eq!(atom_debt.amount, Uint128::new(2301));
 
@@ -444,12 +443,12 @@ fn close_perps_with_profit() {
             Borrow(uatom_info.to_coin(2400)),
             ExecutePerpOrder {
                 denom: uosmo_info.denom.clone(),
-                order_size: SignedUint::from_str("200").unwrap(),
+                order_size: Int128::from_str("200").unwrap(),
                 reduce_only: None,
             },
             ExecutePerpOrder {
                 denom: utia_info.denom.clone(),
-                order_size: SignedUint::from_str("-400").unwrap(),
+                order_size: Int128::from_str("-400").unwrap(),
                 reduce_only: None,
             },
         ],
@@ -527,7 +526,7 @@ fn close_perps_with_profit() {
     let position = mock.query_positions(&liquidatee_account_id);
     assert_eq!(position.deposits.len(), 3);
     let usdc_balance = get_coin("uusdc", &position.deposits);
-    assert_eq!(usdc_balance.amount, Uint128::new(93)); // initial usdc deposit - perps opening fees + perps profit
+    assert_eq!(usdc_balance.amount, Uint128::new(94)); // initial usdc deposit - perps opening fees + perps profit
     assert_eq!(usdc_balance.amount, usdc_deposit_before_liq.amount + profit_amt);
     let osmo_balance = get_coin("uosmo", &position.deposits);
     assert_eq!(osmo_balance.amount, Uint128::new(940));
@@ -631,7 +630,7 @@ fn liquidation_uses_correct_price_kind_if_perps_open() {
             Borrow(uatom_info.to_coin(2650)),
             ExecutePerpOrder {
                 denom: utia_info.denom.clone(),
-                order_size: SignedUint::from_str("-400").unwrap(),
+                order_size: Int128::from_str("-400").unwrap(),
                 reduce_only: None,
             },
         ],
