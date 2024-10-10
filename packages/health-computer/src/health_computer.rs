@@ -25,7 +25,7 @@ use mars_types::{
 use tsify::Tsify;
 
 use crate::{
-    utils::calculate_remaining_oi_value, CollateralValue, PerpHealthFactorValues, PerpPnlValues,
+    utils::calculate_remaining_oi_amount, CollateralValue, PerpHealthFactorValues, PerpPnlValues,
     PerpsData, VaultsData,
 };
 
@@ -570,7 +570,7 @@ impl HealthComputer {
         let ltv_p = perp_params.max_loan_to_value;
 
         // The max position change amount afforded by the open interest caps, in the given direction
-        let max_oi_change_amount = calculate_remaining_oi_value(
+        let max_oi_change_amount = calculate_remaining_oi_amount(
             long_oi_amount,
             short_oi_amount,
             perp_oracle_price,
