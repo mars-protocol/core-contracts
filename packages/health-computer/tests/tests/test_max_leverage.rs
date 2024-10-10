@@ -181,8 +181,8 @@ fn asserting_health_factor(
                         current_price: current_eth_perp_price,
                         size,
                         entry_price: Decimal::from_str("2000").unwrap(),
-                        realised_pnl: Default::default(),
-                        unrealised_pnl: pnl_amounts,
+                        realized_pnl: Default::default(),
+                        unrealized_pnl: pnl_amounts,
                     }
                 })
                 .collect(),

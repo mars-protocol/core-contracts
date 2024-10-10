@@ -85,7 +85,7 @@ fn perp_position_when_usdc_in_account() {
 
     // check perp position pnl
     let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position.unwrap();
-    let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
+    let loss_amt = pnl_loss(perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // close perp position
     mock.update_credit_account(
@@ -235,7 +235,7 @@ fn perp_position_when_not_enough_usdc_in_account() {
     // check perp position pnl
     let perp_position =
         mock.query_perp_position(&trader_account_id, &atom_info.denom).position.unwrap();
-    let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
+    let loss_amt = pnl_loss(perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // close perp position
     mock.update_credit_account(
@@ -369,7 +369,7 @@ fn perp_position_when_no_usdc_in_account() {
     // check perp position pnl
     let perp_position =
         mock.query_perp_position(&trader_account_id, &atom_info.denom).position.unwrap();
-    let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
+    let loss_amt = pnl_loss(perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // close perp position
     mock.update_credit_account(
@@ -473,7 +473,7 @@ fn close_perp_position_with_profit() {
     // check perp position pnl
     let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position.unwrap();
     let profit_amt =
-        pnl_profit(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
+        pnl_profit(perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // close perp position
     mock.update_credit_account(
@@ -572,7 +572,7 @@ fn increase_position_with_realized_pnl() {
         .position
         .unwrap();
     let profit_amt =
-        pnl_profit(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
+        pnl_profit(perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(
@@ -630,7 +630,7 @@ fn increase_position_with_realized_pnl() {
         )
         .position
         .unwrap();
-    let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
+    let loss_amt = pnl_loss(perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(
@@ -725,7 +725,7 @@ fn decrease_position_with_realized_pnl() {
         .position
         .unwrap();
     let profit_amt =
-        pnl_profit(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
+        pnl_profit(perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(
@@ -783,7 +783,7 @@ fn decrease_position_with_realized_pnl() {
         )
         .position
         .unwrap();
-    let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
+    let loss_amt = pnl_loss(perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(
@@ -881,7 +881,7 @@ fn flip_position_with_realized_pnl() {
         .position
         .unwrap();
     let profit_amt =
-        pnl_profit(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
+        pnl_profit(perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(
@@ -939,7 +939,7 @@ fn flip_position_with_realized_pnl() {
         )
         .position
         .unwrap();
-    let loss_amt = pnl_loss(perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl);
+    let loss_amt = pnl_loss(perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl);
 
     // modify perp position
     mock.update_credit_account(

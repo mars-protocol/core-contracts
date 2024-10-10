@@ -290,7 +290,7 @@ fn accounting() {
 }
 
 fn from_position_to_coin(pos: PerpPosition) -> Vec<Coin> {
-    if let PnL::Loss(coin) = pos.unrealised_pnl.to_coins(&pos.base_denom).pnl {
+    if let PnL::Loss(coin) = pos.unrealized_pnl.to_coins(&pos.base_denom).pnl {
         vec![coin]
     } else {
         vec![]

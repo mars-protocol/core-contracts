@@ -205,7 +205,7 @@ pub fn deleverage(
         .add_attribute("denom", denom)
         .add_attribute("cr_before", cr_before.to_string())
         .add_attribute("cr_after", cr_after.to_string())
-        .add_attribute("realised_pnl", pnl_amounts.pnl.to_string()))
+        .add_attribute("realized_pnl", pnl_amounts.pnl.to_string()))
 }
 
 /// Queries the current collateralization ratio (CR) from the vault

@@ -70,8 +70,8 @@ pub fn execute_perp_order(
     Ok(match position {
         Some(position) => {
             // Modify existing position
-            let pnl = position.unrealised_pnl.to_coins(&position.base_denom).pnl;
-            let pnl_string = position.unrealised_pnl.pnl.to_string();
+            let pnl = position.unrealized_pnl.to_coins(&position.base_denom).pnl;
+            let pnl_string = position.unrealized_pnl.pnl.to_string();
             let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
             let funds = funds.map_or_else(Vec::new, |c| vec![c]);
 
@@ -88,7 +88,7 @@ pub fn execute_perp_order(
                 .add_attribute("action", "execute_perp_order")
                 .add_attribute("account_id", account_id)
                 .add_attribute("denom", denom)
-                .add_attribute("realised_pnl", pnl_string)
+                .add_attribute("realized_pnl", pnl_string)
                 .add_attribute("reduce_only", reduce_only.unwrap_or(false).to_string())
                 .add_attribute("order_size", order_size.to_string())
                 .add_attribute("new_size", position.size.checked_add(order_size)?.to_string())
@@ -144,7 +144,7 @@ pub fn close_all_perps(
 
     let mut pnl_amounts_accumulator = PnlAmounts::default();
     for position in &perp_positions {
-        pnl_amounts_accumulator.add(&position.unrealised_pnl)?;
+        pnl_amounts_accumulator.add(&position.unrealized_pnl)?;
     }
 
     // base denom is the same for all perp positions
@@ -235,5 +235,5 @@ pub fn update_balance_after_deleverage(
         .add_messages(msgs)
         .add_attribute("action", "update_balance_after_deleverage")
         .add_attribute("account_id", account_id)
-        .add_attribute("realised_pnl", pnl_string))
+        .add_attribute("realized_pnl", pnl_string))
 }

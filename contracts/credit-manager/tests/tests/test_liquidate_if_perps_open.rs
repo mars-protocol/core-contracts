@@ -124,8 +124,8 @@ fn close_perps_when_enough_usdc_in_account_to_cover_loss() {
     let uatom_perp_position =
         mock.query_perp_position(&liquidatee_account_id, &uatom_info.denom).position.unwrap();
     let mut pnl_amounts_acc = PnlAmounts::default();
-    pnl_amounts_acc.add(&uosmo_perp_position.unrealised_pnl).unwrap();
-    pnl_amounts_acc.add(&uatom_perp_position.unrealised_pnl).unwrap();
+    pnl_amounts_acc.add(&uosmo_perp_position.unrealized_pnl).unwrap();
+    pnl_amounts_acc.add(&uatom_perp_position.unrealized_pnl).unwrap();
     let pnl_before_liq = pnl_amounts_acc.to_coins(&uusdc_info.denom).pnl;
     let loss_amt = pnl_loss(pnl_before_liq);
 
@@ -304,8 +304,8 @@ fn close_perps_when_not_enough_usdc_in_account_to_cover_loss() {
     let uatom_perp_position =
         mock.query_perp_position(&liquidatee_account_id, &uatom_info.denom).position.unwrap();
     let mut pnl_amounts_acc = PnlAmounts::default();
-    pnl_amounts_acc.add(&uosmo_perp_position.unrealised_pnl).unwrap();
-    pnl_amounts_acc.add(&uatom_perp_position.unrealised_pnl).unwrap();
+    pnl_amounts_acc.add(&uosmo_perp_position.unrealized_pnl).unwrap();
+    pnl_amounts_acc.add(&uatom_perp_position.unrealized_pnl).unwrap();
     let pnl_before_liq = pnl_amounts_acc.to_coins(&uusdc_info.denom).pnl;
     let loss_amt = pnl_loss(pnl_before_liq);
 
@@ -496,8 +496,8 @@ fn close_perps_with_profit() {
     let utia_perp_position =
         mock.query_perp_position(&liquidatee_account_id, &utia_info.denom).position.unwrap();
     let mut pnl_amounts_acc = PnlAmounts::default();
-    pnl_amounts_acc.add(&uosmo_perp_position.unrealised_pnl).unwrap();
-    pnl_amounts_acc.add(&utia_perp_position.unrealised_pnl).unwrap();
+    pnl_amounts_acc.add(&uosmo_perp_position.unrealized_pnl).unwrap();
+    pnl_amounts_acc.add(&utia_perp_position.unrealized_pnl).unwrap();
     let pnl_before_liq = pnl_amounts_acc.to_coins(&uusdc_info.denom).pnl;
     let profit_amt = pnl_profit(pnl_before_liq);
 

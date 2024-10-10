@@ -1347,7 +1347,7 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
         HashMap::from([(uusd.denom.clone(), uusd.price), (btcperp.denom.clone(), btcperp.price)]);
 
     let vaults_data = Default::default();
-    let unrealised_funding_accrued = Int128::from_str("-25210000").unwrap();
+    let unrealized_funding_accrued = Int128::from_str("-25210000").unwrap();
     let perps_data = PerpsData {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
@@ -1370,12 +1370,12 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PnlAmounts {
-                    accrued_funding: unrealised_funding_accrued,
+                unrealized_pnl: PnlAmounts {
+                    accrued_funding: unrealized_funding_accrued,
                     pnl: Int128::from_str("-24790000").unwrap(),
                     ..Default::default()
                 },
-                realised_pnl: PnlAmounts::default(),
+                realized_pnl: PnlAmounts::default(),
             }],
         },
         oracle_prices,
@@ -1423,7 +1423,7 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
     let vaults_data = Default::default();
-    let unrealised_funding_accrued = Int128::from_str("15210000").unwrap();
+    let unrealized_funding_accrued = Int128::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -1443,12 +1443,12 @@ fn long_one_positive_pnl_perp_no_spot_debt() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PnlAmounts {
-                    accrued_funding: unrealised_funding_accrued,
+                unrealized_pnl: PnlAmounts {
+                    accrued_funding: unrealized_funding_accrued,
                     pnl: Int128::from_str("-24790000").unwrap(),
                     ..Default::default()
                 },
-                realised_pnl: PnlAmounts::default(),
+                realized_pnl: PnlAmounts::default(),
             }],
         },
         asset_params,
@@ -1491,7 +1491,7 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
     let perps_data = PerpsData {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
-    let unrealised_funding_accrued = Int128::from_str("15210000").unwrap();
+    let unrealized_funding_accrued = Int128::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -1511,12 +1511,12 @@ fn one_short_negative_pnl_perp_no_spot_debt() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PnlAmounts {
-                    accrued_funding: unrealised_funding_accrued,
+                unrealized_pnl: PnlAmounts {
+                    accrued_funding: unrealized_funding_accrued,
                     pnl: Int128::from_str("-55000000").unwrap(),
                     ..Default::default()
                 },
-                realised_pnl: PnlAmounts::default(),
+                realized_pnl: PnlAmounts::default(),
             }],
         },
         oracle_prices,
@@ -1595,7 +1595,7 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
 
-    let unrealised_funding_accrued = Int128::zero();
+    let unrealized_funding_accrued = Int128::zero();
 
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -1619,12 +1619,12 @@ fn one_short_negative_pnl_perp_vault_collateral_no_spot_debt() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size: Int128::from_str("-10000000").unwrap(),
-                unrealised_pnl: PnlAmounts {
-                    accrued_funding: unrealised_funding_accrued,
+                unrealized_pnl: PnlAmounts {
+                    accrued_funding: unrealized_funding_accrued,
                     pnl: Int128::from_str("-55000000").unwrap(),
                     ..Default::default()
                 },
-                realised_pnl: PnlAmounts::default(),
+                realized_pnl: PnlAmounts::default(),
             }],
         },
         oracle_prices,
@@ -1674,7 +1674,7 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
     let perps_data = PerpsData {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
-    let unrealised_funding_accrued = Int128::from_str("15210000").unwrap();
+    let unrealized_funding_accrued = Int128::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -1694,12 +1694,12 @@ fn one_short_positive_pnl_perp_no_spot_debt() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PnlAmounts {
-                    accrued_funding: unrealised_funding_accrued,
+                unrealized_pnl: PnlAmounts {
+                    accrued_funding: unrealized_funding_accrued,
                     pnl: Int128::from_str("-55000000").unwrap(),
                     ..Default::default()
                 },
-                realised_pnl: PnlAmounts::default(),
+                realized_pnl: PnlAmounts::default(),
             }],
         },
         oracle_prices,
@@ -1769,8 +1769,8 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
             (ethperp.denom.clone(), ethperp.perp_params.clone()),
         ]),
     };
-    let unrealised_funding_accrued_btc = Int128::from_str("15210000").unwrap();
-    let unrealised_funding_accrued_eth = Int128::from_str("-12650000").unwrap();
+    let unrealized_funding_accrued_btc = Int128::from_str("15210000").unwrap();
+    let unrealized_funding_accrued_eth = Int128::from_str("-12650000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -1792,12 +1792,12 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                     current_exec_price: current_price_btc,
                     size: size_btc,
                     // pnl is not used for calculating
-                    unrealised_pnl: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued_btc,
+                    unrealized_pnl: PnlAmounts {
+                        accrued_funding: unrealized_funding_accrued_btc,
                         pnl: Int128::zero(),
                         ..Default::default()
                     },
-                    realised_pnl: PnlAmounts::default(),
+                    realized_pnl: PnlAmounts::default(),
                 },
                 PerpPosition {
                     denom: ethperp.denom,
@@ -1808,12 +1808,12 @@ fn perps_one_short_negative_pnl_one_long_negative_pnl_no_spot_debt() {
                     current_exec_price: current_price_eth,
                     size: size_eth,
                     // pnl is not used for calculating
-                    unrealised_pnl: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued_eth,
+                    unrealized_pnl: PnlAmounts {
+                        accrued_funding: unrealized_funding_accrued_eth,
                         pnl: Int128::zero(),
                         ..Default::default()
                     },
-                    realised_pnl: PnlAmounts::default(),
+                    realized_pnl: PnlAmounts::default(),
                 },
             ],
         },
@@ -1884,8 +1884,8 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
             (ethperp.denom.clone(), ethperp.perp_params.clone()),
         ]),
     };
-    let unrealised_funding_accrued_btc = Int128::from_str("15210000").unwrap();
-    let unrealised_funding_accrued_eth = Int128::from_str("-12650000").unwrap();
+    let unrealized_funding_accrued_btc = Int128::from_str("15210000").unwrap();
+    let unrealized_funding_accrued_eth = Int128::from_str("-12650000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -1907,12 +1907,12 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                     current_exec_price: current_price_btc,
                     size: size_btc,
                     // pnl is not used for calculating
-                    unrealised_pnl: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued_btc,
+                    unrealized_pnl: PnlAmounts {
+                        accrued_funding: unrealized_funding_accrued_btc,
                         pnl: Int128::zero(),
                         ..Default::default()
                     },
-                    realised_pnl: PnlAmounts::default(),
+                    realized_pnl: PnlAmounts::default(),
                 },
                 PerpPosition {
                     denom: ethperp.denom,
@@ -1923,12 +1923,12 @@ fn perps_one_short_negative_pnl_one_long_positive_pnl_no_spot_debt() {
                     current_exec_price: current_price_eth,
                     size: size_eth,
                     // pnl is not used for calculating
-                    unrealised_pnl: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued_eth,
+                    unrealized_pnl: PnlAmounts {
+                        accrued_funding: unrealized_funding_accrued_eth,
                         pnl: Int128::zero(),
                         ..Default::default()
                     },
-                    realised_pnl: PnlAmounts::default(),
+                    realized_pnl: PnlAmounts::default(),
                 },
             ],
         },
@@ -1989,7 +1989,7 @@ fn perp_short_delta_neutral_with_btc_collateral() {
     let perps_data = PerpsData {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
-    let unrealised_funding_accrued = Int128::from_str("15210000").unwrap();
+    let unrealized_funding_accrued = Int128::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -2009,12 +2009,12 @@ fn perp_short_delta_neutral_with_btc_collateral() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PnlAmounts {
-                    accrued_funding: unrealised_funding_accrued,
+                unrealized_pnl: PnlAmounts {
+                    accrued_funding: unrealized_funding_accrued,
                     pnl: Int128::zero(),
                     ..Default::default()
                 },
-                realised_pnl: PnlAmounts::default(),
+                realized_pnl: PnlAmounts::default(),
             }],
         },
         oracle_prices,
@@ -2075,7 +2075,7 @@ fn spot_short_delta_neutral_with_leverage() {
         params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
     };
 
-    let unrealised_funding_accrued = Int128::from_str("15210000").unwrap();
+    let unrealized_funding_accrued = Int128::from_str("15210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -2099,12 +2099,12 @@ fn spot_short_delta_neutral_with_leverage() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PnlAmounts {
-                    accrued_funding: unrealised_funding_accrued,
+                unrealized_pnl: PnlAmounts {
+                    accrued_funding: unrealized_funding_accrued,
                     pnl: Int128::zero(),
                     ..Default::default()
                 },
-                realised_pnl: PnlAmounts::default(),
+                realized_pnl: PnlAmounts::default(),
             }],
         },
         oracle_prices,
@@ -2210,7 +2210,7 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
         ]),
     };
 
-    let unrealised_funding_accrued = Int128::from_str("1234").unwrap();
+    let unrealized_funding_accrued = Int128::from_str("1234").unwrap();
     let base_denom = uusd.denom.clone();
     let h = HealthComputer {
         kind: AccountKind::Default,
@@ -2236,12 +2236,12 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                     entry_exec_price: Decimal::try_from(entry_price_btc).unwrap(),
                     current_exec_price: Decimal::try_from(current_price_btc).unwrap(),
                     size: btc_size,
-                    unrealised_pnl: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued,
+                    unrealized_pnl: PnlAmounts {
+                        accrued_funding: unrealized_funding_accrued,
                         pnl: raw_pnl_btc,
                         ..Default::default()
                     },
-                    realised_pnl: PnlAmounts::default(),
+                    realized_pnl: PnlAmounts::default(),
                 },
                 PerpPosition {
                     denom: ethperp.denom,
@@ -2251,12 +2251,12 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                     entry_exec_price: Decimal::try_from(entry_price_eth).unwrap(),
                     current_exec_price: Decimal::try_from(current_price_eth).unwrap(),
                     size: eth_size,
-                    unrealised_pnl: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued,
+                    unrealized_pnl: PnlAmounts {
+                        accrued_funding: unrealized_funding_accrued,
                         pnl: raw_pnl_eth,
                         ..Default::default()
                     },
-                    realised_pnl: PnlAmounts::default(),
+                    realized_pnl: PnlAmounts::default(),
                 },
                 PerpPosition {
                     denom: atomperp.denom,
@@ -2266,12 +2266,12 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
                     entry_exec_price: Decimal::try_from(entry_price_atom).unwrap(),
                     current_exec_price: Decimal::try_from(current_price_atom).unwrap(),
                     size: atom_size,
-                    unrealised_pnl: PnlAmounts {
-                        accrued_funding: unrealised_funding_accrued,
+                    unrealized_pnl: PnlAmounts {
+                        accrued_funding: unrealized_funding_accrued,
                         pnl: raw_pnl_atom,
                         ..Default::default()
                     },
-                    realised_pnl: PnlAmounts::default(),
+                    realized_pnl: PnlAmounts::default(),
                 },
             ],
         },
@@ -2321,7 +2321,7 @@ fn single_perp_funding_greater_than_pnl() {
     };
 
     let vaults_data = Default::default();
-    let unrealised_funding_accrued = Int128::from_str("1225210000").unwrap();
+    let unrealized_funding_accrued = Int128::from_str("1225210000").unwrap();
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -2340,12 +2340,12 @@ fn single_perp_funding_greater_than_pnl() {
                 entry_exec_price: entry_price,
                 current_exec_price: current_price,
                 size,
-                unrealised_pnl: PnlAmounts {
-                    accrued_funding: unrealised_funding_accrued,
+                unrealized_pnl: PnlAmounts {
+                    accrued_funding: unrealized_funding_accrued,
                     pnl: Int128::from_str("-24790000").unwrap(),
                     ..Default::default()
                 },
-                realised_pnl: PnlAmounts::default(),
+                realized_pnl: PnlAmounts::default(),
             }],
         },
         oracle_prices,

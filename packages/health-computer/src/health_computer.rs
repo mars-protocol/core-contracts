@@ -86,7 +86,7 @@ impl HealthComputer {
             // HF = (RWA + perp_numerator) / (spot_debt + perp_denominator)
             // where
             // RWA = risk weighted assets (i.e ltv * collateral_value)
-            // spot debt = total value of borrowed assets (does not include perp unrealised pnl)
+            // spot debt = total value of borrowed assets (does not include perp unrealized pnl)
 
             let max_ltv_hf = Decimal::checked_from_ratio(ltv_numerator, ltv_denominator)?;
             let liq_hf = Decimal::checked_from_ratio(
@@ -586,7 +586,7 @@ impl HealthComputer {
         let k = Int128::try_from(long_oi_amount)?.checked_sub(short_oi_amount.try_into()?)?;
 
         let (
-            // Current unrealised funding
+            // Current unrealized funding
             f_amount,
             // Current size,
             q_old,
@@ -598,7 +598,7 @@ impl HealthComputer {
             .iter()
             .find(|&x| x.denom == *denom)
             .map_or((Int128::zero(), Int128::zero(), Decimal::zero()), |f| {
-                (f.unrealised_pnl.accrued_funding, f.size, f.entry_exec_price)
+                (f.unrealized_pnl.accrued_funding, f.size, f.entry_exec_price)
             });
 
         let p_ex = closing_execution_price(k, skew_scale, q_old, perp_oracle_price)?;
@@ -807,7 +807,7 @@ impl HealthComputer {
 
         for position in perps.iter() {
             // Update our pnl values
-            match &position.unrealised_pnl.to_coins(&position.base_denom).pnl {
+            match &position.unrealized_pnl.to_coins(&position.base_denom).pnl {
                 PnL::Profit(pnl) => profit = profit.checked_add(pnl.amount)?,
                 PnL::Loss(pnl) => loss = loss.checked_add(pnl.amount)?,
                 _ => {}
@@ -1249,14 +1249,14 @@ impl HealthComputer {
         &self,
         position: &PerpPosition,
     ) -> HealthResult<(Uint128, Uint128)> {
-        let accrued_funding_amount = position.unrealised_pnl.accrued_funding;
+        let accrued_funding_amount = position.unrealized_pnl.accrued_funding;
 
-        // funding_max = max(0, unrealised_funding_accrued)
+        // funding_max = max(0, unrealized_funding_accrued)
         let funding_max = max(Int128::zero(), accrued_funding_amount);
         // safe to use Uint128 because of the max function above
         let funding_max = funding_max.unsigned_abs();
 
-        // funding min = -min(0, unrealised_funding_accrued)
+        // funding min = -min(0, unrealized_funding_accrued)
         let funding_min = if accrued_funding_amount.is_negative() {
             accrued_funding_amount.unsigned_abs()
         } else {

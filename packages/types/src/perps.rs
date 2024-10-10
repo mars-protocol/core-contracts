@@ -342,8 +342,8 @@ pub struct PerpPosition {
     pub current_price: Decimal,
     pub entry_exec_price: Decimal,
     pub current_exec_price: Decimal,
-    pub unrealised_pnl: PnlAmounts,
-    pub realised_pnl: PnlAmounts,
+    pub unrealized_pnl: PnlAmounts,
+    pub realized_pnl: PnlAmounts,
 }
 
 /// The profit-and-loss of a perp position, denominated in the base currency.

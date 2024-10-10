@@ -479,9 +479,9 @@
         "denom",
         "entry_exec_price",
         "entry_price",
-        "realised_pnl",
+        "realized_pnl",
         "size",
-        "unrealised_pnl"
+        "unrealized_pnl"
       ],
       "properties": {
         "base_denom": {
@@ -502,13 +502,13 @@
         "entry_price": {
           "$ref": "#/definitions/Decimal"
         },
-        "realised_pnl": {
+        "realized_pnl": {
           "$ref": "#/definitions/PnlAmounts"
         },
         "size": {
           "$ref": "#/definitions/Int128"
         },
-        "unrealised_pnl": {
+        "unrealized_pnl": {
           "$ref": "#/definitions/PnlAmounts"
         }
       },

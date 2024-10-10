@@ -461,8 +461,8 @@ fn random_perps(perp_denoms_data: PerpsData) -> impl Strategy<Value = Vec<PerpPo
                         entry_price,
                         entry_exec_price: entry_price,
                         current_exec_price: market_price,
-                        unrealised_pnl: pnl_amounts,
-                        realised_pnl: PnlAmounts::default(),
+                        unrealized_pnl: pnl_amounts,
+                        realized_pnl: PnlAmounts::default(),
                     }
                 },
             ),

@@ -175,9 +175,9 @@ fn verify_accounting_with_input_actions() {
                 let pos_res =
                     mock.query_position_with_order_size(account_id, denom, Some(*order_size));
                 let funds = if let Some(pos) = pos_res.position {
-                    if pos.unrealised_pnl.pnl < Int128::zero() {
+                    if pos.unrealized_pnl.pnl < Int128::zero() {
                         let fund =
-                            coin(pos.unrealised_pnl.pnl.unsigned_abs().u128(), pos.base_denom);
+                            coin(pos.unrealized_pnl.pnl.unsigned_abs().u128(), pos.base_denom);
                         vec![fund]
                     } else {
                         vec![]

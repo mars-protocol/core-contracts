@@ -335,7 +335,7 @@ fn deleverage(
 
     // check unrealized pnl
     let perp_position = mock.query_perp_position(acc_to_close, &denom_to_close).position.unwrap();
-    let pnl = perp_position.unrealised_pnl.to_coins(&perp_position.base_denom).pnl;
+    let pnl = perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl;
     let mut pnl_profit = Uint128::zero();
     let mut pnl_loss = Uint128::zero();
     match pnl.clone() {

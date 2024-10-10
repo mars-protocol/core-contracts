@@ -1024,7 +1024,7 @@ fn modify_position_realises_pnl() {
     let atom_opening_fee_for_increase =
         mock.query_opening_fee("uatom", Int128::from_str("100").unwrap()).fee;
 
-    // modify and verify that our pnl is realised
+    // modify and verify that our pnl is realized
     mock.execute_perp_order(
         &credit_manager,
         "1",
@@ -1042,7 +1042,7 @@ fn modify_position_realises_pnl() {
         Int128::zero().checked_sub(atom_opening_fee_total.try_into().unwrap()).unwrap(); // make it negative because it's a cost
     assert_eq!(atom_opening_fee_total, Int128::from_str("-43").unwrap());
     assert_eq!(
-        position.position.unwrap().realised_pnl,
+        position.position.unwrap().realized_pnl,
         PnlAmounts {
             accrued_funding: Int128::zero(),
             price_pnl: Int128::from_str("300").unwrap(),
@@ -1069,7 +1069,7 @@ fn modify_position_realises_pnl() {
     let position = mock.query_position("1", "uatom");
 
     assert_eq!(
-        position.position.unwrap().realised_pnl,
+        position.position.unwrap().realized_pnl,
         PnlAmounts {
             accrued_funding: Int128::zero(),
             price_pnl: Int128::from_str("100").unwrap(),
@@ -1277,8 +1277,8 @@ fn should_reduce_when_reduce_only_true() {
     let atom_closing_fee_long: PositionFeesResponse =
         mock.query_position_fees("2", denom, new_long_size);
 
-    let long_pnl_losses = if long_position.unrealised_pnl.price_pnl.is_negative() {
-        long_position.unrealised_pnl.price_pnl.unsigned_abs()
+    let long_pnl_losses = if long_position.unrealized_pnl.price_pnl.is_negative() {
+        long_position.unrealized_pnl.price_pnl.unsigned_abs()
     } else {
         Uint128::zero()
     };
@@ -1304,8 +1304,8 @@ fn should_reduce_when_reduce_only_true() {
     assert_eq!(short_position.size, size_short_position);
     assert_eq!(short_position.denom, denom);
 
-    let short_pnl_losses = if short_position.unrealised_pnl.price_pnl.is_negative() {
-        short_position.unrealised_pnl.price_pnl.unsigned_abs()
+    let short_pnl_losses = if short_position.unrealized_pnl.price_pnl.is_negative() {
+        short_position.unrealized_pnl.price_pnl.unsigned_abs()
     } else {
         Uint128::zero()
     };
@@ -1410,8 +1410,8 @@ fn shouldnt_increase_when_reduce_only_true() {
     let atom_closing_fee_long: PositionFeesResponse =
         mock.query_position_fees("2", denom, new_long_size);
 
-    let long_pnl_losses = if long_position.unrealised_pnl.price_pnl.is_negative() {
-        long_position.unrealised_pnl.price_pnl.unsigned_abs()
+    let long_pnl_losses = if long_position.unrealized_pnl.price_pnl.is_negative() {
+        long_position.unrealized_pnl.price_pnl.unsigned_abs()
     } else {
         Uint128::zero()
     };
@@ -1658,8 +1658,8 @@ fn flip_position_when_reduce_only_true() {
     let atom_closing_fee_long: PositionFeesResponse =
         mock.query_position_fees("2", denom, new_long_size);
 
-    let long_pnl_losses = if long_position.unrealised_pnl.price_pnl.is_negative() {
-        long_position.unrealised_pnl.price_pnl.unsigned_abs()
+    let long_pnl_losses = if long_position.unrealized_pnl.price_pnl.is_negative() {
+        long_position.unrealized_pnl.price_pnl.unsigned_abs()
     } else {
         Uint128::zero()
     };
@@ -1685,8 +1685,8 @@ fn flip_position_when_reduce_only_true() {
     assert_eq!(short_position.size, size_short_position);
     assert_eq!(short_position.denom, denom);
 
-    let short_pnl_losses = if short_position.unrealised_pnl.price_pnl.is_negative() {
-        short_position.unrealised_pnl.price_pnl.unsigned_abs()
+    let short_pnl_losses = if short_position.unrealized_pnl.price_pnl.is_negative() {
+        short_position.unrealized_pnl.price_pnl.unsigned_abs()
     } else {
         Uint128::zero()
     };
@@ -2126,9 +2126,9 @@ fn close_all_positions(
 
     // compute funds to be sent to close all positions
     let mut pnl_amounts_acc = PnlAmounts::default();
-    pnl_amounts_acc.add(&atom_pos_before_close.unrealised_pnl).unwrap();
-    pnl_amounts_acc.add(&ntrn_pos_before_close.unrealised_pnl).unwrap();
-    pnl_amounts_acc.add(&osmo_pos_before_close.unrealised_pnl).unwrap();
+    pnl_amounts_acc.add(&atom_pos_before_close.unrealized_pnl).unwrap();
+    pnl_amounts_acc.add(&ntrn_pos_before_close.unrealized_pnl).unwrap();
+    pnl_amounts_acc.add(&osmo_pos_before_close.unrealized_pnl).unwrap();
 
     let pnl = pnl_amounts_acc.to_coins("uusdc").pnl;
     let funds = match pnl.clone() {
@@ -2148,20 +2148,20 @@ fn close_all_positions(
     // realized pnl after closing position is equal to opening fee paid (included in realized pnl before closing position) + unrealized pnl
     let atom_realized_pnl = mock.query_realized_pnl_by_account_and_market("1", "uatom");
     let mut atom_pnl = PnlAmounts::default();
-    atom_pnl.add(&atom_pos_before_close.unrealised_pnl).unwrap();
-    atom_pnl.add(&atom_pos_before_close.realised_pnl).unwrap();
+    atom_pnl.add(&atom_pos_before_close.unrealized_pnl).unwrap();
+    atom_pnl.add(&atom_pos_before_close.realized_pnl).unwrap();
     assert_eq!(atom_realized_pnl, atom_pnl);
 
     let ntrn_realized_pnl = mock.query_realized_pnl_by_account_and_market("1", "untrn");
     let mut ntrn_pnl = PnlAmounts::default();
-    ntrn_pnl.add(&ntrn_pos_before_close.unrealised_pnl).unwrap();
-    ntrn_pnl.add(&ntrn_pos_before_close.realised_pnl).unwrap();
+    ntrn_pnl.add(&ntrn_pos_before_close.unrealized_pnl).unwrap();
+    ntrn_pnl.add(&ntrn_pos_before_close.realized_pnl).unwrap();
     assert_eq!(ntrn_realized_pnl, ntrn_pnl);
 
     let osmo_realized_pnl = mock.query_realized_pnl_by_account_and_market("1", "uosmo");
     let mut osmo_pnl = PnlAmounts::default();
-    osmo_pnl.add(&osmo_pos_before_close.unrealised_pnl).unwrap();
-    osmo_pnl.add(&osmo_pos_before_close.realised_pnl).unwrap();
+    osmo_pnl.add(&osmo_pos_before_close.unrealized_pnl).unwrap();
+    osmo_pnl.add(&osmo_pos_before_close.realized_pnl).unwrap();
     assert_eq!(osmo_realized_pnl, osmo_pnl);
 
     // calculate user total realized pnl

@@ -296,9 +296,9 @@ export interface PerpPosition {
   denom: string
   entry_exec_price: Decimal
   entry_price: Decimal
-  realised_pnl: PnlAmounts
+  realized_pnl: PnlAmounts
   size: Int128
-  unrealised_pnl: PnlAmounts
+  unrealized_pnl: PnlAmounts
 }
 export interface PositionFeesResponse {
   base_denom: string

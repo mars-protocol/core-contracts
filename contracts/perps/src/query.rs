@@ -310,8 +310,8 @@ pub fn query_position(
             current_price: denom_price,
             entry_exec_price: position.entry_exec_price,
             current_exec_price: exit_exec_price,
-            unrealised_pnl: pnl_amounts,
-            realised_pnl: position.realized_pnl,
+            unrealized_pnl: pnl_amounts,
+            realized_pnl: position.realized_pnl,
         }),
     })
 }
@@ -398,8 +398,8 @@ pub fn query_positions(
                     current_price,
                     entry_exec_price: position.entry_exec_price,
                     current_exec_price: exit_exec_price,
-                    unrealised_pnl: pnl_amounts,
-                    realised_pnl: position.realized_pnl,
+                    unrealized_pnl: pnl_amounts,
+                    realized_pnl: position.realized_pnl,
                 }),
             })
         })
@@ -477,8 +477,8 @@ pub fn query_positions_by_account(
                 current_price: denom_price,
                 entry_exec_price: position.entry_exec_price,
                 current_exec_price: exit_exec_price,
-                unrealised_pnl: pnl_amounts,
-                realised_pnl: position.realized_pnl,
+                unrealized_pnl: pnl_amounts,
+                realized_pnl: position.realized_pnl,
             })
         })
         .collect::<ContractResult<Vec<_>>>()?;
