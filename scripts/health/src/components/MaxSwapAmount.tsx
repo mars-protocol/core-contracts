@@ -15,6 +15,7 @@ export default function MaxSwapAmount(props: Props) {
   const [fromDenom, setFromDenom] = useState('')
   const [toDenom, setToDenom] = useState('')
   const [swapKind, setSwapKind] = useState<SwapKind>('default')
+  const [repayingDebt, setRepayingDebt] = useState('false')
   const [slippage, setSlippage] = useState('0.05')
 
   const onConfirm = useCallback(() => {
@@ -26,12 +27,13 @@ export default function MaxSwapAmount(props: Props) {
         toDenom,
         swapKind,
         slippage,
+        repayingDebt === 'true',
       )
       setAmount(amount)
     } catch (e) {
       setError((e as string).toString())
     }
-  }, [fromDenom, props.healthComputer, slippage, swapKind, toDenom])
+  }, [fromDenom, props.healthComputer, slippage, swapKind, toDenom, repayingDebt])
 
   return (
     <div className='gap-4 flex flex-col items-start bg-black p-8 rounded-md'>
@@ -42,6 +44,12 @@ export default function MaxSwapAmount(props: Props) {
         options={['default', 'margin']}
         value={swapKind}
         onSelected={setSwapKind}
+      />
+      <Select
+        label='Repaying debt'
+        options={['false', 'true']}
+        value={repayingDebt}
+        onSelected={setRepayingDebt}
       />
       <Input label='Slippage' value={slippage} onChange={setSlippage} />
 

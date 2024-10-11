@@ -1,51 +1,40 @@
 import BigNumber from 'bignumber.js'
 import useSWR from 'swr'
 import useChainConfig from './useChainConfig'
+import useClients from './useClients.ts'
+import { MarsOracleWasmQueryClient } from '../../../types/generated/mars-oracle-wasm/MarsOracleWasm.client.ts'
+import { ArrayOfPriceResponse } from '../../../types/generated/mars-oracle-osmosis/MarsOracleOsmosis.types.ts'
+
+const LIMIT = 10
+BigNumber.config({ EXPONENTIAL_AT: 1e9 })
 
 export default function usePrices() {
   const chainConfig = useChainConfig()
+  const clients = useClients()
 
-  return useSWR(`chains/${chainConfig.chain}/prices`, () => fetchPythPrices(chainConfig.pythAssets))
+  return useSWR(clients && `chains/${chainConfig.chain}/prices`, () => {
+    if (!clients?.oracle) return
+    return getOraclePrices(clients.oracle)
+  })
 }
 
-BigNumber.config({ EXPONENTIAL_AT: 1e9 })
+async function getOraclePrices(
+  oracleClient: MarsOracleWasmQueryClient,
+  previousPrices: ArrayOfPriceResponse = [],
+): Promise<{ [key: string]: string }> {
+  const startAfter = previousPrices.at(-1)?.denom
+  const response = await oracleClient.prices({ limit: LIMIT, startAfter })
 
-async function fetchPythPrices(assets: Asset[]) {
-  const pricesUrl = new URL(`https://hermes.pyth.network/api/latest_price_feeds`)
-  assets.forEach((asset) => pricesUrl.searchParams.append('ids[]', asset.priceFeedId))
+  previousPrices = previousPrices.concat(response)
 
-  const pythResponse: PythPriceData[] = await fetch(pricesUrl).then((res) => res.json())
+  if (Object.keys(response).length === LIMIT) {
+    return getOraclePrices(oracleClient, previousPrices)
+  }
 
   const prices: { [key: string]: string } = {}
-
-  const VALUE_SCALE_FACTOR = 12
-
-  pythResponse.forEach((price, index) => {
-    prices[assets[index].denom] = BigNumber(price.price.price)
-      .shiftedBy(VALUE_SCALE_FACTOR)
-      .shiftedBy(price.price.expo - assets[index].decimals + 6)
-      .decimalPlaces(18)
-      .toString()
+  previousPrices.forEach((price) => {
+    prices[price.denom] = price.price
   })
 
   return prices
-}
-
-interface PythPriceData {
-  price: PythConfidenceData
-  ema_price: PythConfidenceData
-  id: string
-}
-
-interface PythConfidenceData {
-  conf: string
-  expo: number
-  price: string
-  publish_time: number
-}
-
-type Asset = {
-  denom: string
-  priceFeedId: string
-  decimals: number
 }
