@@ -579,7 +579,7 @@ impl HealthComputer {
         )?;
 
         if max_oi_change_amount.is_zero() {
-            return Ok(max_oi_change_amount);
+            return Ok(Int128::zero());
         }
 
         // Current skew
@@ -720,8 +720,8 @@ impl HealthComputer {
             .to_signed_uint()?;
 
         // Cap our size by remaining space in OI caps
-        if q_max_amount.unsigned_abs() > max_oi_change_amount.unsigned_abs() {
-            q_max_amount = max_oi_change_amount;
+        if q_max_amount.unsigned_abs() > max_oi_change_amount {
+            q_max_amount = max_oi_change_amount.try_into()?;
         };
 
         if direction == &Direction::Short {

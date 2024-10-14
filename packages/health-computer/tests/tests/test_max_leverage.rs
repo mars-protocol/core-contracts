@@ -18,7 +18,9 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     "1465698",
     "-1465698",
     vec![],
-    None;
+    None,
+    "100000000",
+    "500000000";
     "No existing perp position"
 )]
 #[test_case(
@@ -26,13 +28,13 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     "0",
     vec![Int128::from_str("500000").unwrap()],
     Some(PerpParams {
-        opening_fee_rate: Decimal::from_str("0.2").unwrap(),
-        closing_fee_rate: Decimal::from_str("0.003").unwrap(),
         max_long_oi_value: Uint128::new(600000000000),
         max_short_oi_value: Uint128::new(600000000000),
         max_net_oi_value: Uint128::new(40000000),
         ..produce_eth_perp_params()
-    });
+    }),
+    "100000000",
+    "500000000";
     "Max size 0 if NET OI exceeded"
 )]
 #[test_case(
@@ -40,13 +42,13 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     "-1462546",
     vec![Int128::from_str("500000").unwrap()],
     Some(PerpParams {
-        opening_fee_rate: Decimal::from_str("0.2").unwrap(),
-        closing_fee_rate: Decimal::from_str("0.003").unwrap(),
         max_long_oi_value: Uint128::new(0),
         max_short_oi_value: Uint128::new(8000000000000),
         max_net_oi_value: Uint128::new(12000000000000),
         ..produce_eth_perp_params()
-    });
+    }),
+    "100000000",
+    "500000000";
     "Max LONG size 0 if LONG OI exceeded"
 )]
 #[test_case(
@@ -54,27 +56,59 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     "0",
     vec![Int128::from_str("500000").unwrap()],
     Some(PerpParams {
-        opening_fee_rate: Decimal::from_str("0.2").unwrap(),
-        closing_fee_rate: Decimal::from_str("0.003").unwrap(),
         max_long_oi_value: Uint128::new(8000000000000),
         max_short_oi_value: Uint128::new(0),
         max_net_oi_value: Uint128::new(12000000000000),
         ..produce_eth_perp_params()
-    });
+    }),
+    "100000000",
+    "500000000";
     "Max SHORT size 0 if SHORT OI exceeded"
+)]
+#[test_case(
+    "1200000",
+    "-1300000",
+    vec![],
+    Some(PerpParams {
+        max_long_oi_value: Uint128::new(202400000000), // 2400000000 OI left, divided by price 2000, max LONG = 1200000
+        max_short_oi_value: Uint128::new(1002600000000), // 2600000000 OI left, divided by price 2000, max SHORT = 1300000
+        max_net_oi_value: Uint128::new(120000000000000),
+        ..produce_eth_perp_params()
+    }),
+    "100000000",
+    "500000000";
+    "Max size up to max LONG and SHORT OI"
+)]
+#[test_case(
+    "1120000",
+    "-1120000",
+    vec![],
+    Some(PerpParams {
+        max_long_oi_value: Uint128::new(5000000000000),
+        max_short_oi_value: Uint128::new(5000000000000),
+        max_net_oi_value: Uint128::new(2240000000), // 2240000000 OI left, divided by price 2000, max LONG = 1120000, max SHORT = 1120000
+        ..produce_eth_perp_params()
+    }),
+    "200000000",
+    "200000000";
+    "Max size up to max NET OI"
 )]
 #[test_case(
     "1453092",
     "-2204204",
     vec![Int128::from_str("-1000000").unwrap()],
-    None;
+    None,
+    "100000000",
+    "500000000";
     "Existing short position"
 )]
 #[test_case(
     "1838102",
     "-1462546",
     vec![Int128::from_str("500000").unwrap()],
-    None;
+    None,
+    "100000000",
+    "500000000";
     "Existing long position"
 )]
 
@@ -83,6 +117,8 @@ fn asserting_health_factor(
     max_size_short: &str,
     perp_position_sizes: Vec<Int128>,
     perp_params: Option<PerpParams>,
+    market_long_oi: &str,
+    market_short_oi: &str,
 ) {
     // inputs
     let base_denom = "uusdc".to_string();
@@ -95,8 +131,8 @@ fn asserting_health_factor(
     let base_denom_price = Decimal::one();
 
     // market state
-    let long_oi = Int128::from_str("100000000").unwrap();
-    let short_oi = Int128::from_str("500000000").unwrap();
+    let long_oi = Int128::from_str(market_long_oi).unwrap();
+    let short_oi = Int128::from_str(market_short_oi).unwrap();
     let skew = long_oi.checked_sub(short_oi).unwrap();
 
     // perp state
@@ -115,7 +151,16 @@ fn asserting_health_factor(
     let perps_data = PerpsData {
         params: HashMap::from(
             perp_params
-                .map(|p| [(eth_perp_denom.clone(), p)])
+                .map(|p| {
+                    [(
+                        eth_perp_denom.clone(),
+                        PerpParams {
+                            opening_fee_rate: Decimal::from_str("0.2").unwrap(),
+                            closing_fee_rate: Decimal::from_str("0.003").unwrap(),
+                            ..p
+                        },
+                    )]
+                })
                 .unwrap_or([(eth_perp_denom.clone(), eth_perp_params.clone())]),
         ),
     };
