@@ -22,7 +22,7 @@ pub struct Health {
     /// The total of winning pnl positions
     pub perps_pnl_profit: Uint128,
     /// the total of pnl losing positions
-    pub perps_pnl_losses: Uint128,
+    pub perps_pnl_loss: Uint128,
     /// If the account has perps positions.
     /// `perps_pnl_profit` and `perps_pnl_losses` could be zero even with perps (`BreakEven` case).
     pub has_perps: bool,
@@ -40,7 +40,7 @@ impl fmt::Display for Health {
             self.max_ltv_health_factor.map_or("n/a".to_string(), |x| x.to_string()),
             self.liquidation_health_factor.map_or("n/a".to_string(), |x| x.to_string()),
             self.perps_pnl_profit,
-            self.perps_pnl_losses,
+            self.perps_pnl_loss,
             self.has_perps
         )
     }
@@ -89,7 +89,7 @@ impl From<Health> for HealthValuesResponse {
             max_ltv_health_factor: h.max_ltv_health_factor,
             liquidation_health_factor: h.liquidation_health_factor,
             perps_pnl_profit: h.perps_pnl_profit,
-            perps_pnl_losses: h.perps_pnl_losses,
+            perps_pnl_losses: h.perps_pnl_loss,
             liquidatable: h.is_liquidatable(),
             above_max_ltv: h.is_above_max_ltv(),
             has_perps: h.has_perps,

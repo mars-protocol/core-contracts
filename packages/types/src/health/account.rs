@@ -75,4 +75,5 @@ impl Uint {
 pub enum LiquidationPriceKind {
     Asset,
     Debt,
+    Perp,
 }

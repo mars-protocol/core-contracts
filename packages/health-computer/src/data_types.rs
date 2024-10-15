@@ -12,7 +12,7 @@ use mars_types::{
 pub struct CollateralValue {
     pub total_collateral_value: Uint128,
     pub max_ltv_adjusted_collateral: Uint128,
-    pub liquidation_threshold_adjusted_collateral: Uint128,
+    pub liq_ltv_adjusted_collateral: Uint128,
 }
 
 #[cw_serde]
@@ -21,7 +21,6 @@ pub struct PerpHealthFactorValues {
     pub max_ltv_denominator: Uint128,
     pub liq_ltv_numerator: Uint128,
     pub liq_ltv_denominator: Uint128,
-    pub pnl_values: PerpPnlValues,
 }
 
 #[cw_serde]

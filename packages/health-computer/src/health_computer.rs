@@ -12,8 +12,8 @@ use mars_types::{
     health::{
         AccountKind, BorrowTarget, Health,
         HealthError::{
-            MissingAmount, MissingAssetParams, MissingHLSParams, MissingPerpParams, MissingPrice,
-            MissingVaultConfig, MissingVaultValues,
+            DenomNotPresent, MissingAmount, MissingAssetParams, MissingHLSParams,
+            MissingPerpParams, MissingPrice, MissingVaultConfig, MissingVaultValues,
         },
         HealthResult, LiquidationPriceKind, SwapKind,
     },
@@ -65,11 +65,12 @@ impl HealthComputer {
         let CollateralValue {
             total_collateral_value,
             max_ltv_adjusted_collateral,
-            liquidation_threshold_adjusted_collateral,
+            liq_ltv_adjusted_collateral: liquidation_threshold_adjusted_collateral,
         } = self.total_collateral_value()?;
 
         let spot_debt_value = self.debt_value()?;
-        let perp_hf_values = self.perp_health_factor_values(&self.positions.perps)?;
+        let (perp_hf_values, perp_pnl_values) =
+            self.perp_hf_values_and_pnl(&self.positions.perps)?;
         let ltv_numerator =
             max_ltv_adjusted_collateral.checked_add(perp_hf_values.max_ltv_numerator)?;
         let ltv_denominator = spot_debt_value.checked_add(perp_hf_values.max_ltv_denominator)?;
@@ -104,8 +105,8 @@ impl HealthComputer {
             liquidation_threshold_adjusted_collateral,
             max_ltv_health_factor,
             liquidation_health_factor,
-            perps_pnl_profit: perp_hf_values.pnl_values.profit,
-            perps_pnl_losses: perp_hf_values.pnl_values.loss,
+            perps_pnl_profit: perp_pnl_values.profit,
+            perps_pnl_loss: perp_pnl_values.loss,
             has_perps: !self.positions.perps.is_empty(),
         })
     }
@@ -166,7 +167,7 @@ impl HealthComputer {
                     max_ltv_denominator: perp_denominator,
                     max_ltv_numerator: perp_numerator,
                     ..
-                } = self.perp_health_factor_values(&self.positions.perps)?;
+                } = self.perp_hf_values_and_pnl(&self.positions.perps)?.0;
 
                 let one = Uint128::one();
                 let numerator = total_max_ltv_adjusted_value.checked_add(perp_numerator)?;
@@ -232,7 +233,7 @@ impl HealthComputer {
             max_ltv_denominator: perp_denominator,
             max_ltv_numerator: perp_numerator,
             ..
-        } = self.perp_health_factor_values(&self.positions.perps)?;
+        } = self.perp_hf_values_and_pnl(&self.positions.perps)?.0;
 
         let one = Uint128::one();
         let numerator = total_max_ltv_adjusted_value.checked_add(perp_numerator)?;
@@ -369,7 +370,7 @@ impl HealthComputer {
             max_ltv_denominator: perp_denominator,
             max_ltv_numerator: perp_numerator,
             ..
-        } = self.perp_health_factor_values(&self.positions.perps)?;
+        } = self.perp_hf_values_and_pnl(&self.positions.perps)?.0;
 
         let params = self
             .asset_params
@@ -555,10 +556,8 @@ impl HealthComputer {
         direction: &Direction,
     ) -> HealthResult<Int128> {
         // prices
-        let perp_oracle_price =
-            *self.oracle_prices.get(denom).ok_or(MissingPrice(denom.to_string()))?;
-        let base_denom_price =
-            *self.oracle_prices.get(base_denom).ok_or(MissingPrice(base_denom.to_string()))?;
+        let perp_oracle_price = self.get_price(denom)?;
+        let base_denom_price = self.get_price(base_denom)?;
 
         // Perp market params
         let perp_params =
@@ -768,11 +767,11 @@ impl HealthComputer {
             .checked_add(self.vaults_value()?.max_ltv_adjusted_collateral)?;
 
         // Contains denominator / numerator for HF for all perps *excluding* a perp position for given denom
-        let other_perp_hf_values = self.perp_health_factor_values(&filtered_perps)?;
+        let perp_hf_values = self.perp_hf_values_and_pnl(&filtered_perps)?.0;
 
         // Risk Weighted Assets (rwa) are assets other than base_denom and the perp position being considered, weighted using corresponding Maximum LTVs
         let other_collateral_value =
-            assets_ltv_adjusted_value.checked_add(other_perp_hf_values.max_ltv_numerator)?;
+            assets_ltv_adjusted_value.checked_add(perp_hf_values.max_ltv_numerator)?;
 
         // raw_debt = all debt and everything from the denominator of perps besides
         // the position for given denom.
@@ -789,15 +788,15 @@ impl HealthComputer {
         }
 
         // debt = raw_debt + max_ltv_denominator for perp positions *excluding* a perp position for given denom
-        let debt_value = raw_debt_value.checked_add(other_perp_hf_values.max_ltv_denominator)?;
+        let debt_value = raw_debt_value.checked_add(perp_hf_values.max_ltv_denominator)?;
 
         Ok((base_denom_collateral_value, other_collateral_value, debt_value))
     }
 
-    fn perp_health_factor_values(
+    fn perp_hf_values_and_pnl(
         &self,
         perps: &[PerpPosition],
-    ) -> HealthResult<PerpHealthFactorValues> {
+    ) -> HealthResult<(PerpHealthFactorValues, PerpPnlValues)> {
         let mut max_ltv_numerator = Uint128::zero();
         let mut max_ltv_denominator = Uint128::zero();
         let mut liq_ltv_numerator = Uint128::zero();
@@ -806,122 +805,130 @@ impl HealthComputer {
         let mut loss = Uint128::zero();
 
         for position in perps.iter() {
-            // Update our pnl values
             match &position.unrealized_pnl.to_coins(&position.base_denom).pnl {
                 PnL::Profit(pnl) => profit = profit.checked_add(pnl.amount)?,
                 PnL::Loss(pnl) => loss = loss.checked_add(pnl.amount)?,
                 _ => {}
             }
 
-            let denom = &position.denom;
-            let base_denom = &position.base_denom;
-            let base_denom_price =
-                *self.oracle_prices.get(base_denom).ok_or(MissingPrice(base_denom.to_string()))?;
-
-            let perp_params =
-                self.perps_data.params.get(denom).ok_or(MissingPerpParams(denom.to_string()))?;
-            let closing_rate = perp_params.closing_fee_rate;
-
-            // Perp(0)
-            let position_value_open =
-                position.size.unsigned_abs().checked_mul_floor(position.entry_exec_price)?;
-
-            // Perp(t)
-            let position_value_current =
-                position.size.unsigned_abs().checked_mul_floor(position.current_exec_price)?;
-            // Borrow and liquidation ltv maximums for the perp and the funding demom
-            let checked_max_ltv = self.get_perp_max_ltv(denom)?;
-            let checked_liq_ltv = self.get_perp_liq_ltv(denom)?;
-            let checked_max_ltv_base_denom = self.get_coin_max_ltv(base_denom)?;
-            let checked_liq_ltv_base_denom = self.get_liquidation_ltv(base_denom)?;
-
-            let (funding_min, funding_max) = self.get_min_and_max_funding_amounts(position)?;
-            let funding_min_value = funding_min.checked_mul_floor(base_denom_price)?;
-            let funding_max_value_ltv = funding_max
-                .checked_mul_floor(base_denom_price.checked_mul(checked_max_ltv_base_denom)?)?;
-            let funding_max_value_liq = funding_max
-                .checked_mul_floor(base_denom_price.checked_mul(checked_liq_ltv_base_denom)?)?;
-
-            // There are two different HF calculations, depending on if the perp
-            // position is long or short.
-            // For shorts, Health Factor = Perp(0) + (funding max accrued * base denom price * base denom ltv)  / (Perp (t) * (2 - MaxLTV + trading fee) + funding min * base denom price
-            // For longs, Health Factor = (Perp (t) * (LTV-trading fee) + funding max * base denom price * base denom ltv  / Perp (t0) + funding min * base denom price
-            // If perp size is negative the position is short, positive long
-            if position.size.is_negative() {
-                // Numerator = position value(0) + (positive funding * base denom ltv * base denom price)
-                let temp_ltv_numerator = position_value_open.checked_add(funding_max_value_ltv)?;
-
-                let temp_liq_numerator = position_value_open.checked_add(funding_max_value_liq)?;
-
-                // Denominator = position value(t) * (2 - max ltv + closing fee) + negative funding
-                // Safe math because max ltv is always less than 2 (it is < 1 actually)
-                let temp_ltv_denominator = position_value_current
-                    .checked_mul_floor(
-                        Decimal::from_str("2.0")?
-                            .checked_sub(checked_max_ltv)?
-                            .checked_add(closing_rate)?,
-                    )?
-                    .checked_add(funding_min_value)?;
-
-                let temp_liq_denominator = position_value_current
-                    .checked_mul_floor(
-                        Decimal::from_str("2.0")?
-                            .checked_sub(checked_liq_ltv)?
-                            .checked_add(closing_rate)?,
-                    )?
-                    .checked_add(funding_min_value)?;
-
-                // Add values
-                max_ltv_numerator = max_ltv_numerator.checked_add(temp_ltv_numerator)?;
-                liq_ltv_numerator = liq_ltv_numerator.checked_add(temp_liq_numerator)?;
-                max_ltv_denominator = max_ltv_denominator.checked_add(temp_ltv_denominator)?;
-                liq_ltv_denominator = liq_ltv_denominator.checked_add(temp_liq_denominator)?;
-            } else {
-                // If our ltvs are less than the closing rate we will get overflow, so we
-                // need to protect against this
-                let checked_max_ltv_multiplier = match checked_max_ltv.lt(&closing_rate) {
-                    true => Decimal::zero(),
-                    false => checked_max_ltv.checked_sub(closing_rate)?,
-                };
-
-                let checked_liq_ltv_multiplier = match checked_liq_ltv.lt(&closing_rate) {
-                    true => Decimal::zero(),
-                    false => checked_liq_ltv.checked_sub(closing_rate)?,
-                };
-
-                // Numerator = position value(0) + (positive funding * base denom ltv)
-                let temp_ltv_numerator = position_value_current
-                    .checked_mul_floor(checked_max_ltv_multiplier)?
-                    .checked_add(funding_max_value_ltv)?;
-
-                let temp_liq_numerator = position_value_current
-                    .checked_mul_floor(checked_liq_ltv_multiplier)?
-                    .checked_add(funding_max_value_liq)?;
-
-                // Denominator = position value(0) + negative funding
-                let temp_denominator = position_value_open.checked_add(funding_min_value)?;
-
-                // Add values
-                max_ltv_numerator = max_ltv_numerator.checked_add(temp_ltv_numerator)?;
-                liq_ltv_numerator = liq_ltv_numerator.checked_add(temp_liq_numerator)?;
-                max_ltv_denominator = max_ltv_denominator.checked_add(temp_denominator)?;
-                liq_ltv_denominator = liq_ltv_denominator.checked_add(temp_denominator)?;
-            }
-
-            // else perp size is zero - safe to do nothing? we should never get into this situation
-            // but if we do we probably don't want to brick the HF calculation
+            let perp_health_factor_values = self.perp_health_factor_values(position)?;
+            max_ltv_numerator =
+                max_ltv_numerator.checked_add(perp_health_factor_values.max_ltv_numerator)?;
+            max_ltv_denominator =
+                max_ltv_denominator.checked_add(perp_health_factor_values.max_ltv_denominator)?;
+            liq_ltv_numerator =
+                liq_ltv_numerator.checked_add(perp_health_factor_values.liq_ltv_numerator)?;
+            liq_ltv_denominator =
+                liq_ltv_denominator.checked_add(perp_health_factor_values.liq_ltv_denominator)?;
         }
 
-        Ok(PerpHealthFactorValues {
-            max_ltv_numerator,
-            max_ltv_denominator,
-            liq_ltv_numerator,
-            liq_ltv_denominator,
-            pnl_values: PerpPnlValues {
-                profit,
-                loss,
+        Ok((
+            PerpHealthFactorValues {
+                max_ltv_numerator,
+                max_ltv_denominator,
+                liq_ltv_numerator,
+                liq_ltv_denominator,
             },
-        })
+            PerpPnlValues {
+                loss,
+                profit,
+            },
+        ))
+    }
+
+    fn perp_health_factor_values(
+        &self,
+        position: &PerpPosition,
+    ) -> HealthResult<PerpHealthFactorValues> {
+        let denom = &position.denom;
+        let base_denom = &position.base_denom;
+        let base_denom_price = self.get_price(base_denom)?;
+
+        let perp_params =
+            self.perps_data.params.get(denom).ok_or(MissingPerpParams(denom.to_string()))?;
+        let closing_rate = perp_params.closing_fee_rate;
+
+        // Perp(0)
+        let position_value_entry =
+            position.size.unsigned_abs().checked_mul_floor(position.entry_exec_price)?;
+
+        // Perp(t)
+        let position_value_current =
+            position.size.unsigned_abs().checked_mul_floor(position.current_exec_price)?;
+
+        // Borrow and liquidation ltv maximums for the perp and the funding denom
+        // It was agreed to change LTV in the formula from usdc to perp ltv, as it should be more
+        // conservative (when we make usdc LTV greater than or equal to any perp LTV)
+        let checked_max_ltv = self.get_perp_max_ltv(denom)?;
+        let checked_liq_ltv = self.get_perp_liq_ltv(denom)?;
+        let (funding_min, funding_max) = self.get_min_and_max_funding_amounts(position)?;
+        let funding_min_value = funding_min.checked_mul_floor(base_denom_price)?;
+        let funding_max_value_ltv =
+            funding_max.checked_mul_floor(base_denom_price.checked_mul(checked_max_ltv)?)?;
+        let funding_max_value_liq =
+            funding_max.checked_mul_floor(base_denom_price.checked_mul(checked_liq_ltv)?)?;
+
+        // There are two different HF calculations, depending on if the perp
+        // position is long or short.
+        // For shorts, Health Factor = Perp(0) + (funding max accrued * base denom price * perp ltv)  / (Perp (t) * (2 - MaxLTV + trading fee) + funding min * base denom price
+        // For longs, Health Factor = (Perp (t) * (LTV-trading fee) + funding max * base denom price * perp ltv  / Perp (t0) + funding min * base denom price
+        // If perp size is negative the position is short, positive long
+        if position.size.is_negative() {
+            // Numerator = position value(0) + (positive funding * perp ltv * base denom price)
+            let max_ltv_numerator = position_value_entry.checked_add(funding_max_value_ltv)?;
+            let liq_ltv_numerator = position_value_entry.checked_add(funding_max_value_liq)?;
+
+            // Denominator = position value(t) * (2 - max ltv + closing fee) + negative funding
+            // Safe math because max ltv is always less than 2 (it is < 1 actually)
+            let max_ltv_denominator = position_value_current
+                .checked_mul_floor(
+                    Decimal::from_str("2.0")?
+                        .checked_sub(checked_max_ltv)?
+                        .checked_add(closing_rate)?,
+                )?
+                .checked_add(funding_min_value)?;
+
+            let liq_ltv_denominator = position_value_current
+                .checked_mul_floor(
+                    Decimal::from_str("2.0")?
+                        .checked_sub(checked_liq_ltv)?
+                        .checked_add(closing_rate)?,
+                )?
+                .checked_add(funding_min_value)?;
+
+            Ok(PerpHealthFactorValues {
+                liq_ltv_numerator,
+                liq_ltv_denominator,
+                max_ltv_numerator,
+                max_ltv_denominator,
+            })
+        } else {
+            // If our ltvs are less than the closing rate we will get overflow, so we
+            // need to protect against this
+            let checked_max_ltv_multiplier = checked_max_ltv.saturating_sub(closing_rate);
+            let checked_liq_ltv_multiplier = checked_liq_ltv.saturating_sub(closing_rate);
+
+            // Numerator = position value(0) + (positive funding * denom ltv)
+            let max_ltv_numerator = position_value_current
+                .checked_mul_floor(checked_max_ltv_multiplier)?
+                .checked_add(funding_max_value_ltv)?;
+
+            let liq_ltv_numerator = position_value_current
+                .checked_mul_floor(checked_liq_ltv_multiplier)?
+                .checked_add(funding_max_value_liq)?;
+
+            // Denominator = position value(0) + negative funding
+            let denominator = position_value_entry.checked_add(funding_min_value)?;
+
+            Ok(PerpHealthFactorValues {
+                liq_ltv_numerator,
+                liq_ltv_denominator: denominator,
+                max_ltv_numerator,
+                max_ltv_denominator: denominator,
+            })
+        }
+        // else perp size is zero - safe to do nothing? we should never get into this situation
+        // but if we do we probably don't want to brick the HF calculation
     }
 
     fn total_collateral_value(&self) -> HealthResult<CollateralValue> {
@@ -941,18 +948,18 @@ impl HealthComputer {
                 .checked_add(vaults.max_ltv_adjusted_collateral)?
                 .checked_add(lends.max_ltv_adjusted_collateral)?
                 .checked_add(staked_lp.max_ltv_adjusted_collateral)?,
-            liquidation_threshold_adjusted_collateral: deposits
-                .liquidation_threshold_adjusted_collateral
-                .checked_add(vaults.liquidation_threshold_adjusted_collateral)?
-                .checked_add(lends.liquidation_threshold_adjusted_collateral)?
-                .checked_add(staked_lp.liquidation_threshold_adjusted_collateral)?,
+            liq_ltv_adjusted_collateral: deposits
+                .liq_ltv_adjusted_collateral
+                .checked_add(vaults.liq_ltv_adjusted_collateral)?
+                .checked_add(lends.liq_ltv_adjusted_collateral)?
+                .checked_add(staked_lp.liq_ltv_adjusted_collateral)?,
         })
     }
 
     fn coins_value(&self, coins: &[Coin]) -> HealthResult<CollateralValue> {
         let mut total_collateral_value = Uint128::zero();
         let mut max_ltv_adjusted_collateral = Uint128::zero();
-        let mut liquidation_threshold_adjusted_collateral = Uint128::zero();
+        let mut liq_ltv_adjusted_collateral = Uint128::zero();
 
         for c in coins {
             let Some(AssetParams {
@@ -968,9 +975,8 @@ impl HealthComputer {
                 continue;
             };
 
-            let coin_price =
-                self.oracle_prices.get(&c.denom).ok_or(MissingPrice(c.denom.clone()))?;
-            let coin_value = c.amount.checked_mul_floor(*coin_price)?;
+            let coin_price = self.get_price(&c.denom)?;
+            let coin_value = c.amount.checked_mul_floor(coin_price)?;
             total_collateral_value = total_collateral_value.checked_add(coin_value)?;
 
             let checked_max_ltv = self.get_coin_max_ltv(&c.denom)?;
@@ -989,13 +995,12 @@ impl HealthComputer {
                 }
             };
             let liq_adjusted = coin_value.checked_mul_floor(checked_liquidation_threshold)?;
-            liquidation_threshold_adjusted_collateral =
-                liquidation_threshold_adjusted_collateral.checked_add(liq_adjusted)?;
+            liq_ltv_adjusted_collateral = liq_ltv_adjusted_collateral.checked_add(liq_adjusted)?;
         }
         Ok(CollateralValue {
             total_collateral_value,
             max_ltv_adjusted_collateral,
-            liquidation_threshold_adjusted_collateral,
+            liq_ltv_adjusted_collateral,
         })
     }
 
@@ -1050,7 +1055,7 @@ impl HealthComputer {
     fn vaults_value(&self) -> HealthResult<CollateralValue> {
         let mut total_collateral_value = Uint128::zero();
         let mut max_ltv_adjusted_collateral = Uint128::zero();
-        let mut liquidation_threshold_adjusted_collateral = Uint128::zero();
+        let mut liq_ltv_adjusted_collateral = Uint128::zero();
 
         for v in &self.positions.vaults {
             // Step 1: Calculate Vault coin values
@@ -1111,11 +1116,11 @@ impl HealthComputer {
                 }
             };
 
-            liquidation_threshold_adjusted_collateral = values
+            liq_ltv_adjusted_collateral = values
                 .vault_coin
                 .value
                 .checked_mul_floor(checked_liquidation_threshold)?
-                .checked_add(liquidation_threshold_adjusted_collateral)?;
+                .checked_add(liq_ltv_adjusted_collateral)?;
 
             // Step 2: Calculate Base coin values
             let res = self.coins_value(&[Coin {
@@ -1126,15 +1131,14 @@ impl HealthComputer {
                 total_collateral_value.checked_add(res.total_collateral_value)?;
             max_ltv_adjusted_collateral =
                 max_ltv_adjusted_collateral.checked_add(res.max_ltv_adjusted_collateral)?;
-            liquidation_threshold_adjusted_collateral =
-                liquidation_threshold_adjusted_collateral
-                    .checked_add(res.liquidation_threshold_adjusted_collateral)?;
+            liq_ltv_adjusted_collateral =
+                liq_ltv_adjusted_collateral.checked_add(res.liq_ltv_adjusted_collateral)?;
         }
 
         Ok(CollateralValue {
             total_collateral_value,
             max_ltv_adjusted_collateral,
-            liquidation_threshold_adjusted_collateral,
+            liq_ltv_adjusted_collateral,
         })
     }
 
@@ -1146,22 +1150,12 @@ impl HealthComputer {
 
         // spot debt borrowed from redbank
         for debt in &self.positions.debts {
-            let coin_price =
-                self.oracle_prices.get(&debt.denom).ok_or(MissingPrice(debt.denom.clone()))?;
-            let debt_value = debt.amount.checked_mul_ceil(*coin_price)?;
+            let coin_price = self.get_price(&debt.denom)?;
+            let debt_value = debt.amount.checked_mul_ceil(coin_price)?;
             total = total.checked_add(debt_value)?;
         }
 
         Ok(total)
-    }
-
-    fn get_liquidation_ltv(&self, denom: &str) -> HealthResult<Decimal> {
-        let AssetParams {
-            liquidation_threshold,
-            ..
-        } = self.asset_params.get(denom).ok_or(MissingAssetParams(denom.to_string()))?;
-
-        Ok(*liquidation_threshold)
     }
 
     fn get_perp_max_ltv(&self, denom: &str) -> HealthResult<Decimal> {
@@ -1266,25 +1260,37 @@ impl HealthComputer {
         Ok((funding_min, funding_max))
     }
 
+    fn get_price(&self, denom: &str) -> HealthResult<Decimal> {
+        let price = self.oracle_prices.get(denom).ok_or(MissingPrice(denom.to_string()))?;
+        Ok(*price)
+    }
+
+    // Liquidation price is calculated using MAX_LTV. This function is intended for Frontend use,
+    // which is always using the MAX_LTV for displaying liquidation price and other values.
+    // This to be conservative on what is displayed to the user.
     pub fn liquidation_price(
         &self,
         denom: &str,
         kind: &LiquidationPriceKind,
-    ) -> HealthResult<Uint128> {
-        let collateral_ltv_value = self.total_collateral_value()?.max_ltv_adjusted_collateral;
-        let total_debt_value = self.debt_value()?;
-        if total_debt_value.is_zero() {
-            return Ok(Uint128::zero());
+    ) -> HealthResult<Decimal> {
+        let debt_value = self.debt_value()?;
+        if debt_value.is_zero() {
+            return Ok(Decimal::zero());
         }
 
-        let current_price = self.oracle_prices.get(denom).ok_or(MissingPrice(denom.to_string()))?;
+        let collateral_ltv_value = self.total_collateral_value()?.max_ltv_adjusted_collateral;
+        let (perps_hf_values, _) = self.perp_hf_values_and_pnl(&self.positions.perps)?;
+        let current_price = self.get_price(denom)?;
 
-        if total_debt_value >= collateral_ltv_value {
-            return Ok(Uint128::one() * *current_price);
+        if debt_value >= collateral_ltv_value {
+            return Ok(current_price);
         }
 
         match kind {
             LiquidationPriceKind::Asset => {
+                // liq_price = lhs / rhs
+                // lhs = debt + asset_ltv_value + perps_den - col_ltv_value - perps_num
+                // rhs = size * max_ltv
                 let asset_amount = self.get_coin_from_deposits_and_lends(denom)?.amount;
                 if asset_amount.is_zero() {
                     return Err(MissingAmount(denom.to_string()));
@@ -1294,22 +1300,27 @@ impl HealthComputer {
 
                 let asset_ltv_value =
                     asset_amount.checked_mul_floor(current_price.checked_mul(asset_ltv)?)?;
-                let debt_with_asset_ltv_value = total_debt_value.checked_add(asset_ltv_value)?;
 
-                if debt_with_asset_ltv_value <= collateral_ltv_value {
-                    return Ok(Uint128::zero());
-                }
+                let lhs_positives = debt_value
+                    .checked_add(asset_ltv_value)?
+                    .checked_add(perps_hf_values.max_ltv_denominator)?;
+                let lhs_negatives =
+                    collateral_ltv_value.checked_add(perps_hf_values.max_ltv_numerator)?;
 
-                let debt_without = debt_with_asset_ltv_value - collateral_ltv_value;
+                if lhs_negatives >= lhs_positives {
+                    return Ok(Decimal::zero());
+                };
 
-                // liquidation_price = (debt_value - collateral_ltv_value + asset_ltv_value) / (asset_amount * asset_ltv)
-                Ok(Uint128::one()
-                    * Decimal::checked_from_ratio(debt_without, asset_amount)?.checked_mul(
-                        Decimal::from_ratio(asset_ltv.denominator(), asset_ltv.numerator()),
-                    )?)
+                let lhs = lhs_positives - lhs_negatives;
+                let rhs = asset_amount.checked_mul_floor(asset_ltv)?;
+
+                Ok(Decimal::from_ratio(lhs, rhs))
             }
 
             LiquidationPriceKind::Debt => {
+                // liq_price = lhs / rhs
+                // lhs = col_ltv_value + debt_value_asset + perps_num - perps_denom - debt
+                // rhs = size
                 let debt_amount = self
                     .positions
                     .debts
@@ -1317,16 +1328,112 @@ impl HealthComputer {
                     .find(|c| c.denom == denom)
                     .ok_or(MissingAmount(denom.to_string()))?
                     .amount;
+
                 if debt_amount.is_zero() {
                     return Err(MissingAmount(denom.to_string()));
                 }
 
-                // Liquidation_price = (collateral_ltv_value - total_debt_value + debt_value_asset / asset_amount
-                let debt_value = debt_amount.checked_mul_ceil(*current_price)?;
-                let net_collateral_value_without_debt =
-                    collateral_ltv_value.checked_add(debt_value)?.checked_sub(total_debt_value)?;
+                let asset_debt_value = debt_amount.checked_mul_ceil(current_price)?;
 
-                Ok(net_collateral_value_without_debt / debt_amount)
+                let lhs_positives = collateral_ltv_value
+                    .checked_add(asset_debt_value)?
+                    .checked_add(perps_hf_values.max_ltv_numerator)?;
+                let lhs_negatives = perps_hf_values.max_ltv_denominator.checked_add(debt_value)?;
+
+                if lhs_negatives >= lhs_positives {
+                    return Ok(Decimal::zero());
+                };
+
+                let lhs = lhs_positives - lhs_negatives;
+
+                Ok(Decimal::from_ratio(lhs, debt_amount))
+            }
+
+            LiquidationPriceKind::Perp => {
+                let perp_position = self
+                    .positions
+                    .perps
+                    .iter()
+                    .find(|x| x.denom == *denom)
+                    .ok_or(DenomNotPresent(denom.to_string()))?;
+
+                if perp_position.size.is_zero() {
+                    return Err(MissingAmount(denom.to_string()));
+                }
+
+                let closing_rate = self
+                    .perps_data
+                    .params
+                    .get(denom)
+                    .ok_or(MissingPerpParams(denom.to_string()))?
+                    .closing_fee_rate;
+
+                let perp_ltv = self.get_perp_max_ltv(denom)?;
+                let current_perp_price = perp_position.current_exec_price;
+
+                match perp_position.size.is_negative() {
+                    // LONG position
+                    // ----------------
+                    // liq_price = lhs / rhs
+                    // lhs = debt + perps_den + market_val_num - col - perps_num
+                    // rhs = abs(size) * (perps_liq_ltv - closing_rate)
+                    false => {
+                        let market_value_num =
+                            self.perp_health_factor_values(perp_position)?.max_ltv_numerator;
+
+                        let lhs_positives = debt_value
+                            .checked_add(perps_hf_values.max_ltv_denominator)?
+                            .checked_add(market_value_num)?;
+
+                        let lhs_negatives =
+                            collateral_ltv_value.checked_add(perps_hf_values.max_ltv_numerator)?;
+
+                        if lhs_negatives >= lhs_positives {
+                            return Ok(Decimal::zero());
+                        };
+
+                        let lhs = Decimal::from_atomics(lhs_positives - lhs_negatives, 0)?;
+                        let rhs = Decimal::from_atomics(perp_position.size.unsigned_abs(), 0)?
+                            .checked_mul(perp_ltv.checked_sub(closing_rate)?)?;
+
+                        Ok(lhs.checked_div(rhs)?)
+                    }
+                    // SHORT position
+                    // ----------------
+                    // liq_price = lhs / rhs
+                    // lhs = col + perps_num + curr_exposure * ltv_adjusted - debt - perps_den
+                    // rhs = abs(size) * ltv_adjusted
+                    // ----------------
+                    // ltv_adjusted = 2 - perps_liq_ltv + closing_rate
+                    // curr_exposure = abs(size) * perps_current_price
+                    true => {
+                        let ltv_adjusted = Decimal::from_str("2")?
+                            .checked_sub(perp_ltv)?
+                            .checked_add(closing_rate)?;
+
+                        let curr_exposure_ltv_adjusted = perp_position
+                            .size
+                            .unsigned_abs()
+                            .checked_mul_ceil(current_perp_price.checked_mul(ltv_adjusted)?)?;
+
+                        let lhs_positives = collateral_ltv_value
+                            .checked_add(perps_hf_values.max_ltv_numerator)?
+                            .checked_add(curr_exposure_ltv_adjusted)?;
+
+                        let lhs_negatives =
+                            debt_value.checked_add(perps_hf_values.max_ltv_denominator)?;
+
+                        if lhs_negatives >= lhs_positives {
+                            return Ok(Decimal::zero());
+                        };
+
+                        let lhs = lhs_positives - lhs_negatives;
+                        let rhs =
+                            perp_position.size.unsigned_abs().checked_mul_ceil(ltv_adjusted)?;
+
+                        Ok(Decimal::from_ratio(lhs, rhs))
+                    }
+                }
             }
         }
     }

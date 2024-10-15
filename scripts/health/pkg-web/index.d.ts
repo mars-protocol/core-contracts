@@ -92,7 +92,7 @@ export interface HealthValuesResponse {
   has_perps: boolean
 }
 
-export type LiquidationPriceKind = 'asset' | 'debt'
+export type LiquidationPriceKind = 'asset' | 'debt' | 'perp'
 
 export type Uint = Uint128
 

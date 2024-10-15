@@ -2031,11 +2031,11 @@ fn perp_short_delta_neutral_with_btc_collateral() {
 
     assert_eq!(
         health.max_ltv_health_factor,
-        Some(Decimal::from_str("1.472288829054806655").unwrap())
+        Some(Decimal::from_str("1.47095484085985669").unwrap())
     );
     assert_eq!(
         health.liquidation_health_factor,
-        Some(Decimal::from_str("1.554374525254189202").unwrap())
+        Some(Decimal::from_str("1.552982547657615609").unwrap())
     );
     assert!(!health.is_above_max_ltv());
     assert!(!health.is_liquidatable());
@@ -2290,11 +2290,11 @@ fn perps_two_short_positive_pnl_one_long_negative_pnl_with_spot_debt() {
 
     assert_eq!(
         health.max_ltv_health_factor,
-        Some(Decimal::from_str("0.993459746719870947").unwrap())
+        Some(Decimal::from_str("0.993459637323102468").unwrap())
     );
     assert_eq!(
         health.liquidation_health_factor,
-        Some(Decimal::from_str("1.045975531640455782").unwrap())
+        Some(Decimal::from_str("1.045975418473684466").unwrap())
     );
     assert!(health.is_above_max_ltv());
     assert!(!health.is_liquidatable());

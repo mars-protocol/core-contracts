@@ -3,6 +3,7 @@ mod helpers;
 mod test_health_scenarios;
 mod test_hls;
 mod test_input_validation;
+mod test_liquidation_price;
 mod test_max_borrow_deposit;
 mod test_max_borrow_prop;
 mod test_max_borrow_validation;
