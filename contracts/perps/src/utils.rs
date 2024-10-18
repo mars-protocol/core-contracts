@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use cosmwasm_std::{Addr, Decimal, Deps, Order, StdResult, Uint128};
+use cosmwasm_std::{
+    Addr, Attribute, Decimal, Deps, Int128, Order, SignedDecimal, StdResult, Uint128,
+};
 use mars_types::{
     adapters::{
         oracle::{Oracle, OracleBase},
@@ -9,6 +11,7 @@ use mars_types::{
     keys::{UserId, UserIdKey},
     oracle::ActionKind,
     params::PerpParams,
+    perps::{PnlAmounts, Position},
 };
 
 use crate::{
@@ -78,4 +81,47 @@ pub fn get_oracle_adapter(address: &Addr) -> OracleBase<Addr> {
 
 pub fn get_params_adapter(address: &Addr) -> ParamsBase<Addr> {
     ParamsBase::new(address.clone())
+}
+
+// Updates the attributes vector with details of a modified position.
+///
+/// This function is responsible for pushing key attributes related to the original
+/// and modified position into the provided `attrs` vector.
+///
+/// # Parameters:
+/// - `attrs`: A mutable vector of `Attribute` to store the event data.
+/// - `denom`: The market denomination for the position.
+/// - `pos`: The original position being modified.
+/// - `new_size`: The new size of the modified position.
+/// - `current_denom_price`: The current market price of the denomination.
+/// - `new_skew`: The skew of the market prior to the position modification.
+/// - `new_accrued_funding_per_unit`: The updated funding accrued per unit after the modification.
+/// - `pnl_amt`: The unrealized PnL of the original position, which will be realized as a result of the modification.
+pub fn update_position_attributes(
+    attrs: &mut Vec<Attribute>,
+    denom: &str,
+    position: &Position,
+    new_size: Int128,
+    current_denom_price: Decimal,
+    new_skew: Int128,
+    new_accrued_funding_per_unit: SignedDecimal,
+    pnl_amt: &PnlAmounts,
+) {
+    attrs.push(Attribute::new("denom", denom));
+    attrs.push(Attribute::new("entry_size", position.size.to_string()));
+    attrs.push(Attribute::new("entry_price", position.entry_price.to_string()));
+    attrs.push(Attribute::new("entry_skew", position.initial_skew.to_string()));
+    attrs.push(Attribute::new(
+        "entry_accrued_funding_per_unit",
+        position.entry_accrued_funding_per_unit_in_base_denom.to_string(),
+    ));
+    attrs.push(Attribute::new("new_size", new_size.to_string()));
+    attrs.push(Attribute::new("current_price", current_denom_price.to_string()));
+    attrs.push(Attribute::new("new_skew", new_skew.to_string()));
+    attrs.push(Attribute::new(
+        "new_accrued_funding_per_unit",
+        new_accrued_funding_per_unit.to_string(),
+    ));
+    attrs.push(Attribute::new("realized_pnl_before", position.realized_pnl.pnl.to_string()));
+    attrs.push(Attribute::new("realized_pnl_change", pnl_amt.pnl.to_string()));
 }

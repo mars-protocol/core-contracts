@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use cosmwasm_std::{
-    coins, ensure_eq, Addr, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, Int128, MessageInfo,
-    Order, Response, StdError, Uint128,
+    coins, ensure_eq, Addr, Attribute, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, Int128,
+    MessageInfo, Order, Response, StdError, Uint128,
 };
 use cw_utils::may_pay;
 use mars_perps_common::pricing::opening_execution_price;
@@ -19,7 +19,10 @@ use crate::{
     market::MarketStateExt,
     position::{PositionExt, PositionModification},
     state::{CONFIG, MARKET_STATES, POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW},
-    utils::{ensure_max_position, ensure_min_position, get_oracle_adapter, get_params_adapter},
+    utils::{
+        ensure_max_position, ensure_min_position, get_oracle_adapter, get_params_adapter,
+        update_position_attributes,
+    },
 };
 
 /// Executes a perpetual order for a specific account and denom.
@@ -177,7 +180,7 @@ fn open_position(
     // Funding rates and index is updated to the current block time (using old size).
     ms.open_position(env.block.time.seconds(), size, denom_price, base_denom_price)?;
 
-    let mut res = Response::new();
+    let mut attrs = vec![];
     let mut msgs: Vec<CosmosMsg> = vec![];
 
     let mut realized_pnl = PnlAmounts::default();
@@ -189,14 +192,14 @@ fn open_position(
         // Create unrealized pnl
         let unrealized_pnl = PnlAmounts::from_opening_fee(opening_fee_amt)?;
 
-        res = apply_pnl_and_fees(
+        apply_pnl_and_fees(
             &cfg,
             &rewards_collector_addr,
             &mut ms,
             &mut tcf,
             &mut realized_pnl,
             &unrealized_pnl,
-            res,
+            &mut attrs,
             &mut msgs,
         )?;
 
@@ -204,6 +207,8 @@ fn open_position(
         TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
     }
 
+    let entry_accrued_funding_per_unit_in_base_denom =
+        ms.funding.last_funding_accrued_per_unit_in_base_denom;
     let entry_exec_price =
         opening_execution_price(initial_skew, ms.funding.skew_scale, size, denom_price)?;
 
@@ -217,21 +222,25 @@ fn open_position(
             size,
             entry_price: denom_price,
             entry_exec_price,
-            entry_accrued_funding_per_unit_in_base_denom: ms
-                .funding
-                .last_funding_accrued_per_unit_in_base_denom,
+            entry_accrued_funding_per_unit_in_base_denom,
             initial_skew,
             realized_pnl,
         },
     )?;
 
-    Ok(res
+    Ok(Response::new()
         .add_messages(msgs)
         .add_attribute("action", "open_position")
         .add_attribute("account_id", account_id)
         .add_attribute("denom", denom)
-        .add_attribute("size", size.to_string())
-        .add_attribute("entry_price", denom_price.to_string()))
+        .add_attribute("new_size", size.to_string())
+        .add_attribute("current_price", denom_price.to_string())
+        .add_attribute("new_skew", initial_skew.to_string())
+        .add_attribute(
+            "new_accrued_funding_per_unit",
+            entry_accrued_funding_per_unit_in_base_denom.to_string(),
+        )
+        .add_attributes(attrs))
 }
 
 /// Updates the state of a position for a specific account.
@@ -282,7 +291,6 @@ fn modify_position(
     let entry_size = position.size;
 
     // Query the current prices for the denom and the base denom
-    let entry_price = position.entry_price;
     let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
     let base_denom_price =
         oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
@@ -343,21 +351,38 @@ fn modify_position(
     // Convert PnL amounts to coins
     let pnl = pnl_amounts.to_coins(&cfg.base_denom).pnl;
 
-    let mut res = Response::new();
     let mut msgs = vec![];
 
     // Apply the payment to the credit manager if necessary
     apply_payment_to_cm_if_needed(&cfg, cm_address, &mut msgs, paid_amount, &pnl)?;
 
+    // Reduce the initial skew by the old position size. It is new "initial skew".
+    let initial_skew = initial_skew.checked_sub(position.size)?;
+
+    // Prepare attributes for the response
+    let mut attrs = vec![];
+    let entry_accrued_funding_per_unit_in_base_denom =
+        ms.funding.last_funding_accrued_per_unit_in_base_denom;
+    update_position_attributes(
+        &mut attrs,
+        &denom,
+        &position,
+        new_size,
+        denom_price,
+        initial_skew,
+        entry_accrued_funding_per_unit_in_base_denom,
+        &pnl_amounts,
+    );
+
     // Update the realized PnL, market state, and total cash flow based on the new amounts
-    res = apply_pnl_and_fees(
+    apply_pnl_and_fees(
         &cfg,
         &addresses[&MarsAddressType::RewardsCollector],
         &mut ms,
         &mut tcf,
         &mut realized_pnl,
         &pnl_amounts,
-        res,
+        &mut attrs,
         &mut msgs,
     )?;
 
@@ -372,9 +397,6 @@ fn modify_position(
         let mut realized_pnl = position.realized_pnl;
         realized_pnl.add(&pnl_amounts)?;
 
-        // Reduce the initial skew by the old position size. It is new "initial skew".
-        let initial_skew = initial_skew.checked_sub(position.size)?;
-
         let entry_exec_price =
             opening_execution_price(initial_skew, ms.funding.skew_scale, new_size, denom_price)?;
 
@@ -385,9 +407,7 @@ fn modify_position(
                 size: new_size,
                 entry_price: denom_price,
                 entry_exec_price,
-                entry_accrued_funding_per_unit_in_base_denom: ms
-                    .funding
-                    .last_funding_accrued_per_unit_in_base_denom,
+                entry_accrued_funding_per_unit_in_base_denom,
                 initial_skew,
                 realized_pnl,
             },
@@ -402,16 +422,11 @@ fn modify_position(
     TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
 
     // Return the response with the appropriate attributes
-    Ok(res
+    Ok(Response::new()
         .add_messages(msgs)
         .add_attribute("action", method)
         .add_attribute("account_id", account_id)
-        .add_attribute("denom", denom)
-        .add_attribute("entry_size", entry_size.to_string())
-        .add_attribute("new_size", new_size.to_string())
-        .add_attribute("entry_price", entry_price.to_string())
-        .add_attribute("current_price", denom_price.to_string())
-        .add_attribute("realized_pnl", pnl_amounts.pnl.to_string()))
+        .add_attributes(attrs))
 }
 
 /// Closes all positions for a given account.
@@ -469,8 +484,8 @@ pub fn close_all_positions(
     let base_denom_price =
         oracle.query_price(&deps.querier, &cfg.base_denom, action.clone())?.price;
 
+    let mut attrs = vec![];
     let mut msgs = vec![];
-    let mut res = Response::new();
     let mut pnl_amounts_accumulator = PnlAmounts::default();
     for (denom, position) in account_positions {
         let mut realized_pnl =
@@ -501,16 +516,28 @@ pub fn close_all_positions(
             PositionModification::Decrease(position.size),
         )?;
 
+        // Prepare attributes for the response
+        update_position_attributes(
+            &mut attrs,
+            &denom,
+            &position,
+            Int128::zero(),
+            denom_price,
+            initial_skew,
+            ms.funding.last_funding_accrued_per_unit_in_base_denom,
+            &pnl_amounts,
+        );
+
         pnl_amounts_accumulator.add(&pnl_amounts)?;
 
-        res = apply_pnl_and_fees(
+        apply_pnl_and_fees(
             &cfg,
             &addresses[&MarsAddressType::RewardsCollector],
             &mut ms,
             &mut tcf,
             &mut realized_pnl,
             &pnl_amounts,
-            res,
+            &mut attrs,
             &mut msgs,
         )?;
 
@@ -535,11 +562,12 @@ pub fn close_all_positions(
 
     TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
 
-    Ok(res
+    Ok(Response::new()
         .add_messages(msgs)
         .add_attribute("action", "close_all_positions")
         .add_attribute("account_id", account_id)
-        .add_attribute("realized_pnl", pnl_amounts_accumulator.pnl.to_string()))
+        .add_attribute("total_realized_pnl_change", pnl_amounts_accumulator.pnl.to_string())
+        .add_attributes(attrs))
 }
 
 /// Adjusts the position size with validation and determines the type of position modification.
@@ -595,9 +623,9 @@ pub fn apply_pnl_and_fees(
     tcf: &mut CashFlow,
     realized_pnl: &mut PnlAmounts,
     unrealized_pnl: &PnlAmounts,
-    response: Response,
+    attrs: &mut Vec<Attribute>,
     msgs: &mut Vec<CosmosMsg>,
-) -> ContractResult<Response> {
+) -> ContractResult<()> {
     // Update realized pnl with total fees
     realized_pnl.add(unrealized_pnl)?;
 
@@ -658,9 +686,11 @@ pub fn apply_pnl_and_fees(
     // Apply pnl to total cash flow (without protocol fee)
     tcf.add(&pnl_without_protocol_fee, total_protocol_fee)?;
 
-    Ok(response
-        .add_attribute("protocol_opening_fee", protocol_opening_fee.to_string())
-        .add_attribute("protocol_closing_fee", protocol_closing_fee.to_string()))
+    // Add attributes for protocol fees
+    attrs.push(Attribute::new("protocol_opening_fee", protocol_opening_fee.to_string()));
+    attrs.push(Attribute::new("protocol_closing_fee", protocol_closing_fee.to_string()));
+
+    Ok(())
 }
 
 /// Applies payments to the credit manager if necessary based on the PnL and paid amount.

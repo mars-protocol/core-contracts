@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     coins, to_json_binary, BalanceResponse, BankQuery, CosmosMsg, Decimal, Deps, DepsMut, Env,
-    QueryRequest, Reply, Response, StdError, SubMsg, Uint128, WasmMsg,
+    Int128, QueryRequest, Reply, Response, StdError, SubMsg, Uint128, WasmMsg,
 };
 use mars_types::{
     address_provider::{
@@ -24,7 +24,7 @@ use crate::{
         DeleverageRequestTempStorage, CONFIG, DELEVERAGE_REQUEST_TEMP_STORAGE, MARKET_STATES,
         POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW,
     },
-    utils::{get_oracle_adapter, get_params_adapter},
+    utils::{get_oracle_adapter, get_params_adapter, update_position_attributes},
 };
 
 pub const DELEVERAGE_REQUEST_REPLY_ID: u64 = 10_001;
@@ -125,6 +125,19 @@ pub fn deleverage(
         PositionModification::Decrease(position.size),
     )?;
 
+    // Prepare attributes for the response
+    let mut attrs = vec![];
+    update_position_attributes(
+        &mut attrs,
+        &denom,
+        &position,
+        Int128::zero(),
+        denom_price,
+        initial_skew,
+        ms.funding.last_funding_accrued_per_unit_in_base_denom,
+        &pnl_amounts,
+    );
+
     // Query the rewards collector address
     let rewards_collector_addr = address_provider::helpers::query_contract_addr(
         deps.as_ref(),
@@ -132,17 +145,16 @@ pub fn deleverage(
         MarsAddressType::RewardsCollector,
     )?;
 
-    // Apply the new PnL amounts to the accumators
-    let mut res = Response::new();
+    // Apply the new PnL amounts to the accumulators
     let mut msgs = vec![];
-    res = apply_pnl_and_fees(
+    apply_pnl_and_fees(
         &cfg,
         &rewards_collector_addr,
         &mut ms,
         &mut tcf,
         &mut realized_pnl,
         &pnl_amounts,
-        res,
+        &mut attrs,
         &mut msgs,
     )?;
 
@@ -197,15 +209,14 @@ pub fn deleverage(
     });
     let submsg = SubMsg::reply_on_success(msg, DELEVERAGE_REQUEST_REPLY_ID);
 
-    Ok(res
+    Ok(Response::new()
         .add_messages(msgs)
         .add_submessage(submsg)
         .add_attribute("action", "deleverage")
         .add_attribute("account_id", account_id)
-        .add_attribute("denom", denom)
         .add_attribute("cr_before", cr_before.to_string())
         .add_attribute("cr_after", cr_after.to_string())
-        .add_attribute("realized_pnl", pnl_amounts.pnl.to_string()))
+        .add_attributes(attrs))
 }
 
 /// Queries the current collateralization ratio (CR) from the vault
