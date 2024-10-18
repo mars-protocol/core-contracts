@@ -24,7 +24,7 @@ pub struct Health {
     /// the total of pnl losing positions
     pub perps_pnl_loss: Uint128,
     /// If the account has perps positions.
-    /// `perps_pnl_profit` and `perps_pnl_losses` could be zero even with perps (`BreakEven` case).
+    /// `perps_pnl_profit` and `perps_pnl_loss` could be zero even with perps (`BreakEven` case).
     pub has_perps: bool,
 }
 
@@ -73,7 +73,7 @@ pub struct HealthValuesResponse {
     pub max_ltv_health_factor: Option<Decimal>,
     pub liquidation_health_factor: Option<Decimal>,
     pub perps_pnl_profit: Uint128,
-    pub perps_pnl_losses: Uint128,
+    pub perps_pnl_loss: Uint128,
     pub liquidatable: bool,
     pub above_max_ltv: bool,
     pub has_perps: bool,
@@ -89,7 +89,7 @@ impl From<Health> for HealthValuesResponse {
             max_ltv_health_factor: h.max_ltv_health_factor,
             liquidation_health_factor: h.liquidation_health_factor,
             perps_pnl_profit: h.perps_pnl_profit,
-            perps_pnl_losses: h.perps_pnl_loss,
+            perps_pnl_loss: h.perps_pnl_loss,
             liquidatable: h.is_liquidatable(),
             above_max_ltv: h.is_above_max_ltv(),
             has_perps: h.has_perps,

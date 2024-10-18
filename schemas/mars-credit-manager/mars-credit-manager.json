@@ -2518,7 +2518,7 @@
           "liquidatable",
           "liquidation_threshold_adjusted_collateral",
           "max_ltv_adjusted_collateral",
-          "perps_pnl_losses",
+          "perps_pnl_loss",
           "perps_pnl_profit",
           "total_collateral_value",
           "total_debt_value"
@@ -2559,7 +2559,7 @@
               }
             ]
           },
-          "perps_pnl_losses": {
+          "perps_pnl_loss": {
             "$ref": "#/definitions/Uint128"
           },
           "perps_pnl_profit": {
