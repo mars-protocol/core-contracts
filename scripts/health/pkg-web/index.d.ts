@@ -86,7 +86,7 @@ export interface HealthValuesResponse {
   max_ltv_health_factor: Decimal | null
   liquidation_health_factor: Decimal | null
   perps_pnl_profit: Uint128
-  perps_pnl_losses: Uint128
+  perps_pnl_loss: Uint128
   liquidatable: boolean
   above_max_ltv: boolean
   has_perps: boolean

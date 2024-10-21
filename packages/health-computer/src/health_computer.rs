@@ -1210,6 +1210,36 @@ impl HealthComputer {
         }
     }
 
+    fn get_coin_liq_ltv(&self, denom: &str) -> HealthResult<Decimal> {
+        let params = self.asset_params.get(denom);
+
+        match params {
+            Some(params) => {
+                // If the coin has been de-listed, drop LiqLTV to zero
+                if !params.credit_manager.whitelisted {
+                    return Ok(Decimal::zero());
+                }
+
+                match self.kind {
+                    AccountKind::Default => Ok(params.liquidation_threshold),
+                    AccountKind::FundManager {
+                        ..
+                    } => Ok(params.liquidation_threshold),
+                    AccountKind::HighLeveredStrategy => Ok(params
+                        .credit_manager
+                        .hls
+                        .as_ref()
+                        .ok_or(MissingHLSParams(denom.to_string()))?
+                        .liquidation_threshold),
+                }
+            }
+            None => {
+                // If the asset is not listed, set LiqLtv to zero
+                Ok(Decimal::zero())
+            }
+        }
+    }
+
     fn get_coin_from_deposits_and_lends(&self, denom: &str) -> HealthResult<Coin> {
         let deposited_coin = self.positions.deposits.iter().find(|c| c.denom == denom);
         let deposited_amount = deposited_coin.unwrap_or(&Coin::default()).amount;
@@ -1265,9 +1295,6 @@ impl HealthComputer {
         Ok(*price)
     }
 
-    // Liquidation price is calculated using MAX_LTV. This function is intended for Frontend use,
-    // which is always using the MAX_LTV for displaying liquidation price and other values.
-    // This to be conservative on what is displayed to the user.
     pub fn liquidation_price(
         &self,
         denom: &str,
@@ -1278,7 +1305,7 @@ impl HealthComputer {
             return Ok(Decimal::zero());
         }
 
-        let collateral_ltv_value = self.total_collateral_value()?.max_ltv_adjusted_collateral;
+        let collateral_ltv_value = self.total_collateral_value()?.liq_ltv_adjusted_collateral;
         let (perps_hf_values, _) = self.perp_hf_values_and_pnl(&self.positions.perps)?;
         let current_price = self.get_price(denom)?;
 
@@ -1290,22 +1317,22 @@ impl HealthComputer {
             LiquidationPriceKind::Asset => {
                 // liq_price = lhs / rhs
                 // lhs = debt + asset_ltv_value + perps_den - col_ltv_value - perps_num
-                // rhs = size * max_ltv
+                // rhs = size * liq_ltv
                 let asset_amount = self.get_coin_from_deposits_and_lends(denom)?.amount;
                 if asset_amount.is_zero() {
                     return Err(MissingAmount(denom.to_string()));
                 }
 
-                let asset_ltv = self.get_coin_max_ltv(denom)?;
+                let asset_ltv = self.get_coin_liq_ltv(denom)?;
 
                 let asset_ltv_value =
                     asset_amount.checked_mul_floor(current_price.checked_mul(asset_ltv)?)?;
 
                 let lhs_positives = debt_value
                     .checked_add(asset_ltv_value)?
-                    .checked_add(perps_hf_values.max_ltv_denominator)?;
+                    .checked_add(perps_hf_values.liq_ltv_denominator)?;
                 let lhs_negatives =
-                    collateral_ltv_value.checked_add(perps_hf_values.max_ltv_numerator)?;
+                    collateral_ltv_value.checked_add(perps_hf_values.liq_ltv_numerator)?;
 
                 if lhs_negatives >= lhs_positives {
                     return Ok(Decimal::zero());
@@ -1337,8 +1364,8 @@ impl HealthComputer {
 
                 let lhs_positives = collateral_ltv_value
                     .checked_add(asset_debt_value)?
-                    .checked_add(perps_hf_values.max_ltv_numerator)?;
-                let lhs_negatives = perps_hf_values.max_ltv_denominator.checked_add(debt_value)?;
+                    .checked_add(perps_hf_values.liq_ltv_numerator)?;
+                let lhs_negatives = perps_hf_values.liq_ltv_denominator.checked_add(debt_value)?;
 
                 if lhs_negatives >= lhs_positives {
                     return Ok(Decimal::zero());
@@ -1368,7 +1395,7 @@ impl HealthComputer {
                     .ok_or(MissingPerpParams(denom.to_string()))?
                     .closing_fee_rate;
 
-                let perp_ltv = self.get_perp_max_ltv(denom)?;
+                let perp_ltv = self.get_perp_liq_ltv(denom)?;
                 let current_perp_price = perp_position.current_exec_price;
 
                 match perp_position.size.is_negative() {
@@ -1379,14 +1406,14 @@ impl HealthComputer {
                     // rhs = abs(size) * (perps_liq_ltv - closing_rate)
                     false => {
                         let market_value_num =
-                            self.perp_health_factor_values(perp_position)?.max_ltv_numerator;
+                            self.perp_health_factor_values(perp_position)?.liq_ltv_numerator;
 
                         let lhs_positives = debt_value
-                            .checked_add(perps_hf_values.max_ltv_denominator)?
+                            .checked_add(perps_hf_values.liq_ltv_denominator)?
                             .checked_add(market_value_num)?;
 
                         let lhs_negatives =
-                            collateral_ltv_value.checked_add(perps_hf_values.max_ltv_numerator)?;
+                            collateral_ltv_value.checked_add(perps_hf_values.liq_ltv_numerator)?;
 
                         if lhs_negatives >= lhs_positives {
                             return Ok(Decimal::zero());
@@ -1417,11 +1444,11 @@ impl HealthComputer {
                             .checked_mul_ceil(current_perp_price.checked_mul(ltv_adjusted)?)?;
 
                         let lhs_positives = collateral_ltv_value
-                            .checked_add(perps_hf_values.max_ltv_numerator)?
+                            .checked_add(perps_hf_values.liq_ltv_numerator)?
                             .checked_add(curr_exposure_ltv_adjusted)?;
 
                         let lhs_negatives =
-                            debt_value.checked_add(perps_hf_values.max_ltv_denominator)?;
+                            debt_value.checked_add(perps_hf_values.liq_ltv_denominator)?;
 
                         if lhs_negatives >= lhs_positives {
                             return Ok(Decimal::zero());

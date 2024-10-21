@@ -96,38 +96,38 @@ fn liquidation_price_asset() {
     let uusd = create_coin_info(
         "uusd".to_string(),
         Decimal::from_atomics(1u32, 0).unwrap(),
+        Decimal::percent(84),
         Decimal::percent(85),
-        Decimal::percent(86),
     );
     let uusdc = create_coin_info(
         "uusdc".to_string(),
         Decimal::from_atomics(1u32, 0).unwrap(),
+        Decimal::percent(84),
         Decimal::percent(85),
-        Decimal::percent(86),
     );
     let utia = create_coin_info(
         "utia".to_string(),
         Decimal::from_atomics(16u32, 12).unwrap(),
+        Decimal::percent(34),
         Decimal::percent(35),
-        Decimal::percent(56),
     );
     let uatom = create_coin_info(
         "uatom".to_string(),
         Decimal::from_atomics(11u32, 0).unwrap(),
+        Decimal::percent(84),
         Decimal::percent(85),
-        Decimal::percent(86),
     );
     let udydx = create_coin_info(
         "udydx".to_string(),
         Decimal::from_atomics(3u32, 12).unwrap(),
+        Decimal::percent(79),
         Decimal::percent(80),
-        Decimal::percent(81),
     );
     let uosmo = create_coin_info(
         "uosmo".to_string(),
         Decimal::from_atomics(135u32, 2).unwrap(),
+        Decimal::percent(79),
         Decimal::percent(80),
-        Decimal::percent(81),
     );
 
     let oracle_prices = HashMap::from([
@@ -156,14 +156,14 @@ fn liquidation_price_asset() {
     let uatom_perp = create_perp_info(
         uatom.denom.clone(),
         Decimal::from_atomics(12u32, 6).unwrap(),
+        Decimal::percent(84),
         Decimal::percent(85),
-        Decimal::percent(86),
     );
     let udydx_perp = create_perp_info(
         udydx.denom.clone(),
         Decimal::from_atomics(33u32, 19).unwrap(),
+        Decimal::percent(79),
         Decimal::percent(80),
-        Decimal::percent(81),
     );
 
     let perps_data = PerpsData {
