@@ -1148,7 +1148,7 @@
     "market_accounting": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AccountingResponse",
-      "description": "Accounting and unrealized PnL in the base denom (e.g. UUSDC)",
+      "description": "Represents the vault's accounting data and unrealized profit and loss (PnL), all denominated in the base currency (e.g. UUSDC).",
       "type": "object",
       "required": [
         "accounting",
@@ -1156,16 +1156,26 @@
       ],
       "properties": {
         "accounting": {
-          "$ref": "#/definitions/Accounting"
+          "description": "The vault's accounting data. Negative values indicate the vault is losing money, meaning traders are in profit.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Accounting"
+            }
+          ]
         },
         "unrealized_pnl": {
-          "$ref": "#/definitions/PnlAmounts"
+          "description": "Unrealized PnL amounts for all open positions. Negative unrealized PnL indicates traders are losing money, meaning the vault is in profit.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PnlAmounts"
+            }
+          ]
         }
       },
       "additionalProperties": false,
       "definitions": {
         "Accounting": {
-          "description": "Accounting in the base denom (e.g. UUSDC)",
+          "description": "Represents the accounting data for the vault, denominated in the base currency (e.g. UUSDC). If the values are negative, it indicates the vault is losing money.",
           "type": "object",
           "required": [
             "balance",
@@ -1174,7 +1184,7 @@
           ],
           "properties": {
             "balance": {
-              "description": "The actual amount of money + unrealized payments",
+              "description": "The total balance, which includes both realized and unrealized amounts.",
               "allOf": [
                 {
                   "$ref": "#/definitions/Balance"
@@ -1182,7 +1192,7 @@
               ]
             },
             "cash_flow": {
-              "description": "The actual amount of money, includes only realized payments",
+              "description": "The realized amount of money, only includes completed payments.",
               "allOf": [
                 {
                   "$ref": "#/definitions/CashFlow"
@@ -1190,7 +1200,7 @@
               ]
             },
             "withdrawal_balance": {
-              "description": "The amount of money available for withdrawal by LPs (in this type of balance we cap some unrealized payments)",
+              "description": "The amount available for withdrawal by liquidity providers (LPs). This value may cap certain unrealized payments.",
               "allOf": [
                 {
                   "$ref": "#/definitions/Balance"
@@ -2105,7 +2115,7 @@
     "total_accounting": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "AccountingResponse",
-      "description": "Accounting and unrealized PnL in the base denom (e.g. UUSDC)",
+      "description": "Represents the vault's accounting data and unrealized profit and loss (PnL), all denominated in the base currency (e.g. UUSDC).",
       "type": "object",
       "required": [
         "accounting",
@@ -2113,16 +2123,26 @@
       ],
       "properties": {
         "accounting": {
-          "$ref": "#/definitions/Accounting"
+          "description": "The vault's accounting data. Negative values indicate the vault is losing money, meaning traders are in profit.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Accounting"
+            }
+          ]
         },
         "unrealized_pnl": {
-          "$ref": "#/definitions/PnlAmounts"
+          "description": "Unrealized PnL amounts for all open positions. Negative unrealized PnL indicates traders are losing money, meaning the vault is in profit.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/PnlAmounts"
+            }
+          ]
         }
       },
       "additionalProperties": false,
       "definitions": {
         "Accounting": {
-          "description": "Accounting in the base denom (e.g. UUSDC)",
+          "description": "Represents the accounting data for the vault, denominated in the base currency (e.g. UUSDC). If the values are negative, it indicates the vault is losing money.",
           "type": "object",
           "required": [
             "balance",
@@ -2131,7 +2151,7 @@
           ],
           "properties": {
             "balance": {
-              "description": "The actual amount of money + unrealized payments",
+              "description": "The total balance, which includes both realized and unrealized amounts.",
               "allOf": [
                 {
                   "$ref": "#/definitions/Balance"
@@ -2139,7 +2159,7 @@
               ]
             },
             "cash_flow": {
-              "description": "The actual amount of money, includes only realized payments",
+              "description": "The realized amount of money, only includes completed payments.",
               "allOf": [
                 {
                   "$ref": "#/definitions/CashFlow"
@@ -2147,7 +2167,7 @@
               ]
             },
             "withdrawal_balance": {
-              "description": "The amount of money available for withdrawal by LPs (in this type of balance we cap some unrealized payments)",
+              "description": "The amount available for withdrawal by liquidity providers (LPs). This value may cap certain unrealized payments.",
               "allOf": [
                 {
                   "$ref": "#/definitions/Balance"

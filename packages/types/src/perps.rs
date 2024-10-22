@@ -284,25 +284,32 @@ pub struct Balance {
     pub total: Int128,
 }
 
-/// Accounting in the base denom (e.g. UUSDC)
+/// Represents the accounting data for the vault, denominated in the base currency (e.g. UUSDC).
+/// If the values are negative, it indicates the vault is losing money.
 #[cw_serde]
 #[derive(Default)]
 pub struct Accounting {
-    /// The actual amount of money, includes only realized payments
+    /// The realized amount of money, only includes completed payments.
     pub cash_flow: CashFlow,
 
-    /// The actual amount of money + unrealized payments
+    /// The total balance, which includes both realized and unrealized amounts.
     pub balance: Balance,
 
-    /// The amount of money available for withdrawal by LPs (in this type of balance we cap some unrealized payments)
+    /// The amount available for withdrawal by liquidity providers (LPs).
+    /// This value may cap certain unrealized payments.
     pub withdrawal_balance: Balance,
 }
 
-/// Accounting and unrealized PnL in the base denom (e.g. UUSDC)
+/// Represents the vault's accounting data and unrealized profit and loss (PnL), all denominated in the base currency (e.g. UUSDC).
 #[cw_serde]
 #[derive(Default)]
 pub struct AccountingResponse {
+    /// The vault's accounting data.
+    /// Negative values indicate the vault is losing money, meaning traders are in profit.
     pub accounting: Accounting,
+
+    /// Unrealized PnL amounts for all open positions.
+    /// Negative unrealized PnL indicates traders are losing money, meaning the vault is in profit.
     pub unrealized_pnl: PnlAmounts,
 }
 

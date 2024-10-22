@@ -143,6 +143,7 @@ pub trait MarketStateExt {
     ) -> ContractResult<(Int128, Funding)>;
 
     /// Compute the total PnL of all open positions based on current funding.
+    /// If the PnL is positive, the vault is losing money.
     /// Returns the total PnL and the updated funding.
     fn compute_pnl(
         &self,
@@ -152,7 +153,9 @@ pub trait MarketStateExt {
         closing_fee_rate: Decimal,
     ) -> ContractResult<(PnlValues, Funding)>;
 
-    /// Compute the accounting data for a denom
+    /// Computes the accounting data for a given denomination (`denom`).
+    /// This includes both the vault's accounting information and the unrealized
+    /// PnL amounts for any open positions.
     fn compute_accounting_data(
         &self,
         current_time: u64,

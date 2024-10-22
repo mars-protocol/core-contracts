@@ -83,7 +83,8 @@ pub fn query_vault(
     let total_cash_flow = acc_data.cash_flow.total()?.checked_add(vault_state.total_balance)?;
     let total_cash_flow = max(total_cash_flow, Int128::zero()).unsigned_abs();
 
-    // Calculate total debt
+    // A positive total unrealized PnL indicates profit for traders, which is treated as a liability for the vault.
+    // Thus, the vault's debt is equal to the positive unrealized PnL amount, or zero if there is no profit.
     let total_debt = max(unrealized_pnl_amt.pnl, Int128::zero()).unsigned_abs();
 
     // Calculate collateralization ratio if total debt is non-zero
