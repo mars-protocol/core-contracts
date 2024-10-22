@@ -119,8 +119,7 @@ impl HealthComputer {
         // and also used to withdraw.
         // Staked astro lps are also considered, given that the user will provide an unstake msg
         // before the actual withdraw msg
-        let withdraw_coin =
-            self.get_coin_from_deposits_lends_and_staked_astro_lps(withdraw_denom)?;
+        let withdraw_coin = self.get_coin_from_positions(withdraw_denom)?;
         if withdraw_coin.amount.is_zero() {
             return Ok(Uint128::zero());
         };
@@ -208,7 +207,9 @@ impl HealthComputer {
     ) -> HealthResult<Uint128> {
         // Both deposits and lends should be considered, as the funds can automatically be un-lent and
         // and also used to swap.
-        let from_coin = self.get_coin_from_deposits_and_lends(from_denom)?;
+        // Staked astro lps are also considered, given that the user will provide an unstake msg
+        // before the actual withdraw msg
+        let from_coin = self.get_coin_from_positions(from_denom)?;
 
         // If no debt the total amount deposited can be swapped (only for default swaps)
         // If repaying debt, the total amount deposited can be swapped
@@ -1240,32 +1241,19 @@ impl HealthComputer {
         }
     }
 
-    fn get_coin_from_deposits_and_lends(&self, denom: &str) -> HealthResult<Coin> {
+    fn get_coin_from_positions(&self, denom: &str) -> HealthResult<Coin> {
         let deposited_coin = self.positions.deposits.iter().find(|c| c.denom == denom);
         let deposited_amount = deposited_coin.unwrap_or(&Coin::default()).amount;
 
         let lent_coin = self.positions.lends.iter().find(|c| c.denom == denom);
         let lent_amount = lent_coin.unwrap_or(&Coin::default()).amount;
 
-        Ok(Coin {
-            denom: denom.to_string(),
-            amount: deposited_amount.checked_add(lent_amount)?,
-        })
-    }
-
-    fn get_coin_from_deposits_lends_and_staked_astro_lps(&self, denom: &str) -> HealthResult<Coin> {
-        let amount_deposited_lent = self.get_coin_from_deposits_and_lends(denom)?.amount;
-
-        let staked_amount = self
-            .positions
-            .staked_astro_lps
-            .iter()
-            .find(|c| c.denom == denom)
-            .map_or(Uint128::zero(), |c| c.amount);
+        let staked_coin = self.positions.staked_astro_lps.iter().find(|c| c.denom == denom);
+        let staked_amount = staked_coin.unwrap_or(&Coin::default()).amount;
 
         Ok(Coin {
             denom: denom.to_string(),
-            amount: amount_deposited_lent.checked_add(staked_amount)?,
+            amount: deposited_amount.checked_add(lent_amount)?.checked_add(staked_amount)?,
         })
     }
 
@@ -1318,7 +1306,7 @@ impl HealthComputer {
                 // liq_price = lhs / rhs
                 // lhs = debt + asset_ltv_value + perps_den - col_ltv_value - perps_num
                 // rhs = size * liq_ltv
-                let asset_amount = self.get_coin_from_deposits_and_lends(denom)?.amount;
+                let asset_amount = self.get_coin_from_positions(denom)?.amount;
                 if asset_amount.is_zero() {
                     return Err(MissingAmount(denom.to_string()));
                 }

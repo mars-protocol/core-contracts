@@ -256,3 +256,60 @@ fn liquidation_price_asset() {
     let liq_price = h.liquidation_price(&udydx.denom, &LiquidationPriceKind::Perp).unwrap();
     assert_eq!(Decimal::from_str("0.000000000003881903").unwrap(), liq_price);
 }
+
+#[test]
+fn liquidation_price_for_staked_astro_lp() {
+    let staked_lp_coin_info = create_coin_info(
+        "factory/contractaddress/astroport/share".to_string(),
+        Decimal::from_atomics(1u32, 0).unwrap(),
+        Decimal::percent(84),
+        Decimal::percent(85),
+    );
+
+    let dai_info = udai_info();
+
+    let oracle_prices = HashMap::from([
+        (staked_lp_coin_info.denom.clone(), staked_lp_coin_info.price),
+        (dai_info.denom.clone(), dai_info.price),
+    ]);
+    let asset_params = HashMap::from([
+        (staked_lp_coin_info.denom.clone(), staked_lp_coin_info.params.clone()),
+        (dai_info.denom.clone(), dai_info.params.clone()),
+    ]);
+
+    let vaults_data = VaultsData {
+        vault_values: Default::default(),
+        vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        params: Default::default(),
+    };
+
+    let h = HealthComputer {
+        kind: AccountKind::Default,
+        positions: Positions {
+            account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+            deposits: vec![],
+            debts: vec![DebtAmount {
+                denom: dai_info.denom.clone(),
+                amount: Uint128::from(1200000000u32),
+                shares: Uint128::zero(),
+            }],
+            lends: vec![],
+            vaults: vec![],
+            staked_astro_lps: vec![coin(1800000000, &staked_lp_coin_info.denom)],
+            perps: vec![],
+        },
+        asset_params,
+        oracle_prices,
+        vaults_data,
+        perps_data,
+    };
+
+    let liq_price =
+        h.liquidation_price(&staked_lp_coin_info.denom, &LiquidationPriceKind::Asset).unwrap();
+
+    assert_eq!(Decimal::from_str("0.24584392156862745").unwrap(), liq_price)
+}
