@@ -4,8 +4,9 @@ use std::{
     str::FromStr,
 };
 
+use bigdecimal::{BigDecimal, One, RoundingMode, Zero};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Coin, Decimal, Decimal256, Fraction, Int128, SignedDecimal, Uint128};
+use cosmwasm_std::{Coin, Decimal, Fraction, Int128, SignedDecimal, Uint128};
 use mars_perps_common::pricing::closing_execution_price;
 use mars_types::{
     credit_manager::Positions,
@@ -19,14 +20,13 @@ use mars_types::{
     },
     params::{AssetParams, CmSettings, HlsAssetType, VaultConfig},
     perps::{PerpPosition, PnL},
-    signed_rational::SignedRational,
 };
 #[cfg(feature = "javascript")]
 use tsify::Tsify;
 
 use crate::{
-    utils::calculate_remaining_oi_amount, CollateralValue, PerpHealthFactorValues, PerpPnlValues,
-    PerpsData, VaultsData,
+    big_decimal::ToBigDecimal, utils::calculate_remaining_oi_amount, CollateralValue,
+    PerpHealthFactorValues, PerpPnlValues, PerpsData, VaultsData,
 };
 
 /// `HealthComputer` is a shared struct with the frontend that gets compiled to wasm.
@@ -547,7 +547,16 @@ impl HealthComputer {
     }
 
     /// Estimate the max long and short size that our user can take.
-    /// The max position size can be calculated as: - (b+sqr(d)) / (2*a)
+    /// The max position size can be calculated as: - (b+sqr(d)) / (2*a).
+    ///
+    /// This function utilizes the `bigdecimal` crate (https://crates.io/crates/bigdecimal)
+    /// to handle high-precision calculations. The `cosmwasm-std` library only supports up to
+    /// 18 decimal places, which may not be sufficient for our needs. Additionally, working with
+    /// tokens like ETH, dYdX, and Injective, which use 18 decimal for token representation, can
+    /// result in very large numbers. The `bigdecimal` crate allows us to efficiently manage both
+    /// large numbers and high precision while maintaining code readability.
+    ///
+    /// NOTE: Intended for Frontend use only !!!
     pub fn max_perp_size_estimate(
         &self,
         denom: &str,
@@ -556,7 +565,7 @@ impl HealthComputer {
         short_oi_amount: Uint128,
         direction: &Direction,
     ) -> HealthResult<Int128> {
-        // prices
+        // Prices
         let perp_oracle_price = self.get_price(denom)?;
         let base_denom_price = self.get_price(base_denom)?;
 
@@ -609,10 +618,10 @@ impl HealthComputer {
         let (i, i_prim) = if (q_old.is_negative() && direction == &Direction::Long)
             || (!q_old.is_negative() && direction == &Direction::Short)
         {
-            // opposite direction
+            // Opposite direction
             (Uint128::zero(), Uint128::one())
-            // Same direction
         } else {
+            // Same direction
             (Uint128::one(), Uint128::zero())
         };
 
@@ -623,8 +632,10 @@ impl HealthComputer {
                 let bd_den: Int128 = base_denom_price.denominator().try_into()?;
                 let f_value = f_amount.checked_multiply_ratio(bd_num, bd_den)?;
                 let price_diff = SignedDecimal::try_from(p_ex)?.checked_sub(p_ex_o.try_into()?)?;
+                let closing_fee_value_prim = closing_fee_value.checked_mul(i_prim)?;
                 q_old
                     .checked_multiply_ratio(price_diff.numerator(), price_diff.denominator())?
+                    .checked_sub(closing_fee_value_prim.try_into()?)?
                     .checked_add(f_value)?
             }
         };
@@ -633,91 +644,42 @@ impl HealthComputer {
             self.account_composition(base_denom, denom, base_denom_price)?;
 
         // z = LTVp - closing fee - opening fee - 1
-        let z = SignedRational::from(
-            SignedDecimal::try_from(ltv_p)?
-                .checked_sub(closing_fee_rate.try_into()?)?
-                .checked_sub(opening_fee_rate.try_into()?)?
-                .checked_sub(SignedDecimal::one())?,
-        );
+        let z = ltv_p.bd() - closing_fee_rate.bd() - opening_fee_rate.bd() - BigDecimal::one();
 
         // a = - z * (price_oracle / (2 * skew_scale)) (SHORT)
         // a = z * (price_oracle / (2 * skew_scale)) (LONG)
-        let two_times_skew_scale =
-            SignedRational::from(Uint128::new(2u128).checked_mul(skew_scale)?);
-        let a = z
-            .mul_rational(
-                SignedRational::from(perp_oracle_price).div_rational(two_times_skew_scale)?,
-            )?
-            .mul_rational(SignedRational::from(direction.sign()))?;
+        let two_times_skew_scale = BigDecimal::from(2u128) * skew_scale.bd();
+        let a = direction.sign().bd() * z.clone() * perp_oracle_price.bd() / two_times_skew_scale;
 
-        // b = z * price * (1 + (k / skew_scale) - (q_old / skew_scale))
-        // ratio_a = k / skew_scale
-        let ratio_a = SignedRational::new(k.unsigned_abs(), skew_scale, k.is_negative());
-        // ratio_b = q_old / skew_scale
-        let ratio_b = SignedRational::new(q_old.unsigned_abs(), skew_scale, q_old.is_negative());
-        // multiplier = 1 + (k / skew_scale) - (q_old / skew_scale)
-        let multiplier = SignedRational::one().add_rational(ratio_a)?.sub_rational(ratio_b)?;
-        // b = z * price * (1 + (k / skew_scale) - (q_old / skew_scale))
-        let b = z.mul_rational(perp_oracle_price.into())?.mul_rational(multiplier)?;
-        // c = based_denom_value + u_pnl - closing_fee_value * i_prim
-        let c = u_pnl
-            .checked_add(base_denom_collateral_value.try_into()?)?
-            .checked_sub(closing_fee_value.checked_mul(i_prim)?.try_into()?)?;
+        // b = z * price_oracle * (1 + (k - q_old) / skew_scale)
+        let b = z
+            * perp_oracle_price.bd()
+            * (BigDecimal::one() + (k.bd() - q_old.bd()) / skew_scale.bd());
 
-        // c+ = max(0, c)
-        let c_max = Int128::zero().max(c);
-
-        // c- = -min(0, c)
-        let c_min = Int128::zero().checked_sub(Int128::zero().min(c))?;
-
-        // c_delta = (c_max * LTV_base_denom) - c_min
-        let c_delta = SignedRational::from(c_max)
-            .mul_rational(ltv_base_denom.into())?
-            .sub_rational(c_min.into())?;
-
-        // C_add = price_oracle * |q_old| * opening_fee_rate * (1 + (k - q_old / 2) / skew_scale) * i
-        // Rewrite to avoid rounding errors:
-        // C_add = i * |q_old| * price_oracle * opening_fee_rate * (1 + ratio)
-        // where:
-        // ratio = (2 * k - q_old) / (2 * skew_scale)
-        let ratio_n = k.checked_mul(Int128::from(2i128))?.checked_sub(q_old)?;
-        let ratio_d = Uint128::new(2u128).checked_mul(skew_scale)?;
-        let ratio = SignedRational::from(ratio_n).div_rational(ratio_d.into())?;
-        let c_add = SignedRational::from(i.checked_mul(q_old.unsigned_abs())?).mul_rational(
-            SignedRational::one()
-                .add_rational(ratio)?
-                .mul_rational(perp_oracle_price.into())?
-                .mul_rational(opening_fee_rate.into())?,
-        )?;
-
-        // c = RWA - debt + c_delta + c_add
-        let c = c_delta
-            .add_rational(c_add)?
-            .add_rational(rwa_value.into())?
-            .sub_rational(debt_value.into())?;
-
-        let b_sq = b.mul_rational(b)?;
-        let ca4 = c.mul_rational(a)?.mul_rational(Int128::from_str("4")?.into())?;
-
-        // We can be vulnerable to overflow here, because by this stage there have been many operations
-        // on the numerator and denominator of underlying rationals, which results in large numbers.
-        // We use a decimal which prevent overflow in the case of two very large numbers, but does introduce some rounding.
-        let decimal_a = Decimal256::from_ratio(b_sq.numerator, b_sq.denominator);
-        let decimal_b = Decimal256::from_ratio(ca4.numerator, ca4.denominator);
+        // c = y + i * opening_fee_rate * |q_old| * price_oracle * (1 + (k - q_old / 2) / skew_scale)
+        // y = RWA - debt + c_big_max * LTV_base_denom - c_big_min
+        // c_big_max = max(0, c_big)
+        // c_big_min = -min(0, c_big)
+        // c_big = base_denom_collateral_value + u_pnl
+        let c_big = base_denom_collateral_value.bd() + u_pnl.bd();
+        let c_big_max = BigDecimal::max(BigDecimal::zero(), c_big.clone());
+        let c_big_min = -BigDecimal::min(BigDecimal::zero(), c_big);
+        let y = rwa_value.bd() - debt_value.bd() + c_big_max * ltv_base_denom.bd() - c_big_min;
+        let c = y + i.bd()
+            * opening_fee_rate.bd()
+            * q_old.unsigned_abs().bd()
+            * perp_oracle_price.bd()
+            * (BigDecimal::one()
+                + (k.bd() - q_old.bd() / BigDecimal::from(2u128)) / skew_scale.bd());
 
         // d = b^2 - 4ac
-        let d = if ca4.negative {
-            decimal_a.checked_add(decimal_b)?
-        } else {
-            decimal_a.checked_sub(decimal_b)?
-        };
+        let d = b.square() - BigDecimal::from(4u128) * a.clone() * c;
 
         // q_max = - (b + sqrt(d)) / (2 * a)
-        let mut q_max_amount = b
-            .add_rational(d.sqrt().into())?
-            .div_rational(SignedRational::from(Uint128::new(2)).mul_rational(a)?)?
-            .neg()
-            .to_signed_uint()?;
+        let q_max_amount =
+            -(b + d.sqrt().unwrap_or(BigDecimal::zero())) / (BigDecimal::from(2u128) * a);
+        let q_max_amount = q_max_amount.with_scale_round(0, RoundingMode::Down);
+        let mut q_max_amount = Int128::from_str(q_max_amount.to_string().as_str())?;
 
         // Cap our size by remaining space in OI caps
         if q_max_amount.unsigned_abs() > max_oi_change_amount {
