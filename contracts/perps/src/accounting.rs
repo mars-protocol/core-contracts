@@ -4,7 +4,7 @@
 use std::cmp::max;
 
 use cosmwasm_std::{Int128, Uint128};
-use mars_types::perps::{Accounting, Balance, CashFlow, PnlAmounts};
+use mars_types::perps::{Accounting, Balance, CashFlow, PnlAmounts, VaultState};
 
 use crate::error::ContractResult;
 
@@ -31,6 +31,25 @@ pub trait AccountingExt {
     /// Accounting after applying the given cash flow and unrealized PnL.
     /// It can be used to compute the accounting for a single denom or for all denoms.
     fn compute(cash_flow: &CashFlow, unrealized_pnl: &PnlAmounts) -> ContractResult<Accounting>;
+
+    /// Compute the counterparty vault's net asset value (NAV), denominated in the
+    /// base asset (i.e. USDC).
+    ///
+    /// The NAV is defined as
+    ///
+    /// ```
+    /// NAV := max(vaultTotalBalance + totalWithdrawalBalance, 0)
+    /// ```
+    ///
+    /// Here `totalWithdrawalBalance` is the amount of money available for withdrawal by LPs.
+    ///
+    /// If a traders has an unrealized gain, it's a liability for the counterparty
+    /// vault, because if the user realizes the position it will be the vault to pay
+    /// for the profit.
+    ///
+    /// Conversely, to realize a losing position the user must pay the vault, so
+    /// it's an asset for the vault.
+    fn total_withdrawal_balance(&self, vault_state: &VaultState) -> ContractResult<Uint128>;
 }
 
 impl CashFlowExt for CashFlow {
@@ -111,6 +130,13 @@ impl AccountingExt for Accounting {
             balance,
             withdrawal_balance,
         })
+    }
+
+    fn total_withdrawal_balance(&self, vault_state: &VaultState) -> ContractResult<Uint128> {
+        let total_withdrawal_balance =
+            self.withdrawal_balance.total.checked_add(vault_state.total_balance)?;
+        let total_withdrawal_balance = max(total_withdrawal_balance, Int128::zero()).unsigned_abs();
+        Ok(total_withdrawal_balance)
     }
 }
 

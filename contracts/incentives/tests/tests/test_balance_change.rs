@@ -377,6 +377,8 @@ fn with_zero_previous_balance_and_asset_with_zero_index_accumulates_rewards(
             IncentiveKind::PerpVault => {
                 deps.querier.set_perp_vault_state(VaultResponse {
                     total_shares: total_supply,
+                    total_unlocking_or_unlocked_shares: Uint128::zero(),
+                    total_unlocking_or_unlocked_amount: Uint128::zero(),
                     total_balance: Int128::zero(),
                     total_liquidity: Uint128::zero(),
                     collateralization_ratio: None,

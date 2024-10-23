@@ -50,6 +50,10 @@ pub const TOTAL_CASH_FLOW: Item<CashFlow> = Item::new("total_cf");
 pub const DELEVERAGE_REQUEST_TEMP_STORAGE: Item<DeleverageRequestTempStorage> =
     Item::new("deleverage_req_temp_var");
 
+// Total unlocking shares across all users
+pub const TOTAL_UNLOCKING_OR_UNLOCKED_SHARES: Item<Uint128> =
+    Item::new("total_unlocking_or_unlocked_shares");
+
 /// Increase the deposit shares of a depositor by the given amount.
 /// Return the updated deposit shares.
 pub fn increase_deposit_shares(
@@ -82,4 +86,27 @@ pub fn decrease_deposit_shares(
     }
 
     Ok(shares)
+}
+
+/// Increase the total unlocking or unlocked shares by the given amount.
+pub fn increase_total_unlocking_or_unlocked_shares(
+    store: &mut dyn Storage,
+    shares: Uint128,
+) -> StdResult<Uint128> {
+    let updated_shares = TOTAL_UNLOCKING_OR_UNLOCKED_SHARES
+        .may_load(store)?
+        .unwrap_or_else(Uint128::zero)
+        .checked_add(shares)?;
+    TOTAL_UNLOCKING_OR_UNLOCKED_SHARES.save(store, &updated_shares)?;
+    Ok(updated_shares)
+}
+
+/// Decrease the total unlocking or unlocked shares by the given amount.
+pub fn decrease_total_unlocking_or_unlocked_shares(
+    store: &mut dyn Storage,
+    shares: Uint128,
+) -> StdResult<Uint128> {
+    let updated_shares = TOTAL_UNLOCKING_OR_UNLOCKED_SHARES.load(store)?.checked_sub(shares)?;
+    TOTAL_UNLOCKING_OR_UNLOCKED_SHARES.save(store, &updated_shares)?;
+    Ok(updated_shares)
 }

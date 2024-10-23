@@ -357,6 +357,8 @@ fn execute_claim_rewards_perp_vault() {
 
     deps.querier.set_perp_vault_state(VaultResponse {
         total_shares,
+        total_unlocking_or_unlocked_shares: Uint128::zero(),
+        total_unlocking_or_unlocked_amount: Uint128::zero(),
         total_balance: Int128::zero(),
         total_liquidity: Uint128::zero(),
         collateralization_ratio: None,

@@ -92,6 +92,8 @@ fn unlock_few_times() {
         VaultResponse {
             total_balance: deposit.amount.try_into().unwrap(),
             total_shares: deposit.shares,
+            total_unlocking_or_unlocked_shares: Uint128::zero(),
+            total_unlocking_or_unlocked_amount: Uint128::zero(),
             total_withdrawal_balance: deposit.amount,
             share_price: Some(Decimal::from_ratio(deposit.amount, deposit.shares)),
             total_liquidity: deposit.amount,
@@ -112,7 +114,14 @@ fn unlock_few_times() {
     };
     assert_eq!(unlocks, vec![unlock_1_expected.clone()]);
     let vault_state = mock.query_vault();
-    assert_eq!(vault_state, vault_state_before_unlocks);
+    assert_eq!(
+        vault_state,
+        VaultResponse {
+            total_unlocking_or_unlocked_shares: shares_1,
+            total_unlocking_or_unlocked_amount: amt_1,
+            ..vault_state_before_unlocks
+        }
+    );
 
     // move time forward
     mock.increment_by_time(3600);
@@ -129,7 +138,14 @@ fn unlock_few_times() {
     };
     assert_eq!(unlocks, vec![unlock_1_expected.clone(), unlock_2_expected.clone()]);
     let vault_state = mock.query_vault();
-    assert_eq!(vault_state, vault_state_before_unlocks);
+    assert_eq!(
+        vault_state,
+        VaultResponse {
+            total_unlocking_or_unlocked_shares: shares_1 + shares_2,
+            total_unlocking_or_unlocked_amount: amt_1 + amt_2,
+            ..vault_state_before_unlocks
+        }
+    );
 
     // move time forward
     mock.increment_by_time(3600);
@@ -146,7 +162,14 @@ fn unlock_few_times() {
     };
     assert_eq!(unlocks, vec![unlock_1_expected, unlock_2_expected, unlock_3_expected]);
     let vault_state = mock.query_vault();
-    assert_eq!(vault_state, vault_state_before_unlocks);
+    assert_eq!(
+        vault_state,
+        VaultResponse {
+            total_unlocking_or_unlocked_shares: shares_1 + shares_2 + shares_3,
+            total_unlocking_or_unlocked_amount: amt_1 + amt_2 + amt_3,
+            ..vault_state_before_unlocks
+        }
+    );
 
     // deposit should be empty after all unlocks
     let deposit = mock.query_cm_vault_position(depositor).unwrap().deposit;
@@ -331,7 +354,14 @@ fn withdraw_unlocked_shares() {
     // first unlock
     mock.unlock_from_vault(&credit_manager, Some(depositor), shares_1).unwrap();
     let vault_state = mock.query_vault();
-    assert_eq!(vault_state, vault_state_before_unlocks);
+    assert_eq!(
+        vault_state,
+        VaultResponse {
+            total_unlocking_or_unlocked_shares: shares_1,
+            total_unlocking_or_unlocked_amount: amt_1,
+            ..vault_state_before_unlocks
+        }
+    );
 
     // move time forward
     mock.increment_by_time(3600);
@@ -340,7 +370,14 @@ fn withdraw_unlocked_shares() {
     let unlock_2_current_time = mock.query_block_time();
     mock.unlock_from_vault(&credit_manager, Some(depositor), shares_2).unwrap();
     let vault_state = mock.query_vault();
-    assert_eq!(vault_state, vault_state_before_unlocks);
+    assert_eq!(
+        vault_state,
+        VaultResponse {
+            total_unlocking_or_unlocked_shares: shares_1 + shares_2,
+            total_unlocking_or_unlocked_amount: amt_1 + amt_2,
+            ..vault_state_before_unlocks
+        }
+    );
 
     // move time forward
     mock.increment_by_time(3600);
@@ -349,7 +386,14 @@ fn withdraw_unlocked_shares() {
     let unlock_3_current_time = mock.query_block_time();
     mock.unlock_from_vault(&credit_manager, Some(depositor), shares_3).unwrap();
     let vault_state = mock.query_vault();
-    assert_eq!(vault_state, vault_state_before_unlocks);
+    assert_eq!(
+        vault_state,
+        VaultResponse {
+            total_unlocking_or_unlocked_shares: shares_1 + shares_2 + shares_3,
+            total_unlocking_or_unlocked_amount: amt_1 + amt_2 + amt_3,
+            ..vault_state_before_unlocks
+        }
+    );
 
     // move time forward to pass cooldown period for first and second unlock
     mock.set_block_time(unlock_2_current_time + cooldown_period);
@@ -373,6 +417,8 @@ fn withdraw_unlocked_shares() {
         VaultResponse {
             total_balance: total_deposits.try_into().unwrap(),
             total_shares,
+            total_unlocking_or_unlocked_shares: shares_3,
+            total_unlocking_or_unlocked_amount: amt_3,
             total_withdrawal_balance: total_deposits,
             share_price: Some(Decimal::from_ratio(total_deposits, total_shares)),
             total_liquidity: total_deposits,
@@ -887,6 +933,8 @@ fn withdraw_profits_for_depositors() {
         VaultResponse {
             total_balance: total_deposits.try_into().unwrap(),
             total_shares,
+            total_unlocking_or_unlocked_shares: Uint128::zero(),
+            total_unlocking_or_unlocked_amount: Uint128::zero(),
             total_withdrawal_balance: total_liquidity, // total cash flow is equal to total withdrawal balance when no open positions
             share_price: Some(Decimal::from_ratio(total_liquidity, total_shares)),
             total_liquidity,
@@ -922,6 +970,8 @@ fn withdraw_profits_for_depositors() {
                 .checked_sub(total_amt_from_perp_pos.try_into().unwrap())
                 .unwrap(), // negative number because of profits from perp positions
             total_shares: Uint128::zero(),
+            total_unlocking_or_unlocked_shares: Uint128::zero(),
+            total_unlocking_or_unlocked_amount: Uint128::zero(),
             total_withdrawal_balance: Uint128::zero(),
             share_price: None,
             total_liquidity: Uint128::zero(),

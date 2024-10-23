@@ -2288,6 +2288,8 @@
         "total_debt",
         "total_liquidity",
         "total_shares",
+        "total_unlocking_or_unlocked_amount",
+        "total_unlocking_or_unlocked_shares",
         "total_withdrawal_balance"
       ],
       "properties": {
@@ -2339,6 +2341,22 @@
         },
         "total_shares": {
           "description": "Total shares minted to liquidity providers.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "total_unlocking_or_unlocked_amount": {
+          "description": "The total amount (in base currency) corresponding to shares that are either unlocking or already unlocked but not withdrawn. This amount is proportional to the total unlocking or unlocked shares and is calculated based on the Vault share price.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "total_unlocking_or_unlocked_shares": {
+          "description": "The total number of shares that are either currently unlocking or already unlocked but not withdrawn. This includes both shares still within the unlocking period and shares that have completed unlocking.",
           "allOf": [
             {
               "$ref": "#/definitions/Uint128"

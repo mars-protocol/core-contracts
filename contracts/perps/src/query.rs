@@ -19,10 +19,14 @@ use mars_types::{
 };
 
 use crate::{
+    accounting::AccountingExt,
     error::ContractResult,
     market::{compute_total_accounting_data, MarketStateExt},
     position::{PositionExt, PositionModification},
-    state::{CONFIG, DEPOSIT_SHARES, MARKET_STATES, POSITIONS, REALIZED_PNL, UNLOCKS, VAULT_STATE},
+    state::{
+        CONFIG, DEPOSIT_SHARES, MARKET_STATES, POSITIONS, REALIZED_PNL,
+        TOTAL_UNLOCKING_OR_UNLOCKED_SHARES, UNLOCKS, VAULT_STATE,
+    },
     utils::{create_user_id_key, get_oracle_adapter, get_params_adapter},
     vault::shares_to_amount,
 };
@@ -68,9 +72,7 @@ pub fn query_vault(
     )?;
 
     // Calculate total withdrawal balance
-    let total_withdrawal_balance =
-        acc_data.withdrawal_balance.total.checked_add(vault_state.total_balance)?;
-    let total_withdrawal_balance = max(total_withdrawal_balance, Int128::zero()).unsigned_abs();
+    let total_withdrawal_balance = acc_data.total_withdrawal_balance(&vault_state)?;
 
     // Calculate share price if total shares are non-zero
     let share_price = if vault_state.total_shares.is_zero() {
@@ -94,10 +96,22 @@ pub fn query_vault(
         Some(Decimal::checked_from_ratio(total_cash_flow, total_debt)?)
     };
 
+    // Calculate total unlocking/unlocked shares and amount
+    let total_unlocking_or_unlocked_shares =
+        TOTAL_UNLOCKING_OR_UNLOCKED_SHARES.may_load(deps.storage)?.unwrap_or_default();
+    let total_unlocking_or_unlocked_amount = shares_to_amount(
+        &vault_state,
+        total_unlocking_or_unlocked_shares,
+        total_withdrawal_balance,
+    )
+    .unwrap_or_default();
+
     // Construct and return the VaultResponse
     Ok(VaultResponse {
         total_balance: vault_state.total_balance,
         total_shares: vault_state.total_shares,
+        total_unlocking_or_unlocked_shares,
+        total_unlocking_or_unlocked_amount,
         total_withdrawal_balance,
         share_price,
         total_liquidity: total_cash_flow,
@@ -198,20 +212,20 @@ pub fn query_vault_position(
         return Ok(None);
     }
 
+    let (global_acc_data, _) = compute_total_accounting_data(
+        &deps,
+        &oracle,
+        &params,
+        current_time,
+        &cfg.base_denom,
+        ActionKind::Default,
+    )?;
+    let total_withdrawal_balance = global_acc_data.total_withdrawal_balance(&vs)?;
+
     let shares = shares.unwrap_or_default();
     let perp_vault_deposit = VaultDeposit {
         shares,
-        amount: shares_to_amount(
-            &deps,
-            &vs,
-            &oracle,
-            &params,
-            current_time,
-            &cfg.base_denom,
-            shares,
-            ActionKind::Default,
-        )
-        .unwrap_or_default(),
+        amount: shares_to_amount(&vs, shares, total_withdrawal_balance).unwrap_or_default(),
     };
 
     let unlocks = unlocks.unwrap_or_default();
@@ -222,17 +236,8 @@ pub fn query_vault_position(
                 created_at: unlock.created_at,
                 cooldown_end: unlock.cooldown_end,
                 shares: unlock.shares,
-                amount: shares_to_amount(
-                    &deps,
-                    &vs,
-                    &oracle,
-                    &params,
-                    current_time,
-                    &cfg.base_denom,
-                    unlock.shares,
-                    ActionKind::Default,
-                )
-                .unwrap_or_default(),
+                amount: shares_to_amount(&vs, unlock.shares, total_withdrawal_balance)
+                    .unwrap_or_default(),
             })
         })
         .collect();

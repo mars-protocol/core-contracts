@@ -135,6 +135,14 @@ pub struct VaultResponse {
     /// Total shares minted to liquidity providers.
     pub total_shares: Uint128,
 
+    /// The total number of shares that are either currently unlocking or already unlocked but not withdrawn.
+    /// This includes both shares still within the unlocking period and shares that have completed unlocking.
+    pub total_unlocking_or_unlocked_shares: Uint128,
+
+    /// The total amount (in base currency) corresponding to shares that are either unlocking or already unlocked but not withdrawn.
+    /// This amount is proportional to the total unlocking or unlocked shares and is calculated based on the Vault share price.
+    pub total_unlocking_or_unlocked_amount: Uint128,
+
     /// Total withdrawal balance in the base denom aggregated across all markets.
     /// `total_withdrawal_balance = max(total_balance + accounting.withdrawal_balance.total, 0)`
     /// See [`Accounting`] for more details regarding the calculation of `accounting.withdrawal_balance.total`.

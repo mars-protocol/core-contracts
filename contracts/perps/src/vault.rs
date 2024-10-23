@@ -1,12 +1,9 @@
-use std::cmp::max;
-
 use cosmwasm_std::{
-    coins, ensure, to_json_binary, Addr, BankMsg, CosmosMsg, Deps, DepsMut, Int128, MessageInfo,
-    Response, Uint128, WasmMsg,
+    coins, ensure, to_json_binary, Addr, BankMsg, CosmosMsg, Deps, DepsMut, MessageInfo, Response,
+    Uint128, WasmMsg,
 };
 use cw_utils::must_pay;
 use mars_types::{
-    adapters::{oracle::Oracle, params::Params},
     address_provider::{
         helpers::{query_contract_addr, query_contract_addrs},
         MarsAddressType,
@@ -18,12 +15,14 @@ use mars_types::{
 };
 
 use crate::{
+    accounting::AccountingExt,
     deleverage::query_vault_cr,
     error::{ContractError, ContractResult},
     market::compute_total_accounting_data,
     state::{
-        decrease_deposit_shares, increase_deposit_shares, CONFIG, DEPOSIT_SHARES, UNLOCKS,
-        VAULT_STATE,
+        decrease_deposit_shares, decrease_total_unlocking_or_unlocked_shares,
+        increase_deposit_shares, increase_total_unlocking_or_unlocked_shares, CONFIG,
+        DEPOSIT_SHARES, UNLOCKS, VAULT_STATE,
     },
     utils::{create_user_id_key, get_oracle_adapter, get_params_adapter},
 };
@@ -88,16 +87,15 @@ pub fn deposit(
     let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
 
     // Compute the new shares to be minted to the depositor
-    let shares = amount_to_shares(
+    let (global_acc_data, _) = compute_total_accounting_data(
         &deps.as_ref(),
-        &vs,
         &oracle,
         &params,
         current_time,
         &cfg.base_denom,
-        amount,
         ActionKind::Default,
     )?;
+    let shares = amount_to_shares(&vs, amount, global_acc_data.total_withdrawal_balance(&vs)?)?;
 
     if let Some(msr) = max_shares_receivable {
         if shares >= msr {
@@ -179,12 +177,19 @@ pub fn unlock(
         Ok::<Vec<UnlockState>, ContractError>(unlocks)
     })?;
 
+    let new_total_unlocking_or_unlocked_shares =
+        increase_total_unlocking_or_unlocked_shares(deps.storage, shares)?;
+
     Ok(Response::new()
         .add_attribute("action", "unlock")
         .add_attribute("denom", cfg.base_denom)
         .add_attribute("shares", shares)
         .add_attribute("created_at", current_time.to_string())
-        .add_attribute("cooldown_end", cooldown_end.to_string()))
+        .add_attribute("cooldown_end", cooldown_end.to_string())
+        .add_attribute(
+            "total_unlocking_or_unlocked_shares",
+            new_total_unlocking_or_unlocked_shares,
+        ))
 }
 
 /// Handles the withdrawal of unlocked shares from the vault, converting them to the corresponding amount of the base denomination.
@@ -259,15 +264,18 @@ pub fn withdraw(
     let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
 
     // Convert the shares to amount
-    let unlocked_user_amount = shares_to_amount(
+    let (global_acc_data, _) = compute_total_accounting_data(
         &deps.as_ref(),
-        &vs,
         &oracle,
         &params,
         current_time,
         &cfg.base_denom,
-        user_vault_shares.unlocked_amount,
         ActionKind::Default,
+    )?;
+    let unlocked_user_amount = shares_to_amount(
+        &vs,
+        user_vault_shares.unlocked_amount,
+        global_acc_data.total_withdrawal_balance(&vs)?,
     )?;
 
     // Ensure slippage checks (if provided by user)
@@ -285,6 +293,11 @@ pub fn withdraw(
     vs.total_balance = vs.total_balance.checked_sub(unlocked_user_amount.try_into()?)?;
     vs.total_shares = vs.total_shares.checked_sub(user_vault_shares.unlocked_amount)?;
     VAULT_STATE.save(deps.storage, &vs)?;
+
+    let new_total_unlocking_or_unlocked_shares = decrease_total_unlocking_or_unlocked_shares(
+        deps.storage,
+        user_vault_shares.unlocked_amount,
+    )?;
 
     // Check if the vault is under-collateralized after the withdrawal
     let current_cr = query_vault_cr(deps.as_ref(), current_time, ActionKind::Default)?;
@@ -306,43 +319,12 @@ pub fn withdraw(
         .add_attribute("denom", &cfg.base_denom)
         .add_attribute("unlocked_user_shares", user_vault_shares.unlocked_amount)
         .add_attribute("amount", unlocked_user_amount)
-        .add_attribute("total_user_shares", total_user_shares))
-}
-
-/// Compute the counterparty vault's net asset value (NAV), denominated in the
-/// base asset (i.e. USDC).
-///
-/// The NAV is defined as
-///
-/// ```
-/// NAV := max(assets + totalWithdrawalBalance, 0)
-/// ```
-///
-/// Here `totalWithdrawalBalance` is the amount of money available for withdrawal by LPs.
-///
-/// If a traders has an unrealized gain, it's a liability for the counterparty
-/// vault, because if the user realizes the position it will be the vault to pay
-/// for the profit.
-///
-/// Conversely, to realize a losing position the user must pay the vault, so
-/// it's an asset for the vault.
-pub fn compute_global_withdrawal_balance(
-    deps: &Deps,
-    vs: &VaultState,
-    oracle: &Oracle,
-    params: &Params,
-    current_time: u64,
-    base_denom: &str,
-    action: ActionKind,
-) -> ContractResult<Uint128> {
-    let (global_acc_data, _) =
-        compute_total_accounting_data(deps, oracle, params, current_time, base_denom, action)?;
-
-    let global_withdrawal_balance =
-        global_acc_data.withdrawal_balance.total.checked_add(vs.total_balance)?;
-    let global_withdrawal_balance = max(global_withdrawal_balance, Int128::zero());
-
-    Ok(global_withdrawal_balance.unsigned_abs())
+        .add_attribute("unlocking_user_shares", user_vault_shares.unlocking_amount)
+        .add_attribute("total_user_shares", total_user_shares)
+        .add_attribute(
+            "total_unlocking_or_unlocked_shares",
+            new_total_unlocking_or_unlocked_shares,
+        ))
 }
 
 /// Convert a deposit amount to shares, given the current total amount and
@@ -351,30 +333,15 @@ pub fn compute_global_withdrawal_balance(
 /// If total shares is zero, in which case a conversion rate between amount and
 /// shares is undefined, we use a default conversion rate.
 pub fn amount_to_shares(
-    deps: &Deps,
     vs: &VaultState,
-    oracle: &Oracle,
-    params: &Params,
-    current_time: u64,
-    base_denom: &str,
     amount: Uint128,
-    action: ActionKind,
+    total_withdrawal_balance: Uint128,
 ) -> ContractResult<Uint128> {
-    let available_liquidity = compute_global_withdrawal_balance(
-        deps,
-        vs,
-        oracle,
-        params,
-        current_time,
-        base_denom,
-        action,
-    )?;
-
-    if vs.total_shares.is_zero() || available_liquidity.is_zero() {
+    if vs.total_shares.is_zero() || total_withdrawal_balance.is_zero() {
         return amount.checked_mul(Uint128::new(DEFAULT_SHARES_PER_AMOUNT)).map_err(Into::into);
     }
 
-    vs.total_shares.checked_multiply_ratio(amount, available_liquidity).map_err(Into::into)
+    vs.total_shares.checked_multiply_ratio(amount, total_withdrawal_balance).map_err(Into::into)
 }
 
 /// Convert a deposit shares to amount, given the current total amount and
@@ -383,14 +350,9 @@ pub fn amount_to_shares(
 /// If total shares is zero, in which case a conversion rate between amount and
 /// shares if undefined, we throw an error.
 pub fn shares_to_amount(
-    deps: &Deps,
     vs: &VaultState,
-    oracle: &Oracle,
-    params: &Params,
-    current_time: u64,
-    base_denom: &str,
     shares: Uint128,
-    action: ActionKind,
+    total_withdrawal_balance: Uint128,
 ) -> ContractResult<Uint128> {
     // We technical don't need to check for this explicitly, because
     // checked_multiply_raio already checks for division-by-zero. However we
@@ -401,20 +363,11 @@ pub fn shares_to_amount(
     }
 
     // We can't continue if there is zero available liquidity in the vault
-    let available_liquidity = compute_global_withdrawal_balance(
-        deps,
-        vs,
-        oracle,
-        params,
-        current_time,
-        base_denom,
-        action,
-    )?;
-    if available_liquidity.is_zero() {
+    if total_withdrawal_balance.is_zero() {
         return Err(ContractError::ZeroWithdrawalBalance);
     }
 
-    available_liquidity.checked_multiply_ratio(shares, vs.total_shares).map_err(Into::into)
+    total_withdrawal_balance.checked_multiply_ratio(shares, vs.total_shares).map_err(Into::into)
 }
 
 /// For internal use by the struct only.

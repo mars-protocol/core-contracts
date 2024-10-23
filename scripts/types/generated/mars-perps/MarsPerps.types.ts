@@ -319,6 +319,8 @@ export interface VaultResponse {
   total_debt: Uint128
   total_liquidity: Uint128
   total_shares: Uint128
+  total_unlocking_or_unlocked_amount: Uint128
+  total_unlocking_or_unlocked_shares: Uint128
   total_withdrawal_balance: Uint128
 }
 export type NullableVaultPositionResponse = VaultPositionResponse | null

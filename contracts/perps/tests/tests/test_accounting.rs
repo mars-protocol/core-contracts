@@ -362,6 +362,8 @@ fn assert_vault(mock: &MockEnv, vault_before: &VaultResponse) {
         VaultResponse {
             total_balance: vault_before.total_balance,
             total_shares: vault_before.total_shares,
+            total_unlocking_or_unlocked_shares: Uint128::zero(),
+            total_unlocking_or_unlocked_amount: Uint128::zero(),
             total_withdrawal_balance,
             share_price: Some(Decimal::from_ratio(
                 total_withdrawal_balance,
