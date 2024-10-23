@@ -11,6 +11,59 @@ use mars_types::{
 use crate::tests::helpers::{create_coin_info, create_perp_info, udai_info};
 
 #[test]
+fn liquidation_price_when_debt_larger_than_collateral() {
+    let udai = udai_info();
+
+    let uusdc = create_coin_info(
+        "uusdc".to_string(),
+        Decimal::from_atomics(1u32, 0).unwrap(),
+        Decimal::percent(84),
+        Decimal::percent(85),
+    );
+
+    let perps_data = PerpsData {
+        params: HashMap::new(),
+    };
+
+    let oracle_prices =
+        HashMap::from([(udai.denom.clone(), udai.price), (uusdc.denom.clone(), uusdc.price)]);
+    let asset_params = HashMap::from([
+        (udai.denom.clone(), udai.params.clone()),
+        (uusdc.denom.clone(), uusdc.params.clone()),
+    ]);
+
+    let vaults_data = VaultsData {
+        vault_values: Default::default(),
+        vault_configs: Default::default(),
+    };
+
+    let h = HealthComputer {
+        kind: AccountKind::Default,
+        positions: Positions {
+            account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+            deposits: vec![coin(1200, &udai.denom)],
+            debts: vec![DebtAmount {
+                amount: Uint128::from(2000u32),
+                denom: uusdc.denom.clone(),
+                shares: Uint128::zero(),
+            }],
+            lends: vec![],
+            vaults: vec![],
+            staked_astro_lps: vec![],
+            perps: vec![],
+        },
+        asset_params,
+        oracle_prices,
+        vaults_data,
+        perps_data,
+    };
+
+    let liq_price = h.liquidation_price(&udai.denom, &LiquidationPriceKind::Asset).unwrap();
+    assert_eq!(udai.price, liq_price);
+}
+
+#[test]
 fn liquidation_price_no_debt() {
     let udai = udai_info();
 

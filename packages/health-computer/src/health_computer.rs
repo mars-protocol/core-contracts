@@ -90,11 +90,12 @@ impl HealthComputer {
             // spot debt = total value of borrowed assets (does not include perp unrealized pnl)
 
             let max_ltv_hf = Decimal::checked_from_ratio(ltv_numerator, ltv_denominator)?;
-            let liq_hf = Decimal::checked_from_ratio(
-                liquidation_threshold_adjusted_collateral
-                    .checked_add(perp_hf_values.liq_ltv_numerator)?,
-                spot_debt_value.checked_add(perp_hf_values.liq_ltv_denominator)?,
+            let liq_hf = self.calculate_liq_hf(
+                &liquidation_threshold_adjusted_collateral,
+                &spot_debt_value,
+                &perp_hf_values,
             )?;
+
             (Some(max_ltv_hf), Some(liq_hf))
         };
 
@@ -1121,6 +1122,18 @@ impl HealthComputer {
         Ok(total)
     }
 
+    fn calculate_liq_hf(
+        &self,
+        liq_adjusted_collateral: &Uint128,
+        spot_debt_value: &Uint128,
+        perp_hf_values: &PerpHealthFactorValues,
+    ) -> HealthResult<Decimal> {
+        Ok(Decimal::checked_from_ratio(
+            liq_adjusted_collateral.checked_add(perp_hf_values.liq_ltv_numerator)?,
+            spot_debt_value.checked_add(perp_hf_values.liq_ltv_denominator)?,
+        )?)
+    }
+
     fn get_perp_max_ltv(&self, denom: &str) -> HealthResult<Decimal> {
         let params =
             self.perps_data.params.get(denom).ok_or(MissingPerpParams(denom.to_string()))?;
@@ -1251,15 +1264,20 @@ impl HealthComputer {
         kind: &LiquidationPriceKind,
     ) -> HealthResult<Decimal> {
         let debt_value = self.debt_value()?;
-        if debt_value.is_zero() {
+        let current_price = self.get_price(denom)?;
+        let collateral_ltv_value = self.total_collateral_value()?.liq_ltv_adjusted_collateral;
+        let (perps_hf_values, _) = self.perp_hf_values_and_pnl(&self.positions.perps)?;
+
+        // When debt and liq_ltv_denominator are zero, there is no debt, so also no
+        // liquidation price
+        if debt_value.checked_add(perps_hf_values.liq_ltv_denominator)?.is_zero() {
             return Ok(Decimal::zero());
         }
 
-        let collateral_ltv_value = self.total_collateral_value()?.liq_ltv_adjusted_collateral;
-        let (perps_hf_values, _) = self.perp_hf_values_and_pnl(&self.positions.perps)?;
-        let current_price = self.get_price(denom)?;
+        let liq_hf = self.calculate_liq_hf(&collateral_ltv_value, &debt_value, &perps_hf_values)?;
 
-        if debt_value >= collateral_ltv_value {
+        // If the account is unhealthy, the liquidation price is the current price
+        if liq_hf < Decimal::one() {
             return Ok(current_price);
         }
 
