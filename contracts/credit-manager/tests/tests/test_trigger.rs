@@ -8,9 +8,10 @@ use mars_testing::multitest::helpers::AccountToFund;
 use mars_types::{
     credit_manager::{
         Action::{
-            self, CreateTriggerOrder, DeleteTriggerOrder, Deposit, ExecutePerpOrder, Liquidate,
+            self, CreateTriggerOrder, DeleteTriggerOrder, Deposit, ExecutePerpOrder, Lend,
+            Liquidate,
         },
-        Comparison,
+        ActionAmount, ActionCoin, Comparison,
         Condition::{HealthFactor, OraclePrice},
         LiquidateRequest, TriggerOrder, TriggerOrderResponse,
     },
@@ -20,6 +21,56 @@ use test_case::test_case;
 
 use super::helpers::MockEnv;
 use crate::tests::helpers::{coin_info, default_perp_params, uatom_info, uosmo_info};
+
+#[test]
+fn lend_action_whitelisted_in_trigger_orders() {
+    let user = Addr::unchecked("user");
+    let keeper_fee = Coin {
+        denom: "uusdc".to_string(),
+        amount: Uint128::new(1000000),
+    };
+    let mut mock = MockEnv::new()
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![Coin {
+                denom: "uusdc".to_string(),
+                amount: Uint128::new(10000000000000),
+            }],
+        })
+        .build()
+        .unwrap();
+    let account_id = mock.create_credit_account(&user).unwrap();
+
+    // Should be able to create a trigger order with a lend action
+    mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Deposit(keeper_fee.clone()),
+            CreateTriggerOrder {
+                actions: vec![
+                    ExecutePerpOrder {
+                        denom: "perp1".to_string(),
+                        order_size: Int128::from_str("10").unwrap(),
+                        reduce_only: None,
+                    },
+                    Lend(ActionCoin {
+                        denom: keeper_fee.denom.clone(),
+                        amount: ActionAmount::AccountBalance,
+                    }),
+                ],
+                conditions: vec![OraclePrice {
+                    denom: "perp1".to_string(),
+                    price: Decimal::from_str("100").unwrap(),
+                    comparison: Comparison::GreaterThan,
+                }],
+                keeper_fee: keeper_fee.clone(),
+            },
+        ],
+        &[keeper_fee.clone()],
+    )
+    .unwrap();
+}
 
 #[test]
 fn query_all_trigger_orders() {

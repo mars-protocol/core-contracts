@@ -234,6 +234,8 @@ pub enum ContractError {
         received_denom: String,
     },
 
-    #[error("Illegal trigger action. Trigger actions may only contain execute_perp_order")]
+    #[error(
+        "Illegal trigger action. Trigger actions may only contain execute_perp_order and lend"
+    )]
     IllegalTriggerAction,
 }

@@ -22,9 +22,10 @@ pub fn create_trigger_order(
     keeper_fee: Coin,
 ) -> Result<Response, ContractError> {
     // Ensure that the trigger order does not contain any illegal actions
-    // Initially, this is limited to just execute_perp_order
-    let contains_legal_actions =
-        actions.iter().all(|action| matches!(action, Action::ExecutePerpOrder { .. }));
+    // Initially, this is limited to just execute_perp_order and lend
+    let contains_legal_actions = actions
+        .iter()
+        .all(|action| matches!(action, Action::ExecutePerpOrder { .. } | Action::Lend(..)));
     ensure!(contains_legal_actions, ContractError::IllegalTriggerAction);
 
     // Generate & increment id
