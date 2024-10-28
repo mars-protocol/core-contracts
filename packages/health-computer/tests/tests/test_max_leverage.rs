@@ -24,7 +24,7 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     "No existing perp position"
 )]
 #[test_case(
-    "0",
+    "1838102",
     "0",
     vec![Int128::from_str("500000").unwrap()],
     Some(PerpParams {
@@ -35,7 +35,7 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     }),
     "100000000",
     "500000000";
-    "Max size 0 if NET OI exceeded"
+    "Max short size 0 if NET OI exceeded on short side"
 )]
 #[test_case(
     "0",

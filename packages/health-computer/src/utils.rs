@@ -14,8 +14,23 @@ pub fn calculate_remaining_oi_amount(
     let short_oi_value = short_oi_amount.checked_mul_floor(perp_oracle_price)?;
     let net_oi_value = long_oi_value.abs_diff(short_oi_value);
 
-    // If we've already exceeded the net OI limit, we can't open a new position
-    if net_oi_value >= perp_params.max_net_oi_value {
+    let increasing_net_oi = match direction {
+        // Determine if the action is increasing the net OI.
+        // - If we are opening or increasing a Long position, the net OI increases when Long OI > Short OI.
+        // - If we are opening or increasing a Short position, the net OI increases when Short OI > Long OI.
+        Direction::Long => long_oi_value > short_oi_value,
+        Direction::Short => short_oi_value > long_oi_value,
+    };
+
+    // If the action is increasing the net OI AND the net OI limit has been reached or exceeded,
+    // we cannot increase OI further. In this case, we return `Uint128::zero()` to signal that no
+    // additional Open Interest (OI) can be added.
+    //
+    // However, if the action is reducing net OI (i.e., going in the opposite direction of the skew),
+    // we can still estimate the remaining OI even if the net OI limit is exceeded.
+    // For example:
+    // - If Long OI > Short OI and we are adding a Short position, this reduces net OI and is allowed.
+    if net_oi_value >= perp_params.max_net_oi_value && increasing_net_oi {
         return Ok(Uint128::zero());
     }
 
@@ -102,7 +117,20 @@ mod tests {
         },
         Direction::Long,
         Uint128::zero();
-        "long position - exceeded max net oi"
+        "long position - exceeded max net oi can't increase oi"
+    )]
+    #[test_case(
+        Uint128::from(40u128),
+        Uint128::from(90u128),
+        PerpParams {
+            max_net_oi_value: Uint128::from(50u128),
+            max_long_oi_value: Uint128::from(250u128),
+            max_short_oi_value: Uint128::from(260u128),
+            ..Default::default()
+        },
+        Direction::Long,
+        Uint128::from(100u128);
+        "long position - exceeded max net oi can decrease oi"
     )]
     #[test_case(
         Uint128::from(20u128),
@@ -157,8 +185,8 @@ mod tests {
         "short position - exceeded max short oi"
     )]
     #[test_case(
-        Uint128::from(90u128),
         Uint128::from(40u128),
+        Uint128::from(90u128),
         PerpParams {
             max_net_oi_value: Uint128::from(50u128),
             max_long_oi_value: Uint128::from(100u128),
@@ -167,7 +195,20 @@ mod tests {
         },
         Direction::Short,
         Uint128::zero();
-        "short position - exceeded max net oi"
+        "short position - exceeded max net oi can't increase oi"
+    )]
+    #[test_case(
+        Uint128::from(90u128),
+        Uint128::from(40u128),
+        PerpParams {
+            max_net_oi_value: Uint128::from(50u128),
+            max_long_oi_value: Uint128::from(250u128),
+            max_short_oi_value: Uint128::from(260u128),
+            ..Default::default()
+        },
+        Direction::Short,
+        Uint128::from(100u128);
+        "short position - exceeded max net oi can decrease oi"
     )]
     #[test_case(
         Uint128::from(20u128),
