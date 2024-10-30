@@ -24,8 +24,8 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     "No existing perp position"
 )]
 #[test_case(
-    "1838102",
-    "0",
+    "1338102",
+    "-500000",
     vec![Int128::from_str("500000").unwrap()],
     Some(PerpParams {
         max_long_oi_value: Uint128::new(600000000000),
@@ -35,11 +35,11 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     }),
     "100000000",
     "500000000";
-    "Max short size 0 if NET OI exceeded on short side"
+    "Max short size limited to position size if NET OI exceeded on short side"
 )]
 #[test_case(
     "0",
-    "-1462546",
+    "-1962546",
     vec![Int128::from_str("500000").unwrap()],
     Some(PerpParams {
         max_long_oi_value: Uint128::new(0),
@@ -52,8 +52,8 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     "Max LONG size 0 if LONG OI exceeded"
 )]
 #[test_case(
-    "1838102",
-    "0",
+    "1338102",
+    "-500000",
     vec![Int128::from_str("500000").unwrap()],
     Some(PerpParams {
         max_long_oi_value: Uint128::new(8000000000000),
@@ -63,7 +63,7 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     }),
     "100000000",
     "500000000";
-    "Max SHORT size 0 if SHORT OI exceeded"
+    "Max SHORT size limited to position size if SHORT OI exceeded"
 )]
 #[test_case(
     "1200000",
@@ -80,6 +80,48 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     "Max size up to max LONG and SHORT OI"
 )]
 #[test_case(
+    "1000000",
+    "-1120000",
+    vec![Int128::from_str("-1000000").unwrap()],
+    Some(PerpParams {
+        max_long_oi_value: Uint128::new(0),
+        max_short_oi_value: Uint128::new(2500000000*2000),
+        max_net_oi_value: Uint128::new(1120000*2000),
+        ..produce_eth_perp_params()
+    }),
+    "0",
+    "0";
+    "Can close short position when max oi for long is 0"
+)]
+#[test_case(
+    "1120000",
+    "-1000000",
+    vec![Int128::from_str("1000000").unwrap()],
+    Some(PerpParams {
+        max_long_oi_value: Uint128::new(2500000000*2000),
+        max_short_oi_value: Uint128::new(0),
+        max_net_oi_value: Uint128::new(1120000*2000),
+        ..produce_eth_perp_params()
+    }),
+    "0",
+    "0";
+    "Can close long position when max oi for short is 0"
+)]
+#[test_case(
+    "1001000",
+    "-1120000",
+    vec![Int128::from_str("-1000000").unwrap()],
+    Some(PerpParams {
+        max_long_oi_value: Uint128::new(1000*2000),
+        max_short_oi_value: Uint128::new(2500000000*2000),
+        max_net_oi_value: Uint128::new(1120000*2000),
+        ..produce_eth_perp_params()
+    }),
+    "0",
+    "0";
+    "Can flip position Short to Long when max oi for closing direction is limited"
+)]
+#[test_case(
     "1120000",
     "-1120000",
     vec![],
@@ -94,8 +136,8 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     "Max size up to max NET OI"
 )]
 #[test_case(
-    "1453092",
-    "-2204204",
+    "2453092",
+    "-1204204",
     vec![Int128::from_str("-1000000").unwrap()],
     None,
     "100000000",
@@ -103,8 +145,8 @@ use crate::tests::helpers::{create_coin_info, create_default_funding, create_def
     "Existing short position"
 )]
 #[test_case(
-    "1838102",
-    "-1462546",
+    "1338102",
+    "-1962546",
     vec![Int128::from_str("500000").unwrap()],
     None,
     "100000000",

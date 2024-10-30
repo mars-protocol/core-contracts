@@ -1,6 +1,7 @@
 use std::{
     cmp::{max, min},
     collections::HashMap,
+    ops::Neg,
     str::FromStr,
 };
 
@@ -588,10 +589,6 @@ impl HealthComputer {
             direction,
         )?;
 
-        if max_oi_change_amount.is_zero() {
-            return Ok(Int128::zero());
-        }
-
         // Current skew
         let k = Int128::try_from(long_oi_amount)?.checked_sub(short_oi_amount.try_into()?)?;
 
@@ -610,6 +607,23 @@ impl HealthComputer {
             .map_or((Int128::zero(), Int128::zero(), Decimal::zero()), |f| {
                 (f.unrealized_pnl.accrued_funding, f.size, f.entry_exec_price)
             });
+
+        // Flag to indicate if we are reducing (and possibly reopening in other direction) or we are
+        // increasing the position
+        let position_increasing = match direction {
+            Direction::Long => !q_old.is_negative(),
+            Direction::Short => q_old.is_negative(),
+        };
+
+        if max_oi_change_amount.is_zero() {
+            // if position is increasing, we have no more space to increase, return 0
+            if position_increasing {
+                return Ok(Int128::zero());
+            } else {
+                // If position is decreasing, we still need to close the position
+                return Ok(Int128::neg(q_old));
+            }
+        }
 
         let p_ex = closing_execution_price(k, skew_scale, q_old, perp_oracle_price)?;
         let closing_fee_value =
@@ -682,16 +696,50 @@ impl HealthComputer {
         let q_max_amount = q_max_amount.with_scale_round(0, RoundingMode::Down);
         let mut q_max_amount = Int128::from_str(q_max_amount.to_string().as_str())?;
 
-        // Cap our size by remaining space in OI caps
-        if q_max_amount.unsigned_abs() > max_oi_change_amount {
-            q_max_amount = max_oi_change_amount.try_into()?;
+        // If we are increasing the position, we need to adjust the max oi to include the current position.
+        // For example:
+        // net oi = 20
+        // max net oi = 30
+        // current position = 10
+        // q max = 25
+        // available oi = 30 - 20 = 10
+        // max oi is adjusted to be the existing position = 10 + 10 = 20
+        // After that we reduce the q_max by the current position = 20 - 10 = 0
+        let position_adjusted_max_oi_change_amount = if !q_old.is_zero() && position_increasing {
+            max_oi_change_amount.checked_add(q_old.unsigned_abs())?
+        } else {
+            max_oi_change_amount
         };
 
+        // Cap our size by remaining space in OI caps
+        if q_max_amount.unsigned_abs() > position_adjusted_max_oi_change_amount {
+            q_max_amount = position_adjusted_max_oi_change_amount.try_into()?;
+        };
         if direction == &Direction::Short {
             q_max_amount = Int128::zero().checked_sub(q_max_amount)?;
         }
 
+        // If the current size is already greater than the max allowed size, we should return 0
+        if self.current_size_exceeds_max_for_direction(direction, q_old, q_max_amount) {
+            return Ok(Int128::zero());
+        }
+
+        // Deduct current size from max amount
+        q_max_amount = q_max_amount.checked_sub(q_old)?;
+
         Ok(q_max_amount)
+    }
+
+    fn current_size_exceeds_max_for_direction(
+        &self,
+        direction: &Direction,
+        q_old: Int128,
+        q_max: Int128,
+    ) -> bool {
+        match direction {
+            Direction::Long => q_old > q_max,
+            Direction::Short => q_old < q_max,
+        }
     }
 
     fn account_composition(
