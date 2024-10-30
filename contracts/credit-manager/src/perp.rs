@@ -1,3 +1,5 @@
+use std::cmp::min;
+
 use cosmwasm_std::{
     coin, ensure_eq, BankMsg, Coin, CosmosMsg, DepsMut, Env, Int128, MessageInfo, Response, Uint128,
 };
@@ -9,45 +11,74 @@ use mars_types::{
 use crate::{
     borrow,
     error::{ContractError, ContractResult},
-    state::{COIN_BALANCES, PERPS},
+    state::{COIN_BALANCES, PERPS, RED_BANK},
     utils::{decrement_coin_balance, increment_coin_balance},
 };
 
-/// Deduct payment from the user’s account. If the user doesn’t have enough USDC, it is borrowed
+/// Deducts a specified payment from the user's account. If the user's balance in the
+/// specified denomination (e.g., USDC) is insufficient, the function first attempts to
+/// reclaim the shortfall from the Red Bank. If the reclaimed amount is still not enough,
+/// it borrows the remaining required amount from the Red Bank.
 fn deduct_payment(
     deps: &mut DepsMut,
     account_id: &str,
     payment: &Coin,
-) -> ContractResult<Option<CosmosMsg>> {
-    let coin_balance = COIN_BALANCES
+    action: Option<ActionKind>,
+    mut res: Response,
+) -> ContractResult<Response> {
+    // Determine if the payment is related to a liquidation event.
+    let liquidation_related = action == Some(ActionKind::Liquidation);
+
+    // Retrieve the user's balance for the given denomination (e.g., USDC), or default to zero if not found.
+    let user_balance = COIN_BALANCES
         .may_load(deps.storage, (account_id, &payment.denom))?
         .unwrap_or(Uint128::zero());
 
-    // if the user has enough USDC, it is just taken from the user’s assets
-    if coin_balance >= payment.amount {
-        decrement_coin_balance(deps.storage, account_id, payment)?;
-        return Ok(None);
+    // Deduct the amount available in the user's account from their balance.
+    let deduct_from_coin_balance = min(user_balance, payment.amount);
+    decrement_coin_balance(
+        deps.storage,
+        account_id,
+        &coin(deduct_from_coin_balance.u128(), &payment.denom),
+    )?;
+
+    // If the user’s balance covers the entire payment, return the response immediately.
+    if user_balance >= payment.amount {
+        return Ok(res);
     }
 
-    let borrow_amt = if coin_balance.is_zero() {
-        // if the user doesn’t have USDC, it is all borrowed from the Red Bank
-        payment.amount
-    } else {
-        // if the user has USDC, but not enough, all the available USDC is taken from the account
-        // and the remainder is borrowed from the Red Bank
-        decrement_coin_balance(
-            deps.storage,
+    // Calculate the remaining amount to be paid after deducting the user's balance.
+    let mut left_amount_to_pay = payment.amount - user_balance;
+
+    // Attempt to reclaim funds from the Red Bank if the user has lent assets.
+    let red_bank = RED_BANK.load(deps.storage)?;
+    let lent_amount = red_bank.query_lent(&deps.querier, account_id, &payment.denom)?;
+
+    // If there are lent assets, reclaim as much as possible from the Red Bank.
+    if !lent_amount.is_zero() {
+        let reclaim_amount = min(left_amount_to_pay, lent_amount);
+        let reclaim_msg = red_bank.reclaim_msg(
+            &coin(reclaim_amount.u128(), &payment.denom),
             account_id,
-            &coin(coin_balance.u128(), &payment.denom),
+            liquidation_related,
         )?;
+        res = res.add_message(reclaim_msg);
 
-        payment.amount.checked_sub(coin_balance)?
-    };
+        // If the reclaimed amount fully covers the remaining payment, return the response.
+        if reclaim_amount >= left_amount_to_pay {
+            return Ok(res);
+        }
 
+        // Update the remaining amount to be paid after reclaiming from the Red Bank.
+        left_amount_to_pay -= reclaim_amount;
+    }
+
+    // If there is still a shortfall, borrow the remaining amount from the Red Bank.
     let (_, borrow_msg) =
-        borrow::update_debt(deps, account_id, &coin(borrow_amt.u128(), &payment.denom))?;
+        borrow::update_debt(deps, account_id, &coin(left_amount_to_pay.u128(), &payment.denom))?;
 
-    Ok(Some(borrow_msg))
+    // Add the borrow message to the response and return.
+    Ok(res.add_message(borrow_msg))
 }
 
 pub fn execute_perp_order(
@@ -58,6 +89,8 @@ pub fn execute_perp_order(
     reduce_only: Option<bool>,
 ) -> ContractResult<Response> {
     let perps = PERPS.load(deps.storage)?;
+
+    let mut response = Response::new();
 
     // query the perp position PnL so that we know whether funds needs to be
     // sent to the perps contract
@@ -72,19 +105,15 @@ pub fn execute_perp_order(
             // Modify existing position
             let pnl = position.unrealized_pnl.to_coins(&position.base_denom).pnl;
             let pnl_string = position.unrealized_pnl.pnl.to_string();
-            let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
+            let (funds, response) =
+                update_state_based_on_pnl(&mut deps, account_id, pnl, None, response)?;
             let funds = funds.map_or_else(Vec::new, |c| vec![c]);
 
-            msgs.push(perps.execute_perp_order(
-                account_id,
-                denom,
-                order_size,
-                reduce_only,
-                funds,
-            )?);
+            let msg =
+                perps.execute_perp_order(account_id, denom, order_size, reduce_only, funds)?;
 
-            Response::new()
-                .add_messages(msgs)
+            response
+                .add_message(msg)
                 .add_attribute("action", "execute_perp_order")
                 .add_attribute("account_id", account_id)
                 .add_attribute("denom", denom)
@@ -98,13 +127,8 @@ pub fn execute_perp_order(
             let opening_fee = perps.query_opening_fee(&deps.querier, denom, order_size)?;
             let fee = opening_fee.fee;
 
-            let mut response = Response::new();
-
             let funds = if !fee.amount.is_zero() {
-                let borrow_msg_opt = deduct_payment(&mut deps, account_id, &fee)?;
-                if let Some(borrow_msg) = borrow_msg_opt {
-                    response = response.add_message(borrow_msg);
-                }
+                response = deduct_payment(&mut deps, account_id, &fee, None, response)?;
                 vec![fee.clone()]
             } else {
                 vec![]
@@ -151,16 +175,18 @@ pub fn close_all_perps(
     // safe to unwrap because we checked that perp_positions is not empty
     let base_denom = perp_positions.first().unwrap().base_denom.clone();
 
+    let response = Response::new();
+
     let pnl = pnl_amounts_accumulator.to_coins(&base_denom).pnl;
-    let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, account_id, pnl)?;
+    let (funds, response) =
+        update_state_based_on_pnl(&mut deps, account_id, pnl, Some(action.clone()), response)?;
     let funds = funds.map_or_else(Vec::new, |c| vec![c]);
 
     // Close all perp positions at once
     let close_msg = perps.close_all_msg(account_id, funds, action)?;
-    msgs.push(close_msg);
 
-    Ok(Response::new()
-        .add_messages(msgs)
+    Ok(response
+        .add_message(close_msg)
         .add_attribute("action", "close_all_perps")
         .add_attribute("account_id", account_id)
         .add_attribute("number_of_positions", perp_positions.len().to_string()))
@@ -176,23 +202,19 @@ fn update_state_based_on_pnl(
     deps: &mut DepsMut,
     account_id: &str,
     pnl: PnL,
-) -> ContractResult<(Option<Coin>, Vec<CosmosMsg>)> {
+    action: Option<ActionKind>,
+    res: Response,
+) -> ContractResult<(Option<Coin>, Response)> {
     let res = match pnl {
         PnL::Loss(coin) => {
-            let borrow_msg_opt = deduct_payment(deps, account_id, &coin)?;
-            let mut cosmos_msgs = vec![];
-            if let Some(borrow_msg) = borrow_msg_opt {
-                cosmos_msgs.push(borrow_msg);
-            }
-
-            (Some(coin), cosmos_msgs)
+            let res = deduct_payment(deps, account_id, &coin, action, res)?;
+            (Some(coin), res)
         }
         PnL::Profit(coin) => {
             increment_coin_balance(deps.storage, account_id, &coin)?;
-
-            (None, vec![])
+            (None, res)
         }
-        _ => (None, vec![]),
+        _ => (None, res),
     };
     Ok(res)
 }
@@ -203,7 +225,7 @@ pub fn update_balance_after_deleverage(
     info: MessageInfo,
     account_id: String,
     pnl: PnL,
-    _action: ActionKind,
+    action: ActionKind,
 ) -> ContractResult<Response> {
     let perps = PERPS.load(deps.storage)?;
 
@@ -217,8 +239,11 @@ pub fn update_balance_after_deleverage(
         }
     );
 
+    let response = Response::new();
+
     let pnl_string = pnl.to_signed_uint()?.to_string();
-    let (funds, mut msgs) = update_state_based_on_pnl(&mut deps, &account_id, pnl)?;
+    let (funds, mut response) =
+        update_state_based_on_pnl(&mut deps, &account_id, pnl, Some(action), response)?;
 
     // Amount sent will be validated in the perps contract in reply entry point
     if let Some(f) = funds {
@@ -227,12 +252,11 @@ pub fn update_balance_after_deleverage(
                 to_address: perps.address().into(),
                 amount: vec![f],
             });
-            msgs.push(send_msg);
+            response = response.add_message(send_msg);
         }
     }
 
-    Ok(Response::new()
-        .add_messages(msgs)
+    Ok(response
         .add_attribute("action", "update_balance_after_deleverage")
         .add_attribute("account_id", account_id)
         .add_attribute("realized_pnl", pnl_string))
