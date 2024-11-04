@@ -1180,19 +1180,6 @@ dependencies = [
 
 [[package]]
 name = "cw-vault-standard"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "793cd7de3239b1bf187a2a61c8e37d80bb9bd6e354328bfb12070323a435eee1"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-utils 1.0.3",
- "schemars",
- "serde",
-]
-
-[[package]]
-name = "cw-vault-standard"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9e70a60d4a86860d6b51908201339530c47ef7bfc4fb137f9f9f54468124d35d"
@@ -2148,8 +2135,7 @@ dependencies = [
  "cw721-base 0.18.0",
  "mars-mock-credit-manager",
  "mars-mock-rover-health",
- "mars-owner 2.0.0",
- "mars-rover",
+ "mars-owner",
  "mars-types",
  "serde_json",
  "thiserror",
@@ -2164,7 +2150,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-testing",
  "mars-types",
  "serde",
@@ -2182,7 +2168,7 @@ dependencies = [
  "cw-paginate",
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
- "cw-vault-standard 0.4.0",
+ "cw-vault-standard",
  "cw2 1.1.2",
  "cw721 0.18.0",
  "cw721-base 0.18.0",
@@ -2195,27 +2181,18 @@ dependencies = [
  "mars-mock-oracle",
  "mars-mock-red-bank",
  "mars-mock-vault",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-params",
  "mars-perps",
  "mars-rover-health",
  "mars-swapper-mock",
  "mars-testing",
  "mars-types",
- "mars-utils 2.1.0",
+ "mars-utils",
  "mars-vault",
  "mars-zapper-mock",
  "test-case",
  "thiserror",
-]
-
-[[package]]
-name = "mars-health"
-version = "1.0.0"
-source = "git+https://github.com/mars-protocol/v2-fields-of-mars?rev=183e4c5#183e4c58b3de7389d0d7ebcacc248ea6efaa1728"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
 ]
 
 [[package]]
@@ -2239,12 +2216,11 @@ dependencies = [
  "cw-paginate",
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-red-bank",
- "mars-red-bank-types 1.0.0 (git+https://github.com/mars-protocol/red-bank?tag=v1.0.0)",
  "mars-testing",
  "mars-types",
- "mars-utils 2.1.0",
+ "mars-utils",
  "osmosis-std 0.22.0",
  "test-case",
  "thiserror",
@@ -2270,7 +2246,7 @@ dependencies = [
  "mars-swapper-osmosis",
  "mars-testing",
  "mars-types",
- "mars-utils 2.1.0",
+ "mars-utils",
  "osmosis-std 0.22.0",
  "osmosis-test-tube",
  "serde",
@@ -2289,7 +2265,7 @@ name = "mars-liquidation"
 version = "1.0.0"
 dependencies = [
  "cosmwasm-std",
- "mars-health 2.1.0",
+ "mars-health",
  "mars-types",
  "thiserror",
 ]
@@ -2375,7 +2351,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
- "cw-vault-standard 0.4.0",
+ "cw-vault-standard",
  "mars-types",
  "thiserror",
 ]
@@ -2389,9 +2365,9 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "ica-oracle",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-types",
- "mars-utils 2.1.0",
+ "mars-utils",
  "pyth-sdk-cw",
  "schemars",
  "serde",
@@ -2409,10 +2385,10 @@ dependencies = [
  "ica-oracle",
  "mars-oracle-base",
  "mars-osmosis",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-testing",
  "mars-types",
- "mars-utils 2.1.0",
+ "mars-utils",
  "osmosis-std 0.22.0",
  "pyth-sdk-cw",
  "schemars",
@@ -2433,7 +2409,7 @@ dependencies = [
  "cw2 1.1.2",
  "ica-oracle",
  "mars-oracle-base",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-testing",
  "mars-types",
  "neutron-sdk",
@@ -2451,19 +2427,6 @@ dependencies = [
  "osmosis-std 0.22.0",
  "prost 0.12.6",
  "serde",
-]
-
-[[package]]
-name = "mars-owner"
-version = "1.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acd53908ffc561da878ce5ff4f5ec9f25a193af28ec0b6e7c8e6d1a0866d9dfc"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-storage-plus 1.2.0",
- "schemars",
- "thiserror",
 ]
 
 [[package]]
@@ -2494,11 +2457,11 @@ dependencies = [
  "mars-address-provider",
  "mars-interest-rate",
  "mars-oracle-osmosis",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-perps",
  "mars-testing",
  "mars-types",
- "mars-utils 2.1.0",
+ "mars-utils",
  "test-case",
  "thiserror",
 ]
@@ -2518,7 +2481,7 @@ dependencies = [
  "mars-address-provider",
  "mars-incentives",
  "mars-oracle-osmosis",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-params",
  "mars-perps-common",
  "mars-testing",
@@ -2552,39 +2515,14 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
- "mars-health 2.1.0",
+ "mars-health",
  "mars-interest-rate",
  "mars-liquidation",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-testing",
  "mars-types",
- "mars-utils 2.1.0",
+ "mars-utils",
  "test-case",
- "thiserror",
-]
-
-[[package]]
-name = "mars-red-bank-types"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cca59bb17daa753c30d3c934e0779736200708cb89a34020fa805b1cb05e7278"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "mars-owner 1.2.0",
- "mars-utils 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "thiserror",
-]
-
-[[package]]
-name = "mars-red-bank-types"
-version = "1.0.0"
-source = "git+https://github.com/mars-protocol/red-bank?tag=v1.0.0#13fcc446fe687dfb8f08ffacd57b1ab6ad6cfcc9"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "mars-owner 1.2.0",
- "mars-utils 1.0.0 (git+https://github.com/mars-protocol/red-bank?tag=v1.0.0)",
  "thiserror",
 ]
 
@@ -2596,9 +2534,9 @@ dependencies = [
  "cosmwasm-std",
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-types",
- "mars-utils 2.1.0",
+ "mars-utils",
  "schemars",
  "serde",
  "thiserror",
@@ -2625,33 +2563,13 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "mars-osmosis",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-rewards-collector-base",
  "mars-testing",
  "mars-types",
- "mars-utils 2.1.0",
+ "mars-utils",
  "osmosis-std 0.22.0",
  "serde",
-]
-
-[[package]]
-name = "mars-rover"
-version = "1.0.0"
-source = "git+https://github.com/mars-protocol/v2-fields-of-mars?rev=183e4c5#183e4c58b3de7389d0d7ebcacc248ea6efaa1728"
-dependencies = [
- "cosmwasm-schema",
- "cosmwasm-std",
- "cw-storage-plus 1.2.0",
- "cw-utils 1.0.3",
- "cw-vault-standard 0.2.0",
- "cw721 0.16.0",
- "cw721-base 0.16.0",
- "mars-health 1.0.0",
- "mars-owner 1.2.0",
- "mars-red-bank-types 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "schemars",
- "serde",
- "thiserror",
 ]
 
 [[package]]
@@ -2664,12 +2582,12 @@ dependencies = [
  "cw-multi-test",
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
- "cw-vault-standard 0.4.0",
+ "cw-vault-standard",
  "cw2 1.1.2",
  "mars-mock-credit-manager",
  "mars-mock-oracle",
  "mars-mock-vault",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-params",
  "mars-rover-health-computer",
  "mars-types",
@@ -2722,7 +2640,7 @@ dependencies = [
  "cw-paginate",
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-types",
  "schemars",
  "serde",
@@ -2750,7 +2668,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "mars-osmosis",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-swapper-base",
  "mars-testing",
  "mars-types",
@@ -2771,7 +2689,7 @@ dependencies = [
  "cw-multi-test",
  "cw-paginate",
  "cw-utils 1.0.3",
- "cw-vault-standard 0.4.0",
+ "cw-vault-standard",
  "cw721 0.18.0",
  "cw721-base 0.18.0",
  "ica-oracle",
@@ -2787,7 +2705,7 @@ dependencies = [
  "mars-mock-vault",
  "mars-oracle-osmosis",
  "mars-oracle-wasm",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-params",
  "mars-perps",
  "mars-red-bank",
@@ -2816,11 +2734,11 @@ dependencies = [
  "cw-paginate",
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
- "cw-vault-standard 0.4.0",
+ "cw-vault-standard",
  "cw721 0.18.0",
  "cw721-base 0.18.0",
- "mars-owner 2.0.0",
- "mars-utils 2.1.0",
+ "mars-owner",
+ "mars-utils",
  "schemars",
  "serde",
  "serde-json-wasm 1.0.1",
@@ -2828,25 +2746,6 @@ dependencies = [
  "thiserror",
  "tsify",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "mars-utils"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12bae572eda20842ade4bf8ab09ce0856cae5cff89dbeb7c51e9123489e48256"
-dependencies = [
- "cosmwasm-std",
- "thiserror",
-]
-
-[[package]]
-name = "mars-utils"
-version = "1.0.0"
-source = "git+https://github.com/mars-protocol/red-bank?tag=v1.0.0#13fcc446fe687dfb8f08ffacd57b1ab6ad6cfcc9"
-dependencies = [
- "cosmwasm-std",
- "thiserror",
 ]
 
 [[package]]
@@ -2870,13 +2769,13 @@ dependencies = [
  "cw-paginate",
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
- "cw-vault-standard 0.4.0",
+ "cw-vault-standard",
  "cw2 1.1.2",
  "mars-mock-oracle",
- "mars-owner 2.0.0",
+ "mars-owner",
  "mars-testing",
  "mars-types",
- "mars-utils 2.1.0",
+ "mars-utils",
  "osmosis-std 0.22.0",
  "test-case",
  "thiserror",

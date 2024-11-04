@@ -183,7 +183,7 @@ fn open_position(
     let mut attrs = vec![];
     let mut msgs: Vec<CosmosMsg> = vec![];
 
-    let mut realized_pnl = PnlAmounts::default();
+    let mut position_realized_pnl = PnlAmounts::default();
 
     // Update realized PnL with opening fee
     if !opening_fee_amt.is_zero() {
@@ -197,12 +197,15 @@ fn open_position(
             &rewards_collector_addr,
             &mut ms,
             &mut tcf,
-            &mut realized_pnl,
+            &mut position_realized_pnl,
             &unrealized_pnl,
             &mut attrs,
             &mut msgs,
         )?;
 
+        let mut realized_pnl =
+            REALIZED_PNL.may_load(deps.storage, (&account_id, &denom))?.unwrap_or_default();
+        realized_pnl.add(&position_realized_pnl)?;
         REALIZED_PNL.save(deps.storage, (&account_id, &denom), &realized_pnl)?;
         TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;
     }
@@ -224,7 +227,7 @@ fn open_position(
             entry_exec_price,
             entry_accrued_funding_per_unit_in_base_denom,
             initial_skew,
-            realized_pnl,
+            realized_pnl: position_realized_pnl,
         },
     )?;
 

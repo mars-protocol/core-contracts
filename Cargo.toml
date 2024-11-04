@@ -54,7 +54,7 @@ authors       = [
 ]
 edition       = "2021"
 license       = "FSL-1.1-Apache-2.0"
-repository    = "https://github.com/mars-protocol/red-bank"
+repository    = "https://github.com/mars-protocol/contracts"
 homepage      = "https://marsprotocol.io"
 documentation = "https://docs.marsprotocol.io/"
 keywords      = ["mars", "cosmos", "cosmwasm"]
@@ -110,8 +110,6 @@ mars-rover-health-computer = { path = "./packages/health-computer" }
 mars-interest-rate         = { path = "./packages/interest-rate" }
 mars-liquidation           = { path = "./packages/liquidation" }
 mars-osmosis               = { path = "./packages/chains/osmosis" }
-# Old rover types used for migration (https://github.com/mars-protocol/v2-fields-of-mars/releases/tag/v1.0.0)
-mars-rover-old             = { package = "mars-rover", git = "https://github.com/mars-protocol/v2-fields-of-mars", rev = "183e4c5" }
 mars-testing               = { path = "./packages/testing" }
 mars-types                 = { path = "./packages/types" }
 mars-utils                 = { path = "./packages/utils" }

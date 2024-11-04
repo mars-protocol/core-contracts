@@ -2257,3 +2257,90 @@ fn open_very_small_position_with_zero_opening_fee() {
     // open a very small position where opening fee is zero but opening_fee_rate is not zero
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[]).unwrap();
 }
+
+#[test]
+fn global_realized_pnl_matches_positions_realized_pnl() {
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+
+    // Credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
+
+    // Set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("1").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+
+    // Deposit some big number of uusdc to vault
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(user),
+        None,
+        &[coin(1_000_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
+
+    // Init perp
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                closing_fee_rate: Decimal::from_str("0.01").unwrap(),
+                opening_fee_rate: Decimal::from_str("0.01").unwrap(),
+                ..default_perp_params("uatom")
+            },
+        },
+    );
+
+    // Open a LONG position
+    let size = Int128::from_str("300000").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
+        .unwrap();
+
+    // Increase price
+    mock.set_price(&owner, "uatom", Decimal::from_str("11").unwrap()).unwrap();
+
+    // Move blocks to generate funding
+    mock.increment_by_blocks(100);
+
+    // Check upcoming realized pnl
+    let perp_position = mock.query_position("1", "uatom").position.unwrap();
+    let mut realized_pnl = perp_position.realized_pnl;
+    realized_pnl.add(&perp_position.unrealized_pnl).unwrap();
+
+    // Close the LONG position
+    let closing_size = Int128::zero().checked_sub(size).unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "uatom", closing_size, Some(true), &[]).unwrap();
+
+    // Check global realized pnl
+    let global_realized_pnl = mock.query_realized_pnl_by_account_and_market("1", "uatom");
+    assert_eq!(global_realized_pnl, realized_pnl);
+
+    // Open a SHORT position
+    let size = Int128::from_str("-300000").unwrap();
+    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
+        .unwrap();
+
+    // Decrease price
+    mock.set_price(&owner, "uatom", Decimal::from_str("9").unwrap()).unwrap();
+
+    // Move blocks to generate funding
+    mock.increment_by_blocks(100);
+
+    // Check upcoming realized pnl
+    let perp_position = mock.query_position("1", "uatom").position.unwrap();
+    realized_pnl.add(&perp_position.realized_pnl).unwrap();
+    realized_pnl.add(&perp_position.unrealized_pnl).unwrap();
+
+    // Close the SHORT position
+    let closing_size = Int128::zero().checked_sub(size).unwrap();
+    mock.execute_perp_order(&credit_manager, "1", "uatom", closing_size, Some(true), &[]).unwrap();
+
+    // Check global realized pnl
+    let global_realized_pnl = mock.query_realized_pnl_by_account_and_market("1", "uatom");
+    assert_eq!(global_realized_pnl, realized_pnl);
+}
