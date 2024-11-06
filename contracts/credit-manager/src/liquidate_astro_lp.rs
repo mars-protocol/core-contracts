@@ -32,7 +32,7 @@ pub fn liquidate_astro_lp(
         return Err(NoAstroLp);
     }
 
-    let (debt, liquidator_request, liquidatee_request) = calculate_liquidation(
+    let liquidation_res = calculate_liquidation(
         &mut deps,
         env.clone(),
         liquidatee_account_id,
@@ -52,21 +52,33 @@ pub fn liquidate_astro_lp(
     }
 
     // Liquidator pays down debt on behalf of liquidatee
-    let repay_msg =
-        repay_debt(deps.storage, &env, liquidator_account_id, liquidatee_account_id, &debt)?;
+    let repay_msg = repay_debt(
+        deps.storage,
+        &env,
+        liquidator_account_id,
+        liquidatee_account_id,
+        &liquidation_res.debt,
+    )?;
 
     // Liquidatee's LP coin withdrawn from Astro
-    let withdraw_from_liquidatee_msg =
-        incentives.unstake_astro_lp_msg(liquidatee_account_id, &liquidatee_request)?;
+    let withdraw_from_liquidatee_msg = incentives
+        .unstake_astro_lp_msg(liquidatee_account_id, &liquidation_res.liquidatee_request)?;
 
     // Liquidator gets portion of withdrawn LP coin
-    increment_coin_balance(deps.storage, liquidator_account_id, &liquidator_request)?;
+    increment_coin_balance(
+        deps.storage,
+        liquidator_account_id,
+        &liquidation_res.liquidator_request,
+    )?;
 
     // Transfer protocol fee to rewards-collector account
     let rewards_collector_account = REWARDS_COLLECTOR.load(deps.storage)?.account_id;
     let protocol_fee_coin = Coin {
         denom: request_coin_denom.to_string(),
-        amount: liquidatee_request.amount.checked_sub(liquidator_request.amount)?,
+        amount: liquidation_res
+            .liquidatee_request
+            .amount
+            .checked_sub(liquidation_res.liquidator_request.amount)?,
     };
     increment_coin_balance(deps.storage, &rewards_collector_account, &protocol_fee_coin)?;
 
@@ -76,7 +88,9 @@ pub fn liquidate_astro_lp(
         .add_attribute("action", "liquidate_astro_lp")
         .add_attribute("account_id", liquidator_account_id)
         .add_attribute("liquidatee_account_id", liquidatee_account_id)
-        .add_attribute("coin_debt_repaid", debt.to_string())
-        .add_attribute("coin_liquidated", liquidatee_request.to_string())
-        .add_attribute("protocol_fee_coin", protocol_fee_coin.to_string()))
+        .add_attribute("coin_debt_repaid", liquidation_res.debt.to_string())
+        .add_attribute("coin_liquidated", liquidation_res.liquidatee_request.to_string())
+        .add_attribute("protocol_fee_coin", protocol_fee_coin.to_string())
+        .add_attribute("debt_price", liquidation_res.debt_price.to_string())
+        .add_attribute("collateral_price", liquidation_res.collateral_price.to_string()))
 }

@@ -11,8 +11,11 @@ use mars_types::{
 };
 
 use crate::{
-    error::ContractResult, liquidate::calculate_liquidation, liquidate_deposit::repay_debt,
-    state::VAULT_POSITIONS, utils::update_balance_after_vault_liquidation_msg,
+    error::ContractResult,
+    liquidate::{calculate_liquidation, LiquidationResult},
+    liquidate_deposit::repay_debt,
+    state::VAULT_POSITIONS,
+    utils::update_balance_after_vault_liquidation_msg,
     vault::update_vault_position,
 };
 
@@ -81,7 +84,7 @@ fn liquidate_unlocked(
 ) -> ContractResult<Response> {
     let vault_info = request_vault.query_info(&deps.querier)?;
 
-    let (debt, liquidator_request, liquidatee_request) = calculate_vault_liquidation(
+    let liquidation_res = calculate_vault_liquidation(
         &mut deps,
         env.clone(),
         liquidatee_account_id,
@@ -92,22 +95,32 @@ fn liquidate_unlocked(
         prev_health,
     )?;
 
-    let repay_msg =
-        repay_debt(deps.storage, &env, liquidator_account_id, liquidatee_account_id, &debt)?;
+    let repay_msg = repay_debt(
+        deps.storage,
+        &env,
+        liquidator_account_id,
+        liquidatee_account_id,
+        &liquidation_res.debt,
+    )?;
 
     update_vault_position(
         deps.storage,
         liquidatee_account_id,
         &request_vault.address,
-        VaultPositionUpdate::Unlocked(UpdateType::Decrement(liquidatee_request.amount)),
+        VaultPositionUpdate::Unlocked(UpdateType::Decrement(
+            liquidation_res.liquidatee_request.amount,
+        )),
     )?;
 
     let vault_withdraw_msg =
-        request_vault.withdraw_msg(&deps.querier, liquidatee_request.amount)?;
+        request_vault.withdraw_msg(&deps.querier, liquidation_res.liquidatee_request.amount)?;
 
-    let protocol_fee = liquidatee_request.amount.checked_sub(liquidator_request.amount)?;
+    let protocol_fee = liquidation_res
+        .liquidatee_request
+        .amount
+        .checked_sub(liquidation_res.liquidator_request.amount)?;
     let protocol_fee_percentage =
-        Decimal::checked_from_ratio(protocol_fee, liquidatee_request.amount)?;
+        Decimal::checked_from_ratio(protocol_fee, liquidation_res.liquidatee_request.amount)?;
 
     let update_coin_balance_msg = update_balance_after_vault_liquidation_msg(
         &deps.querier,
@@ -124,12 +137,14 @@ fn liquidate_unlocked(
         .add_attribute("action", "liquidate_vault/unlocked")
         .add_attribute("account_id", liquidator_account_id)
         .add_attribute("liquidatee_account_id", liquidatee_account_id)
-        .add_attribute("coin_debt_repaid", debt.to_string())
-        .add_attribute("coin_liquidated", liquidatee_request.to_string())
+        .add_attribute("coin_debt_repaid", liquidation_res.debt.to_string())
+        .add_attribute("coin_liquidated", liquidation_res.liquidatee_request.to_string())
         .add_attribute(
             "protocol_fee_coin",
-            Coin::new(protocol_fee.u128(), liquidatee_request.denom).to_string(),
-        ))
+            Coin::new(protocol_fee.u128(), liquidation_res.liquidatee_request.denom).to_string(),
+        )
+        .add_attribute("debt_price", liquidation_res.debt_price.to_string())
+        .add_attribute("collateral_price", liquidation_res.collateral_price.to_string()))
 }
 
 /// Converts vault coins to their underlying value. This allows for pricing and liquidation
@@ -143,9 +158,9 @@ fn calculate_vault_liquidation(
     amount: Uint128,
     vault_info: &VaultInfoResponse,
     prev_health: HealthValuesResponse,
-) -> ContractResult<(Coin, Coin, Coin)> {
+) -> ContractResult<LiquidationResult> {
     let total_underlying = request_vault.query_preview_redeem(&deps.querier, amount)?;
-    let (debt, mut liquidator_request, mut liquidatee_request) = calculate_liquidation(
+    let mut liquidation_res = calculate_liquidation(
         deps,
         env,
         liquidatee_account_id,
@@ -154,13 +169,13 @@ fn calculate_vault_liquidation(
         total_underlying,
         prev_health,
     )?;
-    liquidatee_request.denom.clone_from(&vault_info.vault_token);
-    liquidatee_request.amount =
-        amount.checked_multiply_ratio(liquidatee_request.amount, total_underlying)?;
-    liquidator_request.denom.clone_from(&vault_info.vault_token);
-    liquidator_request.amount =
-        amount.checked_multiply_ratio(liquidator_request.amount, total_underlying)?;
-    Ok((debt, liquidator_request, liquidatee_request))
+    liquidation_res.liquidatee_request.denom.clone_from(&vault_info.vault_token);
+    liquidation_res.liquidatee_request.amount = amount
+        .checked_multiply_ratio(liquidation_res.liquidatee_request.amount, total_underlying)?;
+    liquidation_res.liquidator_request.denom.clone_from(&vault_info.vault_token);
+    liquidation_res.liquidator_request.amount = amount
+        .checked_multiply_ratio(liquidation_res.liquidator_request.amount, total_underlying)?;
+    Ok(liquidation_res)
 }
 
 fn liquidate_unlocking(
@@ -175,7 +190,7 @@ fn liquidate_unlocking(
 ) -> ContractResult<Response> {
     let vault_info = request_vault.query_info(&deps.querier)?;
 
-    let (debt, liquidator_request, liquidatee_request) = calculate_liquidation(
+    let liquidation_res = calculate_liquidation(
         &mut deps,
         env.clone(),
         liquidatee_account_id,
@@ -185,10 +200,15 @@ fn liquidate_unlocking(
         prev_health,
     )?;
 
-    let repay_msg =
-        repay_debt(deps.storage, &env, liquidator_account_id, liquidatee_account_id, &debt)?;
+    let repay_msg = repay_debt(
+        deps.storage,
+        &env,
+        liquidator_account_id,
+        liquidatee_account_id,
+        &liquidation_res.debt,
+    )?;
 
-    let mut total_to_liquidate = liquidatee_request.amount;
+    let mut total_to_liquidate = liquidation_res.liquidatee_request.amount;
     let mut vault_withdraw_msgs = vec![];
 
     for u in unlocking_positions.positions() {
@@ -214,9 +234,12 @@ fn liquidate_unlocking(
         total_to_liquidate = total_to_liquidate.checked_sub(amount)?;
     }
 
-    let protocol_fee = liquidatee_request.amount.checked_sub(liquidator_request.amount)?;
+    let protocol_fee = liquidation_res
+        .liquidatee_request
+        .amount
+        .checked_sub(liquidation_res.liquidator_request.amount)?;
     let protocol_fee_percentage =
-        Decimal::checked_from_ratio(protocol_fee, liquidatee_request.amount)?;
+        Decimal::checked_from_ratio(protocol_fee, liquidation_res.liquidatee_request.amount)?;
 
     let update_coin_balance_msg = update_balance_after_vault_liquidation_msg(
         &deps.querier,
@@ -233,12 +256,14 @@ fn liquidate_unlocking(
         .add_attribute("action", "liquidate_vault/unlocking")
         .add_attribute("account_id", liquidator_account_id)
         .add_attribute("liquidatee_account_id", liquidatee_account_id)
-        .add_attribute("coin_debt_repaid", debt.to_string())
-        .add_attribute("coin_liquidated", liquidatee_request.to_string())
+        .add_attribute("coin_debt_repaid", liquidation_res.debt.to_string())
+        .add_attribute("coin_liquidated", liquidation_res.liquidatee_request.to_string())
         .add_attribute(
             "protocol_fee_coin",
-            Coin::new(protocol_fee.u128(), liquidatee_request.denom).to_string(),
-        ))
+            Coin::new(protocol_fee.u128(), liquidation_res.liquidatee_request.denom).to_string(),
+        )
+        .add_attribute("debt_price", liquidation_res.debt_price.to_string())
+        .add_attribute("collateral_price", liquidation_res.collateral_price.to_string()))
 }
 
 fn liquidate_locked(
@@ -253,7 +278,7 @@ fn liquidate_locked(
 ) -> ContractResult<Response> {
     let vault_info = request_vault.query_info(&deps.querier)?;
 
-    let (debt, liquidator_request, liquidatee_request) = calculate_vault_liquidation(
+    let liquidation_res = calculate_vault_liquidation(
         &mut deps,
         env.clone(),
         liquidatee_account_id,
@@ -264,22 +289,32 @@ fn liquidate_locked(
         prev_health,
     )?;
 
-    let repay_msg =
-        repay_debt(deps.storage, &env, liquidator_account_id, liquidatee_account_id, &debt)?;
+    let repay_msg = repay_debt(
+        deps.storage,
+        &env,
+        liquidator_account_id,
+        liquidatee_account_id,
+        &liquidation_res.debt,
+    )?;
 
     update_vault_position(
         deps.storage,
         liquidatee_account_id,
         &request_vault.address,
-        VaultPositionUpdate::Locked(UpdateType::Decrement(liquidatee_request.amount)),
+        VaultPositionUpdate::Locked(UpdateType::Decrement(
+            liquidation_res.liquidatee_request.amount,
+        )),
     )?;
 
-    let vault_withdraw_msg =
-        request_vault.force_withdraw_locked_msg(&deps.querier, liquidatee_request.amount)?;
+    let vault_withdraw_msg = request_vault
+        .force_withdraw_locked_msg(&deps.querier, liquidation_res.liquidatee_request.amount)?;
 
-    let protocol_fee = liquidatee_request.amount.checked_sub(liquidator_request.amount)?;
+    let protocol_fee = liquidation_res
+        .liquidatee_request
+        .amount
+        .checked_sub(liquidation_res.liquidator_request.amount)?;
     let protocol_fee_percentage =
-        Decimal::checked_from_ratio(protocol_fee, liquidatee_request.amount)?;
+        Decimal::checked_from_ratio(protocol_fee, liquidation_res.liquidatee_request.amount)?;
 
     let update_coin_balance_msg = update_balance_after_vault_liquidation_msg(
         &deps.querier,
@@ -296,10 +331,12 @@ fn liquidate_locked(
         .add_attribute("action", "liquidate_vault/locked")
         .add_attribute("account_id", liquidator_account_id)
         .add_attribute("liquidatee_account_id", liquidatee_account_id)
-        .add_attribute("coin_debt_repaid", debt.to_string())
-        .add_attribute("coin_liquidated", liquidatee_request.to_string())
+        .add_attribute("coin_debt_repaid", liquidation_res.debt.to_string())
+        .add_attribute("coin_liquidated", liquidation_res.liquidatee_request.to_string())
         .add_attribute(
             "protocol_fee_coin",
-            Coin::new(protocol_fee.u128(), liquidatee_request.denom).to_string(),
-        ))
+            Coin::new(protocol_fee.u128(), liquidation_res.liquidatee_request.denom).to_string(),
+        )
+        .add_attribute("debt_price", liquidation_res.debt_price.to_string())
+        .add_attribute("collateral_price", liquidation_res.collateral_price.to_string()))
 }

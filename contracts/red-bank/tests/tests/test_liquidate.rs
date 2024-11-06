@@ -774,9 +774,12 @@ fn response_verification() {
     .unwrap();
     deps.querier.set_redbank_params(&asset_params.denom.clone(), asset_params);
 
-    deps.querier.set_oracle_price("uosmo", Decimal::from_ratio(4u128, 1u128));
+    let mut osmo_price = Decimal::from_ratio(4u128, 1u128);
+    let usdc_price = Decimal::from_ratio(68u128, 10u128);
+
+    deps.querier.set_oracle_price("uosmo", osmo_price);
     deps.querier.set_oracle_price("uatom", Decimal::from_ratio(82u128, 10u128));
-    deps.querier.set_oracle_price("uusdc", Decimal::from_ratio(68u128, 10u128));
+    deps.querier.set_oracle_price("uusdc", usdc_price);
     deps.querier.set_oracle_price("untrn", Decimal::from_ratio(55u128, 10u128));
 
     // no deposit yet, initialize total deposit to zero
@@ -852,7 +855,8 @@ fn response_verification() {
     .unwrap();
 
     // change price to be able to liquidate
-    deps.querier.set_oracle_price("uosmo", Decimal::from_ratio(2u128, 1u128));
+    osmo_price = Decimal::from_ratio(2u128, 1u128);
+    deps.querier.set_oracle_price("uosmo", osmo_price);
 
     let collateral_market: Market = th_query(
         deps.as_ref(),
@@ -940,9 +944,14 @@ fn response_verification() {
                     expected_collateral_rates.liquidity_index,
                 ),
             ),
+            attr("collateral_price", osmo_price.to_string()),
             attr("debt_denom", "uusdc"),
             attr("debt_amount", Uint128::new(2883u128)),
             attr("debt_amount_scaled", expected_debt_rates.less_debt_scaled),
+            attr("debt_price", usdc_price.to_string()),
+            attr("protocol_fee_denom", "uosmo"),
+            attr("protocol_fee_amount", Uint128::new(4u128).to_string()),
+            attr("protocol_fee_amount_scaled", Uint128::new(4000000u128).to_string()),
         ],
     );
 

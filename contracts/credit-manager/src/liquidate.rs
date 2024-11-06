@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, Deps, DepsMut, Env, QuerierWrapper, Uint128};
+use cosmwasm_std::{Coin, Decimal, Deps, DepsMut, Env, QuerierWrapper, Uint128};
 use mars_liquidation::liquidation::{calculate_liquidation_amounts, HealthData};
 use mars_types::{
     adapters::oracle::Oracle, health::HealthValuesResponse, oracle::ActionKind, traits::Stringify,
@@ -31,6 +31,15 @@ pub fn check_health(
     Ok(health)
 }
 
+/// Result of a liquidation calculation.
+pub struct LiquidationResult {
+    pub debt: Coin,
+    pub liquidator_request: Coin,
+    pub liquidatee_request: Coin,
+    pub debt_price: Decimal,
+    pub collateral_price: Decimal,
+}
+
 /// Calculates precise debt, request coin amounts to liquidate, request coin transfered to liquidator and rewards-collector.
 /// The debt amount will be adjusted down if:
 /// - Exceeds liquidatee's total debt for denom
@@ -46,7 +55,7 @@ pub fn calculate_liquidation(
     request_coin: &str,
     request_coin_balance: Uint128,
     prev_health: HealthValuesResponse,
-) -> ContractResult<(Coin, Coin, Coin)> {
+) -> ContractResult<LiquidationResult> {
     // If the account held perps positions before liquidation started, we close those positions first.
     // Now that only spot assets remain, we need to query the health values again to get an updated view without the perps.
     // Note: Even if closing the perps improves the health factor enough to avoid liquidation, we still continue with the liquidation process.
@@ -95,23 +104,24 @@ pub fn calculate_liquidation(
             &health,
         )?;
 
-    // (Debt Coin, Liquidator Request Coin, Liquidatee Request Coin)
-    let result = (
-        Coin {
+    let result = LiquidationResult {
+        debt: Coin {
             denom: debt_coin.denom.clone(),
             amount: debt_amount_to_repay,
         },
-        Coin {
+        liquidator_request: Coin {
             denom: request_coin.to_string(),
             amount: request_amount_received_by_liquidator,
         },
-        Coin {
+        liquidatee_request: Coin {
             denom: request_coin.to_string(),
             amount: request_amount_to_liquidate,
         },
-    );
+        debt_price: debt_coin_price,
+        collateral_price: request_coin_price,
+    };
 
-    assert_liquidation_profitable(&deps.querier, &oracle, result.clone())?;
+    assert_liquidation_profitable(&deps.querier, &oracle, &result)?;
 
     Ok(result)
 }
@@ -121,15 +131,16 @@ pub fn calculate_liquidation(
 fn assert_liquidation_profitable(
     querier: &QuerierWrapper,
     oracle: &Oracle,
-    (debt_coin, request_coin, ..): (Coin, Coin, Coin),
+    liq_res: &LiquidationResult,
 ) -> ContractResult<()> {
-    let debt_value = oracle.query_value(querier, &debt_coin, ActionKind::Liquidation)?;
-    let request_value = oracle.query_value(querier, &request_coin, ActionKind::Liquidation)?;
+    let debt_value = oracle.query_value(querier, &liq_res.debt, ActionKind::Liquidation)?;
+    let request_value =
+        oracle.query_value(querier, &liq_res.liquidator_request, ActionKind::Liquidation)?;
 
     if debt_value >= request_value {
         return Err(ContractError::LiquidationNotProfitable {
-            debt_coin,
-            request_coin,
+            debt_coin: liq_res.debt.clone(),
+            request_coin: liq_res.liquidator_request.clone(),
         });
     }
 

@@ -21,7 +21,7 @@ pub fn liquidate_deposit(
         .load(deps.storage, (liquidatee_account_id, request_coin_denom))
         .map_err(|_| ContractError::CoinNotAvailable(request_coin_denom.to_string()))?;
 
-    let (debt, liquidator_request, liquidatee_request) = calculate_liquidation(
+    let liquidation_res = calculate_liquidation(
         &mut deps,
         env.clone(),
         liquidatee_account_id,
@@ -31,20 +31,36 @@ pub fn liquidate_deposit(
         prev_health,
     )?;
 
-    let repay_msg =
-        repay_debt(deps.storage, &env, liquidator_account_id, liquidatee_account_id, &debt)?;
+    let repay_msg = repay_debt(
+        deps.storage,
+        &env,
+        liquidator_account_id,
+        liquidatee_account_id,
+        &liquidation_res.debt,
+    )?;
 
     // Transfer requested coin from liquidatee to liquidator
-    decrement_coin_balance(deps.storage, liquidatee_account_id, &liquidatee_request)?;
-    increment_coin_balance(deps.storage, liquidator_account_id, &liquidator_request)?;
+    decrement_coin_balance(
+        deps.storage,
+        liquidatee_account_id,
+        &liquidation_res.liquidatee_request,
+    )?;
+    increment_coin_balance(
+        deps.storage,
+        liquidator_account_id,
+        &liquidation_res.liquidator_request,
+    )?;
 
     // Transfer protocol fee to rewards-collector account
     let rewards_collector_account = REWARDS_COLLECTOR.load(deps.storage)?.account_id;
-    let protocol_fee_amount = liquidatee_request.amount.checked_sub(liquidator_request.amount)?;
+    let protocol_fee_amount = liquidation_res
+        .liquidatee_request
+        .amount
+        .checked_sub(liquidation_res.liquidator_request.amount)?;
     increment_coin_balance(
         deps.storage,
         &rewards_collector_account,
-        &Coin::new(protocol_fee_amount.u128(), liquidatee_request.denom.clone()),
+        &Coin::new(protocol_fee_amount.u128(), liquidation_res.liquidatee_request.denom.clone()),
     )?;
 
     Ok(Response::new()
@@ -52,12 +68,14 @@ pub fn liquidate_deposit(
         .add_attribute("action", "liquidate_deposit")
         .add_attribute("account_id", liquidator_account_id)
         .add_attribute("liquidatee_account_id", liquidatee_account_id)
-        .add_attribute("coin_debt_repaid", debt.to_string())
-        .add_attribute("coin_liquidated", liquidatee_request.to_string())
+        .add_attribute("coin_debt_repaid", liquidation_res.debt.to_string())
+        .add_attribute("coin_liquidated", liquidation_res.liquidatee_request.to_string())
         .add_attribute(
             "protocol_fee_coin",
             Coin::new(protocol_fee_amount.u128(), request_coin_denom).to_string(),
-        ))
+        )
+        .add_attribute("debt_price", liquidation_res.debt_price.to_string())
+        .add_attribute("collateral_price", liquidation_res.collateral_price.to_string()))
 }
 
 pub fn repay_debt(
