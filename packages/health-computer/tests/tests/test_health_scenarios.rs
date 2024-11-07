@@ -14,8 +14,8 @@ use mars_types::{
 };
 
 use super::helpers::{
-    atomperp_info, btcperp_info, ethperp_info, udai_info, ujuno_info, uluna_info, umars_info,
-    ustars_info, uusdc_info,
+    atomperp_info, btcperp_info, ethperp_info, uatom_info, udai_info, ujuno_info, uluna_info,
+    umars_info, ustars_info, uusdc_info,
 };
 use crate::tests::helpers::{create_coin_info, create_perp_info};
 
@@ -2362,6 +2362,167 @@ fn single_perp_funding_greater_than_pnl() {
 
     assert_eq!(health.max_ltv_health_factor, Some(Decimal::from_str("2.067305").unwrap()));
     assert_eq!(health.liquidation_health_factor, Some(Decimal::from_str("2.1821655").unwrap()));
+    assert!(!health.is_above_max_ltv());
+    assert!(!health.is_liquidatable());
+}
+
+#[test]
+fn same_denomination_for_values() {
+    let uusd = create_coin_info(
+        "uusd".to_string(),
+        Decimal::from_str("1").unwrap(),
+        Decimal::percent(70),
+        Decimal::percent(75),
+    );
+    let uusdc = create_coin_info(
+        "uusdc".to_string(),
+        Decimal::from_str("1.5").unwrap(),
+        Decimal::percent(70),
+        Decimal::percent(75),
+    );
+    let udai = udai_info();
+    let uatom = uatom_info();
+
+    let entry_price = Decimal::from_str("100").unwrap();
+    let current_price = Decimal::from_str("92").unwrap();
+    let max_ltv = Decimal::from_str("0.9").unwrap();
+    let liquidation_threshold = Decimal::from_str("0.95").unwrap();
+    let size = Int128::from_str("10000000").unwrap();
+    let btcperp =
+        create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
+
+    let asset_params = HashMap::from([
+        (uusd.denom.clone(), uusd.params.clone()),
+        (uusdc.denom.clone(), uusdc.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+        (uatom.denom.clone(), uatom.params.clone()),
+    ]);
+
+    let oracle_prices = HashMap::from([
+        (uusd.denom.clone(), uusd.price),
+        (uusdc.denom.clone(), uusdc.price),
+        (udai.denom.clone(), udai.price),
+        (uatom.denom.clone(), uatom.price),
+        (btcperp.denom.clone(), btcperp.price),
+    ]);
+
+    let perps_data = PerpsData {
+        params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
+    };
+
+    let unrealized_funding_accrued = Int128::from_str("1225210000").unwrap();
+
+    let h = HealthComputer {
+        kind: AccountKind::Default,
+        positions: Positions {
+            account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+            deposits: vec![coin(1000000, &udai.denom)],
+            debts: vec![DebtAmount {
+                amount: Uint128::from_str("1000000").unwrap(),
+                denom: uatom.denom.clone(),
+                shares: Uint128::zero(),
+            }],
+            lends: vec![],
+            vaults: vec![],
+            staked_astro_lps: vec![],
+            perps: vec![PerpPosition {
+                denom: btcperp.denom.clone(),
+                base_denom: uusdc.denom.clone(),
+                current_price,
+                entry_price,
+                entry_exec_price: entry_price,
+                current_exec_price: current_price,
+                size,
+                unrealized_pnl: PnlAmounts {
+                    accrued_funding: unrealized_funding_accrued,
+                    pnl: Int128::from_str("-24790000").unwrap(),
+                    ..Default::default()
+                },
+                realized_pnl: PnlAmounts::default(),
+            }],
+        },
+        oracle_prices: oracle_prices.clone(),
+        asset_params: asset_params.clone(),
+        vaults_data: Default::default(),
+        perps_data: perps_data.clone(),
+    };
+
+    let health = h.compute_health().unwrap();
+    assert_eq!(health.total_collateral_value, Uint128::new(313451));
+    assert_eq!(health.total_debt_value, Uint128::new(941236));
+    assert_eq!(health.max_ltv_adjusted_collateral, Uint128::new(266433));
+    assert_eq!(health.liquidation_threshold_adjusted_collateral, Uint128::new(282105));
+    assert_eq!(
+        health.max_ltv_health_factor,
+        Some(Decimal::from_str("2.479781873028957715").unwrap())
+    );
+    assert_eq!(
+        health.liquidation_health_factor,
+        Some(Decimal::from_str("2.617558614599828515").unwrap())
+    );
+
+    // loss = 24790000 uusdc * 1.5 uusd/uusdc = 37185000 uusd
+    assert_eq!(health.perps_pnl_loss, Uint128::new(37185000));
+    assert_eq!(health.perps_pnl_profit, Uint128::new(0));
+
+    assert!(!health.is_above_max_ltv());
+    assert!(!health.is_liquidatable());
+
+    let h = HealthComputer {
+        kind: AccountKind::Default,
+        positions: Positions {
+            account_id: "123".to_string(),
+            account_kind: AccountKind::Default,
+            deposits: vec![coin(1000000, &udai.denom)],
+            debts: vec![DebtAmount {
+                amount: Uint128::from_str("1000000").unwrap(),
+                denom: uatom.denom,
+                shares: Uint128::zero(),
+            }],
+            lends: vec![],
+            vaults: vec![],
+            staked_astro_lps: vec![],
+            perps: vec![PerpPosition {
+                denom: btcperp.denom,
+                base_denom: uusdc.denom,
+                current_price,
+                entry_price,
+                entry_exec_price: entry_price,
+                current_exec_price: current_price,
+                size,
+                unrealized_pnl: PnlAmounts {
+                    accrued_funding: unrealized_funding_accrued,
+                    pnl: Int128::from_str("24790000").unwrap(),
+                    ..Default::default()
+                },
+                realized_pnl: PnlAmounts::default(),
+            }],
+        },
+        oracle_prices,
+        asset_params,
+        vaults_data: Default::default(),
+        perps_data,
+    };
+
+    let health = h.compute_health().unwrap();
+    assert_eq!(health.total_collateral_value, Uint128::new(313451));
+    assert_eq!(health.total_debt_value, Uint128::new(941236));
+    assert_eq!(health.max_ltv_adjusted_collateral, Uint128::new(266433));
+    assert_eq!(health.liquidation_threshold_adjusted_collateral, Uint128::new(282105));
+    assert_eq!(
+        health.max_ltv_health_factor,
+        Some(Decimal::from_str("2.479781873028957715").unwrap())
+    );
+    assert_eq!(
+        health.liquidation_health_factor,
+        Some(Decimal::from_str("2.617558614599828515").unwrap())
+    );
+
+    // loss = 24790000 uusdc * 1.5 uusd/uusdc = 37185000 uusd
+    assert_eq!(health.perps_pnl_loss, Uint128::zero());
+    assert_eq!(health.perps_pnl_profit, Uint128::new(37185000));
+
     assert!(!health.is_above_max_ltv());
     assert!(!health.is_liquidatable());
 }

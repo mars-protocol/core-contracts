@@ -83,11 +83,11 @@ impl HealthComputer {
             // reason being that risk team is still deciding on the correctness of
             // that formula.
             // The difference is in how funding is applied.
-            // Currently, we include usdc collateral as part of RWA and apply f+ / f- to each perp position
+            // Currently, we include uusdc collateral as part of RWA and apply f+ / f- to each perp position
             // The document uses C+, C- instead.
             // HF = (RWA + perp_numerator) / (spot_debt + perp_denominator)
             // where
-            // RWA = risk weighted assets (i.e ltv * collateral_value)
+            // RWA = risk weighted assets (i.e. ltv * collateral_value)
             // spot debt = total value of borrowed assets (does not include perp unrealized pnl)
 
             let max_ltv_hf = Decimal::checked_from_ratio(ltv_numerator, ltv_denominator)?;
@@ -817,9 +817,17 @@ impl HealthComputer {
         let mut loss = Uint128::zero();
 
         for position in perps.iter() {
+            let base_denom_price = self.get_price(&position.base_denom)?;
+
             match &position.unrealized_pnl.to_coins(&position.base_denom).pnl {
-                PnL::Profit(pnl) => profit = profit.checked_add(pnl.amount)?,
-                PnL::Loss(pnl) => loss = loss.checked_add(pnl.amount)?,
+                // Round down the profits to be conservative
+                PnL::Profit(pnl) => {
+                    profit = profit.checked_add(pnl.amount.checked_mul_floor(base_denom_price)?)?
+                }
+                // Round up the losses to be conservative
+                PnL::Loss(pnl) => {
+                    loss = loss.checked_add(pnl.amount.checked_mul_ceil(base_denom_price)?)?
+                }
                 _ => {}
             }
 

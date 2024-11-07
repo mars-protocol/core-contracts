@@ -25,8 +25,8 @@ pub struct PerpHealthFactorValues {
 
 #[cw_serde]
 pub struct PerpPnlValues {
-    pub profit: Uint128,
-    pub loss: Uint128,
+    pub profit: Uint128, // Values are in oracle denom (uusd)
+    pub loss: Uint128,   // Values are in oracle denom (uusd)
 }
 
 #[cw_serde]
