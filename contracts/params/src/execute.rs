@@ -1,20 +1,47 @@
 use cosmwasm_std::{
-    ensure, to_json_binary, CosmosMsg, DepsMut, MessageInfo, Order, Response, WasmMsg,
+    ensure, ensure_eq, to_json_binary, Addr, CosmosMsg, Deps, DepsMut, MessageInfo, Order,
+    Response, WasmMsg,
 };
+use cw_storage_plus::Item;
+use mars_owner::OwnerInit::SetInitialOwner;
 use mars_types::{
     address_provider::{self, MarsAddressType},
-    params::{AssetParamsUpdate, PerpParamsUpdate, VaultConfigUpdate},
+    params::{AssetParams, AssetParamsUpdate, PerpParams, PerpParamsUpdate, VaultConfigUpdate},
     perps::ExecuteMsg,
 };
 use mars_utils::helpers::option_string_to_addr;
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::{ADDRESS_PROVIDER, ASSET_PARAMS, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, VAULT_CONFIGS},
+    state::{
+        ADDRESS_PROVIDER, ASSET_PARAMS, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, RISK_MANAGER,
+        RISK_MANAGER_KEY, VAULT_CONFIGS,
+    },
 };
 
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+// Force resets the risk manager to the contract owner.
+pub fn reset_risk_manager(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    OWNER.assert_owner(deps.storage, &info.sender)?;
+
+    // Use same storage key as current RISK_MANAGER to remove existing state
+    let storage_key = Item::<()>::new(RISK_MANAGER_KEY);
+    storage_key.remove(deps.storage);
+
+    RISK_MANAGER.initialize(
+        deps.storage,
+        deps.api,
+        SetInitialOwner {
+            owner: info.sender.to_string(),
+        },
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("action", "reset_risk_manager")
+        .add_attribute("new_risk_manager", info.sender.to_string()))
+}
 
 pub fn update_config(
     deps: DepsMut,
@@ -45,7 +72,7 @@ pub fn update_asset_params(
     info: MessageInfo,
     update: AssetParamsUpdate,
 ) -> ContractResult<Response> {
-    OWNER.assert_owner(deps.storage, &info.sender)?;
+    let permission = Permission::new(deps.as_ref(), &info.sender)?;
 
     let mut response = Response::new().add_attribute("action", "update_asset_param");
 
@@ -54,6 +81,9 @@ pub fn update_asset_params(
             params: unchecked,
         } => {
             let params = unchecked.check(deps.api)?;
+
+            // Risk manager cannot change the liquidation threshold
+            permission.validate_asset_liquidation_threshold_unchanged(&params)?;
 
             ASSET_PARAMS.save(deps.storage, &params.denom, &params)?;
             response = response
@@ -94,7 +124,7 @@ pub fn update_perp_params(
     info: MessageInfo,
     update: PerpParamsUpdate,
 ) -> ContractResult<Response> {
-    OWNER.assert_owner(deps.storage, &info.sender)?;
+    let permission = Permission::new(deps.as_ref(), &info.sender)?;
 
     let mut response = Response::new().add_attribute("action", "update_perp_param");
 
@@ -103,6 +133,9 @@ pub fn update_perp_params(
             params,
         } => {
             let checked = params.check()?;
+
+            // Risk manager cannot change the liquidation threshold
+            permission.validate_perps_liquidation_threshold_unchanged(&checked)?;
 
             PERP_PARAMS.save(deps.storage, &checked.denom, &checked)?;
 
@@ -124,6 +157,7 @@ pub fn update_perp_params(
             response = response
                 .add_message(msg)
                 .add_attribute("action_type", "add_or_update")
+                .add_attribute("sender", info.sender)
                 .add_attribute("denom", params.denom);
         }
     }
@@ -139,4 +173,73 @@ pub fn update_perp_params(
     );
 
     Ok(response)
+}
+
+struct Permission<'a> {
+    deps: Deps<'a>,
+    owner: bool,
+    risk_manager: bool,
+}
+
+impl<'a> Permission<'a> {
+    pub fn new(deps: Deps<'a>, sender: &Addr) -> ContractResult<Self> {
+        let owner = OWNER.is_owner(deps.storage, sender)?;
+        let risk_manager = RISK_MANAGER.is_owner(deps.storage, sender)?;
+        ensure!(owner || risk_manager, ContractError::NotOwnerOrRiskManager {});
+        Ok(Self {
+            deps,
+            owner,
+            risk_manager,
+        })
+    }
+
+    pub fn validate_asset_liquidation_threshold_unchanged(
+        &self,
+        new_params: &AssetParams,
+    ) -> ContractResult<()> {
+        // If the risk_manager is not set to the default (owner) apply restrictions
+        if self.risk_manager && !self.owner {
+            let current_asset_params =
+                ASSET_PARAMS.may_load(self.deps.storage, &new_params.denom)?;
+            if let Some(current_asset_params) = current_asset_params {
+                ensure_eq!(
+                    current_asset_params.liquidation_threshold,
+                    new_params.liquidation_threshold,
+                    ContractError::RiskManagerUnauthorized {
+                        reason: "asset param liquidation threshold".to_string()
+                    }
+                )
+            } else {
+                return Err(ContractError::RiskManagerUnauthorized {
+                    reason: "new asset".to_string(),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    pub fn validate_perps_liquidation_threshold_unchanged(
+        &self,
+        new_params: &PerpParams,
+    ) -> ContractResult<()> {
+        // If the risk_manager is not set to the default (owner) apply restrictions
+        if self.risk_manager && !self.owner {
+            let current_perps_params =
+                PERP_PARAMS.may_load(self.deps.storage, &new_params.denom)?;
+            if let Some(current_perps_params) = current_perps_params {
+                ensure_eq!(
+                    current_perps_params.liquidation_threshold,
+                    new_params.liquidation_threshold,
+                    ContractError::RiskManagerUnauthorized {
+                        reason: "perp param liquidation threshold".to_string()
+                    }
+                );
+            } else {
+                return Err(ContractError::RiskManagerUnauthorized {
+                    reason: "new perp".to_string(),
+                });
+            }
+        }
+        Ok(())
+    }
 }

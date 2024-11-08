@@ -1,6 +1,6 @@
 {
   "contract_name": "mars-params",
-  "contract_version": "2.1.0",
+  "contract_version": "2.2.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -25,6 +25,13 @@
       "owner": {
         "description": "Contract's owner",
         "type": "string"
+      },
+      "risk_manager": {
+        "description": "Contracts optional risk manager",
+        "type": [
+          "string",
+          "null"
+        ]
       }
     },
     "additionalProperties": false
@@ -41,6 +48,33 @@
         "properties": {
           "update_owner": {
             "$ref": "#/definitions/OwnerUpdate"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "update_risk_manager"
+        ],
+        "properties": {
+          "update_risk_manager": {
+            "$ref": "#/definitions/OwnerUpdate"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "reset_risk_manager"
+        ],
+        "properties": {
+          "reset_risk_manager": {
+            "type": "array",
+            "items": [],
+            "maxItems": 0,
+            "minItems": 0
           }
         },
         "additionalProperties": false
@@ -839,6 +873,19 @@
         ],
         "properties": {
           "owner": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "risk_manager"
+        ],
+        "properties": {
+          "risk_manager": {
             "type": "object",
             "additionalProperties": false
           }
@@ -2725,6 +2772,43 @@
           "type": "string"
         }
       }
+    },
+    "risk_manager": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "OwnerResponse",
+      "description": "Returned from Owner.query()",
+      "type": "object",
+      "required": [
+        "abolished",
+        "initialized"
+      ],
+      "properties": {
+        "abolished": {
+          "type": "boolean"
+        },
+        "emergency_owner": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "initialized": {
+          "type": "boolean"
+        },
+        "owner": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "proposed": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
     },
     "total_deposit": {
       "$schema": "http://json-schema.org/draft-07/schema#",

@@ -1117,6 +1117,7 @@ impl MockEnvBuilder {
                 self.owner.clone(),
                 &mars_types::params::InstantiateMsg {
                     owner: self.owner.to_string(),
+                    risk_manager: None,
                     address_provider: address_provider_addr.to_string(),
                     max_perp_params: 40,
                 },

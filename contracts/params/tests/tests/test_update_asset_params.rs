@@ -1,6 +1,7 @@
+use std::str::FromStr;
+
 use cosmwasm_std::{Addr, Decimal};
-use mars_owner::OwnerError;
-use mars_params::error::ContractError::Owner;
+use mars_params::error::ContractError;
 use mars_types::params::AssetParamsUpdate;
 
 use super::helpers::{assert_contents_equal, assert_err, default_asset_params, MockEnv};
@@ -13,8 +14,58 @@ fn initial_state_of_params() {
 }
 
 #[test]
-fn only_owner_can_update_asset_params() {
-    let mut mock = MockEnv::new().build().unwrap();
+fn only_owner_can_init_asset_params() {
+    let mut mock =
+        MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    let bad_guy = Addr::unchecked("doctor_otto_983");
+    let mut res = mock.update_asset_params(
+        &bad_guy,
+        AssetParamsUpdate::AddOrUpdate {
+            params: default_asset_params("xyz"),
+        },
+    );
+    assert_err(res, ContractError::NotOwnerOrRiskManager {});
+
+    let risk_manager = mock.query_risk_manager();
+    res = mock.update_asset_params(
+        &risk_manager,
+        AssetParamsUpdate::AddOrUpdate {
+            params: default_asset_params("xyz"),
+        },
+    );
+    assert_err(
+        res,
+        ContractError::RiskManagerUnauthorized {
+            reason: "new asset".to_string(),
+        },
+    );
+
+    let owner = mock.query_owner();
+    mock.update_asset_params(
+        &owner,
+        AssetParamsUpdate::AddOrUpdate {
+            params: default_asset_params("xyz"),
+        },
+    )
+    .unwrap();
+}
+
+#[test]
+fn only_owner_and_risk_manager_can_update_asset_params() {
+    let mut mock =
+        MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    // Add asset param as owner
+    mock.update_asset_params(
+        &mock.query_owner(),
+        AssetParamsUpdate::AddOrUpdate {
+            params: default_asset_params("xyz"),
+        },
+    )
+    .unwrap();
+
+    // Baddie can't update asset params
     let bad_guy = Addr::unchecked("doctor_otto_983");
     let res = mock.update_asset_params(
         &bad_guy,
@@ -22,7 +73,79 @@ fn only_owner_can_update_asset_params() {
             params: default_asset_params("xyz"),
         },
     );
-    assert_err(res, Owner(OwnerError::NotOwner {}));
+    assert_err(res, ContractError::NotOwnerOrRiskManager {});
+
+    // Risk Manager can update asset params
+    let risk_manager = mock.query_risk_manager();
+    mock.update_asset_params(
+        &risk_manager,
+        AssetParamsUpdate::AddOrUpdate {
+            params: default_asset_params("xyz"),
+        },
+    )
+    .unwrap();
+
+    // Owner can update asset params
+    let owner = mock.query_owner();
+    mock.update_asset_params(
+        &owner,
+        AssetParamsUpdate::AddOrUpdate {
+            params: default_asset_params("xyz"),
+        },
+    )
+    .unwrap();
+}
+
+#[test]
+fn only_owner_can_update_asset_params_liquidation_threshold() {
+    let mut mock =
+        MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    // Add asset param as owner
+    let mut params = default_asset_params("xyz");
+    mock.update_asset_params(
+        &mock.query_owner(),
+        AssetParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    )
+    .unwrap();
+
+    // Update the liq threshold from 0.7 to 0.99
+    params.liquidation_threshold = Decimal::from_str("0.99").unwrap();
+
+    // Fail updating as baddie
+    let bad_guy = Addr::unchecked("doctor_otto_983");
+    let res = mock.update_asset_params(
+        &bad_guy,
+        AssetParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    );
+    assert_err(res, ContractError::NotOwnerOrRiskManager {});
+
+    // Fail updating as risk mananger if changing liq threshold
+    let res = mock.update_asset_params(
+        &mock.query_risk_manager(),
+        AssetParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    );
+    assert_err(
+        res,
+        ContractError::RiskManagerUnauthorized {
+            reason: "asset param liquidation threshold".to_string(),
+        },
+    );
+
+    // Succeed updating as owner if changing liq threshold
+    mock.update_asset_params(
+        &mock.query_owner(),
+        AssetParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    )
+    .unwrap();
 }
 
 #[test]

@@ -1,8 +1,7 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{Addr, Decimal, Uint128};
-use mars_owner::OwnerError;
-use mars_params::error::ContractError::{self, Owner};
+use mars_params::error::ContractError;
 use mars_types::params::{PerpParams, PerpParamsUpdate};
 
 use super::helpers::{assert_contents_equal, assert_err, default_perp_params, MockEnv};
@@ -15,8 +14,58 @@ fn initial_state_of_perp_params() {
 }
 
 #[test]
-fn only_owner_can_update_perp_params() {
-    let mut mock = MockEnv::new().build().unwrap();
+fn only_owner_can_init_perp_params() {
+    let mut mock =
+        MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    let bad_guy = Addr::unchecked("doctor_otto_983");
+    let mut res = mock.update_perp_params(
+        &bad_guy,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("xyz"),
+        },
+    );
+    assert_err(res, ContractError::NotOwnerOrRiskManager {});
+
+    let risk_manager = mock.query_risk_manager();
+    res = mock.update_perp_params(
+        &risk_manager,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("xyz"),
+        },
+    );
+    assert_err(
+        res,
+        ContractError::RiskManagerUnauthorized {
+            reason: "new perp".to_string(),
+        },
+    );
+
+    let owner = mock.query_owner();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("xyz"),
+        },
+    )
+    .unwrap();
+}
+
+#[test]
+fn only_owner_and_risk_manager_can_update_perp_params() {
+    let mut mock =
+        MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    // Add perp param as owner
+    mock.update_perp_params(
+        &mock.query_owner(),
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("xyz"),
+        },
+    )
+    .unwrap();
+
+    // Baddie can't update perp params
     let bad_guy = Addr::unchecked("doctor_otto_983");
     let res = mock.update_perp_params(
         &bad_guy,
@@ -24,7 +73,79 @@ fn only_owner_can_update_perp_params() {
             params: default_perp_params("xyz"),
         },
     );
-    assert_err(res, Owner(OwnerError::NotOwner {}));
+    assert_err(res, ContractError::NotOwnerOrRiskManager {});
+
+    // Risk Manager can update perp params
+    let risk_manager = mock.query_risk_manager();
+    mock.update_perp_params(
+        &risk_manager,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("xyz"),
+        },
+    )
+    .unwrap();
+
+    // Owner can update perp params
+    let owner = mock.query_owner();
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params("xyz"),
+        },
+    )
+    .unwrap();
+}
+
+#[test]
+fn only_owner_can_update_perp_params_liquidation_threshold() {
+    let mut mock =
+        MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    // Add perp param as owner
+    let mut params = default_perp_params("xyz");
+    mock.update_perp_params(
+        &mock.query_owner(),
+        PerpParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    )
+    .unwrap();
+
+    // Update the liq threshold from 0.7 to 0.99
+    params.liquidation_threshold = Decimal::from_str("0.98").unwrap();
+
+    // Fail updating as baddie
+    let bad_guy = Addr::unchecked("doctor_otto_983");
+    let res = mock.update_perp_params(
+        &bad_guy,
+        PerpParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    );
+    assert_err(res, ContractError::NotOwnerOrRiskManager {});
+
+    // Fail updating as risk mananger if changing liq threshold
+    let res = mock.update_perp_params(
+        &mock.query_risk_manager(),
+        PerpParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    );
+    assert_err(
+        res,
+        ContractError::RiskManagerUnauthorized {
+            reason: "perp param liquidation threshold".to_string(),
+        },
+    );
+
+    // Succeed updating as owner if changing liq threshold
+    mock.update_perp_params(
+        &mock.query_owner(),
+        PerpParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    )
+    .unwrap();
 }
 
 #[test]

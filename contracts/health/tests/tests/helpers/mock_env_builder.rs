@@ -192,6 +192,7 @@ impl MockEnvBuilder {
                 owner.clone(),
                 &ParamsInstantiateMsg {
                     owner: owner.to_string(),
+                    risk_manager: None,
                     address_provider: "n/a".to_string(),
                     max_perp_params: 40,
                 },

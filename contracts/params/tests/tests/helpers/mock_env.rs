@@ -99,6 +99,28 @@ impl MockEnv {
         )
     }
 
+    pub fn update_risk_manager(
+        &mut self,
+        sender: &Addr,
+        update: OwnerUpdate,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.params_contract.clone(),
+            &ExecuteMsg::UpdateRiskManager(update),
+            &[],
+        )
+    }
+
+    pub fn reset_risk_manager(&mut self, sender: &Addr) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.params_contract.clone(),
+            &ExecuteMsg::ResetRiskManager(),
+            &[],
+        )
+    }
+
     pub fn update_config(
         &mut self,
         sender: &Addr,
@@ -140,6 +162,15 @@ impl MockEnv {
 
     pub fn query_ownership(&self) -> OwnerResponse {
         self.app.wrap().query_wasm_smart(self.params_contract.clone(), &QueryMsg::Owner {}).unwrap()
+    }
+
+    pub fn query_risk_manager(&self) -> Addr {
+        let risk_manager: OwnerResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(self.params_contract.clone(), &QueryMsg::RiskManager {})
+            .unwrap();
+        Addr::unchecked(risk_manager.owner.unwrap())
     }
 
     pub fn query_asset_params(&self, denom: &str) -> AssetParams {
@@ -306,6 +337,10 @@ impl MockEnv {
 
 impl MockEnvBuilder {
     pub fn build(&mut self) -> AnyResult<MockEnv> {
+        self.build_with_risk_manager(None)
+    }
+
+    pub fn build_with_risk_manager(&mut self, risk_manager: Option<String>) -> AnyResult<MockEnv> {
         let address_provider_contract = self.get_address_provider();
         self.deploy_perps(address_provider_contract.as_str());
         self.deploy_oracle();
@@ -317,6 +352,7 @@ impl MockEnvBuilder {
             self.deployer.clone(),
             &InstantiateMsg {
                 owner: self.deployer.clone().to_string(),
+                risk_manager,
                 address_provider: address_provider_contract.to_string(),
                 max_perp_params: self.max_perp_params.unwrap_or(40),
             },

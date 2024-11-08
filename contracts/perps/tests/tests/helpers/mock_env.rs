@@ -616,6 +616,7 @@ impl MockEnvBuilder {
                 self.deployer.clone(),
                 &params::InstantiateMsg {
                     owner: self.deployer.clone().to_string(),
+                    risk_manager: None,
                     address_provider: address_provider.to_string(),
                     max_perp_params: 40,
                 },

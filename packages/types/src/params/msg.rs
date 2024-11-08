@@ -8,6 +8,8 @@ use super::{asset::AssetParamsUnchecked, vault::VaultConfigUnchecked, PerpParams
 pub struct InstantiateMsg {
     /// Contract's owner
     pub owner: String,
+    /// Contracts optional risk manager
+    pub risk_manager: Option<String>,
     /// Address of the address provider contract
     pub address_provider: String,
     /// Maximum number of perps that can be created
@@ -17,6 +19,8 @@ pub struct InstantiateMsg {
 #[cw_serde]
 pub enum ExecuteMsg {
     UpdateOwner(OwnerUpdate),
+    UpdateRiskManager(OwnerUpdate),
+    ResetRiskManager(),
     UpdateConfig {
         address_provider: Option<String>,
         max_perp_params: Option<u8>,
@@ -32,6 +36,9 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[returns(mars_owner::OwnerResponse)]
     Owner {},
+
+    #[returns(mars_owner::OwnerResponse)]
+    RiskManager {},
 
     #[returns(super::msg::ConfigResponse)]
     Config {},
