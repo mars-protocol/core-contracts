@@ -6,9 +6,9 @@ use crate::{
     error::ContractResult,
     state::{
         HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE, MAX_UNLOCKING_POSITIONS,
-        ORACLE, OWNER, PARAMS, RED_BANK, SWAPPER, ZAPPER,
+        ORACLE, OWNER, PARAMS, PERPS_LB_RATIO, RED_BANK, SWAPPER, ZAPPER,
     },
-    utils::assert_max_slippage,
+    utils::{assert_max_slippage, assert_perps_lb_ratio},
 };
 
 pub fn store_config(deps: DepsMut, env: Env, msg: &InstantiateMsg) -> ContractResult<()> {
@@ -28,6 +28,9 @@ pub fn store_config(deps: DepsMut, env: Env, msg: &InstantiateMsg) -> ContractRe
 
     assert_max_slippage(msg.max_slippage)?;
     MAX_SLIPPAGE.save(deps.storage, &msg.max_slippage)?;
+
+    assert_perps_lb_ratio(msg.perps_liquidation_bonus_ratio)?;
+    PERPS_LB_RATIO.save(deps.storage, &msg.perps_liquidation_bonus_ratio)?;
 
     HEALTH_CONTRACT.save(deps.storage, &msg.health_contract.check(deps.api)?)?;
     PARAMS.save(deps.storage, &msg.params.check(deps.api)?)?;

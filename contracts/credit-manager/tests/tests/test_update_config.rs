@@ -37,6 +37,7 @@ fn only_owner_can_update_config() {
             params: None,
             perps: None,
             keeper_fee_config: None,
+            perps_liquidation_bonus_ratio: None,
         },
     );
 
@@ -91,6 +92,7 @@ fn update_config_works_with_full_config() {
     let new_zapper = ZapperBase::new("new_zapper".to_string());
     let new_unlocking_max = Uint128::new(321);
     let new_max_slippage = Decimal::percent(12);
+    let new_perps_lb_ratio = Decimal::percent(39);
     let new_swapper = SwapperBase::new("new_swapper".to_string());
     let new_health_contract = HealthContractUnchecked::new("new_health_contract".to_string());
     let new_rewards_collector = "rewards_collector_contract_new".to_string();
@@ -116,6 +118,7 @@ fn update_config_works_with_full_config() {
             params: Some(new_params_contract.clone()),
             perps: Some(new_perps_contract.clone()),
             keeper_fee_config: Some(keeper_fee_config.clone()),
+            perps_liquidation_bonus_ratio: Some(new_perps_lb_ratio),
         },
     )
     .unwrap();
@@ -144,6 +147,12 @@ fn update_config_works_with_full_config() {
 
     assert_eq!(new_config.max_slippage, new_max_slippage);
     assert_ne!(new_config.max_slippage, original_config.max_slippage);
+
+    assert_eq!(new_config.perps_liquidation_bonus_ratio, new_perps_lb_ratio);
+    assert_ne!(
+        new_config.perps_liquidation_bonus_ratio,
+        original_config.perps_liquidation_bonus_ratio
+    );
 
     assert_eq!(&new_config.swapper, new_swapper.address());
     assert_ne!(new_config.swapper, original_config.swapper);

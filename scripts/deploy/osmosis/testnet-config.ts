@@ -295,4 +295,5 @@ export const osmosisTestnetConfig: DeploymentConfig = {
   vaults: [usdcOsmoVault, atomOsmoVault],
   oracleConfigs: [osmoOracle, atomOracle, USDCOracle, atomOsmoOracle, usdcOsmoOracle],
   maxPerpParams: 20,
+  perpsLiquidationBonusRatio: '0.6',
 }

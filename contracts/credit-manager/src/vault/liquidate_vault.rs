@@ -95,13 +95,18 @@ fn liquidate_unlocked(
         prev_health,
     )?;
 
-    let repay_msg = repay_debt(
-        deps.storage,
-        &env,
-        liquidator_account_id,
-        liquidatee_account_id,
-        &liquidation_res.debt,
-    )?;
+    let mut response = Response::new();
+
+    if !liquidation_res.debt.amount.is_zero() {
+        let repay_msg = repay_debt(
+            deps.storage,
+            &env,
+            liquidator_account_id,
+            liquidatee_account_id,
+            &liquidation_res.debt,
+        )?;
+        response = response.add_message(repay_msg);
+    }
 
     update_vault_position(
         deps.storage,
@@ -130,8 +135,7 @@ fn liquidate_unlocked(
         protocol_fee_percentage,
     )?;
 
-    Ok(Response::new()
-        .add_message(repay_msg)
+    Ok(response
         .add_message(vault_withdraw_msg)
         .add_message(update_coin_balance_msg)
         .add_attribute("action", "liquidate_vault/unlocked")
@@ -200,13 +204,18 @@ fn liquidate_unlocking(
         prev_health,
     )?;
 
-    let repay_msg = repay_debt(
-        deps.storage,
-        &env,
-        liquidator_account_id,
-        liquidatee_account_id,
-        &liquidation_res.debt,
-    )?;
+    let mut response = Response::new();
+
+    if !liquidation_res.debt.amount.is_zero() {
+        let repay_msg = repay_debt(
+            deps.storage,
+            &env,
+            liquidator_account_id,
+            liquidatee_account_id,
+            &liquidation_res.debt,
+        )?;
+        response = response.add_message(repay_msg);
+    }
 
     let mut total_to_liquidate = liquidation_res.liquidatee_request.amount;
     let mut vault_withdraw_msgs = vec![];
@@ -249,8 +258,7 @@ fn liquidate_unlocking(
         protocol_fee_percentage,
     )?;
 
-    Ok(Response::new()
-        .add_message(repay_msg)
+    Ok(response
         .add_messages(vault_withdraw_msgs)
         .add_message(update_coin_balance_msg)
         .add_attribute("action", "liquidate_vault/unlocking")
@@ -289,13 +297,18 @@ fn liquidate_locked(
         prev_health,
     )?;
 
-    let repay_msg = repay_debt(
-        deps.storage,
-        &env,
-        liquidator_account_id,
-        liquidatee_account_id,
-        &liquidation_res.debt,
-    )?;
+    let mut response = Response::new();
+
+    if !liquidation_res.debt.amount.is_zero() {
+        let repay_msg = repay_debt(
+            deps.storage,
+            &env,
+            liquidator_account_id,
+            liquidatee_account_id,
+            &liquidation_res.debt,
+        )?;
+        response = response.add_message(repay_msg);
+    }
 
     update_vault_position(
         deps.storage,
@@ -324,8 +337,7 @@ fn liquidate_locked(
         protocol_fee_percentage,
     )?;
 
-    Ok(Response::new()
-        .add_message(repay_msg)
+    Ok(response
         .add_message(vault_withdraw_msg)
         .add_message(update_coin_balance_msg)
         .add_attribute("action", "liquidate_vault/locked")

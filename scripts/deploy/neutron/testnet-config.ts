@@ -722,4 +722,5 @@ export const neutronTestnetConfig: DeploymentConfig = {
     ],
   },
   maxPerpParams: 20,
+  perpsLiquidationBonusRatio: '0.6',
 }

@@ -1,11 +1,11 @@
-use cosmwasm_std::{Coin, DepsMut, Env, Response};
+use cosmwasm_std::{coin, Coin, DepsMut, Env, Response};
 use mars_types::health::HealthValuesResponse;
 
 use crate::{
-    error::{ContractError::NoAstroLp, ContractResult},
-    liquidate::calculate_liquidation,
+    error::ContractResult,
+    liquidate::{calculate_liquidation, increment_rewards_balance},
     liquidate_deposit::repay_debt,
-    state::{INCENTIVES, REWARDS_COLLECTOR},
+    state::INCENTIVES,
     utils::increment_coin_balance,
 };
 
@@ -28,10 +28,6 @@ pub fn liquidate_astro_lp(
     )?;
     let total_lp_amount = lp_position.lp_coin.amount;
 
-    if total_lp_amount.is_zero() {
-        return Err(NoAstroLp);
-    }
-
     let liquidation_res = calculate_liquidation(
         &mut deps,
         env.clone(),
@@ -51,40 +47,43 @@ pub fn liquidate_astro_lp(
         increment_coin_balance(deps.storage, liquidatee_account_id, reward)?;
     }
 
-    // Liquidator pays down debt on behalf of liquidatee
-    let repay_msg = repay_debt(
-        deps.storage,
-        &env,
-        liquidator_account_id,
-        liquidatee_account_id,
-        &liquidation_res.debt,
-    )?;
+    let mut response = Response::new();
 
-    // Liquidatee's LP coin withdrawn from Astro
-    let withdraw_from_liquidatee_msg = incentives
-        .unstake_astro_lp_msg(liquidatee_account_id, &liquidation_res.liquidatee_request)?;
+    // If the liquidated account has outstanding debt, create a message to repay it.
+    // Liquidator pays down debt on behalf of liquidatee.
+    if !liquidation_res.debt.amount.is_zero() {
+        let repay_msg = repay_debt(
+            deps.storage,
+            &env,
+            liquidator_account_id,
+            liquidatee_account_id,
+            &liquidation_res.debt,
+        )?;
+        response = response.add_message(repay_msg);
+    }
 
-    // Liquidator gets portion of withdrawn LP coin
-    increment_coin_balance(
-        deps.storage,
-        liquidator_account_id,
-        &liquidation_res.liquidator_request,
-    )?;
+    // If there is collateral available for liquidation, proceed with transferring assets.
+    let protocol_fee_coin = if !liquidation_res.liquidatee_request.amount.is_zero() {
+        // Liquidatee's LP coin withdrawn from Astro.
+        let withdraw_from_liquidatee_msg = incentives
+            .unstake_astro_lp_msg(liquidatee_account_id, &liquidation_res.liquidatee_request)?;
+        response = response.add_message(withdraw_from_liquidatee_msg);
 
-    // Transfer protocol fee to rewards-collector account
-    let rewards_collector_account = REWARDS_COLLECTOR.load(deps.storage)?.account_id;
-    let protocol_fee_coin = Coin {
-        denom: request_coin_denom.to_string(),
-        amount: liquidation_res
-            .liquidatee_request
-            .amount
-            .checked_sub(liquidation_res.liquidator_request.amount)?,
+        // Liquidator gets portion of withdrawn LP coin.
+        increment_coin_balance(
+            deps.storage,
+            liquidator_account_id,
+            &liquidation_res.liquidator_request,
+        )?;
+
+        // Apply the protocol fee to the rewards-collector account.
+        increment_rewards_balance(&mut deps, &liquidation_res)?
+    } else {
+        // If no collateral is available, set the protocol fee to zero for this transaction.
+        coin(0, request_coin_denom)
     };
-    increment_coin_balance(deps.storage, &rewards_collector_account, &protocol_fee_coin)?;
 
-    Ok(Response::new()
-        .add_message(repay_msg)
-        .add_message(withdraw_from_liquidatee_msg)
+    Ok(response
         .add_attribute("action", "liquidate_astro_lp")
         .add_attribute("account_id", liquidator_account_id)
         .add_attribute("liquidatee_account_id", liquidatee_account_id)

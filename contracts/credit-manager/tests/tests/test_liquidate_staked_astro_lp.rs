@@ -149,13 +149,13 @@ fn liquidatee_does_not_have_requested_staked_lp_coin() {
             Liquidate {
                 liquidatee_account_id: liquidatee_account_id.clone(),
                 debt_coin: uosmo_info.to_coin(10),
-                request: LiquidateRequest::StakedAstroLp(ujake_info.denom),
+                request: LiquidateRequest::StakedAstroLp(ujake_info.denom.clone()),
             },
         ],
         &[uosmo_info.to_coin(10)],
     );
 
-    assert_err(res, ContractError::NoAstroLp);
+    assert_err(res, ContractError::CoinNotAvailable(ujake_info.denom));
 }
 
 /// Liquidation numbers based on `lent_position_partially_liquidated` in spreadsheed. Only difference is that

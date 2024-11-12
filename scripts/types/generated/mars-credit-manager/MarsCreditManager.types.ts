@@ -23,6 +23,7 @@ export interface InstantiateMsg {
   oracle: OracleBaseForString
   owner: string
   params: ParamsBaseForString
+  perps_liquidation_bonus_ratio: Decimal
   red_bank: RedBankUnchecked
   swapper: SwapperBaseForString
   zapper: ZapperBaseForString
@@ -594,6 +595,7 @@ export interface ConfigUpdates {
   oracle?: OracleBaseForString | null
   params?: ParamsBaseForString | null
   perps?: PerpsBaseForString | null
+  perps_liquidation_bonus_ratio?: Decimal | null
   red_bank?: RedBankUnchecked | null
   rewards_collector?: string | null
   swapper?: SwapperBaseForString | null
@@ -801,6 +803,7 @@ export interface ConfigResponse {
   ownership: OwnerResponse
   params: string
   perps: string
+  perps_liquidation_bonus_ratio: Decimal
   red_bank: string
   rewards_collector?: RewardsCollector | null
   swapper: string

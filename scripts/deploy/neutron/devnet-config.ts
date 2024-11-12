@@ -515,4 +515,5 @@ export const neutronDevnetConfig: DeploymentConfig = {
     incentives: astroportIncentives,
   },
   maxPerpParams: 20,
+  perpsLiquidationBonusRatio: '0.6',
 }

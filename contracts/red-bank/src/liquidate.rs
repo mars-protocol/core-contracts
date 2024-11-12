@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{Addr, Decimal, DepsMut, Env, MessageInfo, Response, Uint128};
 use mars_interest_rate::{
     get_scaled_debt_amount, get_scaled_liquidity_amount, get_underlying_debt_amount,
     get_underlying_liquidity_amount,
@@ -146,7 +146,8 @@ pub fn liquidate(
         sent_debt_amount,
         debt_price,
         &debt_params,
-        &health.into(),
+        &health.try_into()?,
+        Decimal::zero(), // doesn't matter for RB liquidation
     )?;
     let protocol_fee = collateral_amount_to_liquidate - collateral_amount_received_by_liquidator;
 

@@ -15,6 +15,7 @@
       "oracle",
       "owner",
       "params",
+      "perps_liquidation_bonus_ratio",
       "red_bank",
       "swapper",
       "zapper"
@@ -77,6 +78,14 @@
         "allOf": [
           {
             "$ref": "#/definitions/ParamsBase_for_String"
+          }
+        ]
+      },
+      "perps_liquidation_bonus_ratio": {
+        "description": "This variable represents the percentage of the original Liquidation Bonus (LB) applied to negative PnL when liquidating (closing) perps positions. It serves as a reward for the liquidator for closing perps in a loss and improving the account’s Health Factor (HF). This modified LB specifically applies in perps liquidation cases, allowing for a reduced bonus proportion when compared to standard spot liquidation. For example, if set to 0.60, 60% of the original LB will be applied to the perps PnL loss as follows: `bonus applied to liquidation = perps_liquidation_bonus_ratio * original LB * PnL loss`",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Decimal"
           }
         ]
       },
@@ -2379,6 +2388,16 @@
             "anyOf": [
               {
                 "$ref": "#/definitions/PerpsBase_for_String"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perps_liquidation_bonus_ratio": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
               },
               {
                 "type": "null"
@@ -6233,6 +6252,7 @@
         "ownership",
         "params",
         "perps",
+        "perps_liquidation_bonus_ratio",
         "red_bank",
         "swapper",
         "zapper"
@@ -6270,6 +6290,9 @@
         },
         "perps": {
           "type": "string"
+        },
+        "perps_liquidation_bonus_ratio": {
+          "$ref": "#/definitions/Decimal"
         },
         "red_bank": {
           "type": "string"

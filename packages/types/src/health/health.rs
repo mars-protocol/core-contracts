@@ -1,9 +1,15 @@
 use std::fmt;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::{Decimal, Int128, StdError, Uint128};
 #[cfg(feature = "javascript")]
 use tsify::Tsify;
+
+pub trait AccountValuation {
+    /// Calculates the total net value of the account, including adjustments for collateral and debt.
+    /// Returns an `Int128` to handle cases where the net value may be negative (indicating bad debt).
+    fn net_value(&self) -> Result<Int128, StdError>;
+}
 
 #[cw_serde]
 pub struct Health {
@@ -94,6 +100,21 @@ impl From<Health> for HealthValuesResponse {
             above_max_ltv: h.is_above_max_ltv(),
             has_perps: h.has_perps,
         }
+    }
+}
+
+impl AccountValuation for HealthValuesResponse {
+    fn net_value(&self) -> Result<Int128, StdError> {
+        // Calculate total collateral including perps profit
+        let total_collateral = self.total_collateral_value.checked_add(self.perps_pnl_profit)?;
+
+        // Calculate total debt including perps loss
+        let total_debt = self.total_debt_value.checked_add(self.perps_pnl_loss)?;
+
+        // Calculate net value after closing perps, which can be negative
+        let net_value = Int128::try_from(total_collateral)?.checked_sub(total_debt.try_into()?)?;
+
+        Ok(net_value)
     }
 }
 

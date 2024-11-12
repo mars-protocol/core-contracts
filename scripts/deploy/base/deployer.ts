@@ -205,6 +205,7 @@ export class Deployer {
       health_contract: this.storage.addresses.health!,
       incentives: this.storage.addresses.incentives!,
       keeper_fee_config: this.config.keeperFeeConfig,
+      perps_liquidation_bonus_ratio: this.config.perpsLiquidationBonusRatio,
     }
 
     await this.instantiate('creditManager', this.storage.codeIds.creditManager!, msg)

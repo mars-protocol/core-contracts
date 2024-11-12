@@ -228,6 +228,7 @@ pub struct ConfigResponse {
     pub health_contract: String,
     pub rewards_collector: Option<RewardsCollector>,
     pub keeper_fee_config: KeeperFeeConfig,
+    pub perps_liquidation_bonus_ratio: Decimal,
 }
 
 #[cw_serde]

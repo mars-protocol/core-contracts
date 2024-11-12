@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError, OverflowError,
-    StdError,
+    CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError,
+    ConversionOverflowError, OverflowError, StdError,
 };
 use thiserror::Error;
 
@@ -20,4 +20,7 @@ pub enum LiquidationError {
 
     #[error("{0}")]
     CheckedFromRatio(#[from] CheckedFromRatioError),
+
+    #[error("{0}")]
+    ConversionOverflowError(#[from] ConversionOverflowError),
 }

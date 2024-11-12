@@ -129,6 +129,7 @@ pub struct MockEnvBuilder {
     pub deleverage_enabled: Option<bool>,
     pub withdraw_enabled: Option<bool>,
     pub keeper_fee_config: Option<KeeperFeeConfig>,
+    pub perps_liquidation_bonus_ratio: Option<Decimal>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -159,6 +160,7 @@ impl MockEnv {
             deleverage_enabled: None,
             withdraw_enabled: None,
             keeper_fee_config: None,
+            perps_liquidation_bonus_ratio: None,
         }
     }
 
@@ -1301,6 +1303,7 @@ impl MockEnvBuilder {
         let swapper = self.deploy_swapper().into();
         let max_unlocking_positions = self.get_max_unlocking_positions();
         let max_slippage = self.get_max_slippage();
+        let perps_liquidation_bonus_ratio = self.get_perps_liquidation_ratio();
 
         let oracle = self.get_oracle().into();
         let zapper = self.deploy_zapper(&oracle)?.into();
@@ -1328,6 +1331,7 @@ impl MockEnvBuilder {
                     params,
                     incentives,
                     keeper_fee_config,
+                    perps_liquidation_bonus_ratio,
                 },
                 &[],
                 "mock-rover-contract",
@@ -1811,6 +1815,10 @@ impl MockEnvBuilder {
         self.max_slippage.unwrap_or_else(|| Decimal::percent(99))
     }
 
+    fn get_perps_liquidation_ratio(&self) -> Decimal {
+        self.perps_liquidation_bonus_ratio.unwrap_or_else(|| Decimal::percent(60))
+    }
+
     fn get_target_vault_collateralization_ratio(&self) -> Decimal {
         self.target_vault_collateralization_ratio.unwrap_or_else(|| Decimal::percent(125))
     }
@@ -1904,6 +1912,11 @@ impl MockEnvBuilder {
 
     pub fn max_slippage(mut self, max: Decimal) -> Self {
         self.max_slippage = Some(max);
+        self
+    }
+
+    pub fn perps_liquidation_bonus_ratio(mut self, lb_ratio: Decimal) -> Self {
+        self.perps_liquidation_bonus_ratio = Some(lb_ratio);
         self
     }
 

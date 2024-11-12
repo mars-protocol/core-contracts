@@ -20,8 +20,8 @@ use crate::{
     state::{
         ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, DEBT_SHARES, HEALTH_CONTRACT, INCENTIVES,
         KEEPER_FEE_CONFIG, MAX_SLIPPAGE, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS,
-        RED_BANK, REWARDS_COLLECTOR, SWAPPER, TOTAL_DEBT_SHARES, TRIGGER_ORDERS, VAULTS,
-        VAULT_POSITIONS, ZAPPER,
+        PERPS_LB_RATIO, RED_BANK, REWARDS_COLLECTOR, SWAPPER, TOTAL_DEBT_SHARES, TRIGGER_ORDERS,
+        VAULTS, VAULT_POSITIONS, ZAPPER,
     },
     utils::debt_shares_to_amount,
     vault::vault_utilization_in_deposit_cap_denom,
@@ -66,6 +66,7 @@ pub fn query_config(deps: Deps) -> ContractResult<ConfigResponse> {
         health_contract: HEALTH_CONTRACT.load(deps.storage)?.address().into(),
         rewards_collector: REWARDS_COLLECTOR.may_load(deps.storage)?,
         keeper_fee_config: KEEPER_FEE_CONFIG.load(deps.storage)?,
+        perps_liquidation_bonus_ratio: PERPS_LB_RATIO.load(deps.storage)?,
     })
 }
 

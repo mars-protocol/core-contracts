@@ -1103,5 +1103,5 @@ export const osmosisMainnetConfig: DeploymentConfig = {
     atomStAtomOracle,
   ],
   maxPerpParams: 20,
-  // oracleConfigs: [osmoOracleTwap, atomOracleTwap, axlOracleTwap, stAtomOracleTwap, wbtcOracleTwap, axlUSDCOracleTwap, ethOracleTwap, atomOsmoOracle, usdcOsmoOracle, ethOsmoOracle, wbtcOsmoOracle, atomStAtomOracle],
+  perpsLiquidationBonusRatio: '0.6',
 }

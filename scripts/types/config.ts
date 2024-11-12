@@ -104,6 +104,7 @@ export interface DeploymentConfig {
     maxUnlocks: number
   }
   maxPerpParams: number
+  perpsLiquidationBonusRatio: Decimal
 }
 
 export interface AssetConfig {

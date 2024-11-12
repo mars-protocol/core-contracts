@@ -13,10 +13,10 @@ use crate::{
     execute::create_credit_account,
     state::{
         ACCOUNT_NFT, HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE,
-        MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS, RED_BANK, REWARDS_COLLECTOR,
-        SWAPPER, ZAPPER,
+        MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS, PERPS_LB_RATIO, RED_BANK,
+        REWARDS_COLLECTOR, SWAPPER, ZAPPER,
     },
-    utils::assert_max_slippage,
+    utils::{assert_max_slippage, assert_perps_lb_ratio},
 };
 
 pub fn update_config(
@@ -82,6 +82,13 @@ pub fn update_config(
         MAX_SLIPPAGE.save(deps.storage, &num)?;
         response =
             response.add_attribute("key", "max_slippage").add_attribute("value", num.to_string());
+    }
+
+    if let Some(num) = updates.perps_liquidation_bonus_ratio {
+        assert_perps_lb_ratio(num)?;
+        PERPS_LB_RATIO.save(deps.storage, &num)?;
+        response =
+            response.add_attribute("key", "perps_lb_ratio").add_attribute("value", num.to_string());
     }
 
     if let Some(unchecked) = updates.health_contract {

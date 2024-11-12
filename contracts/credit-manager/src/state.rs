@@ -52,3 +52,5 @@ pub const REWARDS_COLLECTOR: Item<RewardsCollector> = Item::new("rewards_collect
 
 // (account id, vault addr) bindings between account and vault
 pub const VAULTS: Map<&str, Addr> = Map::new("vaults");
+
+pub const PERPS_LB_RATIO: Item<Decimal> = Item::new("perps_lb_ratio");

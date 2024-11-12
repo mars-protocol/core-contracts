@@ -59,6 +59,15 @@ pub fn assert_slippage(storage: &dyn Storage, slippage: Decimal) -> ContractResu
     Ok(())
 }
 
+pub fn assert_perps_lb_ratio(perps_lb_ratio: Decimal) -> ContractResult<()> {
+    if perps_lb_ratio > Decimal::one() {
+        return Err(ContractError::InvalidConfig {
+            reason: "Perps liquidation bonus ratio must be less than or equal to 1".to_string(),
+        });
+    }
+    Ok(())
+}
+
 pub fn assert_withdraw_enabled(
     storage: &dyn Storage,
     querier: &QuerierWrapper,

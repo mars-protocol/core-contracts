@@ -141,13 +141,13 @@ fn liquidatee_does_not_have_requested_lent_coin() {
             Liquidate {
                 liquidatee_account_id: liquidatee_account_id.clone(),
                 debt_coin: uosmo_info.to_coin(10),
-                request: LiquidateRequest::Lend(ujake_info.denom),
+                request: LiquidateRequest::Lend(ujake_info.denom.clone()),
             },
         ],
         &[uosmo_info.to_coin(10)],
     );
 
-    assert_err(res, ContractError::NoneLent);
+    assert_err(res, ContractError::CoinNotAvailable(ujake_info.denom));
 }
 
 #[test]
