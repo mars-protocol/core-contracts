@@ -130,42 +130,56 @@ fn open_position_with_correct_payment(
 #[test_case(
     100000,
     0,
+    false,
     UsdcPosition { deposit: 99476, lend: 0, debt: 0 };
     "close negative pnl; deposit, no lend; expected from deposit"
 )]
 #[test_case(
     20,
     0,
+    false,
     UsdcPosition { deposit: 0, lend: 0, debt: 505 }; // 504 + 1 (simulated interest)
     "close negative pnl; not enough deposit, no lend; expected from deposit and debt"
 )]
 #[test_case(
     0,
     0,
+    false,
     UsdcPosition { deposit: 0, lend: 0, debt: 525 }; // 524 + 1 (simulated interest)
     "close negative pnl; no deposit, no lend; expected from debt"
 )]
 #[test_case(
     1000,
     1000,
+    false,
     UsdcPosition { deposit: 0, lend: 477, debt: 0 }; // 476 + 1 (simulated interest)
     "close negative pnl; no deposit, lend; expected from lend"
 )]
 #[test_case(
     500,
     500,
+    false,
     UsdcPosition { deposit: 0, lend: 0, debt: 24 };
     "close negative pnl; no deposit, not enough lend; expected from lend and debt"
 )]
 #[test_case(
     500,
     200,
+    false,
     UsdcPosition { deposit: 0, lend: 0, debt: 24 };
     "close negative pnl; not enough deposit and lend; expected from deposit, lend and debt"
+)]
+#[test_case(
+    100000,
+    0,
+    true,
+    UsdcPosition { deposit: 99476, lend: 0, debt: 0 };
+    "close negative pnl; reduce more than position size; deposit, no lend; expected from deposit"
 )]
 fn close_losing_position_with_correct_payment(
     usdc_deposit: u128,
     usdc_lend: u128,
+    reduce_more_than_pos_size: bool,
     expected_usdc_position: UsdcPosition,
 ) {
     let osmo_info = uosmo_info();
@@ -232,18 +246,29 @@ fn close_losing_position_with_correct_payment(
         price: atom_info.price * Decimal::percent(90u64), // 10% loss in price
     });
 
+    // Update opening_fee to previous value
+    let atom_params = default_perp_params(&atom_info.denom);
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: atom_params,
+    });
+
     // Check perp position pnl
     let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position.unwrap();
     let loss_amt = pnl_loss(perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl);
     assert_eq!(loss_amt.u128(), 524);
 
     // Close perp position
+    let mut order_size = Int128::zero() - perp_size;
+    if reduce_more_than_pos_size {
+        // Reduce more than the original size
+        order_size -= Int128::new(120);
+    }
     mock.update_credit_account(
         &account_id,
         &cm_user,
         vec![ExecutePerpOrder {
             denom: atom_info.denom,
-            order_size: Int128::zero() - perp_size,
+            order_size,
             reduce_only: Some(true),
         }],
         &[],

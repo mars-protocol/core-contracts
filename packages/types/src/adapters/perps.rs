@@ -132,6 +132,7 @@ impl Perps {
         account_id: impl Into<String>,
         denom: impl Into<String>,
         order_size: Option<Int128>,
+        reduce_only: Option<bool>,
     ) -> StdResult<Option<PerpPosition>> {
         let res: PositionResponse = querier.query_wasm_smart(
             self.address(),
@@ -139,6 +140,7 @@ impl Perps {
                 account_id: account_id.into(),
                 denom: denom.into(),
                 order_size,
+                reduce_only,
             },
         )?;
         Ok(res.position)

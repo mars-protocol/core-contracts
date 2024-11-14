@@ -99,7 +99,8 @@ pub fn execute_perp_order(
     // the position PnL first here in the credit manager (so that it know how
     // much funds to send to the perps contract), then in the perps contract it
     // computes the PnL **again** to assert the amount is correct.
-    let position = perps.query_position(&deps.querier, account_id, denom, Some(order_size))?;
+    let position =
+        perps.query_position(&deps.querier, account_id, denom, Some(order_size), reduce_only)?;
     Ok(match position {
         Some(position) => {
             // Modify existing position

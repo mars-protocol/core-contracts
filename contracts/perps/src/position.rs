@@ -98,8 +98,13 @@ pub enum PositionModification {
 
 impl PositionModification {
     /// Determines the type of position modification based on the old size and the new order size
-    pub fn from_order_size(old_size: Int128, order_size: Int128) -> ContractResult<Self> {
-        let new_size = old_size.checked_add(order_size)?;
+    pub fn from_order_size(
+        old_size: Int128,
+        order_size: Int128,
+        reduce_only: Option<bool>,
+    ) -> ContractResult<Self> {
+        let reduce_only_checked = reduce_only.unwrap_or(false);
+        let new_size = calculate_new_size(old_size, order_size, reduce_only_checked)?;
         Self::from_new_size(old_size, new_size)
     }
 
@@ -227,6 +232,29 @@ fn compute_fee(
     let fee_amount: Int128 = Int128::zero().checked_sub(fee_amount.try_into()?)?;
 
     Ok(fee_amount)
+}
+
+// Helper function to calculate the new size with `reduce_only` consideration
+pub fn calculate_new_size(
+    old_size: Int128,
+    order_size: Int128,
+    reduce_only: bool,
+) -> ContractResult<Int128> {
+    // If `reduce_only` is set, prevent increasing a position in the same direction
+    if reduce_only && order_size.is_negative() == old_size.is_negative() {
+        return Err(ContractError::IllegalPositionModification {
+            reason: "Cannot increase position if reduce_only = true".to_string(),
+        });
+    }
+
+    // Set new size to zero if reducing more than the current size when `reduce_only` is set
+    let new_size = if reduce_only && order_size.abs() > old_size.abs() {
+        Int128::zero()
+    } else {
+        old_size.checked_add(order_size)?
+    };
+
+    Ok(new_size)
 }
 
 // ----------------------------------- Tests -----------------------------------

@@ -812,6 +812,12 @@
                     "type": "null"
                   }
                 ]
+              },
+              "reduce_only": {
+                "type": [
+                  "boolean",
+                  "null"
+                ]
               }
             },
             "additionalProperties": false

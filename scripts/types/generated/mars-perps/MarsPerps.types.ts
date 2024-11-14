@@ -151,6 +151,7 @@ export type QueryMsg =
         account_id: string
         denom: string
         order_size?: Int128 | null
+        reduce_only?: boolean | null
       }
     }
   | {

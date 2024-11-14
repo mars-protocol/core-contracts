@@ -259,6 +259,7 @@ pub fn query_position(
     account_id: String,
     denom: String,
     order_size: Option<Int128>,
+    reduce_only: Option<bool>,
 ) -> ContractResult<PositionResponse> {
     let cfg = CONFIG.load(deps.storage)?;
     let addresses = query_contract_addrs(
@@ -288,7 +289,7 @@ pub fn query_position(
 
     let modification = match order_size {
         Some(order_size_checked) => {
-            PositionModification::from_order_size(position.size, order_size_checked)?
+            PositionModification::from_order_size(position.size, order_size_checked, reduce_only)?
         }
         None => PositionModification::Decrease(position.size),
     };

@@ -657,6 +657,7 @@ pub enum QueryMsg {
         account_id: String,
         denom: String,
         order_size: Option<Int128>,
+        reduce_only: Option<bool>,
     },
 
     /// List positions of all accounts and denoms.

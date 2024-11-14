@@ -1083,6 +1083,7 @@ impl MockEnv {
                     account_id: account_id.to_string(),
                     denom: denom.to_string(),
                     order_size: modification_size,
+                    reduce_only: None,
                 },
             )
             .unwrap()

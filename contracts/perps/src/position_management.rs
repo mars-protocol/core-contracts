@@ -17,7 +17,7 @@ use crate::{
     accounting::CashFlowExt,
     error::{ContractError, ContractResult},
     market::MarketStateExt,
-    position::{PositionExt, PositionModification},
+    position::{calculate_new_size, PositionExt, PositionModification},
     state::{CONFIG, MARKET_STATES, POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW},
     utils::{
         ensure_max_position, ensure_min_position, get_oracle_adapter, get_params_adapter,
@@ -46,20 +46,8 @@ pub fn execute_order(
             reason: "Cannot open position if reduce_only = true".to_string(),
         }),
         None => open_position(deps, env, info, account_id, denom, size),
-        Some(position)
-            if reduce_only_checked && size.is_negative() == position.size.is_negative() =>
-        {
-            Err(ContractError::IllegalPositionModification {
-                reason: "Cannot increase position if reduce_only = true".to_string(),
-            })
-        }
         Some(position) => {
-            let new_size = if reduce_only_checked && size.abs() > position.size.abs() {
-                Int128::zero()
-            } else {
-                position.size.checked_add(size)?
-            };
-
+            let new_size = calculate_new_size(position.size, size, reduce_only_checked)?;
             modify_position(deps, env, info, position, account_id, denom, new_size)
         }
     }

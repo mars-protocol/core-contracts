@@ -139,12 +139,14 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             account_id,
             denom,
             order_size,
+            reduce_only,
         } => to_json_binary(&query_position(
             deps,
             env.block.time.seconds(),
             account_id,
             denom,
             order_size,
+            reduce_only,
         )?),
         QueryMsg::Positions {
             start_after,
