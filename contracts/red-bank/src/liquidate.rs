@@ -3,7 +3,7 @@ use mars_interest_rate::{
     get_scaled_debt_amount, get_scaled_liquidity_amount, get_underlying_debt_amount,
     get_underlying_liquidity_amount,
 };
-use mars_liquidation::liquidation::calculate_liquidation_amounts;
+use mars_liquidation::{liquidation::calculate_liquidation_amounts, LiquidationAmounts};
 use mars_types::{
     address_provider::{self, MarsAddressType},
     keys::{UserId, UserIdKey},
@@ -134,11 +134,11 @@ pub fn liquidate(
         &collateral_market,
         block_time,
     )?;
-    let (
+    let LiquidationAmounts {
         debt_amount_to_repay,
         collateral_amount_to_liquidate,
         collateral_amount_received_by_liquidator,
-    ) = calculate_liquidation_amounts(
+    } = calculate_liquidation_amounts(
         user_collateral_amount,
         collateral_price,
         &collateral_params,

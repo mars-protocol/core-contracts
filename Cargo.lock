@@ -2264,10 +2264,14 @@ dependencies = [
 name = "mars-liquidation"
 version = "1.0.0"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
  "mars-health",
  "mars-types",
+ "serde_json",
  "thiserror",
+ "tsify",
+ "wasm-bindgen",
 ]
 
 [[package]]

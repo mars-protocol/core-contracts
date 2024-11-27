@@ -11,15 +11,21 @@ documentation = { workspace = true }
 keywords      = { workspace = true }
 
 [lib]
-doctest = false
+crate-type = ["cdylib", "rlib"]
+doctest    = false
 
 [features]
 # for quicker tests, cargo test --lib
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
+javascript = ["tsify", "wasm-bindgen", "mars-types/javascript"]
 
 [dependencies]
-cosmwasm-std = { workspace = true }
-mars-health  = { workspace = true }
-mars-types   = { workspace = true }
-thiserror    = { workspace = true }
+cosmwasm-schema = { workspace = true }
+cosmwasm-std    = { workspace = true }
+mars-health     = { workspace = true }
+mars-types      = { workspace = true }
+thiserror       = { workspace = true }
+serde_json      = { workspace = true }
+tsify           = { workspace = true, optional = true }
+wasm-bindgen    = { workspace = true, optional = true }

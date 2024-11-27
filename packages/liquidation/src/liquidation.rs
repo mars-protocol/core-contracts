@@ -1,22 +1,37 @@
-use std::{
-    cmp::{max, min},
-    ops::Add,
-};
-
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Decimal, Int128, StdError, Uint128};
 use mars_health::health::Health;
 use mars_types::{
     health::{AccountValuation, HealthValuesResponse},
     params::AssetParams,
 };
+use std::{
+    cmp::{max, min},
+    ops::Add,
+};
 
 use crate::error::LiquidationError;
 
+#[cfg(feature = "javascript")]
+use tsify::Tsify;
+
+#[cw_serde]
+#[cfg_attr(feature = "javascript", derive(Tsify))]
+#[cfg_attr(feature = "javascript", tsify(into_wasm_abi, from_wasm_abi))]
 pub struct HealthData {
     pub liquidation_health_factor: Decimal,
     pub collateralization_ratio: Decimal,
     pub perps_pnl_loss: Uint128,
     pub account_net_value: Int128,
+}
+
+#[cw_serde]
+#[cfg_attr(feature = "javascript", derive(Tsify))]
+#[cfg_attr(feature = "javascript", tsify(into_wasm_abi, from_wasm_abi))]
+pub struct LiquidationAmounts {
+    pub debt_amount_to_repay: Uint128,
+    pub collateral_amount_to_liquidate: Uint128,
+    pub collateral_amount_received_by_liquidator: Uint128,
 }
 
 /// Convert Credit Manager's Health to HealthData
@@ -113,7 +128,7 @@ pub fn calculate_liquidation_amounts(
     debt_params: &AssetParams,
     health: &HealthData,
     perps_lb_ratio: Decimal,
-) -> Result<(Uint128, Uint128, Uint128), LiquidationError> {
+) -> Result<LiquidationAmounts, LiquidationError> {
     let user_collateral_value = collateral_amount.checked_mul_floor(collateral_price)?;
 
     let liquidation_bonus = calculate_liquidation_bonus(
@@ -205,11 +220,11 @@ pub fn calculate_liquidation_amounts(
     let collateral_amount_received_by_liquidator =
         collateral_amount_to_liquidate - protocol_fee_amount;
 
-    Ok((
+    Ok(LiquidationAmounts {
         debt_amount_to_repay,
         collateral_amount_to_liquidate,
         collateral_amount_received_by_liquidator,
-    ))
+    })
 }
 
 /// The LB will depend on the Health Factor and a couple other parameters as follows:

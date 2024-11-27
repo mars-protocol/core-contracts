@@ -1,5 +1,8 @@
 use cosmwasm_std::{Coin, Decimal, Deps, DepsMut, Env, Int128, QuerierWrapper, Uint128};
-use mars_liquidation::liquidation::{calculate_liquidation_amounts, HealthData};
+use mars_liquidation::{
+    liquidation::{calculate_liquidation_amounts, HealthData},
+    LiquidationAmounts,
+};
 use mars_types::{
     adapters::oracle::Oracle, health::HealthValuesResponse, oracle::ActionKind, traits::Stringify,
 };
@@ -132,18 +135,21 @@ pub fn calculate_liquidation(
         .query_asset_params(&deps.querier, &debt_coin.denom)?
         .ok_or(ContractError::AssetParamsNotFound(debt_coin.denom.to_string()))?;
 
-    let (debt_amount_to_repay, request_amount_to_liquidate, request_amount_received_by_liquidator) =
-        calculate_liquidation_amounts(
-            request_coin_balance,
-            request_coin_price,
-            &request_coin_params,
-            total_debt_amount,
-            debt_coin.amount,
-            debt_coin_price,
-            &debt_coin_params,
-            &health,
-            perps_lb_ratio,
-        )?;
+    let LiquidationAmounts {
+        debt_amount_to_repay,
+        collateral_amount_to_liquidate,
+        collateral_amount_received_by_liquidator,
+    } = calculate_liquidation_amounts(
+        request_coin_balance,
+        request_coin_price,
+        &request_coin_params,
+        total_debt_amount,
+        debt_coin.amount,
+        debt_coin_price,
+        &debt_coin_params,
+        &health,
+        perps_lb_ratio,
+    )?;
 
     let result = LiquidationResult {
         debt: Coin {
@@ -152,11 +158,11 @@ pub fn calculate_liquidation(
         },
         liquidator_request: Coin {
             denom: request_coin.to_string(),
-            amount: request_amount_received_by_liquidator,
+            amount: collateral_amount_received_by_liquidator,
         },
         liquidatee_request: Coin {
             denom: request_coin.to_string(),
-            amount: request_amount_to_liquidate,
+            amount: collateral_amount_to_liquidate,
         },
         debt_price: debt_coin_price,
         collateral_price: request_coin_price,
