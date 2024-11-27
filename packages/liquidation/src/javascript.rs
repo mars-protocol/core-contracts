@@ -1,9 +1,10 @@
-use crate::{calculate_liquidation_amounts, HealthData, LiquidationAmounts};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Decimal, Uint128};
 use mars_types::params::AssetParams;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
+
+use crate::{calculate_liquidation_amounts, HealthData, LiquidationAmounts};
 
 #[cw_serde]
 #[cfg_attr(feature = "javascript", derive(Tsify))]

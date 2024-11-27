@@ -1,3 +1,8 @@
+use std::{
+    cmp::{max, min},
+    ops::Add,
+};
+
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Decimal, Int128, StdError, Uint128};
 use mars_health::health::Health;
@@ -5,15 +10,10 @@ use mars_types::{
     health::{AccountValuation, HealthValuesResponse},
     params::AssetParams,
 };
-use std::{
-    cmp::{max, min},
-    ops::Add,
-};
-
-use crate::error::LiquidationError;
-
 #[cfg(feature = "javascript")]
 use tsify::Tsify;
+
+use crate::error::LiquidationError;
 
 #[cw_serde]
 #[cfg_attr(feature = "javascript", derive(Tsify))]
