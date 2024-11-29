@@ -593,8 +593,121 @@ fn increased_position_cannot_be_too_big() {
     );
 }
 
-#[test]
-fn validate_opening_position() {
+#[test_case(
+    Uint128::new(2009),
+    Uint128::new(6029),
+    Uint128::new(5009),
+    // Long OI value valid, 2000 < 6029
+    Int128::from_str("200").unwrap(),
+    // Short OI value valid, 4000 < 5009
+    Int128::from_str("-400").unwrap(),
+    // New position invalid, 2000 + 4030 = 6030 > 6029
+    Int128::from_str("403").unwrap(),
+    Some(ContractError::LongOpenInterestReached {
+        max: Uint128::new(6029),
+        found: Uint128::new(6030),
+    },);
+    "Throw error if long OI cap exceeded when opening long"
+)]
+#[test_case(
+    Uint128::new(2009),
+    Uint128::new(6029),
+    Uint128::new(5009),
+    // Long OI value valid, 2000 > 6029
+    Int128::from_str("200").unwrap(),
+    // Short OI value valid, 4000 > 5009
+    Int128::from_str("-100").unwrap(),
+    // New position invalid, 2000 + (-1000) + 1010  = 2010 > 2009
+    Int128::from_str("101").unwrap(),
+    Some(ContractError::NetOpenInterestReached {
+        max: Uint128::new(2009),
+        found: Uint128::new(2010),
+    },);
+    "Throw error if net OI cap is exceeded when opening long"
+)]
+#[test_case(
+    Uint128::new(2009),
+    Uint128::new(6029),
+    Uint128::new(5009),
+    // Long OI value valid, 2000 > 6029
+    Int128::from_str("200").unwrap(),
+    // Short OI value valid, 2000 > 5009
+    Int128::from_str("-200").unwrap(),
+    // New position invalid, 2000 + 3010 = 5010 > 5009
+    Int128::from_str("-301").unwrap(),
+    Some(ContractError::ShortOpenInterestReached {
+        max: Uint128::new(5009),
+        found: Uint128::new(5010),
+    },);
+    "Throw error if short OI cap exceeded by opening short"
+)]
+#[test_case(
+    Uint128::new(2009),
+    Uint128::new(6029),
+    Uint128::new(5009),
+    // Long OI value exceeded, 6030 > 6029
+    Int128::from_str("603").unwrap(),
+    // Short OI value not exceeded, 3000 < 5009
+    Int128::from_str("-300").unwrap(),
+    // Total Short OI value 4500, which is less than 5009 
+    Int128::from_str("-150").unwrap(),
+    None;
+    "Allow opening short when long OI cap exceeded"
+)]
+#[test_case(
+    Uint128::new(2009),
+    Uint128::new(6029),
+    Uint128::new(5009),
+    // LONG OI value valid, 4000 < 6009 
+    Int128::from_str("400").unwrap(),
+    // SHORT OI value exceeded, 6000 > 5009
+    Int128::from_str("-600").unwrap(), 
+    // Total long OI value after trade is 5500, which is less than 6029.
+    // Total net OI value after trade is -2000 before, and -500 after this trade.
+    Int128::from_str("150").unwrap(), 
+    None;
+    "Allow opening long when short OI cap exceeded"
+)]
+#[test_case(
+    Uint128::new(2009),
+    Uint128::new(6029),
+    Uint128::new(5009),
+    // LONG OI value valid, 1000 < 6009 
+    Int128::from_str("100").unwrap(),
+    // SHORT OI value valid, 4000 > 5009
+    Int128::from_str("-400").unwrap(), 
+    // Total long OI value after trade is 1500, which is less than 6029.
+    // Total net OI value after trade is -3000 before, and -2500 after this trade.
+    // Because this is a reduction in net OI, this trade should be allowed even though net OI is still exceeded.
+    Int128::from_str("50").unwrap(), 
+    None;
+    "Allow opening long that reduces net OI when net OI cap still exceeded"
+)]
+#[test_case(
+    Uint128::new(2009),
+    Uint128::new(6029),
+    Uint128::new(5009),
+    // LONG OI value valid, 4000 < 6009 
+    Int128::from_str("400").unwrap(),
+    // SHORT OI value valid, 1000 < 5009
+    Int128::from_str("-100").unwrap(), 
+    // Total short OI value after trade is 1500, which is less than 5009.
+    // Total net OI value after trade is -3000 before, and -2500 after this trade.
+    // Because this is a reduction in net OI, this trade should be allowed even though net OI is still exceeded.
+    Int128::from_str("-50").unwrap(), 
+    None;
+    "Allow opening short that reduces net OI when net OI cap still exceeded"
+)]
+
+fn validate_open_interest_on_position_opening(
+    max_net_oi: Uint128,
+    max_long_oi: Uint128,
+    max_short_oi: Uint128,
+    current_long_oi: Int128,
+    current_short_oi: Int128,
+    new_position_size: Int128,
+    maybe_error: Option<ContractError>,
+) {
     let mut mock = MockEnv::new().build().unwrap();
 
     let owner = mock.owner.clone();
@@ -602,12 +715,11 @@ fn validate_opening_position() {
 
     // set prices
     mock.set_price(&owner, "uusdc", Decimal::from_str("0.8").unwrap()).unwrap();
-    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+    // Initially we set the uatom price low, as we may want to set the OI above the limits.
+    // After preparing OI, we will update the price again.
+    // If we set the perp to the correct price here (10), then the OI preperation may fail
+    mock.set_price(&owner, "uatom", Decimal::from_str("1").unwrap()).unwrap();
 
-    // init denoms
-    let max_net_oi = Uint128::new(2009);
-    let max_long_oi = Uint128::new(6029);
-    let max_short_oi = Uint128::new(5009);
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -620,93 +732,24 @@ fn validate_opening_position() {
         },
     );
 
-    // prepare some OI
-    mock.execute_perp_order(
-        &credit_manager,
-        "1",
-        "uatom",
-        Int128::from_str("200").unwrap(),
-        None,
-        &[],
-    )
-    .unwrap();
-    mock.execute_perp_order(
-        &credit_manager,
-        "2",
-        "uatom",
-        Int128::from_str("-400").unwrap(),
-        None,
-        &[],
-    )
-    .unwrap();
+    // Prepare the OI according to test spec.
+    //
+    // Long OI
+    mock.execute_perp_order(&credit_manager, "1", "uatom", current_long_oi, None, &[]).unwrap();
 
-    // long OI is too big
-    let res = mock.execute_perp_order(
-        &credit_manager,
-        "3",
-        "uatom",
-        Int128::from_str("403").unwrap(),
-        None,
-        &[],
-    ); // (200 + 403) * 10 = 6030
-    assert_err(
-        res,
-        ContractError::LongOpenInterestReached {
-            max: max_long_oi,
-            found: max_long_oi + Uint128::one(),
-        },
-    );
+    // Short OI
+    mock.execute_perp_order(&credit_manager, "2", "uatom", current_short_oi, None, &[]).unwrap();
 
-    // net OI is too big
-    let res = mock.execute_perp_order(
-        &credit_manager,
-        "3",
-        "uatom",
-        Int128::from_str("401").unwrap(),
-        None,
-        &[],
-    ); // 200 + 401 = 601, abs(601 - 400) = 201 * 10 = 2010
-    assert_err(
-        res,
-        ContractError::NetOpenInterestReached {
-            max: max_net_oi,
-            found: max_net_oi + Uint128::one(),
-        },
-    );
+    // Set correct perp price
+    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
 
-    // short OI is too big
-    let res = mock.execute_perp_order(
-        &credit_manager,
-        "4",
-        "uatom",
-        Int128::from_str("-101").unwrap(),
-        None,
-        &[],
-    ); // (400 + 101) * 10 = 5010
-    assert_err(
-        res,
-        ContractError::ShortOpenInterestReached {
-            max: max_short_oi,
-            found: max_short_oi + Uint128::one(),
-        },
-    );
+    let res = mock.execute_perp_order(&credit_manager, "3", "uatom", new_position_size, None, &[]);
 
-    // net OI is too big
-    let res = mock.execute_perp_order(
-        &credit_manager,
-        "4",
-        "uatom",
-        Int128::from_str("-1").unwrap(),
-        None,
-        &[],
-    ); // 400 + 1 = 401, abs(200 - 401) = 201 * 10 = 2010
-    assert_err(
-        res,
-        ContractError::NetOpenInterestReached {
-            max: max_net_oi,
-            found: max_net_oi + Uint128::one(),
-        },
-    );
+    if let Some(error) = maybe_error {
+        assert_err(res, error);
+    } else {
+        assert!(res.is_ok());
+    }
 }
 
 #[test]
