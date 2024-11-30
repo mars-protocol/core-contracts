@@ -325,10 +325,25 @@ pub struct AccountingResponse {
 #[cw_serde]
 #[derive(Default)]
 pub struct MarketResponse {
+    /// Denomination of the asset
     pub denom: String,
+
+    /// Enabled status of the market
     pub enabled: bool,
+
+    /// Total LONG open interest in utokens
     pub long_oi: Uint128,
+
+    /// Total LONG open interest in oracle base currency (uusd)
+    pub long_oi_value: Uint128,
+
+    /// Total SHORT open interest in utokens
     pub short_oi: Uint128,
+
+    /// Total SHORT open interest in oracle base currency (uusd)
+    pub short_oi_value: Uint128,
+
+    /// Current funding rate
     pub current_funding_rate: SignedDecimal,
 }
 

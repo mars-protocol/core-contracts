@@ -44,7 +44,9 @@ fn query_market() {
         denom: denom1.to_string(),
         enabled: true,
         long_oi: Uint128::zero(),
+        long_oi_value: Uint128::zero(),
         short_oi: Uint128::zero(),
+        short_oi_value: Uint128::zero(),
         current_funding_rate: SignedDecimal::zero(),
     };
 
@@ -61,6 +63,7 @@ fn query_market() {
     )
     .unwrap();
 
+    // Open a LONG position
     let amount = Uint128::from(200u32);
     let size = Int128::try_from(amount).unwrap();
 
@@ -68,8 +71,29 @@ fn query_market() {
 
     let perp_market_state = mock.query_market(denom1);
 
+    let expected_long_oi_value =
+        amount.checked_mul_floor(Decimal::from_str(denom1_price).unwrap()).unwrap();
     let expected_perp_market_state = MarketResponse {
         long_oi: amount,
+        long_oi_value: expected_long_oi_value,
+        ..expected_perp_market_state
+    };
+
+    assert_eq!(perp_market_state, expected_perp_market_state);
+
+    // Open a SHORT position
+    let amount = Uint128::from(350u32);
+    let size = -Int128::try_from(amount).unwrap();
+
+    mock.execute_perp_order(&credit_manager, "3", denom1, size, None, &[]).unwrap();
+
+    let perp_market_state = mock.query_market(denom1);
+
+    let expected_short_oi_value =
+        amount.checked_mul_floor(Decimal::from_str(denom1_price).unwrap()).unwrap();
+    let expected_perp_market_state = MarketResponse {
+        short_oi: amount,
+        short_oi_value: expected_short_oi_value,
         ..expected_perp_market_state
     };
 
@@ -80,6 +104,7 @@ fn query_market() {
 fn query_markets() {
     let mut mock = MockEnv::new().build().unwrap();
     let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
 
     // Setup the environment for 3 different perp markets
     let base_denom = "uusdc";
@@ -139,7 +164,9 @@ fn query_markets() {
         denom: base_denom.to_string(),
         enabled: true,
         long_oi: Uint128::zero(),
+        long_oi_value: Uint128::zero(),
         short_oi: Uint128::zero(),
+        short_oi_value: Uint128::zero(),
         current_funding_rate: SignedDecimal::zero(),
     };
 
@@ -148,13 +175,29 @@ fn query_markets() {
         ..expected_perp_market_state_base.clone()
     };
 
+    let long_amount = Uint128::from(200u32);
+    let long_oi_value =
+        long_amount.checked_mul_floor(Decimal::from_str(denom2_price).unwrap()).unwrap();
+    let size = Int128::try_from(long_amount).unwrap();
+    mock.execute_perp_order(&credit_manager, "2", denom2, size, None, &[]).unwrap();
+
     let expected_perp_market_state2 = MarketResponse {
         denom: denom2.to_string(),
+        long_oi: long_amount,
+        long_oi_value,
         ..expected_perp_market_state_base.clone()
     };
 
+    let short_amount = Uint128::from(420u32);
+    let short_oi_value =
+        short_amount.checked_mul_floor(Decimal::from_str(denom3_price).unwrap()).unwrap();
+    let size = -Int128::try_from(short_amount).unwrap();
+    mock.execute_perp_order(&credit_manager, "3", denom3, size, None, &[]).unwrap();
+
     let expected_perp_market_state3 = MarketResponse {
         denom: denom3.to_string(),
+        short_oi: short_amount,
+        short_oi_value,
         ..expected_perp_market_state_base.clone()
     };
 

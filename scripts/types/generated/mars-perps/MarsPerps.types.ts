@@ -210,7 +210,9 @@ export interface MarketResponse {
   denom: string
   enabled: boolean
   long_oi: Uint128
+  long_oi_value: Uint128
   short_oi: Uint128
+  short_oi_value: Uint128
 }
 export interface AccountingResponse {
   accounting: Accounting
