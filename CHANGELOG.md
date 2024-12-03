@@ -2,6 +2,221 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.2.0 - Neutron Perps release
+
+### Perps Integration
+- Added new `perps` contract with perps functionality integrated into Credit Manager
+
+### Credit Manager Enhancements
+- Integrated perps positions as account collateral, with direct impact on account Health Factor
+- Implemented flexible loss settlement mechanism for perps:
+  - First attempts to deduct from existing deposits
+  - If deposits are insufficient, will unlock lending positions
+  - As a last resort, will borrow the required USDC amount
+
+#### New Execute Messages
+- Added execute messages:
+  - `UpdateBalanceAfterDeleverage`
+  - `ExecuteTriggerOrder`
+
+#### New Actions
+- Introduced new actions:
+  - `DepositToPerpVault`
+  - `UnlockFromPerpVault`
+  - `WithdrawFromPerpVault`
+  - `CreateTriggerOrder`
+  - `DeleteTriggerOrder`
+  - `ExecutePerpOrder`
+
+#### New Queries
+- Added queries:
+  - `AllAccountTriggerOrders`
+  - `AllTriggerOrders`
+- Updated `Positions` query to include perps positions
+
+#### Positions Struct Update
+```diff
+pub struct Positions {
+    pub account_id: String,
+    pub account_kind: AccountKind,
+    pub deposits: Vec<Coin>,
+    pub debts: Vec<DebtAmount>,
+    pub lends: Vec<Coin>,
+    pub vaults: Vec<VaultPosition>,
+    pub staked_astro_lps: Vec<Coin>,
++   pub perps: Vec<PerpPosition>, // New field
+}
+```
+
+### Liquidation Mechanism
+#### Perps Liquidation
+- Implemented comprehensive perps liquidation process:
+  - When an account becomes liquidatable, perps positions are closed first
+  - Normal liquidation executes after perps closure
+  - If closing perps is sufficient to restore account health, liquidator receives a bonus
+- Liquidation bonus calculation:
+  - Uses the same bonus mechanism as general liquidation (based on Health Factor)
+  - Bonus specifically reduced to 60% to prevent over-rewarding
+  - Added `perps_liquidation_bonus_ratio` to Credit Manager configuration
+- Special liquidation scenario:
+  - Liquidation possible even when no spot debt exists
+  - Triggered if perps positions could potentially bring account Health Factor below 1
+  - Allows liquidator to close perps at a loss without additional debt repayment
+
+#### Liquidation Changes
+- Simplified liquidation mechanism by changing to static close factor
+- Removed Max Debt Repayable (MDR) formula for dynamic bonus calculation in Credit Manager and Red Bank
+
+### Health Calculations
+- Health Contract now includes calculations based on perps positions
+- Returns additional perp loss and profit information
+- Removed `kind` from health-related queries
+- HealthComputer integrated into CreditManager to reduce gas consumption
+
+#### Health Struct Update
+```diff
+pub struct Health {
+    pub total_debt_value: Uint128,
+    pub total_collateral_value: Uint128,
+    pub max_ltv_adjusted_collateral: Uint128,
+    pub liquidation_threshold_adjusted_collateral: Uint128,
+    pub max_ltv_health_factor: Option<Decimal>,
+    pub liquidation_health_factor: Option<Decimal>,
++   pub perps_pnl_profit: Uint128,        // New field
++   pub perps_pnl_loss: Uint128,          // New field
++   pub has_perps: bool,                  // New field
+}
+```
+
+### Oracle and Pricing
+- Introduced Slinky oracle price support for perps
+- Added new Oracle contract query for prices by denoms
+
+### Incentives Contract
+- Added support for perpetual vault deposit incentives
+- New execute and query messages to handle perps-related incentives
+  - `SetAssetIncentive` with support for different incentive kinds
+  - Updated reward claiming and emission tracking
+
+#### Incentives Contract Struct Updates
+```diff
+// Execute Message
+pub enum ExecuteMsg {
+    SetAssetIncentive {
++       kind: IncentiveKind,         // New field
++       denom: String,               // New field
+        incentive_denom: String,
+        emission_per_second: Uint128,
+        start_time: u64,
+        duration: u64,
+    },
+
+    BalanceChange {
+        user_addr: Addr,
+        account_id: Option<String>,
++       kind: IncentiveKind,         // New field
+        denom: String,
+-       user_amount_scaled_before: Uint128,
++       user_amount: Uint128,        // Updated field
+-       total_amount_scaled_before: Uint128,
++       total_amount: Uint128,       // Updated field
+    },
+
+    ClaimRewards {
+        account_id: Option<String>,
++       start_after_kind: Option<IncentiveKind>,     // New field
+-       start_after_collateral_denom: Option<String>,
++       start_after_denom: Option<String>,           // Updated field
+        start_after_incentive_denom: Option<String>,
+        limit: Option<u32>,
+    }
+}
+
+// Query Messages
+pub enum QueryMsg {
+    ActiveEmissions {
++       kind: IncentiveKind,                         // New field
+-       collateral_denom: String,
++       denom: String,                               // Updated field
+    },
+
+    IncentiveState {
++       kind: IncentiveKind,                         // New field
+-       collateral_denom: String,
++       denom: String,                               // Updated field
+        incentive_denom: String,
+    },
+
+    IncentiveStates {
++       start_after_kind: Option<IncentiveKind>,     // New field
+-       start_after_collateral_denom: Option<String>,
++       start_after_denom: Option<String>,           // Updated field
+        start_after_incentive_denom: Option<String>,
+        limit: Option<u32>,
+    },
+
+    Emission {
++       kind: IncentiveKind,                         // New field
+-       collateral_denom: String,
++       denom: String,                               // Updated field
+        incentive_denom: String,
+        timestamp: u64,
+    },
+
+    UserUnclaimedRewards {
+        user: String,
+        account_id: Option<String>,
++       start_after_kind: Option<IncentiveKind>,     // New field
+-       start_after_collateral_denom: Option<String>,
++       start_after_denom: Option<String>,           // Updated field
+        start_after_incentive_denom: Option<String>,
+        limit: Option<u32>,
+    }
+}
+```
+
+### Params Contract
+- Added Perps params setup and queries
+- New configurations:
+  - Maximum number of perps
+  - Risk Owner role to modify market parameters
+  - `withdraw_enabled` for Credit Manager and Red Bank settings for Assets
+- Introduced paginated queries for asset parameters
+
+#### Params Contract Struct Updates
+```diff
+pub enum ExecuteMsg {
++   UpdatePerpParams(PerpParamsUpdate),   // New execute message
+
+    // Existing messages...
+}
+
+pub enum QueryMsg {
++   PerpParams {                           // New query
+        denom: String,
+    },
+
++   AllPerpParams {                        // New query
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
++   AllPerpParamsV2 {                      // New paginated query
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
++   AllAssetParamsV2 {                     // New paginated query for assets
+        start_after: Option<String>,
+        limit: Option<u32>,
+    }
+}
+```
+
+### Miscellaneous
+- Enhanced HealthComputer with Perps-aligned functions and added max_perp_size parameter to support frontend requirements
+- Removed `QueryMsg::AccountKind` call in account-nft contract
+
 ## v1.2.0
 
 - Allow Credit account to lend/reclaim to the Red Bank (calls Deposit/Withdraw in Red Bank), claim incentive rewards from lending to the Red Bank (pass account_id to track Credit Manager users in `red-bank` and `incentives` contract).
