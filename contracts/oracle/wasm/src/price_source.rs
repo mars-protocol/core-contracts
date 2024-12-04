@@ -11,9 +11,9 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{from_json, Addr, Decimal, Deps, Empty, Env, Uint128};
 use cw_storage_plus::Map;
 use mars_oracle_base::{
-    lp_pricing,
+    is_one_followed_by_zeros, lp_pricing,
     redemption_rate::{assert_rr_not_too_old, query_redemption_rate, RedemptionRate},
-    ContractError, ContractResult, PriceSourceChecked, PriceSourceUnchecked,
+    ContractError, ContractResult, PriceSourceChecked, PriceSourceUnchecked, USD_DENOM,
 };
 use mars_types::oracle::{ActionKind, AstroportTwapSnapshot, Config};
 use pyth_sdk_cw::PriceIdentifier;
@@ -28,6 +28,7 @@ use crate::{
         validate_astroport_lp_pool_for_type, validate_astroport_pair_price_source,
     },
     lp_pricing::{query_pcl_lp_price, query_stable_swap_lp_price},
+    slinky::{assert_slinky, query_slinky_price},
     state::{ASTROPORT_FACTORY, ASTROPORT_TWAP_SNAPSHOTS},
 };
 
@@ -135,6 +136,21 @@ pub enum WasmPriceSource<A> {
         /// Address of the Astroport pair
         pair_address: A,
     },
+    /// Price source used to query the price of a base symbol in USD from the Slinky module and normalize it to the smallest unit in uusd.
+    /// See documentation for more details: https://docs.skip.build/connect/overview
+    Slinky {
+        /// Base symbol of the currency pair written in uppercase (e.g. ATOM, OSMO, USDC).
+        /// Quote symbol is always USD for our use case.
+        base_symbol: String,
+
+        /// Assets are represented in their smallest unit and every asset can have different decimals (e.g. OSMO - 6 decimals, WETH - 18 decimals).
+        /// It is used to normalize the Slinky price to be in the smallest unit of the base symbol.
+        denom_decimals: u8,
+
+        /// The maximum number of blocks since the last price was updated, before
+        /// rejecting the price as too stale
+        max_blocks_old: u8,
+    },
 }
 
 #[cw_serde]
@@ -193,6 +209,9 @@ impl fmt::Display for WasmPriceSourceChecked {
             WasmPriceSource::XykLiquidityToken { pair_address } => format!("xyk_liquidity_token:{pair_address}"),
             WasmPriceSource::PclLiquidityToken { pair_address } => format!("pcl_liquidity_token:{pair_address}"),
             WasmPriceSource::SsLiquidityToken { pair_address } => format!("stable_swap_liquidity_token:{pair_address}"),
+            WasmPriceSource::Slinky { base_symbol, denom_decimals, max_blocks_old } => {
+                format!("slinky:{base_symbol}:{denom_decimals}:{max_blocks_old}")
+            },
         };
         write!(f, "{label}")
     }
@@ -211,6 +230,17 @@ impl PriceSourceUnchecked<WasmPriceSourceChecked, Empty> for WasmPriceSourceUnch
                 reason: "cannot set price source for base denom".to_string(),
             });
         }
+
+        // check if USD price source is correct
+        if denom == USD_DENOM
+            && !matches!(&self, &WasmPriceSource::Fixed { price } if is_one_followed_by_zeros(&price.to_string()))
+        {
+            return Err(ContractError::InvalidPriceSource {
+                reason:
+                    "cannot set price source for USD other than 'Fixed' with price value 1 followed by zeros"
+                        .to_string(),
+            });
+        };
 
         match self {
             WasmPriceSource::Fixed {
@@ -275,7 +305,7 @@ impl PriceSourceUnchecked<WasmPriceSourceChecked, Empty> for WasmPriceSourceUnch
                 denom_decimals,
             } => {
                 mars_oracle_base::pyth::assert_pyth(max_confidence, max_deviation, denom_decimals)?;
-                mars_oracle_base::pyth::assert_usd_price_source(deps, price_sources)?;
+                mars_oracle_base::assert_usd_price_source(deps, price_sources)?;
                 Ok(WasmPriceSourceChecked::Pyth {
                     contract_addr: deps.api.addr_validate(&contract_addr)?,
                     price_feed_id,
@@ -377,6 +407,19 @@ impl PriceSourceUnchecked<WasmPriceSourceChecked, Empty> for WasmPriceSourceUnch
 
                 Ok(WasmPriceSourceChecked::SsLiquidityToken {
                     pair_address,
+                })
+            }
+            WasmPriceSource::Slinky {
+                base_symbol,
+                denom_decimals,
+                max_blocks_old,
+            } => {
+                mars_oracle_base::assert_usd_price_source(deps, price_sources)?;
+                assert_slinky(deps, &base_symbol, denom_decimals, max_blocks_old)?;
+                Ok(WasmPriceSourceChecked::Slinky {
+                    base_symbol,
+                    denom_decimals,
+                    max_blocks_old,
                 })
             }
         }
@@ -485,6 +528,20 @@ impl PriceSourceChecked<Empty> for WasmPriceSourceChecked {
             } => {
                 query_ss_liquidity_token_price(deps, env, config, price_sources, pair_address, kind)
             }
+            WasmPriceSource::Slinky {
+                base_symbol,
+                denom_decimals,
+                max_blocks_old,
+            } => query_slinky_price(
+                deps,
+                env,
+                config,
+                price_sources,
+                kind,
+                base_symbol,
+                *denom_decimals,
+                *max_blocks_old,
+            ),
         }
     }
 }

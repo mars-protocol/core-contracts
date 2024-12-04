@@ -86,6 +86,13 @@ export type WasmPriceSourceForString =
         pair_address: string
       }
     }
+  | {
+      slinky: {
+        base_symbol: string
+        denom_decimals: number
+        max_blocks_old: number
+      }
+    }
 export type Decimal = string
 export type Identifier = string
 export type OwnerUpdate =
@@ -143,6 +150,12 @@ export type QueryMsg =
         kind?: ActionKind | null
         limit?: number | null
         start_after?: string | null
+      }
+    }
+  | {
+      prices_by_denoms: {
+        denoms: string[]
+        kind?: ActionKind | null
       }
     }
 export type ActionKind = 'default' | 'liquidation'

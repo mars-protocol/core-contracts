@@ -3,6 +3,7 @@ pub mod health;
 pub mod incentives;
 pub mod oracle;
 pub mod params;
+pub mod perps;
 pub mod red_bank;
 pub mod rewards_collector;
 pub mod swapper;

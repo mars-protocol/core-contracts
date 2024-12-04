@@ -1,6 +1,6 @@
 {
   "contract_name": "mars-oracle-wasm",
-  "contract_version": "2.1.0",
+  "contract_version": "2.2.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -562,6 +562,43 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "description": "Price source used to query the price of a base symbol in USD from the Slinky module and normalize it to the smallest unit in uusd. See documentation for more details: https://docs.skip.build/connect/overview",
+            "type": "object",
+            "required": [
+              "slinky"
+            ],
+            "properties": {
+              "slinky": {
+                "type": "object",
+                "required": [
+                  "base_symbol",
+                  "denom_decimals",
+                  "max_blocks_old"
+                ],
+                "properties": {
+                  "base_symbol": {
+                    "description": "Base symbol of the currency pair written in uppercase (e.g. ATOM, OSMO, USDC). Quote symbol is always USD for our use case.",
+                    "type": "string"
+                  },
+                  "denom_decimals": {
+                    "description": "Assets are represented in their smallest unit and every asset can have different decimals (e.g. OSMO - 6 decimals, WETH - 18 decimals). It is used to normalize the Slinky price to be in the smallest unit of the base symbol.",
+                    "type": "integer",
+                    "format": "uint8",
+                    "minimum": 0.0
+                  },
+                  "max_blocks_old": {
+                    "description": "The maximum number of blocks since the last price was updated, before rejecting the price as too stale",
+                    "type": "integer",
+                    "format": "uint8",
+                    "minimum": 0.0
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
           }
         ]
       }
@@ -708,6 +745,41 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "Get prices for list of provided denoms.\n\nNOTE: This query may be dependent on block time (e.g. if the price source is TWAP), so may not work properly with time travel queries on archive nodes.",
+        "type": "object",
+        "required": [
+          "prices_by_denoms"
+        ],
+        "properties": {
+          "prices_by_denoms": {
+            "type": "object",
+            "required": [
+              "denoms"
+            ],
+            "properties": {
+              "denoms": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "kind": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ActionKind"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -822,6 +894,36 @@
       }
     },
     "prices": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Array_of_PriceResponse",
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PriceResponse"
+      },
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "PriceResponse": {
+          "type": "object",
+          "required": [
+            "denom",
+            "price"
+          ],
+          "properties": {
+            "denom": {
+              "type": "string"
+            },
+            "price": {
+              "$ref": "#/definitions/Decimal"
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "prices_by_denoms": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Array_of_PriceResponse",
       "type": "array",

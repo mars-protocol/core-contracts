@@ -135,6 +135,11 @@ pub enum ContractError {
         denom: String,
     },
 
+    #[error("Withdraw for {denom:?} is not enabled")]
+    WithdrawNotEnabled {
+        denom: String,
+    },
+
     #[error("Cannot liquidate. Debt asset {denom:?}")]
     LiquidationNotAllowedWhenDebtMarketInactive {
         denom: String,

@@ -1,19 +1,53 @@
-use cosmwasm_std::{Decimal, DepsMut, MessageInfo, Response};
-use mars_types::params::{AssetParamsUpdate, VaultConfigUpdate};
-use mars_utils::{error::ValidationError, helpers::option_string_to_addr};
+use cosmwasm_std::{
+    ensure, ensure_eq, to_json_binary, Addr, CosmosMsg, Deps, DepsMut, MessageInfo, Order,
+    Response, WasmMsg,
+};
+use cw_storage_plus::Item;
+use mars_owner::OwnerInit::SetInitialOwner;
+use mars_types::{
+    address_provider::{self, MarsAddressType},
+    params::{AssetParams, AssetParamsUpdate, PerpParams, PerpParamsUpdate, VaultConfigUpdate},
+    perps::ExecuteMsg,
+};
+use mars_utils::helpers::option_string_to_addr;
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, TARGET_HEALTH_FACTOR, VAULT_CONFIGS},
+    state::{
+        ADDRESS_PROVIDER, ASSET_PARAMS, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, RISK_MANAGER,
+        RISK_MANAGER_KEY, VAULT_CONFIGS,
+    },
 };
 
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
 pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
+// Force resets the risk manager to the contract owner.
+pub fn reset_risk_manager(deps: DepsMut, info: MessageInfo) -> Result<Response, ContractError> {
+    OWNER.assert_owner(deps.storage, &info.sender)?;
+
+    // Use same storage key as current RISK_MANAGER to remove existing state
+    let storage_key = Item::<()>::new(RISK_MANAGER_KEY);
+    storage_key.remove(deps.storage);
+
+    RISK_MANAGER.initialize(
+        deps.storage,
+        deps.api,
+        SetInitialOwner {
+            owner: info.sender.to_string(),
+        },
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("action", "reset_risk_manager")
+        .add_attribute("new_risk_manager", info.sender.to_string()))
+}
+
 pub fn update_config(
     deps: DepsMut,
     info: MessageInfo,
     address_provider: Option<String>,
+    max_perp_params: Option<u8>,
 ) -> Result<Response, ContractError> {
     OWNER.assert_owner(deps.storage, &info.sender)?;
 
@@ -21,26 +55,16 @@ pub fn update_config(
     let updated_addr = option_string_to_addr(deps.api, address_provider, current_addr)?;
     ADDRESS_PROVIDER.save(deps.storage, &updated_addr)?;
 
-    Ok(Response::new()
+    let mut res = Response::new()
         .add_attribute("action", "update_config")
-        .add_attribute("address_provider", updated_addr.to_string()))
-}
+        .add_attribute("address_provider", updated_addr.to_string());
 
-pub fn update_target_health_factor(
-    deps: DepsMut,
-    info: MessageInfo,
-    target_health_factor: Decimal,
-) -> ContractResult<Response> {
-    OWNER.assert_owner(deps.storage, &info.sender)?;
+    if let Some(max) = max_perp_params {
+        MAX_PERP_PARAMS.save(deps.storage, &max)?;
+        res = res.add_attribute("max_perp_params", max.to_string());
+    }
 
-    assert_thf(target_health_factor)?;
-    TARGET_HEALTH_FACTOR.save(deps.storage, &target_health_factor)?;
-
-    let response = Response::new()
-        .add_attribute("action", "update_target_health_factor")
-        .add_attribute("value", target_health_factor.to_string());
-
-    Ok(response)
+    Ok(res)
 }
 
 pub fn update_asset_params(
@@ -48,7 +72,7 @@ pub fn update_asset_params(
     info: MessageInfo,
     update: AssetParamsUpdate,
 ) -> ContractResult<Response> {
-    OWNER.assert_owner(deps.storage, &info.sender)?;
+    let permission = Permission::new(deps.as_ref(), &info.sender)?;
 
     let mut response = Response::new().add_attribute("action", "update_asset_param");
 
@@ -57,6 +81,9 @@ pub fn update_asset_params(
             params: unchecked,
         } => {
             let params = unchecked.check(deps.api)?;
+
+            // Risk manager cannot change the liquidation threshold
+            permission.validate_asset_liquidation_threshold_unchanged(&params)?;
 
             ASSET_PARAMS.save(deps.storage, &params.denom, &params)?;
             response = response
@@ -92,14 +119,127 @@ pub fn update_vault_config(
     Ok(response)
 }
 
-pub fn assert_thf(thf: Decimal) -> Result<(), ContractError> {
-    if thf < Decimal::one() || thf > Decimal::from_atomics(2u128, 0u32)? {
-        return Err(ValidationError::InvalidParam {
-            param_name: "target_health_factor".to_string(),
-            invalid_value: thf.to_string(),
-            predicate: "[1, 2]".to_string(),
+pub fn update_perp_params(
+    deps: DepsMut,
+    info: MessageInfo,
+    update: PerpParamsUpdate,
+) -> ContractResult<Response> {
+    let permission = Permission::new(deps.as_ref(), &info.sender)?;
+
+    let mut response = Response::new().add_attribute("action", "update_perp_param");
+
+    match update {
+        PerpParamsUpdate::AddOrUpdate {
+            params,
+        } => {
+            let checked = params.check()?;
+
+            // Risk manager cannot change the liquidation threshold
+            permission.validate_perps_liquidation_threshold_unchanged(&checked)?;
+
+            PERP_PARAMS.save(deps.storage, &checked.denom, &checked)?;
+
+            let current_addr = ADDRESS_PROVIDER.load(deps.storage)?;
+            let perps_addr = address_provider::helpers::query_contract_addr(
+                deps.as_ref(),
+                &current_addr,
+                MarsAddressType::Perps,
+            )?;
+
+            let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: perps_addr.to_string(),
+                msg: to_json_binary(&ExecuteMsg::UpdateMarket {
+                    params: checked,
+                })?,
+                funds: vec![],
+            });
+
+            response = response
+                .add_message(msg)
+                .add_attribute("action_type", "add_or_update")
+                .add_attribute("sender", info.sender)
+                .add_attribute("denom", params.denom);
         }
-        .into());
     }
-    Ok(())
+
+    // Check if the number of perp params is within the limit
+    let max_perp_params = MAX_PERP_PARAMS.load(deps.storage)?;
+    let num = PERP_PARAMS.keys(deps.storage, None, None, Order::Ascending).count();
+    ensure!(
+        num <= max_perp_params as usize,
+        ContractError::MaxPerpParamsReached {
+            max: max_perp_params
+        }
+    );
+
+    Ok(response)
+}
+
+struct Permission<'a> {
+    deps: Deps<'a>,
+    owner: bool,
+    risk_manager: bool,
+}
+
+impl<'a> Permission<'a> {
+    pub fn new(deps: Deps<'a>, sender: &Addr) -> ContractResult<Self> {
+        let owner = OWNER.is_owner(deps.storage, sender)?;
+        let risk_manager = RISK_MANAGER.is_owner(deps.storage, sender)?;
+        ensure!(owner || risk_manager, ContractError::NotOwnerOrRiskManager {});
+        Ok(Self {
+            deps,
+            owner,
+            risk_manager,
+        })
+    }
+
+    pub fn validate_asset_liquidation_threshold_unchanged(
+        &self,
+        new_params: &AssetParams,
+    ) -> ContractResult<()> {
+        // If the risk_manager is not set to the default (owner) apply restrictions
+        if self.risk_manager && !self.owner {
+            let current_asset_params =
+                ASSET_PARAMS.may_load(self.deps.storage, &new_params.denom)?;
+            if let Some(current_asset_params) = current_asset_params {
+                ensure_eq!(
+                    current_asset_params.liquidation_threshold,
+                    new_params.liquidation_threshold,
+                    ContractError::RiskManagerUnauthorized {
+                        reason: "asset param liquidation threshold".to_string()
+                    }
+                )
+            } else {
+                return Err(ContractError::RiskManagerUnauthorized {
+                    reason: "new asset".to_string(),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    pub fn validate_perps_liquidation_threshold_unchanged(
+        &self,
+        new_params: &PerpParams,
+    ) -> ContractResult<()> {
+        // If the risk_manager is not set to the default (owner) apply restrictions
+        if self.risk_manager && !self.owner {
+            let current_perps_params =
+                PERP_PARAMS.may_load(self.deps.storage, &new_params.denom)?;
+            if let Some(current_perps_params) = current_perps_params {
+                ensure_eq!(
+                    current_perps_params.liquidation_threshold,
+                    new_params.liquidation_threshold,
+                    ContractError::RiskManagerUnauthorized {
+                        reason: "perp param liquidation threshold".to_string()
+                    }
+                );
+            } else {
+                return Err(ContractError::RiskManagerUnauthorized {
+                    reason: "new perp".to_string(),
+                });
+            }
+        }
+        Ok(())
+    }
 }

@@ -1,11 +1,13 @@
-use cosmwasm_std::{coins, Addr, Decimal, Uint128};
+use std::str::FromStr;
+
+use cosmwasm_std::{coin, coins, Addr, Decimal, Int128, Uint128};
 use mars_credit_manager::error::ContractError;
-use mars_testing::multitest::helpers::coin_info;
+use mars_testing::multitest::helpers::{coin_info, default_perp_params, uosmo_info};
 use mars_types::{
-    credit_manager::Action::{Borrow, Deposit, EnterVault, Lend, StakeAstroLp},
+    credit_manager::Action::{Borrow, Deposit, EnterVault, ExecutePerpOrder, Lend, StakeAstroLp},
     health::{AccountKind, HealthValuesResponse},
     oracle::ActionKind,
-    params::{AssetParamsUpdate::AddOrUpdate, HlsAssetType},
+    params::{AssetParamsUpdate::AddOrUpdate, HlsAssetType, PerpParamsUpdate},
 };
 
 use super::helpers::{
@@ -273,8 +275,7 @@ fn not_correlated_assets_do_not_infuence_hf() {
         &[lp_token.to_coin(300)],
     )
     .unwrap();
-    let health_before =
-        mock.query_health(&account_id, AccountKind::HighLeveredStrategy, ActionKind::Default);
+    let health_before = mock.query_health(&account_id, ActionKind::Default);
 
     // Deposited asset is not correlated to debt asset
     mock.update_credit_account(
@@ -286,8 +287,7 @@ fn not_correlated_assets_do_not_infuence_hf() {
     .unwrap();
 
     // Health factor should not change
-    let health =
-        mock.query_health(&account_id, AccountKind::HighLeveredStrategy, ActionKind::Default);
+    let health = mock.query_health(&account_id, ActionKind::Default);
     assert_eq!(health_before, health);
 }
 
@@ -322,8 +322,7 @@ fn successful_with_asset_correlations() {
     )
     .unwrap();
 
-    let hls_health =
-        mock.query_health(&account_id, AccountKind::HighLeveredStrategy, ActionKind::Default);
+    let hls_health = mock.query_health(&account_id, ActionKind::Default);
     let total_debt_value = atom_info.price * Uint128::new(atom_borrow_amount) + Uint128::one();
     let lp_collateral_value = lp_token.price * Uint128::new(lp_deposit_amount);
     let atom_collateral_value = atom_info.price * Uint128::new(atom_borrow_amount);
@@ -348,12 +347,12 @@ fn successful_with_asset_correlations() {
             ),
             liquidatable: false,
             above_max_ltv: false,
+            perps_pnl_profit: Uint128::zero(),
+            perps_pnl_loss: Uint128::zero(),
+            has_perps: false,
         },
         hls_health
     );
-
-    let default_health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
-    assert_ne!(hls_health, default_health);
 }
 
 #[test]
@@ -404,8 +403,7 @@ fn successful_with_vault_correlations() {
     )
     .unwrap();
 
-    let hls_health =
-        mock.query_health(&account_id, AccountKind::HighLeveredStrategy, ActionKind::Default);
+    let hls_health = mock.query_health(&account_id, ActionKind::Default);
     let total_debt_value = atom_info.price * Uint128::new(atom_borrow_amount) + Uint128::one();
     let lp_collateral_value = lp_token.price * Uint128::new(lp_deposit_amount);
     let atom_collateral_value = atom_info.price * Uint128::new(atom_borrow_amount);
@@ -430,10 +428,77 @@ fn successful_with_vault_correlations() {
             ),
             liquidatable: false,
             above_max_ltv: false,
+            perps_pnl_profit: Uint128::zero(),
+            perps_pnl_loss: Uint128::zero(),
+            has_perps: false,
         },
         hls_health
     );
+}
 
-    let default_health = mock.query_health(&account_id, AccountKind::Default, ActionKind::Default);
-    assert_ne!(hls_health, default_health);
+#[test]
+fn cannot_have_perps_in_hls_account() {
+    let osmo_info = uosmo_info();
+    let atom_info = uatom_info();
+    let usdc_info = coin_info("uusdc");
+
+    let vault_coin_deposited = coin(100000, usdc_info.denom.clone());
+
+    let contract_owner = Addr::unchecked("owner");
+    let cm_user = Addr::unchecked("user");
+    let vault_depositor = Addr::unchecked("vault_depositor");
+
+    let osmo_coin_deposited = osmo_info.to_coin(10000);
+
+    let mut mock = MockEnv::new()
+        .owner(contract_owner.as_str())
+        .set_params(&[osmo_info, atom_info.clone(), usdc_info.clone()])
+        .fund_account(AccountToFund {
+            addr: cm_user.clone(),
+            funds: vec![osmo_coin_deposited.clone()],
+        })
+        .fund_account(AccountToFund {
+            addr: vault_depositor.clone(),
+            funds: vec![vault_coin_deposited.clone()],
+        })
+        .build()
+        .unwrap();
+    let trader_account_id = mock.create_hls_account(&cm_user);
+    let vault_depositor_account_id = mock.create_credit_account(&vault_depositor).unwrap();
+
+    // setup params contract
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params(&atom_info.denom),
+    });
+
+    // setup perp contract
+    mock.update_credit_account(
+        &vault_depositor_account_id,
+        &vault_depositor,
+        vec![Deposit(vault_coin_deposited.clone())],
+        &[vault_coin_deposited.clone()],
+    )
+    .unwrap();
+    mock.deposit_to_perp_vault(&vault_depositor_account_id, &vault_coin_deposited, None).unwrap();
+
+    // open perp position
+    let res = mock.update_credit_account(
+        &trader_account_id,
+        &cm_user,
+        vec![
+            Deposit(osmo_coin_deposited.clone()),
+            ExecutePerpOrder {
+                denom: atom_info.denom.clone(),
+                order_size: Int128::from_str("400").unwrap(),
+                reduce_only: None,
+            },
+        ],
+        &[osmo_coin_deposited.clone()],
+    );
+    assert_err(
+        res,
+        ContractError::HLS {
+            reason: "Account has perps".to_string(),
+        },
+    );
 }

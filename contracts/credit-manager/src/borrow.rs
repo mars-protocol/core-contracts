@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, DepsMut, Response, Uint128};
+use cosmwasm_std::{Coin, CosmosMsg, DepsMut, Response, Uint128};
 
 use crate::{
     error::{ContractError, ContractResult},
@@ -18,7 +18,25 @@ pub fn borrow(mut deps: DepsMut, account_id: &str, coin: Coin) -> ContractResult
         return Err(ContractError::NoAmount);
     }
 
-    assert_coin_is_whitelisted(&mut deps, &coin.denom)?;
+    let (debt_shares_to_add, borrow_msg) = update_debt(&mut deps, account_id, &coin)?;
+
+    increment_coin_balance(deps.storage, account_id, &coin)?;
+
+    Ok(Response::new()
+        .add_message(borrow_msg)
+        .add_attribute("action", "borrow")
+        .add_attribute("account_id", account_id)
+        .add_attribute("debt_shares_added", debt_shares_to_add)
+        .add_attribute("coin_borrowed", coin.to_string()))
+}
+
+/// Update the debt state and prepare a borrow message
+pub fn update_debt(
+    deps: &mut DepsMut,
+    account_id: &str,
+    coin: &Coin,
+) -> ContractResult<(Uint128, CosmosMsg)> {
+    assert_coin_is_whitelisted(deps, &coin.denom)?;
 
     let red_bank = RED_BANK.load(deps.storage)?;
     let total_debt_amount = red_bank.query_debt(&deps.querier, &coin.denom)?;
@@ -50,12 +68,5 @@ pub fn borrow(mut deps: DepsMut, account_id: &str, coin: Coin) -> ContractResult
             .map_err(ContractError::Overflow)
     })?;
 
-    increment_coin_balance(deps.storage, account_id, &coin)?;
-
-    Ok(Response::new()
-        .add_message(red_bank.borrow_msg(&coin)?)
-        .add_attribute("action", "borrow")
-        .add_attribute("account_id", account_id)
-        .add_attribute("debt_shares_added", debt_shares_to_add)
-        .add_attribute("coin_borrowed", coin.to_string()))
+    Ok((debt_shares_to_add, red_bank.borrow_msg(coin)?))
 }

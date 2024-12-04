@@ -1,12 +1,14 @@
 use std::marker::PhantomData;
 
+use cosmwasm_schema::serde;
 use cosmwasm_std::{
+    from_json,
     testing::{mock_env, MockApi, MockQuerier, MockStorage},
-    DepsMut, OwnedDeps,
+    Deps, DepsMut, OwnedDeps,
 };
 use mars_oracle_wasm::{contract::entry, WasmPriceSourceUnchecked};
 use mars_testing::{mock_info, MarsMockQuerier};
-use mars_types::oracle::{ExecuteMsg, InstantiateMsg, WasmOracleCustomInitParams};
+use mars_types::oracle::{ExecuteMsg, InstantiateMsg, QueryMsg, WasmOracleCustomInitParams};
 
 pub fn setup_test(
     astroport_factory_address: &str,
@@ -47,4 +49,8 @@ pub fn set_price_source(deps: DepsMut, denom: &str, price_source: WasmPriceSourc
         },
     )
     .unwrap();
+}
+
+pub fn query<T: serde::de::DeserializeOwned>(deps: Deps, msg: QueryMsg) -> T {
+    from_json(entry::query(deps, mock_env(), msg).unwrap()).unwrap()
 }

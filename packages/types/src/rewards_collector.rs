@@ -6,7 +6,7 @@ use mars_utils::{
     helpers::{decimal_param_le_one, integer_param_gt_zero, validate_native_denom},
 };
 
-use crate::{credit_manager::Action, swapper::SwapperRoute};
+use crate::{credit_manager::Action, incentives::IncentiveKind, swapper::SwapperRoute};
 
 const MAX_SLIPPAGE_TOLERANCE_PERCENTAGE: u64 = 50;
 
@@ -161,6 +161,8 @@ pub enum ExecuteMsg {
     /// We wanted to leave protocol rewards in the red-bank so they continue to work as liquidity (until the bot invokes WithdrawFromRedBank).
     /// As an side effect to this, if the market is incentivised with MARS tokens, the contract will also accrue MARS token incentives.
     ClaimIncentiveRewards {
+        /// The kind of incentive, e.g. RedBank or PerpVault
+        start_after_kind: Option<IncentiveKind>,
         /// Start pagination after this collateral denom
         start_after_collateral_denom: Option<String>,
         /// Start pagination after this incentive denom. If supplied you must also supply

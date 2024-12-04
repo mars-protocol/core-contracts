@@ -5,6 +5,7 @@ use mars_types::{
         Action::{Borrow, Deposit, Repay, Withdraw},
         ActionAmount, ActionCoin,
     },
+    health::HealthError,
     oracle::ActionKind,
 };
 
@@ -99,9 +100,9 @@ fn deposit_and_repay_works_without_hf_check() {
         }],
         &[],
     );
-    assert_err(res, ContractError::Std(StdError::generic_err(
-        "Querier contract error: Generic error: Querier contract error: type: cosmwasm_std::math::decimal::Decimal; key: [00, 12, 64, 65, 66, 61, 75, 6C, 74, 5F, 63, 6F, 69, 6E, 5F, 70, 72, 69, 63, 65, 75, 6F, 73, 6D, 6F] not found".to_string()
-    )));
+    assert_err(res, ContractError::Health(HealthError::Std(StdError::generic_err(
+        "Querier contract error: type: cosmwasm_std::math::decimal::Decimal; key: [00, 12, 64, 65, 66, 61, 75, 6C, 74, 5F, 63, 6F, 69, 6E, 5F, 70, 72, 69, 63, 65, 75, 6F, 73, 6D, 6F] not found".to_string()
+    ))));
 
     // Deposit, repay and withdraw in the same TX. Should fail because of HF check
     let res = mock.update_credit_account(
@@ -120,9 +121,9 @@ fn deposit_and_repay_works_without_hf_check() {
         ],
         &[coin(12, &coin_info.denom)],
     );
-    assert_err(res, ContractError::Std(StdError::generic_err(
-        "Querier contract error: Generic error: Querier contract error: type: cosmwasm_std::math::decimal::Decimal; key: [00, 12, 64, 65, 66, 61, 75, 6C, 74, 5F, 63, 6F, 69, 6E, 5F, 70, 72, 69, 63, 65, 75, 6F, 73, 6D, 6F] not found".to_string()
-    )));
+    assert_err(res, ContractError::Health(HealthError::Std(StdError::generic_err(
+        "Querier contract error: type: cosmwasm_std::math::decimal::Decimal; key: [00, 12, 64, 65, 66, 61, 75, 6C, 74, 5F, 63, 6F, 69, 6E, 5F, 70, 72, 69, 63, 65, 75, 6F, 73, 6D, 6F] not found".to_string()
+    ))));
 
     let position = mock.query_positions(&account_id);
     assert_eq!(position.deposits.len(), 1);
@@ -187,9 +188,9 @@ fn withdraw_works_without_hf_check_if_no_debt() {
         })],
         &[],
     );
-    assert_err(res, ContractError::Std(StdError::generic_err(
-        "Querier contract error: Generic error: Querier contract error: type: cosmwasm_std::math::decimal::Decimal; key: [00, 12, 64, 65, 66, 61, 75, 6C, 74, 5F, 63, 6F, 69, 6E, 5F, 70, 72, 69, 63, 65, 75, 6F, 73, 6D, 6F] not found".to_string()
-    )));
+    assert_err(res, ContractError::Health(HealthError::Std(StdError::generic_err(
+        "Querier contract error: type: cosmwasm_std::math::decimal::Decimal; key: [00, 12, 64, 65, 66, 61, 75, 6C, 74, 5F, 63, 6F, 69, 6E, 5F, 70, 72, 69, 63, 65, 75, 6F, 73, 6D, 6F] not found".to_string()
+    ))));
 
     // Repay full debt. HF check should be skipped
     mock.update_credit_account(

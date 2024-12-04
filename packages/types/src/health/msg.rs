@@ -1,7 +1,6 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
 use mars_owner::{OwnerResponse, OwnerUpdate};
 
-use super::AccountKind;
 use crate::oracle::ActionKind;
 
 #[cw_serde]
@@ -30,7 +29,6 @@ pub enum QueryMsg {
     #[returns(super::HealthValuesResponse)]
     HealthValues {
         account_id: String,
-        kind: AccountKind,
         action: ActionKind,
     },
     /// Returns Healthy or Unhealthy state. Does not do health calculations if no debt.
@@ -38,7 +36,6 @@ pub enum QueryMsg {
     #[returns(super::HealthState)]
     HealthState {
         account_id: String,
-        kind: AccountKind,
         action: ActionKind,
     },
     #[returns(ConfigResponse)]

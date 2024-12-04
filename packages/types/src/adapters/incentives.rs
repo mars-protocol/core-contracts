@@ -51,7 +51,8 @@ impl Incentives {
             contract_addr: self.addr.to_string(),
             msg: to_json_binary(&ExecuteMsg::ClaimRewards {
                 account_id: Some(account_id.to_string()),
-                start_after_collateral_denom: None,
+                start_after_kind: None,
+                start_after_denom: None,
                 start_after_incentive_denom: None,
                 limit: None,
             })?,
@@ -106,7 +107,8 @@ impl Incentives {
             &QueryMsg::UserUnclaimedRewards {
                 user: self.credit_manager.to_string(),
                 account_id: Some(account_id.to_string()),
-                start_after_collateral_denom: None,
+                start_after_kind: None,
+                start_after_denom: None,
                 start_after_incentive_denom: None,
                 limit: None,
             },

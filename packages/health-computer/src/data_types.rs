@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal, Uint128};
+use cosmwasm_std::{Addr, Uint128};
 use mars_types::{
     adapters::vault::VaultPositionValue,
-    params::{AssetParams, VaultConfig},
+    params::{PerpParams, VaultConfig},
 };
 
 /// Used as storage when trying to compute Health
@@ -12,15 +12,27 @@ use mars_types::{
 pub struct CollateralValue {
     pub total_collateral_value: Uint128,
     pub max_ltv_adjusted_collateral: Uint128,
-    pub liquidation_threshold_adjusted_collateral: Uint128,
+    pub liq_ltv_adjusted_collateral: Uint128,
+}
+
+#[cw_serde]
+pub struct PerpHealthFactorValues {
+    pub max_ltv_numerator: Uint128,
+    pub max_ltv_denominator: Uint128,
+    pub liq_ltv_numerator: Uint128,
+    pub liq_ltv_denominator: Uint128,
+}
+
+#[cw_serde]
+pub struct PerpPnlValues {
+    pub profit: Uint128, // Values are in oracle denom (uusd)
+    pub loss: Uint128,   // Values are in oracle denom (uusd)
 }
 
 #[cw_serde]
 #[derive(Default)]
-pub struct DenomsData {
-    /// Must include data from info.base token for the vaults
-    pub prices: HashMap<String, Decimal>,
-    pub params: HashMap<String, AssetParams>,
+pub struct PerpsData {
+    pub params: HashMap<String, PerpParams>,
 }
 
 #[cw_serde]

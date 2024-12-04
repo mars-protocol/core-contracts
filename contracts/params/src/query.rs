@@ -4,13 +4,13 @@ use cw_storage_plus::Bound;
 use mars_interest_rate::get_underlying_liquidity_amount;
 use mars_types::{
     address_provider::{self, helpers::query_contract_addrs, MarsAddressType},
-    params::{AssetParams, ConfigResponse, TotalDepositResponse, VaultConfig},
+    params::{AssetParams, ConfigResponse, PerpParams, TotalDepositResponse, VaultConfig},
     red_bank::{self, Market, MarketV2Response},
 };
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::{ADDRESS_PROVIDER, ASSET_PARAMS, VAULT_CONFIGS},
+    state::{ADDRESS_PROVIDER, ASSET_PARAMS, MAX_PERP_PARAMS, PERP_PARAMS, VAULT_CONFIGS},
 };
 
 pub const DEFAULT_LIMIT: u32 = 10;
@@ -19,6 +19,7 @@ pub const MAX_LIMIT: u32 = 30;
 pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     Ok(ConfigResponse {
         address_provider: ADDRESS_PROVIDER.load(deps.storage)?.to_string(),
+        max_perp_params: MAX_PERP_PARAMS.load(deps.storage)?,
     })
 }
 
@@ -34,6 +35,18 @@ pub fn query_all_asset_params(
         .take(limit)
         .map(|res| Ok(res?.1))
         .collect()
+}
+
+pub fn query_all_asset_params_v2(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> Result<PaginationResponse<AssetParams>, ContractError> {
+    let start = start_after.as_ref().map(|denom| Bound::exclusive(denom.as_str()));
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+    paginate_map_query(&ASSET_PARAMS, deps.storage, start, Some(limit), |_res, params| {
+        Ok::<AssetParams, ContractError>(params)
+    })
 }
 
 pub fn query_vault_config(deps: Deps, unchecked: &str) -> StdResult<VaultConfig> {
@@ -82,6 +95,32 @@ pub fn query_all_vault_configs_v2(
 
     paginate_map_query(&VAULT_CONFIGS, deps.storage, start, Some(limit), |_res, config| {
         Ok::<VaultConfig, ContractError>(config)
+    })
+}
+
+pub fn query_all_perp_params(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> StdResult<Vec<PerpParams>> {
+    let start = start_after.as_ref().map(|denom| Bound::exclusive(denom.as_str()));
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT) as usize;
+    PERP_PARAMS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| Ok(res?.1))
+        .collect()
+}
+
+pub fn query_all_perp_params_v2(
+    deps: Deps,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> Result<PaginationResponse<PerpParams>, ContractError> {
+    let start = start_after.as_ref().map(|denom| Bound::exclusive(denom.as_str()));
+    let limit = limit.unwrap_or(DEFAULT_LIMIT).min(MAX_LIMIT);
+    paginate_map_query(&PERP_PARAMS, deps.storage, start, Some(limit), |_res, params| {
+        Ok::<PerpParams, ContractError>(params)
     })
 }
 

@@ -77,7 +77,9 @@ fn utilizations_if_cap_is_base_denom() {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     };
 
     let vault_info_1 = VaultTestInfo {

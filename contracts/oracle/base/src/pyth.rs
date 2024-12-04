@@ -6,9 +6,6 @@ use pyth_sdk_cw::{query_price_feed, Price, PriceFeed, PriceFeedResponse, PriceId
 use super::*;
 use crate::error::ContractError::InvalidPrice;
 
-// We don't support any denom with more than 18 decimals
-const MAX_DENOM_DECIMALS: u8 = 18;
-
 /// We want to discriminate which actions should trigger a circuit breaker check.
 /// The objective is to allow liquidations to happen without requiring too many checks (always be open for liquidations)
 /// while not allowing other actions to be taken in cases of extreme volatility (which could indicate price manipulation attacks).
@@ -28,9 +25,9 @@ pub fn query_pyth_price<P: PriceSourceChecked<Empty>>(
 ) -> ContractResult<Decimal> {
     // Use current price source for USD to check how much 1 USD is worth in base_denom
     let usd_price = price_sources
-        .load(deps.storage, "usd")
+        .load(deps.storage, USD_DENOM)
         .map_err(|_| StdError::generic_err("Price source not found for denom 'usd'"))?
-        .query_price(deps, env, "usd", config, price_sources, kind.clone())?;
+        .query_price(deps, env, USD_DENOM, config, price_sources, kind.clone())?;
 
     let price_feed_response = query_price_feed(&deps.querier, contract_addr, price_feed_id)?;
 
@@ -294,20 +291,6 @@ pub fn scale_to_exponent(value: u128, expo: i32) -> ContractResult<Decimal> {
         let res = Uint128::from(value).checked_mul(target_expo)?;
         Ok(Decimal::from_ratio(res, 1u128))
     }
-}
-
-/// Assert availability of usd price source
-pub fn assert_usd_price_source<P: PriceSourceChecked<Empty>>(
-    deps: &Deps,
-    price_sources: &Map<&str, P>,
-) -> ContractResult<()> {
-    if !price_sources.has(deps.storage, "usd") {
-        return Err(ContractError::InvalidPriceSource {
-            reason: "missing price source for usd".to_string(),
-        });
-    }
-
-    Ok(())
 }
 
 #[cfg(test)]

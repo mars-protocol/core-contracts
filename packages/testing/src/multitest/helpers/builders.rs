@@ -19,7 +19,9 @@ pub fn build_mock_coin_infos(count: usize) -> Vec<CoinInfo> {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             whitelisted: true,
+            withdraw_enabled: true,
             hls: None,
+            close_factor: Decimal::percent(80),
         })
         .collect()
 }

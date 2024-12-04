@@ -15,12 +15,21 @@ pub fn max_swap_prop_test_runner(cases: u32, kind: &SwapKind) {
     runner
         .run(
             &random_health_computer().prop_filter(
-                "For swap we need to ensure 2 available denom params and 1 valid deposit",
-                |h| {
-                    if h.denoms_data.params.len() < 2 {
+                "For swap we need to ensure: 2 available denom params and 1 valid deposit, and pnl not so high as to introduce slight inaccuracies",
+                |h: &HealthComputer| {
+                    if h.asset_params.len() < 2
+                        || h.compute_health()
+                        .unwrap()
+                        .perps_pnl_profit
+                        .gt(&Uint128::new(1000000000000000u128))
+                        || h.compute_health()
+                        .unwrap()
+                        .perps_pnl_loss
+                        .gt(&Uint128::new(1000000000000000u128))
+                    {
                         false
                     } else {
-                        let from_denom = h.denoms_data.params.keys().next().unwrap();
+                        let from_denom = h.asset_params.keys().next().unwrap();
                         h.positions
                             .deposits
                             .iter()
@@ -31,11 +40,11 @@ pub fn max_swap_prop_test_runner(cases: u32, kind: &SwapKind) {
                 },
             ),
             |h| {
-                let from_denom = h.denoms_data.params.keys().next().unwrap();
-                let to_denom = h.denoms_data.params.keys().nth(1).unwrap();
+                let from_denom = h.asset_params.keys().next().unwrap();
+                let to_denom = h.asset_params.keys().nth(1).unwrap();
 
                 let max_swap = h
-                    .max_swap_amount_estimate(from_denom, to_denom, kind, Decimal::zero())
+                    .max_swap_amount_estimate(from_denom, to_denom, kind, Decimal::zero(), false)
                     .unwrap();
 
                 let health_before = h.compute_health().unwrap();
@@ -71,8 +80,8 @@ fn add_swap(
     if let Some(from_lend_coin_index) = from_lend_coin_index {
         from_lend_coin = new_h.positions.lends.get_mut(from_lend_coin_index).unwrap();
     }
-    let from_price = new_h.denoms_data.prices.get(from_denom).unwrap();
-    let to_price = new_h.denoms_data.prices.get(to_denom).unwrap();
+    let from_price = new_h.oracle_prices.get(from_denom).unwrap();
+    let to_price = new_h.oracle_prices.get(to_denom).unwrap();
 
     // Subtract the amount from current deposited and lent balance
     let total_amount = from_deposit_coin.amount + from_lend_coin.amount;

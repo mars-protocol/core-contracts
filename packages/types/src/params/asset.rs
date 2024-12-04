@@ -18,6 +18,7 @@ use crate::error::MarsError;
 #[cw_serde]
 pub struct CmSettings<T> {
     pub whitelisted: bool,
+    pub withdraw_enabled: bool,
     pub hls: Option<HlsParamsBase<T>>,
 }
 
@@ -25,6 +26,7 @@ pub struct CmSettings<T> {
 pub struct RedBankSettings {
     pub deposit_enabled: bool,
     pub borrow_enabled: bool,
+    pub withdraw_enabled: bool,
 }
 
 /// The LB will depend on the Health Factor and a couple other parameters as follows:
@@ -71,6 +73,7 @@ pub struct AssetParamsBase<T> {
     pub liquidation_bonus: LiquidationBonus,
     pub protocol_liquidation_fee: Decimal,
     pub deposit_cap: Uint128,
+    pub close_factor: Decimal,
 }
 
 pub type AssetParams = AssetParamsBase<Addr>;
@@ -82,6 +85,7 @@ impl From<AssetParams> for AssetParamsUnchecked {
             denom: p.denom,
             credit_manager: CmSettings {
                 whitelisted: p.credit_manager.whitelisted,
+                withdraw_enabled: p.credit_manager.withdraw_enabled,
                 hls: p.credit_manager.hls.map(Into::into),
             },
             red_bank: p.red_bank,
@@ -90,6 +94,7 @@ impl From<AssetParams> for AssetParamsUnchecked {
             liquidation_bonus: p.liquidation_bonus,
             protocol_liquidation_fee: p.protocol_liquidation_fee,
             deposit_cap: p.deposit_cap,
+            close_factor: p.close_factor,
         }
     }
 }
@@ -101,6 +106,8 @@ impl AssetParamsUnchecked {
         decimal_param_lt_one(self.max_loan_to_value, "max_loan_to_value")?;
         decimal_param_le_one(self.liquidation_threshold, "liquidation_threshold")?;
         assert_lqt_gt_max_ltv(self.max_loan_to_value, self.liquidation_threshold)?;
+
+        decimal_param_le_one(self.close_factor, "close_factor")?;
 
         self.liquidation_bonus.validate()?;
         decimal_param_lt_one(self.protocol_liquidation_fee, "protocol_liquidation_fee")?;
@@ -117,6 +124,7 @@ impl AssetParamsUnchecked {
             denom: self.denom.clone(),
             credit_manager: CmSettings {
                 whitelisted: self.credit_manager.whitelisted,
+                withdraw_enabled: self.credit_manager.withdraw_enabled,
                 hls,
             },
             red_bank: self.red_bank.clone(),
@@ -125,6 +133,7 @@ impl AssetParamsUnchecked {
             liquidation_bonus: self.liquidation_bonus.clone(),
             protocol_liquidation_fee: self.protocol_liquidation_fee,
             deposit_cap: self.deposit_cap,
+            close_factor: self.close_factor,
         })
     }
 }

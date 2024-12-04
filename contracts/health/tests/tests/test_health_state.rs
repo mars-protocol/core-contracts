@@ -26,11 +26,11 @@ fn zero_debts_results_in_healthy_state() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
     );
 
-    let state =
-        mock.query_health_state(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let state = mock.query_health_state(account_id, ActionKind::Default).unwrap();
 
     assert_eq!(state, HealthState::Healthy);
 }
@@ -63,11 +63,11 @@ fn computing_health_when_healthy() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
     );
 
-    let state =
-        mock.query_health_state(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let state = mock.query_health_state(account_id, ActionKind::Default).unwrap();
     assert_eq!(state, HealthState::Healthy);
 }
 
@@ -99,10 +99,10 @@ fn computing_health_when_unhealthy() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
     );
 
-    let state =
-        mock.query_health_state(account_id, AccountKind::Default, ActionKind::Default).unwrap();
+    let state = mock.query_health_state(account_id, ActionKind::Default).unwrap();
     assert!(matches!(state, HealthState::Unhealthy { .. }));
 }

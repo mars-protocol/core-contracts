@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Decimal, Empty, Uint128};
+use cosmwasm_std::{coin, Addr, Decimal, Empty, Uint128};
 use cw_multi_test::Executor;
 use mars_credit_manager::error::ContractError;
 use mars_mock_oracle::msg::{CoinPrice, InstantiateMsg as OracleInstantiateMsg};
@@ -6,10 +6,10 @@ use mars_testing::multitest::modules::token_factory::CustomApp;
 use mars_types::{
     adapters::{
         health::HealthContractUnchecked, incentives::IncentivesUnchecked, oracle::OracleUnchecked,
-        red_bank::RedBankUnchecked, rewards_collector::RewardsCollector, swapper::SwapperBase,
-        zapper::ZapperBase,
+        params::ParamsUnchecked, perps::PerpsUnchecked, red_bank::RedBankUnchecked,
+        rewards_collector::RewardsCollector, swapper::SwapperBase, zapper::ZapperBase,
     },
-    credit_manager::ConfigUpdates,
+    credit_manager::{ConfigUpdates, KeeperFeeConfig},
     health::AccountKind,
     oracle::ActionKind,
 };
@@ -34,6 +34,10 @@ fn only_owner_can_update_config() {
             zapper: None,
             health_contract: None,
             rewards_collector: None,
+            params: None,
+            perps: None,
+            keeper_fee_config: None,
+            perps_liquidation_bonus_ratio: None,
         },
     );
 
@@ -88,9 +92,15 @@ fn update_config_works_with_full_config() {
     let new_zapper = ZapperBase::new("new_zapper".to_string());
     let new_unlocking_max = Uint128::new(321);
     let new_max_slippage = Decimal::percent(12);
+    let new_perps_lb_ratio = Decimal::percent(39);
     let new_swapper = SwapperBase::new("new_swapper".to_string());
     let new_health_contract = HealthContractUnchecked::new("new_health_contract".to_string());
     let new_rewards_collector = "rewards_collector_contract_new".to_string();
+    let new_params_contract = ParamsUnchecked::new("new_params_contract".to_string());
+    let new_perps_contract = PerpsUnchecked::new("new_perps_contract".to_string());
+    let keeper_fee_config = KeeperFeeConfig {
+        min_fee: coin(100000, "uusdc"),
+    };
 
     mock.update_config(
         &Addr::unchecked(original_config.ownership.owner.clone().unwrap()),
@@ -105,6 +115,10 @@ fn update_config_works_with_full_config() {
             zapper: Some(new_zapper.clone()),
             health_contract: Some(new_health_contract.clone()),
             rewards_collector: Some(new_rewards_collector.clone()),
+            params: Some(new_params_contract.clone()),
+            perps: Some(new_perps_contract.clone()),
+            keeper_fee_config: Some(keeper_fee_config.clone()),
+            perps_liquidation_bonus_ratio: Some(new_perps_lb_ratio),
         },
     )
     .unwrap();
@@ -134,11 +148,26 @@ fn update_config_works_with_full_config() {
     assert_eq!(new_config.max_slippage, new_max_slippage);
     assert_ne!(new_config.max_slippage, original_config.max_slippage);
 
+    assert_eq!(new_config.perps_liquidation_bonus_ratio, new_perps_lb_ratio);
+    assert_ne!(
+        new_config.perps_liquidation_bonus_ratio,
+        original_config.perps_liquidation_bonus_ratio
+    );
+
     assert_eq!(&new_config.swapper, new_swapper.address());
     assert_ne!(new_config.swapper, original_config.swapper);
 
     assert_eq!(&new_config.health_contract, new_health_contract.address());
     assert_ne!(new_config.health_contract, original_config.health_contract);
+
+    assert_eq!(&new_config.params, new_params_contract.address());
+    assert_ne!(new_config.params, original_config.params);
+
+    assert_eq!(&new_config.perps, new_perps_contract.address());
+    assert_ne!(new_config.perps, original_config.perps);
+
+    assert_eq!(new_config.keeper_fee_config, keeper_fee_config);
+    assert_ne!(new_config.keeper_fee_config, original_config.keeper_fee_config);
 
     let rc_accounts = mock.query_accounts(&new_rewards_collector, None, None);
     let rc_account = rc_accounts.first().unwrap();

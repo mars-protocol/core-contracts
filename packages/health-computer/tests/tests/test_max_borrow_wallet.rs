@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cosmwasm_std::{coin, Uint128};
-use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
+use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
 use mars_types::{
     credit_manager::Positions,
     health::{AccountKind, BorrowTarget},
@@ -13,14 +13,16 @@ use super::helpers::{udai_info, umars_info};
 fn max_borrow_wallet_offset_good() {
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(udai.denom.clone(), udai.price)]),
-        params: HashMap::from([(udai.denom.clone(), udai.params.clone())]),
-    };
+    let oracle_prices = HashMap::from([(udai.denom.clone(), udai.price)]);
+    let asset_params = HashMap::from([(udai.denom.clone(), udai.params.clone())]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -33,9 +35,12 @@ fn max_borrow_wallet_offset_good() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let max_borrow_amount =
@@ -47,14 +52,16 @@ fn max_borrow_wallet_offset_good() {
 fn max_borrow_wallet_offset_margin_of_error() {
     let umars = umars_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(umars.denom.clone(), umars.price)]),
-        params: HashMap::from([(umars.denom.clone(), umars.params.clone())]),
-    };
+    let oracle_prices: HashMap<_, _> = HashMap::from([(umars.denom.clone(), umars.price)]);
+    let asset_params = HashMap::from([(umars.denom.clone(), umars.params.clone())]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -67,9 +74,12 @@ fn max_borrow_wallet_offset_margin_of_error() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let max_borrow_amount =

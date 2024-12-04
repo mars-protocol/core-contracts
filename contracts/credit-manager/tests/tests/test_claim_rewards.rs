@@ -2,6 +2,7 @@ use cosmwasm_std::{Addr, Uint128};
 use mars_credit_manager::error::ContractError;
 use mars_types::{
     credit_manager::Action::{Borrow, ClaimRewards, Deposit},
+    incentives::IncentiveKind,
     params::{AssetParamsUpdate::AddOrUpdate, HlsAssetType},
 };
 
@@ -34,7 +35,7 @@ fn claiming_a_single_reward() {
     let unclaimed = mock.query_unclaimed_rewards(&account_id);
     assert!(unclaimed.is_empty());
 
-    mock.add_incentive_reward(&account_id, coin_info.to_coin(123));
+    mock.add_incentive_reward(&account_id, &IncentiveKind::RedBank, coin_info.to_coin(123));
 
     let unclaimed = mock.query_unclaimed_rewards(&account_id);
     assert_eq!(unclaimed.len(), 1);
@@ -70,9 +71,9 @@ fn claiming_multiple_rewards() {
     let unclaimed = mock.query_unclaimed_rewards(&account_id);
     assert!(unclaimed.is_empty());
 
-    mock.add_incentive_reward(&account_id, osmo_info.to_coin(123));
-    mock.add_incentive_reward(&account_id, atom_info.to_coin(555));
-    mock.add_incentive_reward(&account_id, jake_info.to_coin(12));
+    mock.add_incentive_reward(&account_id, &IncentiveKind::RedBank, osmo_info.to_coin(123));
+    mock.add_incentive_reward(&account_id, &IncentiveKind::RedBank, atom_info.to_coin(555));
+    mock.add_incentive_reward(&account_id, &IncentiveKind::RedBank, jake_info.to_coin(12));
 
     let unclaimed = mock.query_unclaimed_rewards(&account_id);
     assert_eq!(unclaimed.len(), 3);
@@ -155,8 +156,8 @@ fn claiming_by_hls_account() {
     let unclaimed = mock.query_unclaimed_rewards(&account_id);
     assert!(unclaimed.is_empty());
 
-    mock.add_incentive_reward(&account_id, osmo_info.to_coin(123));
-    mock.add_incentive_reward(&account_id, jake_info.to_coin(12));
+    mock.add_incentive_reward(&account_id, &IncentiveKind::RedBank, osmo_info.to_coin(123));
+    mock.add_incentive_reward(&account_id, &IncentiveKind::RedBank, jake_info.to_coin(12));
 
     let unclaimed = mock.query_unclaimed_rewards(&account_id);
     assert_eq!(unclaimed.len(), 2);

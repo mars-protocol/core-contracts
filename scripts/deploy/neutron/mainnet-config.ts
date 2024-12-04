@@ -1,6 +1,7 @@
 import { DeploymentConfig, AssetConfig, OracleConfig } from '../../types/config'
 import { NeutronIbcConfig } from '../../types/generated/mars-rewards-collector-base/MarsRewardsCollectorBase.types'
 
+const nobleUsdcDenom = 'ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81'
 const axlUsdcDenom = 'ibc/F082B65C88E4B6D5EF1DB243CDA1D331D002759E938A0F5CD3FFDC5D53B3E349'
 const atomDenom = 'ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9'
 const marsDenom = 'ibc/9598CDEB7C6DB7FC21E746C8E0250B30CD5154F39CA111A9D4948A4362F638BD'
@@ -279,10 +280,12 @@ export const ntrnAsset: AssetConfig = {
   symbol: 'NTRN',
   credit_manager: {
     whitelisted: false,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '5000000000000',
   reserve_factor: '0.1',
@@ -292,6 +295,7 @@ export const ntrnAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const atomAsset: AssetConfig = {
@@ -309,10 +313,12 @@ export const atomAsset: AssetConfig = {
   symbol: 'ATOM',
   credit_manager: {
     whitelisted: false,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '150000000000',
   reserve_factor: '0.1',
@@ -322,6 +328,7 @@ export const atomAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const axlUSDCAsset: AssetConfig = {
@@ -339,10 +346,12 @@ export const axlUSDCAsset: AssetConfig = {
   symbol: 'axlUSDC',
   credit_manager: {
     whitelisted: false,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '500000000000',
   reserve_factor: '0.1',
@@ -352,6 +361,7 @@ export const axlUSDCAsset: AssetConfig = {
     slope_1: '0.125',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const neutronMainnetConfig: DeploymentConfig = {
@@ -377,6 +387,9 @@ export const neutronMainnetConfig: DeploymentConfig = {
       astroport_factory: astroportFactory,
     },
   },
+  keeperFeeConfig: {
+    min_fee: { amount: '1000000', denom: nobleUsdcDenom },
+  },
   rewardsCollector: {
     name: 'neutron',
     timeoutSeconds: 600,
@@ -395,8 +408,6 @@ export const neutronMainnetConfig: DeploymentConfig = {
     name: 'astroport',
     routes: [atomUsdcRoute, atomMarsRoute, ntrnUsdcRoute, ntrnMarsRoute, usdcMarsRoute],
   },
-  targetHealthFactor: '1.05',
-  creditLineCoins: [],
   maxValueForBurn: '10000',
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',
@@ -405,4 +416,6 @@ export const neutronMainnetConfig: DeploymentConfig = {
   assets: [ntrnAsset, atomAsset, axlUSDCAsset],
   vaults: [],
   oracleConfigs: [usdOracle, axlUSDCOracle, marsOracle, atomOracle, ntrnOracle],
+  maxPerpParams: 20,
+  perpsLiquidationBonusRatio: '0.6',
 }

@@ -1,6 +1,6 @@
 {
   "contract_name": "mars-rover-health",
-  "contract_version": "2.1.0",
+  "contract_version": "2.2.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -158,8 +158,7 @@
             "type": "object",
             "required": [
               "account_id",
-              "action",
-              "kind"
+              "action"
             ],
             "properties": {
               "account_id": {
@@ -167,9 +166,6 @@
               },
               "action": {
                 "$ref": "#/definitions/ActionKind"
-              },
-              "kind": {
-                "$ref": "#/definitions/AccountKind"
               }
             },
             "additionalProperties": false
@@ -188,8 +184,7 @@
             "type": "object",
             "required": [
               "account_id",
-              "action",
-              "kind"
+              "action"
             ],
             "properties": {
               "account_id": {
@@ -197,9 +192,6 @@
               },
               "action": {
                 "$ref": "#/definitions/ActionKind"
-              },
-              "kind": {
-                "$ref": "#/definitions/AccountKind"
               }
             },
             "additionalProperties": false
@@ -222,39 +214,6 @@
       }
     ],
     "definitions": {
-      "AccountKind": {
-        "oneOf": [
-          {
-            "type": "string",
-            "enum": [
-              "default",
-              "high_levered_strategy"
-            ]
-          },
-          {
-            "description": "A vault that is managed by a fund manager. Fund manager (wallet) is responsible for managing the vault. Fund manager can't deposit and withdraw funds from the vault.",
-            "type": "object",
-            "required": [
-              "fund_manager"
-            ],
-            "properties": {
-              "fund_manager": {
-                "type": "object",
-                "required": [
-                  "vault_addr"
-                ],
-                "properties": {
-                  "vault_addr": {
-                    "type": "string"
-                  }
-                },
-                "additionalProperties": false
-              }
-            },
-            "additionalProperties": false
-          }
-        ]
-      },
       "ActionKind": {
         "description": "Differentiator for the action (liquidate, withdraw, borrow etc.) being performed.",
         "type": "string",
@@ -370,14 +329,20 @@
       "type": "object",
       "required": [
         "above_max_ltv",
+        "has_perps",
         "liquidatable",
         "liquidation_threshold_adjusted_collateral",
         "max_ltv_adjusted_collateral",
+        "perps_pnl_loss",
+        "perps_pnl_profit",
         "total_collateral_value",
         "total_debt_value"
       ],
       "properties": {
         "above_max_ltv": {
+          "type": "boolean"
+        },
+        "has_perps": {
           "type": "boolean"
         },
         "liquidatable": {
@@ -408,6 +373,12 @@
               "type": "null"
             }
           ]
+        },
+        "perps_pnl_loss": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "perps_pnl_profit": {
+          "$ref": "#/definitions/Uint128"
         },
         "total_collateral_value": {
           "$ref": "#/definitions/Uint128"

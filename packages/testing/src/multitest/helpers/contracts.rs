@@ -118,3 +118,13 @@ pub fn mock_managed_vault_contract() -> Box<dyn Contract<Empty>> {
     );
     Box::new(contract)
 }
+
+pub fn mock_perps_contract() -> Box<dyn Contract<Empty>> {
+    let contract = ContractWrapper::new(
+        mars_perps::contract::execute,
+        mars_perps::contract::instantiate,
+        mars_perps::contract::query,
+    )
+    .with_reply(mars_perps::contract::reply);
+    Box::new(contract)
+}

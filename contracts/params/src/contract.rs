@@ -1,25 +1,31 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response};
 use cw2::set_contract_version;
 use mars_owner::OwnerInit::SetInitialOwner;
 use mars_types::params::{
-    CmEmergencyUpdate, EmergencyUpdate, ExecuteMsg, InstantiateMsg, QueryMsg,
+    CmEmergencyUpdate, EmergencyUpdate, ExecuteMsg, InstantiateMsg, PerpsEmergencyUpdate, QueryMsg,
     RedBankEmergencyUpdate,
 };
 
 use crate::{
-    emergency_powers::{disable_borrowing, disallow_coin, set_zero_deposit_cap, set_zero_max_ltv},
-    error::ContractResult,
+    emergency_powers::{
+        disable_borrowing, disable_counterparty_vault_withdraw, disable_deleverage,
+        disable_perp_trading, disable_withdraw_cm, disable_withdraw_rb, disallow_coin,
+        set_zero_deposit_cap, set_zero_max_ltv,
+    },
+    error::{ContractError, ContractResult},
     execute::{
-        assert_thf, update_asset_params, update_config, update_target_health_factor,
+        reset_risk_manager, update_asset_params, update_config, update_perp_params,
         update_vault_config,
     },
+    migrations,
     query::{
-        query_all_asset_params, query_all_total_deposits_v2, query_all_vault_configs,
+        query_all_asset_params, query_all_asset_params_v2, query_all_perp_params,
+        query_all_perp_params_v2, query_all_total_deposits_v2, query_all_vault_configs,
         query_all_vault_configs_v2, query_config, query_total_deposit, query_vault_config,
     },
-    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, TARGET_HEALTH_FACTOR},
+    state::{ADDRESS_PROVIDER, ASSET_PARAMS, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, RISK_MANAGER},
 };
 
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -38,15 +44,22 @@ pub fn instantiate(
         deps.storage,
         deps.api,
         SetInitialOwner {
-            owner: msg.owner,
+            owner: msg.owner.clone(),
+        },
+    )?;
+
+    RISK_MANAGER.initialize(
+        deps.storage,
+        deps.api,
+        SetInitialOwner {
+            owner: msg.risk_manager.unwrap_or(msg.owner),
         },
     )?;
 
     let address_provider_addr = deps.api.addr_validate(&msg.address_provider)?;
     ADDRESS_PROVIDER.save(deps.storage, &address_provider_addr)?;
 
-    assert_thf(msg.target_health_factor)?;
-    TARGET_HEALTH_FACTOR.save(deps.storage, &msg.target_health_factor)?;
+    MAX_PERP_PARAMS.save(deps.storage, &msg.max_perp_params)?;
 
     Ok(Response::default())
 }
@@ -60,16 +73,22 @@ pub fn execute(
 ) -> ContractResult<Response> {
     match msg {
         ExecuteMsg::UpdateOwner(update) => Ok(OWNER.update(deps, info, update)?),
+        ExecuteMsg::UpdateRiskManager(update) => Ok(RISK_MANAGER.update(deps, info, update)?),
+        ExecuteMsg::ResetRiskManager() => reset_risk_manager(deps, info),
         ExecuteMsg::UpdateConfig {
             address_provider,
-        } => update_config(deps, info, address_provider),
+            max_perp_params,
+        } => update_config(deps, info, address_provider, max_perp_params),
         ExecuteMsg::UpdateAssetParams(update) => update_asset_params(deps, info, update),
-        ExecuteMsg::UpdateTargetHealthFactor(mcf) => update_target_health_factor(deps, info, mcf),
         ExecuteMsg::UpdateVaultConfig(update) => update_vault_config(deps, info, update),
+        ExecuteMsg::UpdatePerpParams(update) => update_perp_params(deps, info, update),
         ExecuteMsg::EmergencyUpdate(update) => match update {
             EmergencyUpdate::RedBank(rb_u) => match rb_u {
                 RedBankEmergencyUpdate::DisableBorrowing(denom) => {
                     disable_borrowing(deps, info, &denom)
+                }
+                RedBankEmergencyUpdate::DisableWithdraw(denom) => {
+                    disable_withdraw_rb(deps, info, &denom)
                 }
             },
             EmergencyUpdate::CreditManager(rv_u) => match rv_u {
@@ -77,6 +96,18 @@ pub fn execute(
                 CmEmergencyUpdate::SetZeroMaxLtvOnVault(v) => set_zero_max_ltv(deps, info, &v),
                 CmEmergencyUpdate::SetZeroDepositCapOnVault(v) => {
                     set_zero_deposit_cap(deps, info, &v)
+                }
+                CmEmergencyUpdate::DisableWithdraw(denom) => {
+                    disable_withdraw_cm(deps, info, &denom)
+                }
+            },
+            EmergencyUpdate::Perps(p_u) => match p_u {
+                PerpsEmergencyUpdate::DisableTrading(denom) => {
+                    disable_perp_trading(deps, info, &denom)
+                }
+                PerpsEmergencyUpdate::DisableDeleverage() => disable_deleverage(deps, info),
+                PerpsEmergencyUpdate::DisableCounterpartyVaultWithdraw() => {
+                    disable_counterparty_vault_withdraw(deps, info)
                 }
             },
         },
@@ -87,6 +118,7 @@ pub fn execute(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
     let res = match msg {
         QueryMsg::Owner {} => to_json_binary(&OWNER.query(deps.storage)?),
+        QueryMsg::RiskManager {} => to_json_binary(&RISK_MANAGER.query(deps.storage)?),
         QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
         QueryMsg::AssetParams {
             denom,
@@ -95,6 +127,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             start_after,
             limit,
         } => to_json_binary(&query_all_asset_params(deps, start_after, limit)?),
+        QueryMsg::AllAssetParamsV2 {
+            start_after,
+            limit,
+        } => to_json_binary(&query_all_asset_params_v2(deps, start_after, limit)?),
         QueryMsg::VaultConfig {
             address,
         } => to_json_binary(&query_vault_config(deps, &address)?),
@@ -106,9 +142,17 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             start_after,
             limit,
         } => to_json_binary(&query_all_vault_configs_v2(deps, start_after, limit)?),
-        QueryMsg::TargetHealthFactor {} => {
-            to_json_binary(&TARGET_HEALTH_FACTOR.load(deps.storage)?)
-        }
+        QueryMsg::PerpParams {
+            denom,
+        } => to_json_binary(&PERP_PARAMS.load(deps.storage, &denom)?),
+        QueryMsg::AllPerpParams {
+            start_after,
+            limit,
+        } => to_json_binary(&query_all_perp_params(deps, start_after, limit)?),
+        QueryMsg::AllPerpParamsV2 {
+            start_after,
+            limit,
+        } => to_json_binary(&query_all_perp_params_v2(deps, start_after, limit)?),
         QueryMsg::TotalDeposit {
             denom,
         } => to_json_binary(&query_total_deposit(deps, &env, denom)?),
@@ -118,4 +162,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         } => to_json_binary(&query_all_total_deposits_v2(deps, start_after, limit)?),
     };
     res.map_err(Into::into)
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
+    migrations::v2_2_0::migrate(deps)
 }

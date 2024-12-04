@@ -1,6 +1,10 @@
+use std::collections::HashMap;
+
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{
+    to_json_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
+};
 use mars_types::oracle::{ActionKind, PriceResponse};
 
 use crate::{
@@ -65,6 +69,10 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             denom,
             kind,
         } => to_json_binary(&query_price(deps, denom, kind)?),
+        QueryMsg::PricesByDenoms {
+            denoms,
+            kind,
+        } => to_json_binary(&query_prices_by_denoms(deps, denoms, kind)?),
     }
 }
 
@@ -82,4 +90,23 @@ fn query_price(
         denom,
         price,
     })
+}
+
+fn query_prices_by_denoms(
+    deps: Deps,
+    denoms: Vec<String>,
+    kind_opt: Option<ActionKind>,
+) -> StdResult<HashMap<String, Decimal>> {
+    let mut prices: HashMap<String, Decimal> = HashMap::new();
+
+    for denom in denoms {
+        let price = match kind_opt.clone().unwrap_or(ActionKind::Default) {
+            ActionKind::Default => DEFAULT_COIN_PRICE.load(deps.storage, denom.clone())?,
+            ActionKind::Liquidation => LIQUIDATION_COIN_PRICE.load(deps.storage, denom.clone())?,
+        };
+
+        prices.insert(denom, price);
+    }
+
+    Ok(prices)
 }

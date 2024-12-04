@@ -1,6 +1,6 @@
 {
   "contract_name": "mars-credit-manager",
-  "contract_version": "2.1.0",
+  "contract_version": "2.2.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -9,11 +9,13 @@
     "required": [
       "health_contract",
       "incentives",
+      "keeper_fee_config",
       "max_slippage",
       "max_unlocking_positions",
       "oracle",
       "owner",
       "params",
+      "perps_liquidation_bonus_ratio",
       "red_bank",
       "swapper",
       "zapper"
@@ -32,6 +34,14 @@
         "allOf": [
           {
             "$ref": "#/definitions/IncentivesUnchecked"
+          }
+        ]
+      },
+      "keeper_fee_config": {
+        "description": "Configuration for the keeper fee for trigger orders",
+        "allOf": [
+          {
+            "$ref": "#/definitions/KeeperFeeConfig"
           }
         ]
       },
@@ -71,6 +81,14 @@
           }
         ]
       },
+      "perps_liquidation_bonus_ratio": {
+        "description": "This variable represents the percentage of the original Liquidation Bonus (LB) applied to negative PnL when liquidating (closing) perps positions. It serves as a reward for the liquidator for closing perps in a loss and improving the account’s Health Factor (HF). This modified LB specifically applies in perps liquidation cases, allowing for a reduced bonus proportion when compared to standard spot liquidation. For example, if set to 0.60, 60% of the original LB will be applied to the perps PnL loss as follows: `bonus applied to liquidation = perps_liquidation_bonus_ratio * original LB * PnL loss`",
+        "allOf": [
+          {
+            "$ref": "#/definitions/Decimal"
+          }
+        ]
+      },
       "red_bank": {
         "description": "The Mars Protocol money market contract where we borrow assets from",
         "allOf": [
@@ -98,6 +116,21 @@
     },
     "additionalProperties": false,
     "definitions": {
+      "Coin": {
+        "type": "object",
+        "required": [
+          "amount",
+          "denom"
+        ],
+        "properties": {
+          "amount": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "denom": {
+            "type": "string"
+          }
+        }
+      },
       "Decimal": {
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
@@ -107,6 +140,18 @@
       },
       "IncentivesUnchecked": {
         "type": "string"
+      },
+      "KeeperFeeConfig": {
+        "type": "object",
+        "required": [
+          "min_fee"
+        ],
+        "properties": {
+          "min_fee": {
+            "$ref": "#/definitions/Coin"
+          }
+        },
+        "additionalProperties": false
       },
       "OracleBase_for_String": {
         "type": "string"
@@ -210,6 +255,31 @@
         "additionalProperties": false
       },
       {
+        "type": "object",
+        "required": [
+          "execute_trigger_order"
+        ],
+        "properties": {
+          "execute_trigger_order": {
+            "type": "object",
+            "required": [
+              "account_id",
+              "trigger_order_id"
+            ],
+            "properties": {
+              "account_id": {
+                "type": "string"
+              },
+              "trigger_order_id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "description": "Update contract config constants",
         "type": "object",
         "required": [
@@ -289,6 +359,32 @@
         "properties": {
           "callback": {
             "$ref": "#/definitions/CallbackMsg"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "This is part of the deleveraging process initiated by the perps contract.\n\nUpdates the account balance based on the specified PnL for the given account. Depending on the PnL type: - Profit: increases the account balance. - Loss: decreases the account balance and borrows from the red-bank if necessary. - Break-even: no action is taken. If the total PnL results in a loss, the corresponding amount of coins must be sent to the perps contract.",
+        "type": "object",
+        "required": [
+          "update_balance_after_deleverage"
+        ],
+        "properties": {
+          "update_balance_after_deleverage": {
+            "type": "object",
+            "required": [
+              "account_id",
+              "pnl"
+            ],
+            "properties": {
+              "account_id": {
+                "type": "string"
+              },
+              "pnl": {
+                "$ref": "#/definitions/PnL"
+              }
+            },
+            "additionalProperties": false
           }
         },
         "additionalProperties": false
@@ -460,6 +556,175 @@
                       "string",
                       "null"
                     ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Provide liquidity of the base token to the perp vault",
+            "type": "object",
+            "required": [
+              "deposit_to_perp_vault"
+            ],
+            "properties": {
+              "deposit_to_perp_vault": {
+                "type": "object",
+                "required": [
+                  "coin"
+                ],
+                "properties": {
+                  "coin": {
+                    "$ref": "#/definitions/ActionCoin"
+                  },
+                  "max_receivable_shares": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/Uint128"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Unlock liquidity from the perp vault. The unlocked tokens will have to wait a cooldown period before they can be withdrawn.",
+            "type": "object",
+            "required": [
+              "unlock_from_perp_vault"
+            ],
+            "properties": {
+              "unlock_from_perp_vault": {
+                "type": "object",
+                "required": [
+                  "shares"
+                ],
+                "properties": {
+                  "shares": {
+                    "$ref": "#/definitions/Uint128"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Withdraw liquidity from the perp vault",
+            "type": "object",
+            "required": [
+              "withdraw_from_perp_vault"
+            ],
+            "properties": {
+              "withdraw_from_perp_vault": {
+                "type": "object",
+                "properties": {
+                  "min_receive": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/Uint128"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Execute a state update against the specified perp market for the given account. If no position exists in the given market, a position is created. Existing postions are modified. Note that size is signed - to increase short or reduce long, use a negative value - to reduce short or increase long, use a positive value",
+            "type": "object",
+            "required": [
+              "execute_perp_order"
+            ],
+            "properties": {
+              "execute_perp_order": {
+                "type": "object",
+                "required": [
+                  "denom",
+                  "order_size"
+                ],
+                "properties": {
+                  "denom": {
+                    "type": "string"
+                  },
+                  "order_size": {
+                    "$ref": "#/definitions/Int128"
+                  },
+                  "reduce_only": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Dispatch orders to be triggered under specified conditions",
+            "type": "object",
+            "required": [
+              "create_trigger_order"
+            ],
+            "properties": {
+              "create_trigger_order": {
+                "type": "object",
+                "required": [
+                  "actions",
+                  "conditions",
+                  "keeper_fee"
+                ],
+                "properties": {
+                  "actions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/Action"
+                    }
+                  },
+                  "conditions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/Condition"
+                    }
+                  },
+                  "keeper_fee": {
+                    "$ref": "#/definitions/Coin"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "delete_trigger_order"
+            ],
+            "properties": {
+              "delete_trigger_order": {
+                "type": "object",
+                "required": [
+                  "trigger_order_id"
+                ],
+                "properties": {
+                  "trigger_order_id": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -1170,6 +1435,164 @@
             "additionalProperties": false
           },
           {
+            "description": "Corresponding to the DepositToPerpVault action",
+            "type": "object",
+            "required": [
+              "deposit_to_perp_vault"
+            ],
+            "properties": {
+              "deposit_to_perp_vault": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "coin"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "coin": {
+                    "$ref": "#/definitions/ActionCoin"
+                  },
+                  "max_receivable_shares": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/Uint128"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Corresponding to the UnlockFromPerpVault action",
+            "type": "object",
+            "required": [
+              "unlock_from_perp_vault"
+            ],
+            "properties": {
+              "unlock_from_perp_vault": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "shares"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "shares": {
+                    "$ref": "#/definitions/Uint128"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Corresponding to the WithdrawFromPerpVault action",
+            "type": "object",
+            "required": [
+              "withdraw_from_perp_vault"
+            ],
+            "properties": {
+              "withdraw_from_perp_vault": {
+                "type": "object",
+                "required": [
+                  "account_id"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "min_receive": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/Uint128"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "create_trigger_order"
+            ],
+            "properties": {
+              "create_trigger_order": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "actions",
+                  "conditions",
+                  "keeper_fee"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "actions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/Action"
+                    }
+                  },
+                  "conditions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/Condition"
+                    }
+                  },
+                  "keeper_fee": {
+                    "$ref": "#/definitions/Coin"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "delete_trigger_order"
+            ],
+            "properties": {
+              "delete_trigger_order": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "trigger_order_id"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "trigger_order_id": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Adds coin to a vault strategy",
             "type": "object",
             "required": [
@@ -1266,6 +1689,42 @@
             "additionalProperties": false
           },
           {
+            "description": "Executes a perp order against the given market. If no position exists, a position is opened.",
+            "type": "object",
+            "required": [
+              "execute_perp_order"
+            ],
+            "properties": {
+              "execute_perp_order": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "denom",
+                  "size"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "denom": {
+                    "type": "string"
+                  },
+                  "reduce_only": {
+                    "type": [
+                      "boolean",
+                      "null"
+                    ]
+                  },
+                  "size": {
+                    "$ref": "#/definitions/Int128"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Requests unlocking of shares for a vault with a lock period",
             "type": "object",
             "required": [
@@ -1328,6 +1787,28 @@
             "additionalProperties": false
           },
           {
+            "description": "Close all perp positions before liquidation",
+            "type": "object",
+            "required": [
+              "close_all_perps"
+            ],
+            "properties": {
+              "close_all_perps": {
+                "type": "object",
+                "required": [
+                  "account_id"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Pay back debts of a liquidatable rover account for a bonus",
             "type": "object",
             "required": [
@@ -1340,6 +1821,7 @@
                   "debt_coin",
                   "liquidatee_account_id",
                   "liquidator_account_id",
+                  "prev_health",
                   "request"
                 ],
                 "properties": {
@@ -1351,6 +1833,9 @@
                   },
                   "liquidator_account_id": {
                     "type": "string"
+                  },
+                  "prev_health": {
+                    "$ref": "#/definitions/HealthValuesResponse"
                   },
                   "request": {
                     "$ref": "#/definitions/LiquidateRequest_for_VaultBase_for_Addr"
@@ -1714,6 +2199,107 @@
           }
         }
       },
+      "Comparison": {
+        "type": "string",
+        "enum": [
+          "greater_than",
+          "less_than"
+        ]
+      },
+      "Condition": {
+        "oneOf": [
+          {
+            "description": "If the oracle price is above or below the specified threshold, depending on the comparison, the condition is met.",
+            "type": "object",
+            "required": [
+              "oracle_price"
+            ],
+            "properties": {
+              "oracle_price": {
+                "type": "object",
+                "required": [
+                  "comparison",
+                  "denom",
+                  "price"
+                ],
+                "properties": {
+                  "comparison": {
+                    "$ref": "#/definitions/Comparison"
+                  },
+                  "denom": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "$ref": "#/definitions/Decimal"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Trigger based on a relative price or price ratio of two prices. The given price is compared to the Base / Quote ratio.",
+            "type": "object",
+            "required": [
+              "relative_price"
+            ],
+            "properties": {
+              "relative_price": {
+                "type": "object",
+                "required": [
+                  "base_price_denom",
+                  "comparison",
+                  "price",
+                  "quote_price_denom"
+                ],
+                "properties": {
+                  "base_price_denom": {
+                    "type": "string"
+                  },
+                  "comparison": {
+                    "$ref": "#/definitions/Comparison"
+                  },
+                  "price": {
+                    "$ref": "#/definitions/Decimal"
+                  },
+                  "quote_price_denom": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "If the health factor of the account is above or below the specified threshold, depending on the comparison, the condition is met.",
+            "type": "object",
+            "required": [
+              "health_factor"
+            ],
+            "properties": {
+              "health_factor": {
+                "type": "object",
+                "required": [
+                  "comparison",
+                  "threshold"
+                ],
+                "properties": {
+                  "comparison": {
+                    "$ref": "#/definitions/Comparison"
+                  },
+                  "threshold": {
+                    "$ref": "#/definitions/Decimal"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "ConfigUpdates": {
         "description": "Used when you want to update fields on Instantiate config",
         "type": "object",
@@ -1748,6 +2334,16 @@
               }
             ]
           },
+          "keeper_fee_config": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/KeeperFeeConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "max_slippage": {
             "anyOf": [
               {
@@ -1772,6 +2368,36 @@
             "anyOf": [
               {
                 "$ref": "#/definitions/OracleBase_for_String"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "params": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/ParamsBase_for_String"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perps": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/PerpsBase_for_String"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perps_liquidation_bonus_ratio": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
               },
               {
                 "type": "null"
@@ -1903,8 +2529,88 @@
           }
         ]
       },
+      "HealthValuesResponse": {
+        "type": "object",
+        "required": [
+          "above_max_ltv",
+          "has_perps",
+          "liquidatable",
+          "liquidation_threshold_adjusted_collateral",
+          "max_ltv_adjusted_collateral",
+          "perps_pnl_loss",
+          "perps_pnl_profit",
+          "total_collateral_value",
+          "total_debt_value"
+        ],
+        "properties": {
+          "above_max_ltv": {
+            "type": "boolean"
+          },
+          "has_perps": {
+            "type": "boolean"
+          },
+          "liquidatable": {
+            "type": "boolean"
+          },
+          "liquidation_health_factor": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "liquidation_threshold_adjusted_collateral": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "max_ltv_adjusted_collateral": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "max_ltv_health_factor": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "perps_pnl_loss": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "perps_pnl_profit": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "total_collateral_value": {
+            "$ref": "#/definitions/Uint128"
+          },
+          "total_debt_value": {
+            "$ref": "#/definitions/Uint128"
+          }
+        },
+        "additionalProperties": false
+      },
       "IncentivesUnchecked": {
         "type": "string"
+      },
+      "Int128": {
+        "description": "An implementation of i128 that is using strings for JSON encoding/decoding, such that the full i128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `i128` to get the value out:\n\n``` # use cosmwasm_std::Int128; let a = Int128::from(258i128); assert_eq!(a.i128(), 258); ```",
+        "type": "string"
+      },
+      "KeeperFeeConfig": {
+        "type": "object",
+        "required": [
+          "min_fee"
+        ],
+        "properties": {
+          "min_fee": {
+            "$ref": "#/definitions/Coin"
+          }
+        },
+        "additionalProperties": false
       },
       "LiquidateRequest_for_VaultBase_for_Addr": {
         "oneOf": [
@@ -2187,6 +2893,47 @@
           }
         ]
       },
+      "ParamsBase_for_String": {
+        "type": "string"
+      },
+      "PerpsBase_for_String": {
+        "type": "string"
+      },
+      "PnL": {
+        "description": "The profit-and-loss of a perp position, denominated in the base currency.",
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "break_even"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "profit"
+            ],
+            "properties": {
+              "profit": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "loss"
+            ],
+            "properties": {
+              "loss": {
+                "$ref": "#/definitions/Coin"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "RedBankUnchecked": {
         "type": "string"
       },
@@ -2415,6 +3162,16 @@
             "properties": {
               "account_id": {
                 "type": "string"
+              },
+              "action": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/ActionKind"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               }
             },
             "additionalProperties": false
@@ -2659,6 +3416,82 @@
         "additionalProperties": false
       },
       {
+        "description": "Return all trigger orders.",
+        "type": "object",
+        "required": [
+          "all_trigger_orders"
+        ],
+        "properties": {
+          "all_trigger_orders": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "array",
+                  "null"
+                ],
+                "items": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "string"
+                  }
+                ],
+                "maxItems": 2,
+                "minItems": 2
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Return all trigger orders for an account.",
+        "type": "object",
+        "required": [
+          "all_account_trigger_orders"
+        ],
+        "properties": {
+          "all_account_trigger_orders": {
+            "type": "object",
+            "required": [
+              "account_id"
+            ],
+            "properties": {
+              "account_id": {
+                "type": "string"
+              },
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "description": "Enumerate all vault bindings; start_after accepts account_id",
         "type": "object",
         "required": [
@@ -2690,6 +3523,14 @@
       }
     ],
     "definitions": {
+      "ActionKind": {
+        "description": "Differentiator for the action (liquidate, withdraw, borrow etc.) being performed.",
+        "type": "string",
+        "enum": [
+          "default",
+          "liquidation"
+        ]
+      },
       "Addr": {
         "description": "A human readable address.\n\nIn Cosmos, this is typically bech32 encoded. But for multi-chain smart contracts no assumptions should be made other than being UTF-8 encoded and of reasonable length.\n\nThis type represents a validated address. It can be created in the following ways 1. Use `Addr::unchecked(input)` 2. Use `let checked: Addr = deps.api.addr_validate(input)?` 3. Use `let checked: Addr = deps.api.addr_humanize(canonical_addr)?` 4. Deserialize from JSON. This must only be done from JSON that was validated before such as a contract's state. `Addr` must not be used in messages sent by the user because this would result in unvalidated instances.\n\nThis type is immutable. If you really need to mutate it (Really? Are you sure?), create a mutable copy using `let mut mutable = Addr::to_string()` and operate on that `String` instance.",
         "type": "string"
@@ -2929,6 +3770,1073 @@
         }
       }
     },
+    "all_account_trigger_orders": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PaginationResponse_for_TriggerOrderResponse",
+      "type": "object",
+      "required": [
+        "data",
+        "metadata"
+      ],
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TriggerOrderResponse"
+          }
+        },
+        "metadata": {
+          "$ref": "#/definitions/Metadata"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Action": {
+          "description": "The list of actions that users can perform on their positions",
+          "oneOf": [
+            {
+              "description": "Deposit coin of specified denom and amount. Verifies if the correct amount is sent with transaction.",
+              "type": "object",
+              "required": [
+                "deposit"
+              ],
+              "properties": {
+                "deposit": {
+                  "$ref": "#/definitions/Coin"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Withdraw coin of specified denom and amount",
+              "type": "object",
+              "required": [
+                "withdraw"
+              ],
+              "properties": {
+                "withdraw": {
+                  "$ref": "#/definitions/ActionCoin"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Withdraw coin of specified denom and amount to a wallet address",
+              "type": "object",
+              "required": [
+                "withdraw_to_wallet"
+              ],
+              "properties": {
+                "withdraw_to_wallet": {
+                  "type": "object",
+                  "required": [
+                    "coin",
+                    "recipient"
+                  ],
+                  "properties": {
+                    "coin": {
+                      "$ref": "#/definitions/ActionCoin"
+                    },
+                    "recipient": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Borrow coin of specified amount from Red Bank",
+              "type": "object",
+              "required": [
+                "borrow"
+              ],
+              "properties": {
+                "borrow": {
+                  "$ref": "#/definitions/Coin"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Lend coin to the Red Bank",
+              "type": "object",
+              "required": [
+                "lend"
+              ],
+              "properties": {
+                "lend": {
+                  "$ref": "#/definitions/ActionCoin"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Reclaim the coins that were lent to the Red Bank.",
+              "type": "object",
+              "required": [
+                "reclaim"
+              ],
+              "properties": {
+                "reclaim": {
+                  "$ref": "#/definitions/ActionCoin"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "For assets lent to the Red Bank, some can accumulate incentive rewards. This message claims all of them adds them to account balance.",
+              "type": "object",
+              "required": [
+                "claim_rewards"
+              ],
+              "properties": {
+                "claim_rewards": {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Repay coin of specified amount back to Red Bank. If `amount: AccountBalance` is passed, the repaid amount will be the minimum between account balance for denom and total owed. The sender will repay on behalf of the recipient account. If 'recipient_account_id: None', the sender repays to its own account.",
+              "type": "object",
+              "required": [
+                "repay"
+              ],
+              "properties": {
+                "repay": {
+                  "type": "object",
+                  "required": [
+                    "coin"
+                  ],
+                  "properties": {
+                    "coin": {
+                      "$ref": "#/definitions/ActionCoin"
+                    },
+                    "recipient_account_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Provide liquidity of the base token to the perp vault",
+              "type": "object",
+              "required": [
+                "deposit_to_perp_vault"
+              ],
+              "properties": {
+                "deposit_to_perp_vault": {
+                  "type": "object",
+                  "required": [
+                    "coin"
+                  ],
+                  "properties": {
+                    "coin": {
+                      "$ref": "#/definitions/ActionCoin"
+                    },
+                    "max_receivable_shares": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/Uint128"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Unlock liquidity from the perp vault. The unlocked tokens will have to wait a cooldown period before they can be withdrawn.",
+              "type": "object",
+              "required": [
+                "unlock_from_perp_vault"
+              ],
+              "properties": {
+                "unlock_from_perp_vault": {
+                  "type": "object",
+                  "required": [
+                    "shares"
+                  ],
+                  "properties": {
+                    "shares": {
+                      "$ref": "#/definitions/Uint128"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Withdraw liquidity from the perp vault",
+              "type": "object",
+              "required": [
+                "withdraw_from_perp_vault"
+              ],
+              "properties": {
+                "withdraw_from_perp_vault": {
+                  "type": "object",
+                  "properties": {
+                    "min_receive": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/Uint128"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Execute a state update against the specified perp market for the given account. If no position exists in the given market, a position is created. Existing postions are modified. Note that size is signed - to increase short or reduce long, use a negative value - to reduce short or increase long, use a positive value",
+              "type": "object",
+              "required": [
+                "execute_perp_order"
+              ],
+              "properties": {
+                "execute_perp_order": {
+                  "type": "object",
+                  "required": [
+                    "denom",
+                    "order_size"
+                  ],
+                  "properties": {
+                    "denom": {
+                      "type": "string"
+                    },
+                    "order_size": {
+                      "$ref": "#/definitions/Int128"
+                    },
+                    "reduce_only": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Dispatch orders to be triggered under specified conditions",
+              "type": "object",
+              "required": [
+                "create_trigger_order"
+              ],
+              "properties": {
+                "create_trigger_order": {
+                  "type": "object",
+                  "required": [
+                    "actions",
+                    "conditions",
+                    "keeper_fee"
+                  ],
+                  "properties": {
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/Action"
+                      }
+                    },
+                    "conditions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/Condition"
+                      }
+                    },
+                    "keeper_fee": {
+                      "$ref": "#/definitions/Coin"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "delete_trigger_order"
+              ],
+              "properties": {
+                "delete_trigger_order": {
+                  "type": "object",
+                  "required": [
+                    "trigger_order_id"
+                  ],
+                  "properties": {
+                    "trigger_order_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Deposit coins into vault strategy If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault",
+              "type": "object",
+              "required": [
+                "enter_vault"
+              ],
+              "properties": {
+                "enter_vault": {
+                  "type": "object",
+                  "required": [
+                    "coin",
+                    "vault"
+                  ],
+                  "properties": {
+                    "coin": {
+                      "$ref": "#/definitions/ActionCoin"
+                    },
+                    "vault": {
+                      "$ref": "#/definitions/VaultBase_for_String"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Withdraw underlying coins from vault",
+              "type": "object",
+              "required": [
+                "exit_vault"
+              ],
+              "properties": {
+                "exit_vault": {
+                  "type": "object",
+                  "required": [
+                    "amount",
+                    "vault"
+                  ],
+                  "properties": {
+                    "amount": {
+                      "$ref": "#/definitions/Uint128"
+                    },
+                    "vault": {
+                      "$ref": "#/definitions/VaultBase_for_String"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Requests unlocking of shares for a vault with a required lock period",
+              "type": "object",
+              "required": [
+                "request_vault_unlock"
+              ],
+              "properties": {
+                "request_vault_unlock": {
+                  "type": "object",
+                  "required": [
+                    "amount",
+                    "vault"
+                  ],
+                  "properties": {
+                    "amount": {
+                      "$ref": "#/definitions/Uint128"
+                    },
+                    "vault": {
+                      "$ref": "#/definitions/VaultBase_for_String"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Withdraws the assets for unlocking position id from vault. Required time must have elapsed.",
+              "type": "object",
+              "required": [
+                "exit_vault_unlocked"
+              ],
+              "properties": {
+                "exit_vault_unlocked": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "vault"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "vault": {
+                      "$ref": "#/definitions/VaultBase_for_String"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Pay back debt of a liquidatable rover account for a via liquidating a specific type of the position.",
+              "type": "object",
+              "required": [
+                "liquidate"
+              ],
+              "properties": {
+                "liquidate": {
+                  "type": "object",
+                  "required": [
+                    "debt_coin",
+                    "liquidatee_account_id",
+                    "request"
+                  ],
+                  "properties": {
+                    "debt_coin": {
+                      "description": "The coin they wish to acquire from the liquidatee (amount returned will include the bonus)",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Coin"
+                        }
+                      ]
+                    },
+                    "liquidatee_account_id": {
+                      "description": "The credit account id of the one with a liquidation threshold health factor 1 or below",
+                      "type": "string"
+                    },
+                    "request": {
+                      "description": "Position details to be liquidated",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/LiquidateRequest_for_VaultBase_for_String"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Perform a swapper with an exact-in amount. Requires slippage allowance %. If `coin_in.amount: AccountBalance`, the accounts entire balance of `coin_in.denom` will be used.",
+              "type": "object",
+              "required": [
+                "swap_exact_in"
+              ],
+              "properties": {
+                "swap_exact_in": {
+                  "type": "object",
+                  "required": [
+                    "coin_in",
+                    "denom_out",
+                    "min_receive"
+                  ],
+                  "properties": {
+                    "coin_in": {
+                      "$ref": "#/definitions/ActionCoin"
+                    },
+                    "denom_out": {
+                      "type": "string"
+                    },
+                    "min_receive": {
+                      "$ref": "#/definitions/Uint128"
+                    },
+                    "route": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/SwapperRoute"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Add Vec<Coin> to liquidity pool in exchange for LP tokens. Slippage allowance (%) is used to calculate the minimum amount of LP tokens to receive.",
+              "type": "object",
+              "required": [
+                "provide_liquidity"
+              ],
+              "properties": {
+                "provide_liquidity": {
+                  "type": "object",
+                  "required": [
+                    "coins_in",
+                    "lp_token_out",
+                    "slippage"
+                  ],
+                  "properties": {
+                    "coins_in": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/ActionCoin"
+                      }
+                    },
+                    "lp_token_out": {
+                      "type": "string"
+                    },
+                    "slippage": {
+                      "$ref": "#/definitions/Decimal"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Send LP token and withdraw corresponding reserve assets from pool. If `lp_token.amount: AccountBalance`, the account balance of `lp_token.denom` will be used. /// Slippage allowance (%) is used to calculate the minimum amount of reserve assets to receive.",
+              "type": "object",
+              "required": [
+                "withdraw_liquidity"
+              ],
+              "properties": {
+                "withdraw_liquidity": {
+                  "type": "object",
+                  "required": [
+                    "lp_token",
+                    "slippage"
+                  ],
+                  "properties": {
+                    "lp_token": {
+                      "$ref": "#/definitions/ActionCoin"
+                    },
+                    "slippage": {
+                      "$ref": "#/definitions/Decimal"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Stake lp token in astroport incentives contract via mars incentives",
+              "type": "object",
+              "required": [
+                "stake_astro_lp"
+              ],
+              "properties": {
+                "stake_astro_lp": {
+                  "type": "object",
+                  "required": [
+                    "lp_token"
+                  ],
+                  "properties": {
+                    "lp_token": {
+                      "$ref": "#/definitions/ActionCoin"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Unstake lp token from astroport incentives contract via mars incentives",
+              "type": "object",
+              "required": [
+                "unstake_astro_lp"
+              ],
+              "properties": {
+                "unstake_astro_lp": {
+                  "type": "object",
+                  "required": [
+                    "lp_token"
+                  ],
+                  "properties": {
+                    "lp_token": {
+                      "$ref": "#/definitions/ActionCoin"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Claim accrued LP incentive rewards from astroport incentives contract via mars incentives",
+              "type": "object",
+              "required": [
+                "claim_astro_lp_rewards"
+              ],
+              "properties": {
+                "claim_astro_lp_rewards": {
+                  "type": "object",
+                  "required": [
+                    "lp_denom"
+                  ],
+                  "properties": {
+                    "lp_denom": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Refunds all coin balances back to user wallet",
+              "type": "object",
+              "required": [
+                "refund_all_coin_balances"
+              ],
+              "properties": {
+                "refund_all_coin_balances": {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "ActionAmount": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "account_balance"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "exact"
+              ],
+              "properties": {
+                "exact": {
+                  "$ref": "#/definitions/Uint128"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "ActionCoin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/ActionAmount"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "AstroRoute": {
+          "type": "object",
+          "required": [
+            "swaps"
+          ],
+          "properties": {
+            "swaps": {
+              "description": "The swap operations of the route",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/AstroSwap"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "AstroSwap": {
+          "type": "object",
+          "required": [
+            "from",
+            "to"
+          ],
+          "properties": {
+            "from": {
+              "description": "Asset to swap from",
+              "type": "string"
+            },
+            "to": {
+              "description": "Asset to swap to",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          }
+        },
+        "Comparison": {
+          "type": "string",
+          "enum": [
+            "greater_than",
+            "less_than"
+          ]
+        },
+        "Condition": {
+          "oneOf": [
+            {
+              "description": "If the oracle price is above or below the specified threshold, depending on the comparison, the condition is met.",
+              "type": "object",
+              "required": [
+                "oracle_price"
+              ],
+              "properties": {
+                "oracle_price": {
+                  "type": "object",
+                  "required": [
+                    "comparison",
+                    "denom",
+                    "price"
+                  ],
+                  "properties": {
+                    "comparison": {
+                      "$ref": "#/definitions/Comparison"
+                    },
+                    "denom": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "$ref": "#/definitions/Decimal"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Trigger based on a relative price or price ratio of two prices. The given price is compared to the Base / Quote ratio.",
+              "type": "object",
+              "required": [
+                "relative_price"
+              ],
+              "properties": {
+                "relative_price": {
+                  "type": "object",
+                  "required": [
+                    "base_price_denom",
+                    "comparison",
+                    "price",
+                    "quote_price_denom"
+                  ],
+                  "properties": {
+                    "base_price_denom": {
+                      "type": "string"
+                    },
+                    "comparison": {
+                      "$ref": "#/definitions/Comparison"
+                    },
+                    "price": {
+                      "$ref": "#/definitions/Decimal"
+                    },
+                    "quote_price_denom": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "If the health factor of the account is above or below the specified threshold, depending on the comparison, the condition is met.",
+              "type": "object",
+              "required": [
+                "health_factor"
+              ],
+              "properties": {
+                "health_factor": {
+                  "type": "object",
+                  "required": [
+                    "comparison",
+                    "threshold"
+                  ],
+                  "properties": {
+                    "comparison": {
+                      "$ref": "#/definitions/Comparison"
+                    },
+                    "threshold": {
+                      "$ref": "#/definitions/Decimal"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "Int128": {
+          "description": "An implementation of i128 that is using strings for JSON encoding/decoding, such that the full i128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `i128` to get the value out:\n\n``` # use cosmwasm_std::Int128; let a = Int128::from(258i128); assert_eq!(a.i128(), 258); ```",
+          "type": "string"
+        },
+        "LiquidateRequest_for_VaultBase_for_String": {
+          "oneOf": [
+            {
+              "description": "Pay back debt of a liquidatable rover account for a bonus. Requires specifying 1) the debt denom/amount of what the liquidator wants to payoff and 2) the request coin denom which the liquidatee should have a balance of. The amount returned to liquidator will be the request coin of the amount that precisely matches the value of the debt + a liquidation bonus. The debt amount will be adjusted down if: - Exceeds liquidatee's total debt for denom - Not enough liquidatee request coin balance to match - The value of the debt repaid exceeds the maximum close factor %\n\nLiquidation should prioritize first the not lent coin and if more needs to be serviced to the liquidator it should reclaim (withdrawn from Red Bank).",
+              "type": "object",
+              "required": [
+                "deposit"
+              ],
+              "properties": {
+                "deposit": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Pay back debt of a liquidatable rover account for a via liquidating a Lent position. Lent shares are transfered from the liquidatable to the liquidator.",
+              "type": "object",
+              "required": [
+                "lend"
+              ],
+              "properties": {
+                "lend": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Pay back debt of a liquidatable rover account for a via liquidating a vault position. Similar to `Deposit` msg and will make similar adjustments to the request. The vault position will be withdrawn (and force withdrawn if a locked vault position) and the underlying assets will transferred to the liquidator. The `VaultPositionType` will determine which bucket to liquidate from.",
+              "type": "object",
+              "required": [
+                "vault"
+              ],
+              "properties": {
+                "vault": {
+                  "type": "object",
+                  "required": [
+                    "position_type",
+                    "request_vault"
+                  ],
+                  "properties": {
+                    "position_type": {
+                      "$ref": "#/definitions/VaultPositionType"
+                    },
+                    "request_vault": {
+                      "$ref": "#/definitions/VaultBase_for_String"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Pay back debt of a liquidatable credit manager account for a via liquidating an Astro LP position. LP shares are transfered from the liquidatable to the liquidator.",
+              "type": "object",
+              "required": [
+                "staked_astro_lp"
+              ],
+              "properties": {
+                "staked_astro_lp": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Metadata": {
+          "type": "object",
+          "required": [
+            "has_more"
+          ],
+          "properties": {
+            "has_more": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "OsmoRoute": {
+          "type": "object",
+          "required": [
+            "swaps"
+          ],
+          "properties": {
+            "swaps": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/OsmoSwap"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "OsmoSwap": {
+          "description": "Swap operation with pool id and asset to swap to. \"from\" is another asset in the pool.",
+          "type": "object",
+          "required": [
+            "pool_id",
+            "to"
+          ],
+          "properties": {
+            "pool_id": {
+              "description": "Pool id",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "to": {
+              "description": "Asset to swap to",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "SwapperRoute": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "astro"
+              ],
+              "properties": {
+                "astro": {
+                  "$ref": "#/definitions/AstroRoute"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "osmo"
+              ],
+              "properties": {
+                "osmo": {
+                  "$ref": "#/definitions/OsmoRoute"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "TriggerOrder": {
+          "type": "object",
+          "required": [
+            "actions",
+            "conditions",
+            "keeper_fee",
+            "order_id"
+          ],
+          "properties": {
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Action"
+              }
+            },
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Condition"
+              }
+            },
+            "keeper_fee": {
+              "$ref": "#/definitions/Coin"
+            },
+            "order_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "TriggerOrderResponse": {
+          "type": "object",
+          "required": [
+            "account_id",
+            "order"
+          ],
+          "properties": {
+            "account_id": {
+              "type": "string"
+            },
+            "order": {
+              "$ref": "#/definitions/TriggerOrder"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        },
+        "VaultBase_for_String": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "VaultPositionType": {
+          "type": "string",
+          "enum": [
+            "u_n_l_o_c_k_e_d",
+            "l_o_c_k_e_d",
+            "u_n_l_o_c_k_i_n_g"
+          ]
+        }
+      }
+    },
     "all_coin_balances": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Array_of_CoinBalanceResponseItem",
@@ -3024,6 +4932,1073 @@
         "Uint128": {
           "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
           "type": "string"
+        }
+      }
+    },
+    "all_trigger_orders": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "PaginationResponse_for_TriggerOrderResponse",
+      "type": "object",
+      "required": [
+        "data",
+        "metadata"
+      ],
+      "properties": {
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TriggerOrderResponse"
+          }
+        },
+        "metadata": {
+          "$ref": "#/definitions/Metadata"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Action": {
+          "description": "The list of actions that users can perform on their positions",
+          "oneOf": [
+            {
+              "description": "Deposit coin of specified denom and amount. Verifies if the correct amount is sent with transaction.",
+              "type": "object",
+              "required": [
+                "deposit"
+              ],
+              "properties": {
+                "deposit": {
+                  "$ref": "#/definitions/Coin"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Withdraw coin of specified denom and amount",
+              "type": "object",
+              "required": [
+                "withdraw"
+              ],
+              "properties": {
+                "withdraw": {
+                  "$ref": "#/definitions/ActionCoin"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Withdraw coin of specified denom and amount to a wallet address",
+              "type": "object",
+              "required": [
+                "withdraw_to_wallet"
+              ],
+              "properties": {
+                "withdraw_to_wallet": {
+                  "type": "object",
+                  "required": [
+                    "coin",
+                    "recipient"
+                  ],
+                  "properties": {
+                    "coin": {
+                      "$ref": "#/definitions/ActionCoin"
+                    },
+                    "recipient": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Borrow coin of specified amount from Red Bank",
+              "type": "object",
+              "required": [
+                "borrow"
+              ],
+              "properties": {
+                "borrow": {
+                  "$ref": "#/definitions/Coin"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Lend coin to the Red Bank",
+              "type": "object",
+              "required": [
+                "lend"
+              ],
+              "properties": {
+                "lend": {
+                  "$ref": "#/definitions/ActionCoin"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Reclaim the coins that were lent to the Red Bank.",
+              "type": "object",
+              "required": [
+                "reclaim"
+              ],
+              "properties": {
+                "reclaim": {
+                  "$ref": "#/definitions/ActionCoin"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "For assets lent to the Red Bank, some can accumulate incentive rewards. This message claims all of them adds them to account balance.",
+              "type": "object",
+              "required": [
+                "claim_rewards"
+              ],
+              "properties": {
+                "claim_rewards": {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Repay coin of specified amount back to Red Bank. If `amount: AccountBalance` is passed, the repaid amount will be the minimum between account balance for denom and total owed. The sender will repay on behalf of the recipient account. If 'recipient_account_id: None', the sender repays to its own account.",
+              "type": "object",
+              "required": [
+                "repay"
+              ],
+              "properties": {
+                "repay": {
+                  "type": "object",
+                  "required": [
+                    "coin"
+                  ],
+                  "properties": {
+                    "coin": {
+                      "$ref": "#/definitions/ActionCoin"
+                    },
+                    "recipient_account_id": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Provide liquidity of the base token to the perp vault",
+              "type": "object",
+              "required": [
+                "deposit_to_perp_vault"
+              ],
+              "properties": {
+                "deposit_to_perp_vault": {
+                  "type": "object",
+                  "required": [
+                    "coin"
+                  ],
+                  "properties": {
+                    "coin": {
+                      "$ref": "#/definitions/ActionCoin"
+                    },
+                    "max_receivable_shares": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/Uint128"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Unlock liquidity from the perp vault. The unlocked tokens will have to wait a cooldown period before they can be withdrawn.",
+              "type": "object",
+              "required": [
+                "unlock_from_perp_vault"
+              ],
+              "properties": {
+                "unlock_from_perp_vault": {
+                  "type": "object",
+                  "required": [
+                    "shares"
+                  ],
+                  "properties": {
+                    "shares": {
+                      "$ref": "#/definitions/Uint128"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Withdraw liquidity from the perp vault",
+              "type": "object",
+              "required": [
+                "withdraw_from_perp_vault"
+              ],
+              "properties": {
+                "withdraw_from_perp_vault": {
+                  "type": "object",
+                  "properties": {
+                    "min_receive": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/Uint128"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Execute a state update against the specified perp market for the given account. If no position exists in the given market, a position is created. Existing postions are modified. Note that size is signed - to increase short or reduce long, use a negative value - to reduce short or increase long, use a positive value",
+              "type": "object",
+              "required": [
+                "execute_perp_order"
+              ],
+              "properties": {
+                "execute_perp_order": {
+                  "type": "object",
+                  "required": [
+                    "denom",
+                    "order_size"
+                  ],
+                  "properties": {
+                    "denom": {
+                      "type": "string"
+                    },
+                    "order_size": {
+                      "$ref": "#/definitions/Int128"
+                    },
+                    "reduce_only": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Dispatch orders to be triggered under specified conditions",
+              "type": "object",
+              "required": [
+                "create_trigger_order"
+              ],
+              "properties": {
+                "create_trigger_order": {
+                  "type": "object",
+                  "required": [
+                    "actions",
+                    "conditions",
+                    "keeper_fee"
+                  ],
+                  "properties": {
+                    "actions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/Action"
+                      }
+                    },
+                    "conditions": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/Condition"
+                      }
+                    },
+                    "keeper_fee": {
+                      "$ref": "#/definitions/Coin"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "delete_trigger_order"
+              ],
+              "properties": {
+                "delete_trigger_order": {
+                  "type": "object",
+                  "required": [
+                    "trigger_order_id"
+                  ],
+                  "properties": {
+                    "trigger_order_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Deposit coins into vault strategy If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault",
+              "type": "object",
+              "required": [
+                "enter_vault"
+              ],
+              "properties": {
+                "enter_vault": {
+                  "type": "object",
+                  "required": [
+                    "coin",
+                    "vault"
+                  ],
+                  "properties": {
+                    "coin": {
+                      "$ref": "#/definitions/ActionCoin"
+                    },
+                    "vault": {
+                      "$ref": "#/definitions/VaultBase_for_String"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Withdraw underlying coins from vault",
+              "type": "object",
+              "required": [
+                "exit_vault"
+              ],
+              "properties": {
+                "exit_vault": {
+                  "type": "object",
+                  "required": [
+                    "amount",
+                    "vault"
+                  ],
+                  "properties": {
+                    "amount": {
+                      "$ref": "#/definitions/Uint128"
+                    },
+                    "vault": {
+                      "$ref": "#/definitions/VaultBase_for_String"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Requests unlocking of shares for a vault with a required lock period",
+              "type": "object",
+              "required": [
+                "request_vault_unlock"
+              ],
+              "properties": {
+                "request_vault_unlock": {
+                  "type": "object",
+                  "required": [
+                    "amount",
+                    "vault"
+                  ],
+                  "properties": {
+                    "amount": {
+                      "$ref": "#/definitions/Uint128"
+                    },
+                    "vault": {
+                      "$ref": "#/definitions/VaultBase_for_String"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Withdraws the assets for unlocking position id from vault. Required time must have elapsed.",
+              "type": "object",
+              "required": [
+                "exit_vault_unlocked"
+              ],
+              "properties": {
+                "exit_vault_unlocked": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "vault"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "integer",
+                      "format": "uint64",
+                      "minimum": 0.0
+                    },
+                    "vault": {
+                      "$ref": "#/definitions/VaultBase_for_String"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Pay back debt of a liquidatable rover account for a via liquidating a specific type of the position.",
+              "type": "object",
+              "required": [
+                "liquidate"
+              ],
+              "properties": {
+                "liquidate": {
+                  "type": "object",
+                  "required": [
+                    "debt_coin",
+                    "liquidatee_account_id",
+                    "request"
+                  ],
+                  "properties": {
+                    "debt_coin": {
+                      "description": "The coin they wish to acquire from the liquidatee (amount returned will include the bonus)",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/Coin"
+                        }
+                      ]
+                    },
+                    "liquidatee_account_id": {
+                      "description": "The credit account id of the one with a liquidation threshold health factor 1 or below",
+                      "type": "string"
+                    },
+                    "request": {
+                      "description": "Position details to be liquidated",
+                      "allOf": [
+                        {
+                          "$ref": "#/definitions/LiquidateRequest_for_VaultBase_for_String"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Perform a swapper with an exact-in amount. Requires slippage allowance %. If `coin_in.amount: AccountBalance`, the accounts entire balance of `coin_in.denom` will be used.",
+              "type": "object",
+              "required": [
+                "swap_exact_in"
+              ],
+              "properties": {
+                "swap_exact_in": {
+                  "type": "object",
+                  "required": [
+                    "coin_in",
+                    "denom_out",
+                    "min_receive"
+                  ],
+                  "properties": {
+                    "coin_in": {
+                      "$ref": "#/definitions/ActionCoin"
+                    },
+                    "denom_out": {
+                      "type": "string"
+                    },
+                    "min_receive": {
+                      "$ref": "#/definitions/Uint128"
+                    },
+                    "route": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/SwapperRoute"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Add Vec<Coin> to liquidity pool in exchange for LP tokens. Slippage allowance (%) is used to calculate the minimum amount of LP tokens to receive.",
+              "type": "object",
+              "required": [
+                "provide_liquidity"
+              ],
+              "properties": {
+                "provide_liquidity": {
+                  "type": "object",
+                  "required": [
+                    "coins_in",
+                    "lp_token_out",
+                    "slippage"
+                  ],
+                  "properties": {
+                    "coins_in": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/definitions/ActionCoin"
+                      }
+                    },
+                    "lp_token_out": {
+                      "type": "string"
+                    },
+                    "slippage": {
+                      "$ref": "#/definitions/Decimal"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Send LP token and withdraw corresponding reserve assets from pool. If `lp_token.amount: AccountBalance`, the account balance of `lp_token.denom` will be used. /// Slippage allowance (%) is used to calculate the minimum amount of reserve assets to receive.",
+              "type": "object",
+              "required": [
+                "withdraw_liquidity"
+              ],
+              "properties": {
+                "withdraw_liquidity": {
+                  "type": "object",
+                  "required": [
+                    "lp_token",
+                    "slippage"
+                  ],
+                  "properties": {
+                    "lp_token": {
+                      "$ref": "#/definitions/ActionCoin"
+                    },
+                    "slippage": {
+                      "$ref": "#/definitions/Decimal"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Stake lp token in astroport incentives contract via mars incentives",
+              "type": "object",
+              "required": [
+                "stake_astro_lp"
+              ],
+              "properties": {
+                "stake_astro_lp": {
+                  "type": "object",
+                  "required": [
+                    "lp_token"
+                  ],
+                  "properties": {
+                    "lp_token": {
+                      "$ref": "#/definitions/ActionCoin"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Unstake lp token from astroport incentives contract via mars incentives",
+              "type": "object",
+              "required": [
+                "unstake_astro_lp"
+              ],
+              "properties": {
+                "unstake_astro_lp": {
+                  "type": "object",
+                  "required": [
+                    "lp_token"
+                  ],
+                  "properties": {
+                    "lp_token": {
+                      "$ref": "#/definitions/ActionCoin"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Claim accrued LP incentive rewards from astroport incentives contract via mars incentives",
+              "type": "object",
+              "required": [
+                "claim_astro_lp_rewards"
+              ],
+              "properties": {
+                "claim_astro_lp_rewards": {
+                  "type": "object",
+                  "required": [
+                    "lp_denom"
+                  ],
+                  "properties": {
+                    "lp_denom": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Refunds all coin balances back to user wallet",
+              "type": "object",
+              "required": [
+                "refund_all_coin_balances"
+              ],
+              "properties": {
+                "refund_all_coin_balances": {
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "ActionAmount": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": [
+                "account_balance"
+              ]
+            },
+            {
+              "type": "object",
+              "required": [
+                "exact"
+              ],
+              "properties": {
+                "exact": {
+                  "$ref": "#/definitions/Uint128"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "ActionCoin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/ActionAmount"
+            },
+            "denom": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "AstroRoute": {
+          "type": "object",
+          "required": [
+            "swaps"
+          ],
+          "properties": {
+            "swaps": {
+              "description": "The swap operations of the route",
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/AstroSwap"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "AstroSwap": {
+          "type": "object",
+          "required": [
+            "from",
+            "to"
+          ],
+          "properties": {
+            "from": {
+              "description": "Asset to swap from",
+              "type": "string"
+            },
+            "to": {
+              "description": "Asset to swap to",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          }
+        },
+        "Comparison": {
+          "type": "string",
+          "enum": [
+            "greater_than",
+            "less_than"
+          ]
+        },
+        "Condition": {
+          "oneOf": [
+            {
+              "description": "If the oracle price is above or below the specified threshold, depending on the comparison, the condition is met.",
+              "type": "object",
+              "required": [
+                "oracle_price"
+              ],
+              "properties": {
+                "oracle_price": {
+                  "type": "object",
+                  "required": [
+                    "comparison",
+                    "denom",
+                    "price"
+                  ],
+                  "properties": {
+                    "comparison": {
+                      "$ref": "#/definitions/Comparison"
+                    },
+                    "denom": {
+                      "type": "string"
+                    },
+                    "price": {
+                      "$ref": "#/definitions/Decimal"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Trigger based on a relative price or price ratio of two prices. The given price is compared to the Base / Quote ratio.",
+              "type": "object",
+              "required": [
+                "relative_price"
+              ],
+              "properties": {
+                "relative_price": {
+                  "type": "object",
+                  "required": [
+                    "base_price_denom",
+                    "comparison",
+                    "price",
+                    "quote_price_denom"
+                  ],
+                  "properties": {
+                    "base_price_denom": {
+                      "type": "string"
+                    },
+                    "comparison": {
+                      "$ref": "#/definitions/Comparison"
+                    },
+                    "price": {
+                      "$ref": "#/definitions/Decimal"
+                    },
+                    "quote_price_denom": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "If the health factor of the account is above or below the specified threshold, depending on the comparison, the condition is met.",
+              "type": "object",
+              "required": [
+                "health_factor"
+              ],
+              "properties": {
+                "health_factor": {
+                  "type": "object",
+                  "required": [
+                    "comparison",
+                    "threshold"
+                  ],
+                  "properties": {
+                    "comparison": {
+                      "$ref": "#/definitions/Comparison"
+                    },
+                    "threshold": {
+                      "$ref": "#/definitions/Decimal"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "Int128": {
+          "description": "An implementation of i128 that is using strings for JSON encoding/decoding, such that the full i128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `i128` to get the value out:\n\n``` # use cosmwasm_std::Int128; let a = Int128::from(258i128); assert_eq!(a.i128(), 258); ```",
+          "type": "string"
+        },
+        "LiquidateRequest_for_VaultBase_for_String": {
+          "oneOf": [
+            {
+              "description": "Pay back debt of a liquidatable rover account for a bonus. Requires specifying 1) the debt denom/amount of what the liquidator wants to payoff and 2) the request coin denom which the liquidatee should have a balance of. The amount returned to liquidator will be the request coin of the amount that precisely matches the value of the debt + a liquidation bonus. The debt amount will be adjusted down if: - Exceeds liquidatee's total debt for denom - Not enough liquidatee request coin balance to match - The value of the debt repaid exceeds the maximum close factor %\n\nLiquidation should prioritize first the not lent coin and if more needs to be serviced to the liquidator it should reclaim (withdrawn from Red Bank).",
+              "type": "object",
+              "required": [
+                "deposit"
+              ],
+              "properties": {
+                "deposit": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Pay back debt of a liquidatable rover account for a via liquidating a Lent position. Lent shares are transfered from the liquidatable to the liquidator.",
+              "type": "object",
+              "required": [
+                "lend"
+              ],
+              "properties": {
+                "lend": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Pay back debt of a liquidatable rover account for a via liquidating a vault position. Similar to `Deposit` msg and will make similar adjustments to the request. The vault position will be withdrawn (and force withdrawn if a locked vault position) and the underlying assets will transferred to the liquidator. The `VaultPositionType` will determine which bucket to liquidate from.",
+              "type": "object",
+              "required": [
+                "vault"
+              ],
+              "properties": {
+                "vault": {
+                  "type": "object",
+                  "required": [
+                    "position_type",
+                    "request_vault"
+                  ],
+                  "properties": {
+                    "position_type": {
+                      "$ref": "#/definitions/VaultPositionType"
+                    },
+                    "request_vault": {
+                      "$ref": "#/definitions/VaultBase_for_String"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Pay back debt of a liquidatable credit manager account for a via liquidating an Astro LP position. LP shares are transfered from the liquidatable to the liquidator.",
+              "type": "object",
+              "required": [
+                "staked_astro_lp"
+              ],
+              "properties": {
+                "staked_astro_lp": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "Metadata": {
+          "type": "object",
+          "required": [
+            "has_more"
+          ],
+          "properties": {
+            "has_more": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        },
+        "OsmoRoute": {
+          "type": "object",
+          "required": [
+            "swaps"
+          ],
+          "properties": {
+            "swaps": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/OsmoSwap"
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        "OsmoSwap": {
+          "description": "Swap operation with pool id and asset to swap to. \"from\" is another asset in the pool.",
+          "type": "object",
+          "required": [
+            "pool_id",
+            "to"
+          ],
+          "properties": {
+            "pool_id": {
+              "description": "Pool id",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "to": {
+              "description": "Asset to swap to",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "SwapperRoute": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": [
+                "astro"
+              ],
+              "properties": {
+                "astro": {
+                  "$ref": "#/definitions/AstroRoute"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "osmo"
+              ],
+              "properties": {
+                "osmo": {
+                  "$ref": "#/definitions/OsmoRoute"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "TriggerOrder": {
+          "type": "object",
+          "required": [
+            "actions",
+            "conditions",
+            "keeper_fee",
+            "order_id"
+          ],
+          "properties": {
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Action"
+              }
+            },
+            "conditions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Condition"
+              }
+            },
+            "keeper_fee": {
+              "$ref": "#/definitions/Coin"
+            },
+            "order_id": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "TriggerOrderResponse": {
+          "type": "object",
+          "required": [
+            "account_id",
+            "order"
+          ],
+          "properties": {
+            "account_id": {
+              "type": "string"
+            },
+            "order": {
+              "$ref": "#/definitions/TriggerOrder"
+            }
+          },
+          "additionalProperties": false
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        },
+        "VaultBase_for_String": {
+          "type": "object",
+          "required": [
+            "address"
+          ],
+          "properties": {
+            "address": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "VaultPositionType": {
+          "type": "string",
+          "enum": [
+            "u_n_l_o_c_k_e_d",
+            "l_o_c_k_e_d",
+            "u_n_l_o_c_k_i_n_g"
+          ]
         }
       }
     },
@@ -3270,11 +6245,14 @@
       "required": [
         "health_contract",
         "incentives",
+        "keeper_fee_config",
         "max_slippage",
         "max_unlocking_positions",
         "oracle",
         "ownership",
         "params",
+        "perps",
+        "perps_liquidation_bonus_ratio",
         "red_bank",
         "swapper",
         "zapper"
@@ -3292,6 +6270,9 @@
         "incentives": {
           "type": "string"
         },
+        "keeper_fee_config": {
+          "$ref": "#/definitions/KeeperFeeConfig"
+        },
         "max_slippage": {
           "$ref": "#/definitions/Decimal"
         },
@@ -3306,6 +6287,12 @@
         },
         "params": {
           "type": "string"
+        },
+        "perps": {
+          "type": "string"
+        },
+        "perps_liquidation_bonus_ratio": {
+          "$ref": "#/definitions/Decimal"
         },
         "red_bank": {
           "type": "string"
@@ -3329,9 +6316,36 @@
       },
       "additionalProperties": false,
       "definitions": {
+        "Coin": {
+          "type": "object",
+          "required": [
+            "amount",
+            "denom"
+          ],
+          "properties": {
+            "amount": {
+              "$ref": "#/definitions/Uint128"
+            },
+            "denom": {
+              "type": "string"
+            }
+          }
+        },
         "Decimal": {
           "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
+        },
+        "KeeperFeeConfig": {
+          "type": "object",
+          "required": [
+            "min_fee"
+          ],
+          "properties": {
+            "min_fee": {
+              "$ref": "#/definitions/Coin"
+            }
+          },
+          "additionalProperties": false
         },
         "OwnerResponse": {
           "description": "Returned from Owner.query()",
@@ -3435,6 +6449,7 @@
         "debts",
         "deposits",
         "lends",
+        "perps",
         "staked_astro_lps",
         "vaults"
       ],
@@ -3461,6 +6476,12 @@
           "type": "array",
           "items": {
             "$ref": "#/definitions/Coin"
+          }
+        },
+        "perps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PerpPosition"
           }
         },
         "staked_astro_lps": {
@@ -3560,6 +6581,14 @@
           },
           "additionalProperties": false
         },
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "Int128": {
+          "description": "An implementation of i128 that is using strings for JSON encoding/decoding, such that the full i128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `i128` to get the value out:\n\n``` # use cosmwasm_std::Int128; let a = Int128::from(258i128); assert_eq!(a.i128(), 258); ```",
+          "type": "string"
+        },
         "LockingVaultAmount": {
           "type": "object",
           "required": [
@@ -3572,6 +6601,85 @@
             },
             "unlocking": {
               "$ref": "#/definitions/UnlockingPositions"
+            }
+          },
+          "additionalProperties": false
+        },
+        "PerpPosition": {
+          "description": "This is the position data to be returned in a query. It includes current price and PnL.",
+          "type": "object",
+          "required": [
+            "base_denom",
+            "current_exec_price",
+            "current_price",
+            "denom",
+            "entry_exec_price",
+            "entry_price",
+            "realized_pnl",
+            "size",
+            "unrealized_pnl"
+          ],
+          "properties": {
+            "base_denom": {
+              "type": "string"
+            },
+            "current_exec_price": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "current_price": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "denom": {
+              "type": "string"
+            },
+            "entry_exec_price": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "entry_price": {
+              "$ref": "#/definitions/Decimal"
+            },
+            "realized_pnl": {
+              "$ref": "#/definitions/PnlAmounts"
+            },
+            "size": {
+              "$ref": "#/definitions/Int128"
+            },
+            "unrealized_pnl": {
+              "$ref": "#/definitions/PnlAmounts"
+            }
+          },
+          "additionalProperties": false
+        },
+        "PnlAmounts": {
+          "description": "Amounts denominated in the Perp Vault base denom (uusdc)",
+          "type": "object",
+          "required": [
+            "accrued_funding",
+            "closing_fee",
+            "opening_fee",
+            "pnl",
+            "price_pnl"
+          ],
+          "properties": {
+            "accrued_funding": {
+              "$ref": "#/definitions/Int128"
+            },
+            "closing_fee": {
+              "$ref": "#/definitions/Int128"
+            },
+            "opening_fee": {
+              "$ref": "#/definitions/Int128"
+            },
+            "pnl": {
+              "description": "PnL: price PnL + accrued funding + opening fee + closing fee",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Int128"
+                }
+              ]
+            },
+            "price_pnl": {
+              "$ref": "#/definitions/Int128"
             }
           },
           "additionalProperties": false

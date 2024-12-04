@@ -19,6 +19,7 @@ mod params_querier;
 mod pyth_querier;
 mod red_bank_querier;
 mod redemption_rate_querier;
+mod slinky_querier;
 pub mod test_runner;
 #[cfg(feature = "astroport")]
 pub mod wasm_oracle;
@@ -28,3 +29,4 @@ pub use mars_mock_querier::MarsMockQuerier;
 pub use mocks::*;
 
 pub mod integration;
+mod perps_querier;

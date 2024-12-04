@@ -103,8 +103,6 @@ pub fn th_setup(contract_balances: &[Coin]) -> OwnedDeps<MockStorage, MockApi, M
 
     deps.querier.set_oracle_price("uusd", Decimal::one());
 
-    deps.querier.set_target_health_factor(Decimal::from_ratio(12u128, 10u128));
-
     deps
 }
 
@@ -125,14 +123,16 @@ pub fn th_init_market(deps: DepsMut, denom: &str, market: &Market) -> Market {
 
 pub fn th_default_asset_params() -> AssetParams {
     AssetParams {
-        denom: "todo".to_string(),
+        denom: "udenom".to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
+            withdraw_enabled: true,
             hls: None,
         },
         red_bank: RedBankSettings {
             deposit_enabled: true,
             borrow_enabled: true,
+            withdraw_enabled: true,
         },
         max_loan_to_value: Decimal::zero(),
         liquidation_threshold: Decimal::one(),
@@ -144,6 +144,7 @@ pub fn th_default_asset_params() -> AssetParams {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         deposit_cap: Uint128::MAX,
+        close_factor: Decimal::percent(80u64),
     }
 }
 

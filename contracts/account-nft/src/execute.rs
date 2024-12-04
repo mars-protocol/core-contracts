@@ -8,16 +8,13 @@ use cw721_base::{
 };
 use mars_types::{
     account_nft::NftConfigUpdates,
-    credit_manager::QueryMsg,
-    health::{AccountKind, HealthValuesResponse, QueryMsg::HealthValues},
+    health::{HealthValuesResponse, QueryMsg::HealthValues},
     oracle::ActionKind,
 };
 
 use crate::{
     contract::Parent,
-    error::ContractError::{
-        self, BaseError, BurnNotAllowed, CreditManagerContractNotSet, HealthContractNotSet,
-    },
+    error::ContractError::{self, BaseError, BurnNotAllowed, HealthContractNotSet},
     state::{CONFIG, NEXT_ID},
 };
 
@@ -42,23 +39,12 @@ pub fn burn(
     let Some(health_contract_addr) = config.health_contract_addr else {
         return Err(HealthContractNotSet);
     };
-    let Some(cm_contract_addr) = config.credit_manager_contract_addr else {
-        return Err(CreditManagerContractNotSet);
-    };
-
-    let acc_kind: AccountKind = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: cm_contract_addr.into(),
-        msg: to_json_binary(&QueryMsg::AccountKind {
-            account_id: token_id.clone(),
-        })?,
-    }))?;
 
     let response: HealthValuesResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
             contract_addr: health_contract_addr.into(),
             msg: to_json_binary(&HealthValues {
                 account_id: token_id.clone(),
-                kind: acc_kind,
                 action: ActionKind::Default,
             })?,
         }))?;

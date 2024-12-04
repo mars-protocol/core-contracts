@@ -7,7 +7,6 @@ use mars_types::{
         Action::{Borrow, Deposit, Liquidate, StakeAstroLp},
         LiquidateRequest,
     },
-    health::AccountKind,
     oracle::ActionKind,
 };
 
@@ -45,8 +44,7 @@ fn staked_lp_positions_contribute_to_health() {
     )
     .unwrap();
 
-    let health_1 =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let health_1 = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(!health_1.liquidatable);
     // 100 uatom * 1 + 50 lp * 0.25 + 40 uosmo * 0.25 = 100 + 12.5 + 10 = 122.5 ~ 122
     assert_eq!(health_1.total_collateral_value, Uint128::new(122u128));
@@ -62,8 +60,7 @@ fn staked_lp_positions_contribute_to_health() {
     .unwrap();
 
     // Collateral should be the same after staking
-    let health_2 =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let health_2 = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(!health_2.liquidatable);
     assert_eq!(health_1.total_collateral_value, health_2.total_collateral_value);
     assert_eq!(health_1.max_ltv_adjusted_collateral, health_2.max_ltv_adjusted_collateral);
@@ -139,8 +136,7 @@ fn liquidatee_does_not_have_requested_staked_lp_coin() {
         price: Decimal::from_atomics(20u128, 0).unwrap(),
     });
 
-    let health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(health.liquidatable);
 
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -153,13 +149,13 @@ fn liquidatee_does_not_have_requested_staked_lp_coin() {
             Liquidate {
                 liquidatee_account_id: liquidatee_account_id.clone(),
                 debt_coin: uosmo_info.to_coin(10),
-                request: LiquidateRequest::StakedAstroLp(ujake_info.denom),
+                request: LiquidateRequest::StakedAstroLp(ujake_info.denom.clone()),
             },
         ],
         &[uosmo_info.to_coin(10)],
     );
 
-    assert_err(res, ContractError::NoAstroLp);
+    assert_err(res, ContractError::CoinNotAvailable(ujake_info.denom));
 }
 
 /// Liquidation numbers based on `lent_position_partially_liquidated` in spreadsheed. Only difference is that
@@ -174,7 +170,6 @@ fn staked_lp_position_partially_liquidated() {
     let liquidatee = Addr::unchecked("liquidatee");
 
     let mut mock = MockEnv::new()
-        .target_health_factor(Decimal::from_atomics(12u128, 1).unwrap())
         .set_params(&[uosmo_info.clone(), uatom_info.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),
@@ -219,8 +214,7 @@ fn staked_lp_position_partially_liquidated() {
         price: Decimal::from_atomics(22u128, 1).unwrap(),
     });
 
-    let health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(health.liquidatable);
     assert_eq!(health.total_collateral_value, Uint128::new(2462u128));
     assert_eq!(health.total_debt_value, Uint128::new(2203u128));
@@ -282,7 +276,6 @@ fn staked_lp_position_partially_liquidated() {
     assert_eq!(position.debts.len(), 0);
 
     // Liq HF should improve
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(!health.liquidatable);
 }

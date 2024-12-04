@@ -59,14 +59,12 @@ pub fn query(deps: Deps, _: Env, msg: QueryMsg) -> HealthResult<Binary> {
     let res = match msg {
         QueryMsg::HealthValues {
             account_id,
-            kind,
             action,
-        } => to_json_binary(&health_values(deps, &account_id, kind, action)?),
+        } => to_json_binary(&health_values(deps, &account_id, action)?),
         QueryMsg::HealthState {
             account_id,
-            kind,
             action,
-        } => to_json_binary(&health_state(deps, &account_id, kind, action)?),
+        } => to_json_binary(&health_state(deps, &account_id, action)?),
         QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
     };
     res.map_err(Into::into)

@@ -1,60 +1,81 @@
-use cosmwasm_std::{Coin, CosmosMsg, DepsMut, Env, Response, Storage};
-use mars_types::credit_manager::CallbackMsg;
+use cosmwasm_std::{coin, Coin, CosmosMsg, DepsMut, Env, Response, Storage};
+use mars_types::{credit_manager::CallbackMsg, health::HealthValuesResponse};
 
 use crate::{
-    error::{ContractError, ContractResult},
-    liquidate::calculate_liquidation,
-    state::{COIN_BALANCES, REWARDS_COLLECTOR},
+    error::ContractResult,
+    liquidate::{calculate_liquidation, increment_rewards_balance},
+    state::COIN_BALANCES,
     utils::{decrement_coin_balance, increment_coin_balance},
 };
 
 pub fn liquidate_deposit(
-    deps: DepsMut,
+    mut deps: DepsMut,
     env: Env,
     liquidator_account_id: &str,
     liquidatee_account_id: &str,
     debt_coin: Coin,
     request_coin_denom: &str,
+    prev_health: HealthValuesResponse,
 ) -> ContractResult<Response> {
     let request_coin_balance = COIN_BALANCES
-        .load(deps.storage, (liquidatee_account_id, request_coin_denom))
-        .map_err(|_| ContractError::CoinNotAvailable(request_coin_denom.to_string()))?;
+        .may_load(deps.storage, (liquidatee_account_id, request_coin_denom))?
+        .unwrap_or_default();
 
-    let (debt, liquidator_request, liquidatee_request) = calculate_liquidation(
-        &deps,
+    let liquidation_res = calculate_liquidation(
+        &mut deps,
+        env.clone(),
         liquidatee_account_id,
         &debt_coin,
         request_coin_denom,
         request_coin_balance,
+        prev_health,
     )?;
 
-    let repay_msg =
-        repay_debt(deps.storage, &env, liquidator_account_id, liquidatee_account_id, &debt)?;
+    let mut response = Response::new();
 
-    // Transfer requested coin from liquidatee to liquidator
-    decrement_coin_balance(deps.storage, liquidatee_account_id, &liquidatee_request)?;
-    increment_coin_balance(deps.storage, liquidator_account_id, &liquidator_request)?;
+    // If the liquidated account has outstanding debt, create a message to repay it.
+    // Liquidator pays down debt on behalf of liquidatee.
+    if !liquidation_res.debt.amount.is_zero() {
+        let repay_msg = repay_debt(
+            deps.storage,
+            &env,
+            liquidator_account_id,
+            liquidatee_account_id,
+            &liquidation_res.debt,
+        )?;
+        response = response.add_message(repay_msg);
+    }
 
-    // Transfer protocol fee to rewards-collector account
-    let rewards_collector_account = REWARDS_COLLECTOR.load(deps.storage)?.account_id;
-    let protocol_fee_amount = liquidatee_request.amount.checked_sub(liquidator_request.amount)?;
-    increment_coin_balance(
-        deps.storage,
-        &rewards_collector_account,
-        &Coin::new(protocol_fee_amount.u128(), liquidatee_request.denom.clone()),
-    )?;
+    // If there is collateral available for liquidation, proceed with transferring assets.
+    let protocol_fee_coin = if !liquidation_res.liquidatee_request.amount.is_zero() {
+        // Transfer the requested collateral from the liquidatee to the liquidator.
+        decrement_coin_balance(
+            deps.storage,
+            liquidatee_account_id,
+            &liquidation_res.liquidatee_request,
+        )?;
+        increment_coin_balance(
+            deps.storage,
+            liquidator_account_id,
+            &liquidation_res.liquidator_request,
+        )?;
 
-    Ok(Response::new()
-        .add_message(repay_msg)
+        // Apply the protocol fee to the rewards-collector account.
+        increment_rewards_balance(&mut deps, &liquidation_res)?
+    } else {
+        // If no collateral is available, set the protocol fee to zero for this transaction.
+        coin(0, request_coin_denom)
+    };
+
+    Ok(response
         .add_attribute("action", "liquidate_deposit")
         .add_attribute("account_id", liquidator_account_id)
         .add_attribute("liquidatee_account_id", liquidatee_account_id)
-        .add_attribute("coin_debt_repaid", debt.to_string())
-        .add_attribute("coin_liquidated", liquidatee_request.to_string())
-        .add_attribute(
-            "protocol_fee_coin",
-            Coin::new(protocol_fee_amount.u128(), request_coin_denom).to_string(),
-        ))
+        .add_attribute("coin_debt_repaid", liquidation_res.debt.to_string())
+        .add_attribute("coin_liquidated", liquidation_res.liquidatee_request.to_string())
+        .add_attribute("protocol_fee_coin", protocol_fee_coin.to_string())
+        .add_attribute("debt_price", liquidation_res.debt_price.to_string())
+        .add_attribute("collateral_price", liquidation_res.collateral_price.to_string()))
 }
 
 pub fn repay_debt(

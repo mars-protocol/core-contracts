@@ -12,7 +12,8 @@ use mars_incentives::{
 use mars_owner::OwnerError::NotOwner;
 use mars_testing::MockEnvParams;
 use mars_types::{
-    incentives::{ConfigResponse, ExecuteMsg, QueryMsg, WhitelistEntry},
+    incentives::{ConfigResponse, ExecuteMsg, IncentiveKind, QueryMsg, WhitelistEntry},
+    keys::{IncentiveId, IncentiveIdKey},
     red_bank::{Market, UserCollateralResponse},
 };
 use mars_utils::error::ValidationError;
@@ -127,7 +128,8 @@ fn incentive_can_only_be_added_if_denom_whitelisted() {
 
     let owner = "owner";
     let set_incentive_msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::new(100),
         start_time: env.block.time.seconds(),
@@ -159,7 +161,8 @@ fn incentives_updated_and_removed_when_removing_from_whitelist() {
     let env = mock_env();
     let mut deps = ths_setup_with_epoch_duration(env.clone(), 604800);
     let owner = "owner";
-
+    let incentive_id = IncentiveId::create(IncentiveKind::RedBank, "uosmo".to_string());
+    let incentive_id_key = IncentiveIdKey::try_from(incentive_id).unwrap();
     let collateral = Uint128::from(1000000u128);
     // Set Red Bank Market
     deps.querier.set_redbank_market(Market {
@@ -178,7 +181,8 @@ fn incentives_updated_and_removed_when_removing_from_whitelist() {
     // add incentive
     let start_time = env.block.time.seconds();
     let set_incentive_msg = ExecuteMsg::SetAssetIncentive {
-        collateral_denom: "uosmo".to_string(),
+        kind: IncentiveKind::RedBank,
+        denom: "uosmo".to_string(),
         incentive_denom: "umars".to_string(),
         emission_per_second: Uint128::new(100),
         start_time,
@@ -189,7 +193,7 @@ fn incentives_updated_and_removed_when_removing_from_whitelist() {
 
     // Query incentive schedule
     let emission_per_second =
-        EMISSIONS.load(&deps.storage, ("uosmo", "umars", start_time)).unwrap();
+        EMISSIONS.load(&deps.storage, (&incentive_id_key, "umars", start_time)).unwrap();
     assert_eq!(emission_per_second, Uint128::new(100));
 
     // Deposit collateral
@@ -210,6 +214,7 @@ fn incentives_updated_and_removed_when_removing_from_whitelist() {
         mock_info("red_bank", &[]),
         user_addr.clone(),
         None,
+        IncentiveKind::RedBank,
         "uosmo".to_string(),
         Uint128::zero(),
         Uint128::zero(),
@@ -237,7 +242,8 @@ fn incentives_updated_and_removed_when_removing_from_whitelist() {
         QueryMsg::UserUnclaimedRewards {
             user: user_addr.to_string(),
             account_id: None,
-            start_after_collateral_denom: None,
+            start_after_kind: None,
+            start_after_denom: None,
             start_after_incentive_denom: None,
             limit: None,
         },
@@ -257,7 +263,8 @@ fn incentives_updated_and_removed_when_removing_from_whitelist() {
         QueryMsg::UserUnclaimedRewards {
             user: user_addr.to_string(),
             account_id: None,
-            start_after_collateral_denom: None,
+            start_after_kind: None,
+            start_after_denom: None,
             start_after_incentive_denom: None,
             limit: None,
         },
@@ -265,7 +272,7 @@ fn incentives_updated_and_removed_when_removing_from_whitelist() {
     assert_eq!(user_rewards, vec![coin(100 * 100, "umars")]);
 
     // Read active emissions. There should be none
-    EMISSIONS.load(&deps.storage, ("uosmo", "umars", start_time)).unwrap_err();
+    EMISSIONS.load(&deps.storage, (&incentive_id_key, "umars", start_time)).unwrap_err();
 }
 
 #[test]

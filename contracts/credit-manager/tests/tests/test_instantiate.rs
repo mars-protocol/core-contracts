@@ -1,3 +1,6 @@
+use cosmwasm_std::coin;
+use mars_types::credit_manager::KeeperFeeConfig;
+
 use super::helpers::MockEnv;
 
 #[test]
@@ -64,4 +67,15 @@ fn params_set_on_instantiate() {
 #[should_panic]
 fn raises_on_invalid_params_addr() {
     MockEnv::new().params("%%%INVALID%%%").build().unwrap();
+}
+
+#[test]
+fn keeper_fee_config_set_on_instantiate() {
+    let keeper_fee_config = KeeperFeeConfig {
+        min_fee: coin(1000, "uusd"),
+    };
+
+    let mock = MockEnv::new().keeper_fee_config(keeper_fee_config.clone()).build().unwrap();
+    let res = mock.query_config();
+    assert_eq!(keeper_fee_config, res.keeper_fee_config);
 }

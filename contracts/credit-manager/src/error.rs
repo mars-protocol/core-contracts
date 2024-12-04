@@ -6,7 +6,10 @@ use cw2::VersionError;
 use cw_utils::PaymentError;
 use mars_liquidation::error::LiquidationError;
 use mars_owner::OwnerError;
-use mars_types::adapters::{oracle::OracleError, vault::VaultError};
+use mars_types::{
+    adapters::{oracle::OracleError, vault::VaultError},
+    health::HealthError,
+};
 use mars_utils::error::GuardError;
 use thiserror::Error;
 
@@ -175,6 +178,11 @@ pub enum ContractError {
     #[error("{0}")]
     Version(#[from] VersionError),
 
+    #[error("Withdraw for {denom:?} not enabled")]
+    WithdrawNotEnabled {
+        denom: String,
+    },
+
     #[error("{0}")]
     Liquidation(#[from] LiquidationError),
 
@@ -196,9 +204,38 @@ pub enum ContractError {
     #[error(transparent)]
     Oracle(#[from] OracleError),
 
+    #[error("Order conditions not met")]
+    IllegalExecuteTriggerOrder,
+
     #[error("Debt cannot be represented by zero debt shares")]
     ZeroDebtShares,
 
     #[error("{0} asset params not found")]
     AssetParamsNotFound(String),
+
+    #[error("{0}")]
+    Health(#[from] HealthError),
+
+    #[error("Trigger order with id {order_id:?} for account id {account_id:?} not found")]
+    TriggerOrderNotFound {
+        order_id: String,
+        account_id: String,
+    },
+
+    #[error("Received keeper fee is less than the min required fee. Expected: {expected_min_amount:?}, received: {received_amount:?}")]
+    KeeperFeeTooSmall {
+        expected_min_amount: Uint128,
+        received_amount: Uint128,
+    },
+
+    #[error("Received invalid keeper fee denom. Expected: {expected_denom:?}, received: {received_denom:?}")]
+    InvalidKeeperFeeDenom {
+        expected_denom: String,
+        received_denom: String,
+    },
+
+    #[error(
+        "Illegal trigger action. Trigger actions may only contain execute_perp_order and lend"
+    )]
+    IllegalTriggerAction,
 }

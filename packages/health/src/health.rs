@@ -1,7 +1,12 @@
 use std::{collections::HashMap, fmt};
 
-use cosmwasm_std::{Addr, Coin, Decimal, Fraction, QuerierWrapper, StdResult, Uint128};
-use mars_types::{health::HealthValuesResponse, params::AssetParams};
+use cosmwasm_std::{
+    Addr, Coin, Decimal, Fraction, Int128, QuerierWrapper, StdError, StdResult, Uint128,
+};
+use mars_types::{
+    health::{AccountValuation, HealthValuesResponse},
+    params::AssetParams,
+};
 
 use crate::{error::HealthError, query::MarsQuerier};
 
@@ -186,5 +191,15 @@ impl Health {
             Ok(())
         })?;
         Ok(positions)
+    }
+}
+
+impl AccountValuation for Health {
+    fn net_value(&self) -> Result<Int128, StdError> {
+        // Calculate net value by subtracting total debt from total collateral
+        let net_value = Int128::try_from(self.total_collateral_value)?
+            .checked_sub(self.total_debt_value.try_into()?)?;
+
+        Ok(net_value)
     }
 }

@@ -46,6 +46,7 @@ mars-oracle-osmosis            = { workspace = true }
 mars-oracle-wasm               = { workspace = true }
 mars-owner                     = { workspace = true }
 mars-params                    = { workspace = true }
+mars-perps                     = { workspace = true }
 mars-red-bank                  = { workspace = true }
 mars-rewards-collector-osmosis = { workspace = true }
 mars-rover-health              = { workspace = true }
@@ -54,6 +55,7 @@ mars-swapper-mock              = { workspace = true }
 mars-types                     = { workspace = true }
 mars-vault                     = { workspace = true }
 mars-zapper-mock               = { workspace = true }
+neutron-sdk                    = { workspace = true }
 prost                          = { workspace = true }
 pyth-sdk-cw                    = { workspace = true }
 regex                          = { workspace = true }

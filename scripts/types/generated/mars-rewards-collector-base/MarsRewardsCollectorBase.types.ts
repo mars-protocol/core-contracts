@@ -70,6 +70,7 @@ export type ExecuteMsg =
         limit?: number | null
         start_after_collateral_denom?: string | null
         start_after_incentive_denom?: string | null
+        start_after_kind?: IncentiveKind | null
       }
     }
 export type OwnerUpdate =
@@ -116,6 +117,41 @@ export type Action =
       repay: {
         coin: ActionCoin
         recipient_account_id?: string | null
+      }
+    }
+  | {
+      deposit_to_perp_vault: {
+        coin: ActionCoin
+        max_receivable_shares?: Uint128 | null
+      }
+    }
+  | {
+      unlock_from_perp_vault: {
+        shares: Uint128
+      }
+    }
+  | {
+      withdraw_from_perp_vault: {
+        min_receive?: Uint128 | null
+      }
+    }
+  | {
+      execute_perp_order: {
+        denom: string
+        order_size: Int128
+        reduce_only?: boolean | null
+      }
+    }
+  | {
+      create_trigger_order: {
+        actions: Action[]
+        conditions: Condition[]
+        keeper_fee: Coin
+      }
+    }
+  | {
+      delete_trigger_order: {
+        trigger_order_id: string
       }
     }
   | {
@@ -193,6 +229,30 @@ export type ActionAmount =
   | {
       exact: Uint128
     }
+export type Int128 = string
+export type Condition =
+  | {
+      oracle_price: {
+        comparison: Comparison
+        denom: string
+        price: Decimal
+      }
+    }
+  | {
+      relative_price: {
+        base_price_denom: string
+        comparison: Comparison
+        price: Decimal
+        quote_price_denom: string
+      }
+    }
+  | {
+      health_factor: {
+        comparison: Comparison
+        threshold: Decimal
+      }
+    }
+export type Comparison = 'greater_than' | 'less_than'
 export type LiquidateRequestForVaultBaseForString =
   | {
       deposit: string
@@ -217,6 +277,7 @@ export type SwapperRoute =
   | {
       osmo: OsmoRoute
     }
+export type IncentiveKind = 'red_bank' | 'perp_vault'
 export interface UpdateConfig {
   address_provider?: string | null
   channel_id?: string | null

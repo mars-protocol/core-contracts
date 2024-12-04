@@ -70,7 +70,7 @@ fn redeem_invalid_funds() {
     );
     assert_vault_err(
         res,
-        ContractError::Payment(PaymentError::MissingDenom("factory/contract11/vault".to_string())),
+        ContractError::Payment(PaymentError::MissingDenom("factory/contract13/vault".to_string())),
     );
 }
 
@@ -301,7 +301,7 @@ fn redeem_with_refund() {
 #[test_case(2_000_000_000, 1_000_000_000, 500_000_000, 1_500_000_001, 1_000_000_001, 0; "redeem from deposit if lend available")]
 #[test_case(2_000_000_000, 1_000_000_000, 2_200_000_000, 0, 800_000_002, 0; "redeem from deposit and lend")]
 #[test_case(2_000_000_000, 1_000_000_000, 3_200_000_000, 0, 0, 199_999_999; "redeem from deposit, lend and debt")]
-#[test_case(5_000_000_000, 2_000_000_000, 7_800_000_000, 0, 0, 0 => panics "Actions resulted in exceeding maximum allowed loan-to-value."; "redeem more than HF limit")]
+#[test_case(5_000_000_000, 2_000_000_000, 8_000_000_000, 0, 0, 0 => panics "Actions resulted in exceeding maximum allowed loan-to-value."; "redeem more than HF limit")]
 fn redeem_succeded(
     deposit_amt: u128,
     lend_amt: u128,
@@ -470,6 +470,8 @@ pub fn uusdc_info() -> CoinInfo {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         whitelisted: true,
+        withdraw_enabled: true,
         hls: None,
+        close_factor: Decimal::percent(80),
     }
 }

@@ -1,8 +1,8 @@
-use std::marker::PhantomData;
+use std::{collections::HashMap, marker::PhantomData};
 
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, CustomQuery, Deps, DepsMut, Env, MessageInfo, Order, Response,
-    StdError, StdResult,
+    to_json_binary, Addr, Binary, CustomQuery, Decimal, Deps, DepsMut, Env, MessageInfo, Order,
+    Response, StdError, StdResult,
 };
 use cw_storage_plus::{Bound, Item, Map};
 use mars_owner::{Owner, OwnerInit::SetInitialOwner, OwnerUpdate};
@@ -140,6 +140,15 @@ where
                 env,
                 start_after,
                 limit,
+                kind.unwrap_or(ActionKind::Default),
+            )?),
+            QueryMsg::PricesByDenoms {
+                denoms,
+                kind,
+            } => to_json_binary(&self.query_prices_by_denoms(
+                deps,
+                env,
+                denoms,
                 kind.unwrap_or(ActionKind::Default),
             )?),
         };
@@ -317,5 +326,22 @@ where
                 })
             })
             .collect()
+    }
+
+    fn query_prices_by_denoms(
+        &self,
+        deps: Deps<C>,
+        env: Env,
+        denoms: Vec<String>,
+        kind: ActionKind,
+    ) -> ContractResult<HashMap<String, Decimal>> {
+        let mut prices: HashMap<String, Decimal> = HashMap::new();
+
+        for denom in denoms {
+            let price = self.query_price(deps, env.clone(), denom, kind.clone())?;
+            prices.insert(price.denom, price.price);
+        }
+
+        Ok(prices)
     }
 }

@@ -10,6 +10,7 @@ pub fn default_asset_params(denom: &str) -> AssetParamsUnchecked {
         denom: denom.to_string(),
         credit_manager: CmSettings {
             whitelisted: true,
+            withdraw_enabled: true,
             hls: Some(HlsParamsUnchecked {
                 max_loan_to_value: Decimal::from_str("0.8").unwrap(),
                 liquidation_threshold: Decimal::from_str("0.9").unwrap(),
@@ -17,6 +18,7 @@ pub fn default_asset_params(denom: &str) -> AssetParamsUnchecked {
             }),
         },
         red_bank: RedBankSettings {
+            withdraw_enabled: true,
             deposit_enabled: false,
             borrow_enabled: false,
         },
@@ -30,5 +32,6 @@ pub fn default_asset_params(denom: &str) -> AssetParamsUnchecked {
         },
         protocol_liquidation_fee: Decimal::percent(2u64),
         deposit_cap: Default::default(),
+        close_factor: Decimal::percent(80u64),
     }
 }

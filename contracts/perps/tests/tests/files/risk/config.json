@@ -1,0 +1,38 @@
+{
+    "target_collaterization_ratio": "1.2",
+    "protocol_fee_rate": "0",
+    "perps": [
+        {
+            "denom": "uatom",
+            "enabled": true,
+            "initial_price": "4.5",
+            "max_funding_velocity": "36",
+            "skew_scale": "7227323000000",
+            "max_net_oi_value": "45591000000",
+            "max_long_oi_value": "490402700000",
+            "max_short_oi_value": "490402700000",
+            "closing_fee_rate": "0.00075",
+            "opening_fee_rate": "0.00075",
+            "min_position_value": "500000000",
+            "max_position_value": null,
+            "max_loan_to_value": "0.85",
+            "liquidation_threshold": "0.86"
+        },
+        {
+            "denom": "usol",
+            "enabled": true,
+            "initial_price": "0.12826934613",
+            "max_funding_velocity": "36",
+            "skew_scale": "3954627000000000",
+            "max_net_oi_value": "36869000000",
+            "max_long_oi_value": "3396453000000",
+            "max_short_oi_value": "3396453000000",
+            "closing_fee_rate": "0.00075",
+            "opening_fee_rate": "0.00075",
+            "min_position_value": "500000000",
+            "max_position_value": null,
+            "max_loan_to_value": "0.85",
+            "liquidation_threshold": "0.88"
+        }
+    ]
+}

@@ -28,7 +28,7 @@ fn hls_account_kind_passed_along() {
 
     let positions = Positions {
         account_id: account_id.to_string(),
-        account_kind: AccountKind::Default,
+        account_kind: AccountKind::HighLeveredStrategy,
         deposits: vec![],
         debts: vec![DebtAmount {
             denom: debt_token.to_string(),
@@ -41,6 +41,7 @@ fn hls_account_kind_passed_along() {
             amount: VaultPositionAmount::Unlocked(VaultAmount::new(vault_token_amount)),
         }],
         staked_astro_lps: vec![],
+        perps: vec![],
     };
     mock.set_positions_response(account_id, &positions);
     mock.set_price(debt_token, Decimal::one(), ActionKind::Default);
@@ -56,9 +57,7 @@ fn hls_account_kind_passed_along() {
 
     let vault_config = mock.query_vault_config(&vault.into());
 
-    let health = mock
-        .query_health_values(account_id, AccountKind::HighLeveredStrategy, ActionKind::Default)
-        .unwrap();
+    let health = mock.query_health_values(account_id, ActionKind::Default).unwrap();
     assert_eq!(health.total_debt_value, positions.debts.first().unwrap().amount);
     assert_eq!(health.total_collateral_value, base_token_amount);
     assert_eq!(

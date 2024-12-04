@@ -12,10 +12,11 @@ use crate::{
     error::ContractResult,
     execute::create_credit_account,
     state::{
-        ACCOUNT_NFT, HEALTH_CONTRACT, INCENTIVES, MAX_SLIPPAGE, MAX_UNLOCKING_POSITIONS, ORACLE,
-        OWNER, RED_BANK, REWARDS_COLLECTOR, SWAPPER, ZAPPER,
+        ACCOUNT_NFT, HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE,
+        MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS, PERPS_LB_RATIO, RED_BANK,
+        REWARDS_COLLECTOR, SWAPPER, ZAPPER,
     },
-    utils::assert_max_slippage,
+    utils::{assert_max_slippage, assert_perps_lb_ratio},
 };
 
 pub fn update_config(
@@ -83,6 +84,13 @@ pub fn update_config(
             response.add_attribute("key", "max_slippage").add_attribute("value", num.to_string());
     }
 
+    if let Some(num) = updates.perps_liquidation_bonus_ratio {
+        assert_perps_lb_ratio(num)?;
+        PERPS_LB_RATIO.save(deps.storage, &num)?;
+        response =
+            response.add_attribute("key", "perps_lb_ratio").add_attribute("value", num.to_string());
+    }
+
     if let Some(unchecked) = updates.health_contract {
         HEALTH_CONTRACT.save(deps.storage, &unchecked.check(deps.api)?)?;
         response = response
@@ -94,6 +102,27 @@ pub fn update_config(
         INCENTIVES.save(deps.storage, &unchecked.check(deps.api, env.contract.address)?)?;
         response =
             response.add_attribute("key", "incentives").add_attribute("value", unchecked.address());
+    }
+
+    if let Some(unchecked) = updates.params {
+        PARAMS.save(deps.storage, &unchecked.check(deps.api)?)?;
+        response =
+            response.add_attribute("key", "params").add_attribute("value", unchecked.address());
+    }
+
+    if let Some(unchecked) = updates.perps {
+        PERPS.save(deps.storage, &unchecked.check(deps.api)?)?;
+        response =
+            response.add_attribute("key", "perps").add_attribute("value", unchecked.address());
+    }
+
+    if let Some(kfc) = updates.keeper_fee_config {
+        KEEPER_FEE_CONFIG.save(deps.storage, &kfc)?;
+        response = response.add_attributes(vec![
+            ("key", "keeper_fee_config"),
+            ("keeper_fee_denom", &kfc.min_fee.denom),
+            ("keeper_fee_min", &kfc.min_fee.to_string()),
+        ]);
     }
 
     if let Some(unchecked) = updates.rewards_collector {

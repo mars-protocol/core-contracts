@@ -7,7 +7,9 @@ use mars_owner::{Owner, OwnerInit::SetInitialOwner, OwnerUpdate};
 use mars_types::{
     address_provider::{self, AddressResponseItem, MarsAddressType},
     credit_manager::{self, Action},
-    incentives, red_bank,
+    incentives,
+    incentives::IncentiveKind,
+    red_bank,
     rewards_collector::{
         Config, ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg, UpdateConfig,
     },
@@ -113,11 +115,13 @@ where
                 fee_collector_min_receive,
             ),
             ExecuteMsg::ClaimIncentiveRewards {
+                start_after_kind,
                 start_after_collateral_denom,
                 start_after_incentive_denom,
                 limit,
             } => self.claim_incentive_rewards(
                 deps,
+                start_after_kind,
                 start_after_collateral_denom,
                 start_after_incentive_denom,
                 limit,
@@ -254,7 +258,8 @@ where
     pub fn claim_incentive_rewards(
         &self,
         deps: DepsMut,
-        start_after_collateral_denom: Option<String>,
+        start_after_kind: Option<IncentiveKind>,
+        start_after_denom: Option<String>,
         start_after_incentive_denom: Option<String>,
         limit: Option<u32>,
     ) -> ContractResult<Response<M>> {
@@ -270,7 +275,8 @@ where
             contract_addr: incentives_addr.to_string(),
             msg: to_json_binary(&incentives::ExecuteMsg::ClaimRewards {
                 account_id: None,
-                start_after_collateral_denom,
+                start_after_kind,
+                start_after_denom,
                 start_after_incentive_denom,
                 limit,
             })?,

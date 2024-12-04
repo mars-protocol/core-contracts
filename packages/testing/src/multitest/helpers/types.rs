@@ -22,8 +22,10 @@ pub struct CoinInfo {
     pub liquidation_threshold: Decimal,
     pub liquidation_bonus: LiquidationBonus,
     pub whitelisted: bool,
+    pub withdraw_enabled: bool,
     pub hls: Option<HlsParamsUnchecked>,
     pub protocol_liquidation_fee: Decimal,
+    pub close_factor: Decimal,
 }
 
 #[cw_serde]
@@ -73,17 +75,20 @@ impl From<CoinInfo> for AssetParamsUnchecked {
             denom: c.denom,
             credit_manager: CmSettings {
                 whitelisted: c.whitelisted,
+                withdraw_enabled: c.withdraw_enabled,
                 hls: c.hls,
             },
             red_bank: RedBankSettings {
                 deposit_enabled: true,
                 borrow_enabled: true,
+                withdraw_enabled: c.withdraw_enabled,
             },
             max_loan_to_value: c.max_ltv,
             liquidation_threshold: c.liquidation_threshold,
             liquidation_bonus: c.liquidation_bonus,
             protocol_liquidation_fee: c.protocol_liquidation_fee,
             deposit_cap: Uint128::MAX,
+            close_factor: c.close_factor,
         }
     }
 }

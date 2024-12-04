@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{Addr, Decimal, DepsMut, Env, MessageInfo, Response, Uint128};
 use mars_interest_rate::{
     get_scaled_debt_amount, get_scaled_liquidity_amount, get_underlying_debt_amount,
     get_underlying_liquidity_amount,
@@ -13,7 +13,7 @@ use mars_utils::helpers::{build_send_asset_msg, option_string_to_addr};
 use crate::{
     error::ContractError,
     health::get_health_and_positions,
-    helpers::{query_asset_params, query_target_health_factor},
+    helpers::query_asset_params,
     interest_rates::{apply_accumulated_interests, update_interest_rates},
     state::{COLLATERALS, CONFIG, DEBTS, MARKETS},
     user::User,
@@ -127,7 +127,7 @@ pub fn liquidate(
         get_underlying_debt_amount(user_debt.amount_scaled, &debt_market, block_time)?;
 
     let collateral_params = query_asset_params(&deps.querier, params_addr, &collateral_denom)?;
-    let target_health_factor = query_target_health_factor(&deps.querier, params_addr)?;
+    let debt_params = query_asset_params(&deps.querier, params_addr, &debt_denom)?;
 
     let user_collateral_amount = get_underlying_liquidity_amount(
         user_collateral.amount_scaled,
@@ -145,8 +145,9 @@ pub fn liquidate(
         user_debt_amount,
         sent_debt_amount,
         debt_price,
-        target_health_factor,
-        &health,
+        &debt_params,
+        &health.try_into()?,
+        Decimal::zero(), // doesn't matter for RB liquidation
     )?;
     let protocol_fee = collateral_amount_to_liquidate - collateral_amount_received_by_liquidator;
 
@@ -235,10 +236,15 @@ pub fn liquidate(
         .add_attribute("user", liquidatee)
         .add_attribute("liquidator", info.sender.to_string())
         .add_attribute("recipient", recipient)
-        .add_attribute("collateral_denom", collateral_denom)
+        .add_attribute("collateral_denom", collateral_denom.clone())
         .add_attribute("collateral_amount", collateral_amount_to_liquidate)
         .add_attribute("collateral_amount_scaled", collateral_amount_to_liquidate_scaled)
+        .add_attribute("collateral_price", collateral_price.to_string())
         .add_attribute("debt_denom", debt_denom)
         .add_attribute("debt_amount", debt_amount_to_repay)
-        .add_attribute("debt_amount_scaled", debt_amount_scaled_delta))
+        .add_attribute("debt_amount_scaled", debt_amount_scaled_delta)
+        .add_attribute("debt_price", debt_price.to_string())
+        .add_attribute("protocol_fee_denom", collateral_denom)
+        .add_attribute("protocol_fee_amount", protocol_fee)
+        .add_attribute("protocol_fee_amount_scaled", protocol_fee_scaled))
 }

@@ -20,11 +20,10 @@ const protocolAdminAddr = 'osmo14w4x949nwcrqgfe53pxs3k7x53p0gvlrq34l5n'
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
 const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
 
-const defaultCreditLine = '100000000000'
-
 export const osmoAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'OSMO',
   denom: uosmo,
@@ -40,6 +39,7 @@ export const osmoAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '2500000000000',
   reserve_factor: '0.2',
@@ -49,11 +49,13 @@ export const osmoAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const atomAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'ATOM',
   denom: atom,
@@ -69,6 +71,7 @@ export const atomAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '100000000000',
   reserve_factor: '0.2',
@@ -78,11 +81,13 @@ export const atomAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const USDCAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'aUSDC',
   denom: aUSDC,
@@ -98,6 +103,7 @@ export const USDCAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '500000000000',
   reserve_factor: '0.2',
@@ -107,6 +113,7 @@ export const USDCAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const usdcOsmoVault: VaultConfig = {
@@ -262,6 +269,9 @@ export const osmosisTestnetConfig: DeploymentConfig = {
     safetyFundDenom: aUSDC,
     slippageTolerance: '0.01',
   },
+  keeperFeeConfig: {
+    min_fee: { amount: '1000000', denom: aUSDC },
+  },
   incentives: {
     epochDuration: 604800, // 1 week
     maxWhitelistedIncentiveDenoms: 10,
@@ -275,12 +285,6 @@ export const osmosisTestnetConfig: DeploymentConfig = {
       { denom_in: uosmo, denom_out: aUSDC, route: [{ pool_id: 5, token_out_denom: aUSDC }] },
     ],
   },
-  targetHealthFactor: '1.05',
-  creditLineCoins: [
-    { denom: uosmo, creditLine: defaultCreditLine },
-    { denom: aUSDC, creditLine: defaultCreditLine },
-    { denom: usdcOsmo, creditLine: defaultCreditLine },
-  ],
   maxValueForBurn: '10000',
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',
@@ -290,4 +294,6 @@ export const osmosisTestnetConfig: DeploymentConfig = {
   assets: [osmoAsset, atomAsset, USDCAsset],
   vaults: [usdcOsmoVault, atomOsmoVault],
   oracleConfigs: [osmoOracle, atomOracle, USDCOracle, atomOsmoOracle, usdcOsmoOracle],
+  maxPerpParams: 20,
+  perpsLiquidationBonusRatio: '0.6',
 }

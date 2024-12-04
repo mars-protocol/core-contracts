@@ -1,30 +1,40 @@
 use std::{collections::HashSet, hash::Hash};
 
 use cosmwasm_std::{
-    to_json_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, QuerierWrapper, StdResult,
-    Storage, Uint128, WasmMsg,
+    ensure, to_json_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, QuerierWrapper,
+    StdResult, Storage, Uint128, WasmMsg,
 };
 use mars_types::{
-    credit_manager::{CallbackMsg, ChangeExpected, ExecuteMsg},
+    credit_manager::{ActionCoin, CallbackMsg, ChangeExpected, ExecuteMsg},
     health::AccountKind,
 };
 
 use crate::{
     error::{ContractError, ContractResult},
     state::{
-        ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, MAX_SLIPPAGE, PARAMS, RED_BANK,
+        ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, MAX_SLIPPAGE, PARAMS, PERPS, RED_BANK,
         TOTAL_DEBT_SHARES,
     },
     update_coin_balances::query_balance,
 };
 
-pub fn assert_is_token_owner(deps: &DepsMut, user: &Addr, account_id: &str) -> ContractResult<()> {
+/// Assert that the transaction sender is authorized to update the account.
+///
+/// Two actors are authorized: the NFT owner, and the perps contract.
+///
+/// The only case the perps contract may need to update the account is when
+/// closing a perp position that is in profit, it needs to deposit the profit
+/// into the account.
+pub fn assert_is_authorized(deps: &DepsMut, user: &Addr, account_id: &str) -> ContractResult<()> {
     let owner = query_nft_token_owner(deps.as_ref(), account_id)?;
     if user != &owner {
-        return Err(ContractError::NotTokenOwner {
-            user: user.to_string(),
-            account_id: account_id.to_string(),
-        });
+        let perps = PERPS.load(deps.storage)?;
+        if user != perps.address() {
+            return Err(ContractError::NotTokenOwner {
+                user: user.to_string(),
+                account_id: account_id.to_string(),
+            });
+        }
     }
     Ok(())
 }
@@ -46,6 +56,35 @@ pub fn assert_slippage(storage: &dyn Storage, slippage: Decimal) -> ContractResu
             max_slippage,
         });
     }
+    Ok(())
+}
+
+pub fn assert_perps_lb_ratio(perps_lb_ratio: Decimal) -> ContractResult<()> {
+    if perps_lb_ratio > Decimal::one() {
+        return Err(ContractError::InvalidConfig {
+            reason: "Perps liquidation bonus ratio must be less than or equal to 1".to_string(),
+        });
+    }
+    Ok(())
+}
+
+pub fn assert_withdraw_enabled(
+    storage: &dyn Storage,
+    querier: &QuerierWrapper,
+    denom: &str,
+) -> ContractResult<()> {
+    let params = PARAMS.load(storage)?;
+    let params_opt = params.query_asset_params(querier, denom)?;
+
+    if let Some(params) = params_opt {
+        ensure!(
+            params.credit_manager.withdraw_enabled,
+            ContractError::WithdrawNotEnabled {
+                denom: denom.to_string(),
+            }
+        );
+    };
+
     Ok(())
 }
 
@@ -187,4 +226,24 @@ where
     let set_a: HashSet<_> = vec_a.iter().collect();
     let set_b: HashSet<_> = vec_b.iter().collect();
     set_a == set_b
+}
+
+/// Queries balance to ensure passing EXACT is not too high.
+/// Also asserts the amount is greater than zero.
+pub fn get_amount_from_action_coin(
+    deps: Deps,
+    account_id: &str,
+    coin: &ActionCoin,
+) -> ContractResult<Uint128> {
+    let amount = if let Some(amount) = coin.amount.value() {
+        amount
+    } else {
+        COIN_BALANCES.may_load(deps.storage, (account_id, &coin.denom))?.unwrap_or(Uint128::zero())
+    };
+
+    if amount.is_zero() {
+        Err(ContractError::NoAmount)
+    } else {
+        Ok(amount)
+    }
 }

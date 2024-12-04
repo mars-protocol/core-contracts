@@ -14,6 +14,7 @@ use mars_testing::{
 use mars_types::{
     address_provider::MarsAddressType,
     incentives,
+    incentives::IncentiveKind,
     params::{AssetParams, CmSettings, LiquidationBonus, RedBankSettings},
     red_bank::{
         ExecuteMsg, InitOrUpdateAssetParams, InterestRateModel, Market, QueryMsg,
@@ -196,7 +197,7 @@ fn cannot_liquidate_healthy_position() {
 }
 
 #[test]
-fn target_health_factor_reached_after_max_debt_repayed() {
+fn max_debt_repayed() {
     let mut mock_env = MockEnvBuilder::new(None, Addr::unchecked("owner"))
         .target_health_factor(Decimal::from_ratio(12u128, 10u128))
         .build();
@@ -216,7 +217,7 @@ fn target_health_factor_reached_after_max_debt_repayed() {
     let prev_liq_threshold_hf = liq_threshold_hf(&liquidatee_position);
 
     // liquidate user
-    let usdc_repay_amt = 2373;
+    let usdc_repay_amt = 2400;
     red_bank
         .liquidate(
             &mut mock_env,
@@ -238,18 +239,18 @@ fn target_health_factor_reached_after_max_debt_repayed() {
     // check liquidatee positions
     let liquidatee_collaterals = red_bank.query_user_collaterals(&mut mock_env, &liquidatee);
     assert_eq!(liquidatee_collaterals.len(), 3);
-    assert_eq!(liquidatee_collaterals.get("uosmo").unwrap().amount.u128(), 2809);
+    assert_eq!(liquidatee_collaterals.get("uosmo").unwrap().amount.u128(), 2727);
     assert_eq!(liquidatee_collaterals.get("ujake").unwrap().amount.u128(), 2000);
     assert_eq!(liquidatee_collaterals.get("uatom").unwrap().amount.u128(), 900);
     let liquidatee_debts = red_bank.query_user_debts(&mut mock_env, &liquidatee);
     assert_eq!(liquidatee_debts.len(), 2);
-    assert_eq!(liquidatee_debts.get("uusdc").unwrap().amount.u128(), 627);
+    assert_eq!(liquidatee_debts.get("uusdc").unwrap().amount.u128(), 600);
     assert_eq!(liquidatee_debts.get("untrn").unwrap().amount.u128(), 1200);
 
     // check liquidator positions
     let liquidator_collaterals = red_bank.query_user_collaterals(&mut mock_env, &liquidator);
     assert_eq!(liquidator_collaterals.len(), 1);
-    assert_eq!(liquidator_collaterals.get("uosmo").unwrap().amount.u128(), 7182);
+    assert_eq!(liquidator_collaterals.get("uosmo").unwrap().amount.u128(), 7264);
     let liquidator_debts = red_bank.query_user_debts(&mut mock_env, &liquidator);
     assert_eq!(liquidator_debts.len(), 0);
 
@@ -282,8 +283,7 @@ fn target_health_factor_reached_after_max_debt_repayed() {
     let liquidatee_position = red_bank.query_user_position(&mut mock_env, &liquidatee);
     let liq_threshold_hf = liq_threshold_hf(&liquidatee_position);
     assert!(liq_threshold_hf > prev_liq_threshold_hf);
-    // it should be 1.2, but because of roundings it is hard to achieve an exact number
-    assert_eq!(liq_threshold_hf, Decimal::from_str("1.200016765864699471").unwrap());
+    assert_eq!(liq_threshold_hf, Decimal::from_str("1.207094017094017094").unwrap());
 }
 
 #[test]
@@ -296,7 +296,8 @@ fn debt_amt_adjusted_to_total_debt_then_refund() {
     let oracle = mock_env.oracle.clone();
     let rewards_collector = mock_env.rewards_collector.clone();
 
-    let (funded_amt, provider, liquidatee, liquidator) = setup_env(&mut mock_env);
+    let (funded_amt, provider, liquidatee, liquidator) =
+        setup_env_with_usdc_cf(&mut mock_env, Decimal::one());
 
     // change price to be able to liquidate
     oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::from_ratio(25u128, 10u128));
@@ -384,7 +385,8 @@ fn debt_amt_adjusted_to_max_allowed_by_requested_coin() {
     let oracle = mock_env.oracle.clone();
     let rewards_collector = mock_env.rewards_collector.clone();
 
-    let (funded_amt, provider, liquidatee, liquidator) = setup_env(&mut mock_env);
+    let (funded_amt, provider, liquidatee, liquidator) =
+        setup_env_with_usdc_cf(&mut mock_env, Decimal::percent(95));
 
     // change price to be able to liquidate
     oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::from_ratio(2u128, 1u128));
@@ -581,12 +583,20 @@ fn same_asset_for_debt_and_collateral_with_refund() {
     let liquidator = Addr::unchecked("liquidator");
 
     // setup red-bank
-    let (market_params, asset_params) =
-        default_asset_params_with("uosmo", Decimal::percent(70), Decimal::percent(78));
+    let (market_params, asset_params) = default_asset_params_with(
+        "uosmo",
+        Decimal::percent(70),
+        Decimal::percent(78),
+        Decimal::percent(80),
+    );
     red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) =
-        default_asset_params_with("uatom", Decimal::percent(82), Decimal::percent(90));
+    let (market_params, asset_params) = default_asset_params_with(
+        "uatom",
+        Decimal::percent(82),
+        Decimal::percent(90),
+        Decimal::percent(80),
+    );
     red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
     params.init_params(&mut mock_env, asset_params);
 
@@ -685,149 +695,6 @@ fn same_asset_for_debt_and_collateral_with_refund() {
 }
 
 #[test]
-fn mdr_negative() {
-    let mut mock_env = MockEnvBuilder::new(None, Addr::unchecked("owner"))
-        .target_health_factor(Decimal::from_ratio(104u128, 100u128))
-        .build();
-
-    let red_bank = mock_env.red_bank.clone();
-    let params = mock_env.params.clone();
-    let oracle = mock_env.oracle.clone();
-    let rewards_collector = mock_env.rewards_collector.clone();
-
-    let funded_amt = 1_000_000_000_000u128;
-    let provider = Addr::unchecked("provider"); // provides collateral to be borrowed by others
-    let liquidatee = Addr::unchecked("liquidatee");
-    let liquidator = Addr::unchecked("liquidator");
-
-    // setup red-bank
-    let (market_params, asset_params) = _default_asset_params_with(
-        "uosmo",
-        Decimal::percent(70),
-        Decimal::percent(98),
-        LiquidationBonus {
-            starting_lb: Decimal::percent(10),
-            slope: Decimal::from_str("2.0").unwrap(),
-            min_lb: Decimal::percent(10),
-            max_lb: Decimal::percent(10),
-        },
-    );
-    red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
-    params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) =
-        default_asset_params_with("ujake", Decimal::percent(50), Decimal::percent(55));
-    red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
-    params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) =
-        default_asset_params_with("uusdc", Decimal::percent(82), Decimal::percent(90));
-    red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
-    params.init_params(&mut mock_env, asset_params);
-
-    // setup oracle
-    oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::from_ratio(3u128, 1u128));
-    oracle.set_price_source_fixed(&mut mock_env, "ujake", Decimal::one());
-    oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::from_ratio(2u128, 1u128));
-
-    // fund accounts
-    mock_env.fund_accounts(
-        &[&provider, &liquidatee, &liquidator],
-        funded_amt,
-        &["uosmo", "ujake", "uusdc"],
-    );
-
-    // provider deposits collaterals
-    red_bank.deposit(&mut mock_env, &provider, coin(1000000, "uusdc")).unwrap();
-
-    // liquidatee deposits and borrows
-    red_bank.deposit(&mut mock_env, &liquidatee, coin(10000, "uosmo")).unwrap();
-    red_bank.deposit(&mut mock_env, &liquidatee, coin(2000, "ujake")).unwrap();
-    red_bank.borrow(&mut mock_env, &liquidatee, "uusdc", 3000).unwrap();
-
-    // change price to be able to liquidate
-    oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::from_ratio(12u128, 1u128));
-
-    // liquidatee should be liquidatable
-    let liquidatee_position = red_bank.query_user_position(&mut mock_env, &liquidatee);
-    let prev_liq_threshold_hf = liq_threshold_hf(&liquidatee_position);
-
-    // liquidate user
-    let usdc_repay_amt = 3000;
-    red_bank
-        .liquidate(
-            &mut mock_env,
-            &liquidator,
-            &liquidatee,
-            "uosmo",
-            &[coin(usdc_repay_amt, "uusdc")],
-        )
-        .unwrap();
-
-    // check provider positions
-    let provider_collaterals = red_bank.query_user_collaterals(&mut mock_env, &provider);
-    assert_eq!(provider_collaterals.len(), 1);
-    assert_eq!(provider_collaterals.get("uusdc").unwrap().amount.u128(), 1000000);
-    let provider_debts = red_bank.query_user_debts(&mut mock_env, &provider);
-    assert_eq!(provider_debts.len(), 0);
-
-    // check liquidatee positions
-    let liquidatee_collaterals = red_bank.query_user_collaterals(&mut mock_env, &liquidatee);
-    assert_eq!(liquidatee_collaterals.len(), 2);
-    assert_eq!(liquidatee_collaterals.get("uosmo").unwrap().amount.u128(), 4);
-    assert_eq!(liquidatee_collaterals.get("ujake").unwrap().amount.u128(), 2000);
-    let liquidatee_debts = red_bank.query_user_debts(&mut mock_env, &liquidatee);
-    assert_eq!(liquidatee_debts.len(), 1);
-    assert_eq!(liquidatee_debts.get("uusdc").unwrap().amount.u128(), 728);
-
-    // check liquidator positions
-    let liquidator_collaterals = red_bank.query_user_collaterals(&mut mock_env, &liquidator);
-    assert_eq!(liquidator_collaterals.len(), 1);
-    assert_eq!(liquidator_collaterals.get("uosmo").unwrap().amount.u128(), 9978);
-    let liquidator_debts = red_bank.query_user_debts(&mut mock_env, &liquidator);
-    assert_eq!(liquidator_debts.len(), 0);
-
-    // check rewards-collector positions (protocol fee)
-    let rc_collaterals =
-        red_bank.query_user_collaterals(&mut mock_env, &rewards_collector.contract_addr);
-    assert_eq!(rc_collaterals.len(), 1);
-    assert_eq!(rc_collaterals.get("uosmo").unwrap().amount.u128(), 18);
-    let rc_debts = red_bank.query_user_debts(&mut mock_env, &rewards_collector.contract_addr);
-    assert_eq!(rc_debts.len(), 0);
-
-    let (merged_collaterals, merged_debts, merged_balances) = merge_collaterals_and_debts(
-        &[&provider_collaterals, &liquidatee_collaterals, &liquidator_collaterals, &rc_collaterals],
-        &[&provider_debts, &liquidatee_debts, &liquidator_debts, &rc_debts],
-    );
-
-    // check if users collaterals and debts are equal to markets scaled amounts
-    let markets = red_bank.query_markets(&mut mock_env);
-    assert_eq!(markets.len(), 3);
-    let osmo_market = markets.get("uosmo").unwrap();
-    let jake_market = markets.get("ujake").unwrap();
-    let usdc_market = markets.get("uusdc").unwrap();
-    assert_eq!(merged_collaterals.get_or_default("uosmo"), osmo_market.collateral_total_scaled);
-    assert_eq!(merged_debts.get_or_default("uosmo"), osmo_market.debt_total_scaled);
-    assert_eq!(merged_collaterals.get_or_default("ujake"), jake_market.collateral_total_scaled);
-    assert_eq!(merged_debts.get_or_default("ujake"), jake_market.debt_total_scaled);
-    assert_eq!(merged_collaterals.get_or_default("uusdc"), usdc_market.collateral_total_scaled);
-    assert_eq!(merged_debts.get_or_default("uusdc"), usdc_market.debt_total_scaled);
-
-    // check red bank underlying balances
-    let balances = mock_env.query_all_balances(&red_bank.contract_addr);
-    assert_eq!(merged_balances.get("uosmo"), balances.get("uosmo"));
-    assert_eq!(merged_balances.get("ujake"), balances.get("ujake"));
-    assert_eq!(merged_balances.get("uusdc"), balances.get("uusdc"));
-
-    // check liquidator account balance
-    let usdc_liquidator_balance = mock_env.query_balance(&liquidator, "uusdc").unwrap();
-    assert_eq!(usdc_liquidator_balance.amount.u128(), funded_amt - usdc_repay_amt + 728); // 728 refunded
-
-    // liquidatee hf degradated
-    let liquidatee_position = red_bank.query_user_position(&mut mock_env, &liquidatee);
-    let liq_threshold_hf = liq_threshold_hf(&liquidatee_position);
-    assert!(liq_threshold_hf < prev_liq_threshold_hf);
-}
-
-#[test]
 fn response_verification() {
     let provider = Addr::unchecked("provider"); // provides collateral to be borrowed by others
     let liquidatee = Addr::unchecked("liquidatee");
@@ -838,8 +705,12 @@ fn response_verification() {
     let env = mock_env_at_block_time(100_000);
     let info = mock_info("owner", &[]);
 
-    let (market_params, asset_params) =
-        default_asset_params_with("uosmo", Decimal::percent(70), Decimal::percent(78));
+    let (market_params, asset_params) = default_asset_params_with(
+        "uosmo",
+        Decimal::percent(70),
+        Decimal::percent(78),
+        Decimal::percent(80),
+    );
     execute(
         deps.as_mut(),
         env.clone(),
@@ -851,8 +722,12 @@ fn response_verification() {
     )
     .unwrap();
     deps.querier.set_redbank_params(&asset_params.denom.clone(), asset_params);
-    let (market_params, asset_params) =
-        default_asset_params_with("uatom", Decimal::percent(82), Decimal::percent(90));
+    let (market_params, asset_params) = default_asset_params_with(
+        "uatom",
+        Decimal::percent(82),
+        Decimal::percent(90),
+        Decimal::percent(80),
+    );
     execute(
         deps.as_mut(),
         env.clone(),
@@ -864,8 +739,12 @@ fn response_verification() {
     )
     .unwrap();
     deps.querier.set_redbank_params(&asset_params.denom.clone(), asset_params);
-    let (market_params, asset_params) =
-        default_asset_params_with("uusdc", Decimal::percent(90), Decimal::percent(95));
+    let (market_params, asset_params) = default_asset_params_with(
+        "uusdc",
+        Decimal::percent(90),
+        Decimal::percent(95),
+        Decimal::one(),
+    );
     execute(
         deps.as_mut(),
         env.clone(),
@@ -877,8 +756,12 @@ fn response_verification() {
     )
     .unwrap();
     deps.querier.set_redbank_params(&asset_params.denom.clone(), asset_params);
-    let (market_params, asset_params) =
-        default_asset_params_with("untrn", Decimal::percent(90), Decimal::percent(96));
+    let (market_params, asset_params) = default_asset_params_with(
+        "untrn",
+        Decimal::percent(90),
+        Decimal::percent(96),
+        Decimal::percent(80),
+    );
     execute(
         deps.as_mut(),
         env.clone(),
@@ -891,9 +774,12 @@ fn response_verification() {
     .unwrap();
     deps.querier.set_redbank_params(&asset_params.denom.clone(), asset_params);
 
-    deps.querier.set_oracle_price("uosmo", Decimal::from_ratio(4u128, 1u128));
+    let mut osmo_price = Decimal::from_ratio(4u128, 1u128);
+    let usdc_price = Decimal::from_ratio(68u128, 10u128);
+
+    deps.querier.set_oracle_price("uosmo", osmo_price);
     deps.querier.set_oracle_price("uatom", Decimal::from_ratio(82u128, 10u128));
-    deps.querier.set_oracle_price("uusdc", Decimal::from_ratio(68u128, 10u128));
+    deps.querier.set_oracle_price("uusdc", usdc_price);
     deps.querier.set_oracle_price("untrn", Decimal::from_ratio(55u128, 10u128));
 
     // no deposit yet, initialize total deposit to zero
@@ -969,7 +855,8 @@ fn response_verification() {
     .unwrap();
 
     // change price to be able to liquidate
-    deps.querier.set_oracle_price("uosmo", Decimal::from_ratio(2u128, 1u128));
+    osmo_price = Decimal::from_ratio(2u128, 1u128);
+    deps.querier.set_oracle_price("uosmo", osmo_price);
 
     let collateral_market: Market = th_query(
         deps.as_ref(),
@@ -1057,9 +944,14 @@ fn response_verification() {
                     expected_collateral_rates.liquidity_index,
                 ),
             ),
+            attr("collateral_price", osmo_price.to_string()),
             attr("debt_denom", "uusdc"),
             attr("debt_amount", Uint128::new(2883u128)),
             attr("debt_amount_scaled", expected_debt_rates.less_debt_scaled),
+            attr("debt_price", usdc_price.to_string()),
+            attr("protocol_fee_denom", "uosmo"),
+            attr("protocol_fee_amount", Uint128::new(4u128).to_string()),
+            attr("protocol_fee_amount_scaled", Uint128::new(4000000u128).to_string()),
         ],
     );
 
@@ -1132,8 +1024,9 @@ fn expected_messages(
                 user_addr: user_addr.clone(),
                 account_id: None,
                 denom: collateral_market.denom.clone(),
-                user_amount_scaled_before: user_collateral_scaled,
-                total_amount_scaled_before: collateral_market.collateral_total_scaled,
+                kind: IncentiveKind::RedBank,
+                user_amount: user_collateral_scaled,
+                total_amount: collateral_market.collateral_total_scaled,
             })
             .unwrap(),
             funds: vec![],
@@ -1144,8 +1037,9 @@ fn expected_messages(
                 user_addr: recipient_addr.clone(),
                 account_id: None,
                 denom: collateral_market.denom.clone(),
-                user_amount_scaled_before: recipient_collateral_scaled,
-                total_amount_scaled_before: collateral_market.collateral_total_scaled,
+                kind: IncentiveKind::RedBank,
+                user_amount: recipient_collateral_scaled,
+                total_amount: collateral_market.collateral_total_scaled,
             })
             .unwrap(),
             funds: vec![],
@@ -1156,8 +1050,9 @@ fn expected_messages(
                 user_addr: Addr::unchecked(MarsAddressType::RewardsCollector.to_string()),
                 account_id: None,
                 denom: collateral_market.denom.clone(),
-                user_amount_scaled_before: Uint128::zero(),
-                total_amount_scaled_before: collateral_market.collateral_total_scaled,
+                kind: IncentiveKind::RedBank,
+                user_amount: Uint128::zero(),
+                total_amount: collateral_market.collateral_total_scaled,
             })
             .unwrap(),
             funds: vec![],
@@ -1168,8 +1063,9 @@ fn expected_messages(
                 user_addr: Addr::unchecked(MarsAddressType::RewardsCollector.to_string()),
                 account_id: None,
                 denom: debt_market.denom.clone(),
-                user_amount_scaled_before: Uint128::zero(),
-                total_amount_scaled_before: debt_market.collateral_total_scaled,
+                kind: IncentiveKind::RedBank,
+                user_amount: Uint128::zero(),
+                total_amount: debt_market.collateral_total_scaled,
             })
             .unwrap(),
             funds: vec![],
@@ -1178,6 +1074,10 @@ fn expected_messages(
 }
 
 fn setup_env(mock_env: &mut MockEnv) -> (u128, Addr, Addr, Addr) {
+    setup_env_with_usdc_cf(mock_env, Decimal::percent(80))
+}
+
+fn setup_env_with_usdc_cf(mock_env: &mut MockEnv, usdc_cf: Decimal) -> (u128, Addr, Addr, Addr) {
     let funded_amt = 1_000_000_000_000u128;
     let provider = Addr::unchecked("provider"); // provides collateral to be borrowed by others
     let liquidatee = Addr::unchecked("liquidatee");
@@ -1186,24 +1086,40 @@ fn setup_env(mock_env: &mut MockEnv) -> (u128, Addr, Addr, Addr) {
     // setup red-bank
     let red_bank = mock_env.red_bank.clone();
     let params = mock_env.params.clone();
-    let (market_params, asset_params) =
-        default_asset_params_with("uosmo", Decimal::percent(70), Decimal::percent(78));
+    let (market_params, asset_params) = default_asset_params_with(
+        "uosmo",
+        Decimal::percent(70),
+        Decimal::percent(78),
+        Decimal::percent(80),
+    );
+    red_bank.init_asset(mock_env, &asset_params.denom, market_params);
+    params.init_params(mock_env, asset_params);
+    let (market_params, asset_params) = default_asset_params_with(
+        "ujake",
+        Decimal::percent(50),
+        Decimal::percent(55),
+        Decimal::percent(80),
+    );
+    red_bank.init_asset(mock_env, &asset_params.denom, market_params);
+    params.init_params(mock_env, asset_params);
+    let (market_params, asset_params) = default_asset_params_with(
+        "uatom",
+        Decimal::percent(82),
+        Decimal::percent(90),
+        Decimal::percent(80),
+    );
     red_bank.init_asset(mock_env, &asset_params.denom, market_params);
     params.init_params(mock_env, asset_params);
     let (market_params, asset_params) =
-        default_asset_params_with("ujake", Decimal::percent(50), Decimal::percent(55));
+        default_asset_params_with("uusdc", Decimal::percent(90), Decimal::percent(95), usdc_cf);
     red_bank.init_asset(mock_env, &asset_params.denom, market_params);
     params.init_params(mock_env, asset_params);
-    let (market_params, asset_params) =
-        default_asset_params_with("uatom", Decimal::percent(82), Decimal::percent(90));
-    red_bank.init_asset(mock_env, &asset_params.denom, market_params);
-    params.init_params(mock_env, asset_params);
-    let (market_params, asset_params) =
-        default_asset_params_with("uusdc", Decimal::percent(90), Decimal::percent(95));
-    red_bank.init_asset(mock_env, &asset_params.denom, market_params);
-    params.init_params(mock_env, asset_params);
-    let (market_params, asset_params) =
-        default_asset_params_with("untrn", Decimal::percent(90), Decimal::percent(96));
+    let (market_params, asset_params) = default_asset_params_with(
+        "untrn",
+        Decimal::percent(90),
+        Decimal::percent(96),
+        Decimal::percent(80),
+    );
     red_bank.init_asset(mock_env, &asset_params.denom, market_params);
     params.init_params(mock_env, asset_params);
 
@@ -1277,11 +1193,13 @@ fn default_asset_params_with(
     denom: &str,
     max_loan_to_value: Decimal,
     liquidation_threshold: Decimal,
+    close_factor: Decimal,
 ) -> (InitOrUpdateAssetParams, AssetParams) {
     _default_asset_params_with(
         denom,
         max_loan_to_value,
         liquidation_threshold,
+        close_factor,
         LiquidationBonus {
             starting_lb: Decimal::percent(1),
             slope: Decimal::from_str("2.0").unwrap(),
@@ -1295,6 +1213,7 @@ fn _default_asset_params_with(
     denom: &str,
     max_loan_to_value: Decimal,
     liquidation_threshold: Decimal,
+    close_factor: Decimal,
     liquidation_bonus: LiquidationBonus,
 ) -> (InitOrUpdateAssetParams, AssetParams) {
     let market_params = InitOrUpdateAssetParams {
@@ -1310,10 +1229,12 @@ fn _default_asset_params_with(
         denom: denom.to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
+            withdraw_enabled: true,
             hls: None,
         },
         red_bank: RedBankSettings {
             deposit_enabled: true,
+            withdraw_enabled: true,
             borrow_enabled: true,
         },
         max_loan_to_value,
@@ -1321,6 +1242,7 @@ fn _default_asset_params_with(
         liquidation_bonus,
         protocol_liquidation_fee: Decimal::percent(2),
         deposit_cap: Uint128::MAX,
+        close_factor,
     };
     (market_params, asset_params)
 }

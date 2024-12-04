@@ -7,7 +7,6 @@ use cosmwasm_std::{
 use mars_types::{
     adapters::{account_nft::AccountNftBase, health::HealthContractBase, oracle::OracleBase},
     credit_manager::{self, Action, ActionAmount, ActionCoin, ConfigResponse, Positions, QueryMsg},
-    health::AccountKind,
     oracle::ActionKind,
 };
 
@@ -330,6 +329,7 @@ fn prepare_lend_and_borrow_actions(
         cm_addr,
         &QueryMsg::Positions {
             account_id: vault_acc_id,
+            action: None,
         },
     )?;
     let base_token_deposit = positions
@@ -380,24 +380,13 @@ pub fn total_base_tokens_in_account(deps: Deps) -> Result<Uint128, ContractError
     let cm_addr = CREDIT_MANAGER.load(deps.storage)?;
     let vault_acc_id = VAULT_ACC_ID.load(deps.storage)?;
 
-    let cm_acc_kind: AccountKind = deps.querier.query_wasm_smart(
-        cm_addr.clone(),
-        &QueryMsg::AccountKind {
-            account_id: vault_acc_id.clone(),
-        },
-    )?;
-
     let base_token = BASE_TOKEN.load(deps.storage)?;
 
     let config: ConfigResponse = deps.querier.query_wasm_smart(cm_addr, &QueryMsg::Config {})?;
 
     let health = HealthContractBase::new(deps.api.addr_validate(&config.health_contract)?);
-    let health_values = health.query_health_values(
-        &deps.querier,
-        &vault_acc_id,
-        cm_acc_kind,
-        ActionKind::Default,
-    )?;
+    let health_values =
+        health.query_health_values(&deps.querier, &vault_acc_id, ActionKind::Default)?;
     let net_value =
         health_values.total_collateral_value.checked_sub(health_values.total_debt_value)?;
 

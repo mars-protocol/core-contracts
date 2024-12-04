@@ -78,8 +78,6 @@ export interface DeploymentConfig {
     name: string
     routes: SwapRoute[]
   }
-  targetHealthFactor: string
-  creditLineCoins: { denom: string; creditLine: String }[]
   maxValueForBurn: string
   maxUnlockingPositions: string
   maxSlippage: string
@@ -90,7 +88,23 @@ export interface DeploymentConfig {
   assets: AssetConfig[]
   vaults: VaultConfig[]
   oracleConfigs: OracleConfig[]
+  keeperFeeConfig: {
+    min_fee: { amount: string; denom: string }
+  }
   astroportConfig?: AstroportConfig
+  perps?: {
+    baseDenom: string
+    cooldownPeriod: number
+    maxPositions: number
+    denoms: PerpDenom[]
+    protocolFeeRate: Decimal
+    targetCollaterizationRatio: Decimal
+    deleverageEnabled: boolean
+    vaultWithdrawEnabled: boolean
+    maxUnlocks: number
+  }
+  maxPerpParams: number
+  perpsLiquidationBonusRatio: Decimal
 }
 
 export interface AssetConfig {
@@ -110,6 +124,7 @@ export interface AssetConfig {
     slope_1: string
     slope_2: string
   }
+  close_factor: Decimal
 }
 
 export enum VaultType {
@@ -162,4 +177,19 @@ export interface TestActions {
     denomOut: string
   }
   unzapAmount: string
+}
+
+export interface PerpDenom {
+  denom: string
+  maxFundingVelocity: string
+  skewScale: string
+  maxNetOiValue: string
+  maxLongOiValue: string
+  maxShortOiValue: string
+  closingFeeRate: string
+  openingFeeRate: string
+  liquidationThreshold: string
+  maxLoanToValue: string
+  maxPositionValue?: string
+  minPositionValue: string
 }

@@ -27,7 +27,7 @@ pub fn max_borrow_prop_test_runner(cases: u32, target: &BorrowTarget) {
                 }
             }),
             |h| {
-                let mut keys = h.denoms_data.params.keys();
+                let mut keys = h.asset_params.keys();
                 let denom_to_borrow = keys.next().unwrap();
                 let denom_to_swap_to = keys.next().unwrap();
 
@@ -62,7 +62,7 @@ pub fn max_borrow_prop_test_runner(cases: u32, target: &BorrowTarget) {
                     let health_after = h_new.compute_health().unwrap();
 
                     // Ensure still healthy
-                    assert!(!health_after.is_above_max_ltv(),);
+                    assert!(!health_after.is_above_max_ltv());
                 }
                 Ok(())
             },
@@ -100,7 +100,7 @@ fn add_borrow(
         BorrowTarget::Vault {
             address,
         } => {
-            let price = new_h.denoms_data.prices.get(denom).unwrap();
+            let price = new_h.oracle_prices.get(denom).unwrap();
             let value = amount.mul_floor(*price);
 
             if let Some(vault_value) = new_h.vaults_data.vault_values.get_mut(address) {
@@ -126,8 +126,8 @@ fn add_borrow(
             denom_out,
             slippage,
         } => {
-            let price_in = new_h.denoms_data.prices.get(denom).unwrap();
-            let price_out = new_h.denoms_data.prices.get(denom_out).unwrap();
+            let price_in = new_h.oracle_prices.get(denom).unwrap();
+            let price_out = new_h.oracle_prices.get(denom_out).unwrap();
 
             // denom_amount_out = (1 - slippage) * max_borrow_denom_amount * borrow_denom_price / denom_price_out
             // Use ceil math to avoid rounding errors in the test otheriwse we might end up with a health that is

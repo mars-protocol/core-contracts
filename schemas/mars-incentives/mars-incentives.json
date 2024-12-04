@@ -1,6 +1,6 @@
 {
   "contract_name": "mars-incentives",
-  "contract_version": "2.1.0",
+  "contract_version": "2.2.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -75,7 +75,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Add incentives for a given collateral denom and incentive denom pair",
+        "description": "Add incentives for a given denom and incentive denom pair",
         "type": "object",
         "required": [
           "set_asset_incentive"
@@ -84,15 +84,16 @@
           "set_asset_incentive": {
             "type": "object",
             "required": [
-              "collateral_denom",
+              "denom",
               "duration",
               "emission_per_second",
               "incentive_denom",
+              "kind",
               "start_time"
             ],
             "properties": {
-              "collateral_denom": {
-                "description": "The denom of the collatearal token to receive incentives",
+              "denom": {
+                "description": "The denom of the token to receive incentives",
                 "type": "string"
               },
               "duration": {
@@ -112,6 +113,14 @@
               "incentive_denom": {
                 "description": "The denom of the token to give incentives with",
                 "type": "string"
+              },
+              "kind": {
+                "description": "The kind of incentive, e.g. RedBank or PerpVault.",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/IncentiveKind"
+                  }
+                ]
               },
               "start_time": {
                 "description": "Start time of the incentive (in seconds) since the UNIX epoch (00:00:00 on 1970-01-01 UTC).",
@@ -136,9 +145,10 @@
             "type": "object",
             "required": [
               "denom",
-              "total_amount_scaled_before",
+              "kind",
+              "total_amount",
               "user_addr",
-              "user_amount_scaled_before"
+              "user_amount"
             ],
             "properties": {
               "account_id": {
@@ -152,8 +162,16 @@
                 "description": "Denom of the asset of which deposited balance is changed",
                 "type": "string"
               },
-              "total_amount_scaled_before": {
-                "description": "The market's total scaled collateral amount up to the instant before the change",
+              "kind": {
+                "description": "The kind of incentive, e.g. RedBank or PerpVault.",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/IncentiveKind"
+                  }
+                ]
+              },
+              "total_amount": {
+                "description": "The total amount up to the instant before the change",
                 "allOf": [
                   {
                     "$ref": "#/definitions/Uint128"
@@ -168,8 +186,8 @@
                   }
                 ]
               },
-              "user_amount_scaled_before": {
-                "description": "The user's scaled collateral amount up to the instant before the change",
+              "user_amount": {
+                "description": "The user's amount up to the instant before the change",
                 "allOf": [
                   {
                     "$ref": "#/definitions/Uint128"
@@ -208,18 +226,29 @@
                 "format": "uint32",
                 "minimum": 0.0
               },
-              "start_after_collateral_denom": {
-                "description": "Start pagination after this collateral denom",
+              "start_after_denom": {
+                "description": "Start pagination after this denom",
                 "type": [
                   "string",
                   "null"
                 ]
               },
               "start_after_incentive_denom": {
-                "description": "Start pagination after this incentive denom. If supplied you must also supply start_after_collateral_denom.",
+                "description": "Start pagination after this incentive denom. If supplied you must also supply start_after_denom.",
                 "type": [
                   "string",
                   "null"
+                ]
+              },
+              "start_after_kind": {
+                "description": "Start pagination after incentive kind to claim rewards for",
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/IncentiveKind"
+                  },
+                  {
+                    "type": "null"
+                  }
                 ]
               }
             },
@@ -369,7 +398,7 @@
         ],
         "properties": {
           "migrate": {
-            "$ref": "#/definitions/MigrateV1ToV2"
+            "$ref": "#/definitions/MigrateV2ToV2_0_1"
           }
         },
         "additionalProperties": false
@@ -433,17 +462,48 @@
           }
         }
       },
-      "MigrateV1ToV2": {
-        "description": "Migrate from V1 to V2, only owner can call",
+      "IncentiveKind": {
+        "type": "string",
+        "enum": [
+          "red_bank",
+          "perp_vault"
+        ]
+      },
+      "MigrateV2ToV2_0_1": {
+        "description": "Migrate from V2 to V2_0_1, only owner can call",
         "oneOf": [
           {
-            "description": "Migrate users indexes and unclaimed rewards in batches",
+            "description": "Migrate users unclaimed rewards",
             "type": "object",
             "required": [
-              "users_indexes_and_rewards"
+              "user_unclaimed_rewards"
             ],
             "properties": {
-              "users_indexes_and_rewards": {
+              "user_unclaimed_rewards": {
+                "type": "object",
+                "required": [
+                  "limit"
+                ],
+                "properties": {
+                  "limit": {
+                    "type": "integer",
+                    "format": "uint32",
+                    "minimum": 0.0
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Migrate users asset indices",
+            "type": "object",
+            "required": [
+              "user_asset_indices"
+            ],
+            "properties": {
+              "user_asset_indices": {
                 "type": "object",
                 "required": [
                   "limit"
@@ -464,10 +524,10 @@
             "description": "Clears old V1 state once all batches are migrated or after a certain time",
             "type": "object",
             "required": [
-              "clear_v1_state"
+              "clear_v2_state"
             ],
             "properties": {
-              "clear_v1_state": {
+              "clear_v2_state": {
                 "type": "object",
                 "additionalProperties": false
               }
@@ -613,7 +673,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Query all active incentive emissions for a collateral denom",
+        "description": "Query all active incentive emissions for a denom",
         "type": "object",
         "required": [
           "active_emissions"
@@ -622,12 +682,21 @@
           "active_emissions": {
             "type": "object",
             "required": [
-              "collateral_denom"
+              "denom",
+              "kind"
             ],
             "properties": {
-              "collateral_denom": {
-                "description": "The denom of the token that users supply as collateral to receive incentives",
+              "denom": {
+                "description": "The denom of the token that users supply to receive incentives",
                 "type": "string"
+              },
+              "kind": {
+                "description": "The kind of incentive, e.g. RedBank or PerpVault.",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/IncentiveKind"
+                  }
+                ]
               }
             },
             "additionalProperties": false
@@ -650,7 +719,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Query info about the state of an incentive for a given collateral and incentive denom pair",
+        "description": "Query info about the state of an incentive for a given denom and incentive denom pair",
         "type": "object",
         "required": [
           "incentive_state"
@@ -659,17 +728,26 @@
           "incentive_state": {
             "type": "object",
             "required": [
-              "collateral_denom",
-              "incentive_denom"
+              "denom",
+              "incentive_denom",
+              "kind"
             ],
             "properties": {
-              "collateral_denom": {
-                "description": "The denom of the token that users supply as collateral to receive incentives",
+              "denom": {
+                "description": "The denom of the token that users supply to receive incentives",
                 "type": "string"
               },
               "incentive_denom": {
                 "description": "The denom of the token which is used to give incentives with",
                 "type": "string"
+              },
+              "kind": {
+                "description": "The kind of incentive, e.g. RedBank or PerpVault.",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/IncentiveKind"
+                  }
+                ]
               }
             },
             "additionalProperties": false
@@ -696,18 +774,29 @@
                 "format": "uint32",
                 "minimum": 0.0
               },
-              "start_after_collateral_denom": {
-                "description": "Start pagination after this collateral denom",
+              "start_after_denom": {
+                "description": "Start pagination after this denom",
                 "type": [
                   "string",
                   "null"
                 ]
               },
               "start_after_incentive_denom": {
-                "description": "Start pagination after this incentive denom. If supplied you must also supply start_after_collateral_denom.",
+                "description": "Start pagination after this incentive denom. If supplied you must also supply start_after_denom.",
                 "type": [
                   "string",
                   "null"
+                ]
+              },
+              "start_after_kind": {
+                "description": "The kind of incentive, e.g. RedBank or PerpVault.",
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/IncentiveKind"
+                  },
+                  {
+                    "type": "null"
+                  }
                 ]
               }
             },
@@ -717,7 +806,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Queries the planned emission rate for a given collateral and incentive denom tuple at the specified unix timestamp. The emission rate returned is the amount of incentive tokens that will be emitted per second for each unit of collateral supplied during the epoch. NB: that the returned value can change if someone adds incentives to the contract.",
+        "description": "Queries the planned emission rate for a given denom and incentive denom tuple at the specified unix timestamp. The emission rate returned is the amount of incentive tokens that will be emitted per second for each unit of asset supplied during the epoch. NB: that the returned value can change if someone adds incentives to the contract.",
         "type": "object",
         "required": [
           "emission"
@@ -726,18 +815,27 @@
           "emission": {
             "type": "object",
             "required": [
-              "collateral_denom",
+              "denom",
               "incentive_denom",
+              "kind",
               "timestamp"
             ],
             "properties": {
-              "collateral_denom": {
-                "description": "The denom of the token that users supply as collateral to receive incentives",
+              "denom": {
+                "description": "The denom of the token that users supply to receive incentives",
                 "type": "string"
               },
               "incentive_denom": {
                 "description": "The denom of the token which is used to give incentives with",
                 "type": "string"
+              },
+              "kind": {
+                "description": "The kind of incentive, e.g. RedBank or PerpVault.",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/IncentiveKind"
+                  }
+                ]
               },
               "timestamp": {
                 "description": "The unix timestamp in second to query the emission rate at.",
@@ -752,7 +850,7 @@
         "additionalProperties": false
       },
       {
-        "description": "Enumerate all incentive emission rates with pagination for a specified collateral and indentive denom pair",
+        "description": "Enumerate all incentive emission rates with pagination for a specified denom and incentive denom pair",
         "type": "object",
         "required": [
           "emissions"
@@ -761,17 +859,26 @@
           "emissions": {
             "type": "object",
             "required": [
-              "collateral_denom",
-              "incentive_denom"
+              "denom",
+              "incentive_denom",
+              "kind"
             ],
             "properties": {
-              "collateral_denom": {
-                "description": "The denom of the token that users supply as collateral to receive incentives",
+              "denom": {
+                "description": "The denom of the token that users supply to receive incentives",
                 "type": "string"
               },
               "incentive_denom": {
                 "description": "The denom of the token which is used to give incentives with",
                 "type": "string"
+              },
+              "kind": {
+                "description": "The kind of incentive, e.g. RedBank or PerpVault.",
+                "allOf": [
+                  {
+                    "$ref": "#/definitions/IncentiveKind"
+                  }
+                ]
               },
               "limit": {
                 "description": "The maximum number of results to return. If not set, 5 is used. If larger than 10, 10 is used.",
@@ -893,18 +1000,29 @@
                 "format": "uint32",
                 "minimum": 0.0
               },
-              "start_after_collateral_denom": {
-                "description": "Start pagination after this collateral denom",
+              "start_after_denom": {
+                "description": "Start pagination after this denom",
                 "type": [
                   "string",
                   "null"
                 ]
               },
               "start_after_incentive_denom": {
-                "description": "Start pagination after this incentive denom. If supplied you must also supply start_after_collateral_denom.",
+                "description": "Start pagination after this incentive denom. If supplied you must also supply start_after_denom.",
                 "type": [
                   "string",
                   "null"
+                ]
+              },
+              "start_after_kind": {
+                "description": "The kind of incentive, e.g. RedBank or PerpVault.",
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/IncentiveKind"
+                  },
+                  {
+                    "type": "null"
+                  }
                 ]
               },
               "user": {
@@ -931,7 +1049,16 @@
         },
         "additionalProperties": false
       }
-    ]
+    ],
+    "definitions": {
+      "IncentiveKind": {
+        "type": "string",
+        "enum": [
+          "red_bank",
+          "perp_vault"
+        ]
+      }
+    }
   },
   "migrate": null,
   "sudo": null,
@@ -1055,7 +1182,7 @@
           ],
           "properties": {
             "emission_rate": {
-              "description": "The emission rate returned is the amount of incentive tokens that will be emitted per second for each unit of collateral supplied during the epoch.",
+              "description": "The emission rate returned is the amount of incentive tokens that will be emitted per second for each unit supplied during the epoch.",
               "allOf": [
                 {
                   "$ref": "#/definitions/Uint128"
@@ -1083,14 +1210,15 @@
       "description": "Incentive Metadata for a given incentive denom",
       "type": "object",
       "required": [
-        "collateral_denom",
+        "denom",
         "incentive_denom",
         "index",
+        "kind",
         "last_updated"
       ],
       "properties": {
-        "collateral_denom": {
-          "description": "The denom for which users get the incentive if they provide collateral in the Red Bank",
+        "denom": {
+          "description": "The denom for which users get the incentive",
           "type": "string"
         },
         "incentive_denom": {
@@ -1098,10 +1226,18 @@
           "type": "string"
         },
         "index": {
-          "description": "An index that represents how many incentive tokens have been distributed per unit of collateral",
+          "description": "An index that represents how many incentive tokens have been distributed per unit",
           "allOf": [
             {
               "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "kind": {
+          "description": "The kind of incentive, e.g. RedBank or PerpVault.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/IncentiveKind"
             }
           ]
         },
@@ -1117,6 +1253,13 @@
         "Decimal": {
           "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
+        },
+        "IncentiveKind": {
+          "type": "string",
+          "enum": [
+            "red_bank",
+            "perp_vault"
+          ]
         }
       }
     },
@@ -1132,18 +1275,26 @@
           "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
         },
+        "IncentiveKind": {
+          "type": "string",
+          "enum": [
+            "red_bank",
+            "perp_vault"
+          ]
+        },
         "IncentiveStateResponse": {
           "description": "Incentive Metadata for a given incentive denom",
           "type": "object",
           "required": [
-            "collateral_denom",
+            "denom",
             "incentive_denom",
             "index",
+            "kind",
             "last_updated"
           ],
           "properties": {
-            "collateral_denom": {
-              "description": "The denom for which users get the incentive if they provide collateral in the Red Bank",
+            "denom": {
+              "description": "The denom for which users get the incentive",
               "type": "string"
             },
             "incentive_denom": {
@@ -1151,10 +1302,18 @@
               "type": "string"
             },
             "index": {
-              "description": "An index that represents how many incentive tokens have been distributed per unit of collateral",
+              "description": "An index that represents how many incentive tokens have been distributed per unit",
               "allOf": [
                 {
                   "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "kind": {
+              "description": "The kind of incentive, e.g. RedBank or PerpVault.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/IncentiveKind"
                 }
               ]
             },

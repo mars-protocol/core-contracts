@@ -21,19 +21,22 @@ use crate::{
     health::{assert_max_ltv, query_health_state},
     hls::assert_hls_rules,
     lend::lend,
-    liquidate::assert_not_self_liquidation,
+    liquidate::{assert_not_self_liquidation, check_health},
     liquidate_astro_lp::liquidate_astro_lp,
     liquidate_deposit::liquidate_deposit,
     liquidate_lend::liquidate_lend,
+    perp::{close_all_perps, execute_perp_order},
+    perp_vault::{deposit_to_perp_vault, unlock_from_perp_vault, withdraw_from_perp_vault},
     reclaim::reclaim,
     refund::refund_coin_balances,
     repay::{repay, repay_for_recipient},
     stake_astro_lp::stake_lp,
     state::{ACCOUNT_KINDS, ACCOUNT_NFT, REENTRANCY_GUARD, VAULTS},
     swap::swap_exact_in,
+    trigger::{create_trigger_order, delete_trigger_order},
     unstake_astro_lp::unstake_lp,
     update_coin_balances::{update_coin_balance, update_coin_balance_after_vault_liquidation},
-    utils::{assert_is_token_owner, get_account_kind},
+    utils::{assert_is_authorized, get_account_kind},
     vault::{
         enter_vault, exit_vault, exit_vault_unlocked, liquidate_vault, request_vault_unlock,
         update_vault_coin_balance,
@@ -99,12 +102,13 @@ pub fn dispatch_actions(
     account_id: Option<String>,
     account_kind: Option<AccountKind>,
     actions: Vec<Action>,
+    enforce_ownership: bool,
 ) -> ContractResult<Response> {
     let mut response = Response::new();
 
     let account_id = match account_id {
         Some(acc_id) => {
-            validate_account(&deps, &info, &acc_id, &actions)?;
+            validate_account(&deps, &info, &acc_id, &actions, enforce_ownership)?;
             acc_id
         }
         None => {
@@ -139,7 +143,8 @@ pub fn dispatch_actions(
 
     // If needed (i.e. if health check is required), we query the health state
     let prev_health_state = if !no_health_check {
-        let health_state = query_health_state(deps.as_ref(), account_id, ActionKind::Default)?;
+        let health_state =
+            query_health_state(deps.as_ref(), env.clone(), account_id, ActionKind::Default)?;
         Some(health_state)
     } else {
         None
@@ -225,6 +230,52 @@ pub fn dispatch_actions(
             Action::ClaimRewards {} => callbacks.push(CallbackMsg::ClaimRewards {
                 account_id: account_id.to_string(),
             }),
+            Action::DepositToPerpVault {
+                coin,
+                max_receivable_shares,
+            } => callbacks.push(CallbackMsg::DepositToPerpVault {
+                account_id: account_id.to_string(),
+                coin,
+                max_receivable_shares,
+            }),
+            Action::UnlockFromPerpVault {
+                shares,
+            } => callbacks.push(CallbackMsg::UnlockFromPerpVault {
+                account_id: account_id.to_string(),
+                shares,
+            }),
+            Action::WithdrawFromPerpVault {
+                min_receive,
+            } => callbacks.push(CallbackMsg::WithdrawFromPerpVault {
+                account_id: account_id.to_string(),
+                min_receive,
+            }),
+            Action::ExecutePerpOrder {
+                denom,
+                order_size: size,
+                reduce_only,
+            } => callbacks.push(CallbackMsg::ExecutePerpOrder {
+                account_id: account_id.to_string(),
+                denom,
+                size,
+                reduce_only,
+            }),
+            Action::CreateTriggerOrder {
+                actions,
+                conditions,
+                keeper_fee,
+            } => callbacks.push(CallbackMsg::CreateTriggerOrder {
+                account_id: account_id.to_string(),
+                actions,
+                conditions,
+                keeper_fee,
+            }),
+            Action::DeleteTriggerOrder {
+                trigger_order_id,
+            } => callbacks.push(CallbackMsg::DeleteTriggerOrder {
+                account_id: account_id.to_string(),
+                trigger_order_id: trigger_order_id.to_string(),
+            }),
             Action::EnterVault {
                 vault,
                 coin,
@@ -237,40 +288,57 @@ pub fn dispatch_actions(
                 liquidatee_account_id,
                 debt_coin,
                 request,
-            } => match request {
-                LiquidateRequest::Deposit(denom) => callbacks.push(CallbackMsg::Liquidate {
-                    liquidator_account_id: account_id.to_string(),
-                    liquidatee_account_id: liquidatee_account_id.to_string(),
-                    debt_coin,
-                    request: LiquidateRequest::Deposit(denom),
-                }),
-                LiquidateRequest::Lend(denom) => callbacks.push(CallbackMsg::Liquidate {
-                    liquidator_account_id: account_id.to_string(),
-                    liquidatee_account_id: liquidatee_account_id.to_string(),
-                    debt_coin,
-                    request: LiquidateRequest::Lend(denom),
-                }),
-                LiquidateRequest::Vault {
-                    request_vault,
-                    position_type,
-                } => callbacks.push(CallbackMsg::Liquidate {
-                    liquidator_account_id: account_id.to_string(),
-                    liquidatee_account_id: liquidatee_account_id.to_string(),
-                    debt_coin,
-                    request: LiquidateRequest::Vault {
-                        request_vault: request_vault.check(deps.api)?,
-                        position_type,
-                    },
-                }),
-                LiquidateRequest::StakedAstroLp(lp_denom) => {
-                    callbacks.push(CallbackMsg::Liquidate {
+            } => {
+                assert_not_self_liquidation(account_id, &liquidatee_account_id)?;
+
+                let health = check_health(deps.as_ref(), env.clone(), &liquidatee_account_id)?;
+                if health.has_perps {
+                    // Close all perp positions before liquidating.
+                    // This creates the state of the account with only spot positions.
+                    callbacks.push(CallbackMsg::CloseAllPerps {
+                        account_id: liquidatee_account_id.to_string(),
+                    });
+                }
+
+                match request {
+                    LiquidateRequest::Deposit(denom) => callbacks.push(CallbackMsg::Liquidate {
                         liquidator_account_id: account_id.to_string(),
                         liquidatee_account_id: liquidatee_account_id.to_string(),
                         debt_coin,
-                        request: LiquidateRequest::StakedAstroLp(lp_denom),
-                    })
+                        request: LiquidateRequest::Deposit(denom),
+                        prev_health: health,
+                    }),
+                    LiquidateRequest::Lend(denom) => callbacks.push(CallbackMsg::Liquidate {
+                        liquidator_account_id: account_id.to_string(),
+                        liquidatee_account_id: liquidatee_account_id.to_string(),
+                        debt_coin,
+                        request: LiquidateRequest::Lend(denom),
+                        prev_health: health,
+                    }),
+                    LiquidateRequest::Vault {
+                        request_vault,
+                        position_type,
+                    } => callbacks.push(CallbackMsg::Liquidate {
+                        liquidator_account_id: account_id.to_string(),
+                        liquidatee_account_id: liquidatee_account_id.to_string(),
+                        debt_coin,
+                        request: LiquidateRequest::Vault {
+                            request_vault: request_vault.check(deps.api)?,
+                            position_type,
+                        },
+                        prev_health: health,
+                    }),
+                    LiquidateRequest::StakedAstroLp(lp_denom) => {
+                        callbacks.push(CallbackMsg::Liquidate {
+                            liquidator_account_id: account_id.to_string(),
+                            liquidatee_account_id: liquidatee_account_id.to_string(),
+                            debt_coin,
+                            request: LiquidateRequest::StakedAstroLp(lp_denom),
+                            prev_health: health,
+                        })
+                    }
                 }
-            },
+            }
             Action::SwapExactIn {
                 coin_in,
                 denom_out,
@@ -423,6 +491,7 @@ fn validate_account(
     info: &MessageInfo,
     acc_id: &String,
     actions: &[Action],
+    enforce_ownership: bool,
 ) -> Result<(), ContractError> {
     let kind = get_account_kind(deps.storage, acc_id)?;
     match kind {
@@ -431,7 +500,9 @@ fn validate_account(
         AccountKind::FundManager {
             vault_addr,
         } if info.sender != vault_addr => {
-            assert_is_token_owner(deps, &info.sender, acc_id)?;
+            if enforce_ownership {
+                assert_is_authorized(deps, &info.sender, acc_id)?;
+            }
 
             let actions_not_allowed = actions.iter().any(|action| {
                 matches!(
@@ -456,7 +527,9 @@ fn validate_account(
             ..
         } => {}
         AccountKind::Default | AccountKind::HighLeveredStrategy => {
-            assert_is_token_owner(deps, &info.sender, acc_id)?
+            if enforce_ownership {
+                assert_is_authorized(deps, &info.sender, acc_id)?;
+            }
         }
     }
 
@@ -505,10 +578,36 @@ pub fn execute_callback(
         CallbackMsg::AssertMaxLTV {
             account_id,
             prev_health_state,
-        } => assert_max_ltv(deps.as_ref(), &account_id, prev_health_state),
+        } => assert_max_ltv(deps.as_ref(), env, &account_id, prev_health_state),
         CallbackMsg::AssertDepositCaps {
             denoms,
         } => assert_deposit_caps(deps.as_ref(), denoms),
+        CallbackMsg::DepositToPerpVault {
+            account_id,
+            coin,
+            max_receivable_shares,
+        } => deposit_to_perp_vault(deps, &account_id, &coin, max_receivable_shares),
+        CallbackMsg::UnlockFromPerpVault {
+            account_id,
+            shares,
+        } => unlock_from_perp_vault(deps.as_ref(), &account_id, shares),
+        CallbackMsg::WithdrawFromPerpVault {
+            account_id,
+            min_receive,
+        } => withdraw_from_perp_vault(deps.as_ref(), env, &account_id, min_receive),
+        CallbackMsg::CreateTriggerOrder {
+            account_id,
+            actions,
+            conditions,
+            keeper_fee,
+        } => create_trigger_order(deps, &account_id, actions, conditions, keeper_fee),
+        CallbackMsg::DeleteTriggerOrder {
+            account_id,
+            trigger_order_id,
+        } => delete_trigger_order(deps, &account_id, &trigger_order_id),
+        CallbackMsg::CloseAllPerps {
+            account_id,
+        } => close_all_perps(deps, &account_id, ActionKind::Liquidation),
         CallbackMsg::EnterVault {
             account_id,
             vault,
@@ -530,47 +629,49 @@ pub fn execute_callback(
             liquidatee_account_id,
             debt_coin,
             request,
-        } => {
-            assert_not_self_liquidation(&liquidator_account_id, &liquidatee_account_id)?;
-            match request {
-                LiquidateRequest::Deposit(request_coin_denom) => liquidate_deposit(
-                    deps,
-                    env,
-                    &liquidator_account_id,
-                    &liquidatee_account_id,
-                    debt_coin,
-                    &request_coin_denom,
-                ),
-                LiquidateRequest::Lend(request_coin_denom) => liquidate_lend(
-                    deps,
-                    env,
-                    &liquidator_account_id,
-                    &liquidatee_account_id,
-                    debt_coin,
-                    &request_coin_denom,
-                ),
-                LiquidateRequest::Vault {
-                    request_vault,
-                    position_type,
-                } => liquidate_vault(
-                    deps,
-                    env,
-                    &liquidator_account_id,
-                    &liquidatee_account_id,
-                    debt_coin,
-                    request_vault,
-                    position_type,
-                ),
-                LiquidateRequest::StakedAstroLp(request_coin_denom) => liquidate_astro_lp(
-                    deps,
-                    env,
-                    &liquidator_account_id,
-                    &liquidatee_account_id,
-                    debt_coin,
-                    &request_coin_denom,
-                ),
-            }
-        }
+            prev_health,
+        } => match request {
+            LiquidateRequest::Deposit(request_coin_denom) => liquidate_deposit(
+                deps,
+                env,
+                &liquidator_account_id,
+                &liquidatee_account_id,
+                debt_coin,
+                &request_coin_denom,
+                prev_health,
+            ),
+            LiquidateRequest::Lend(request_coin_denom) => liquidate_lend(
+                deps,
+                env,
+                &liquidator_account_id,
+                &liquidatee_account_id,
+                debt_coin,
+                &request_coin_denom,
+                prev_health,
+            ),
+            LiquidateRequest::Vault {
+                request_vault,
+                position_type,
+            } => liquidate_vault(
+                deps,
+                env,
+                &liquidator_account_id,
+                &liquidatee_account_id,
+                debt_coin,
+                request_vault,
+                position_type,
+                prev_health,
+            ),
+            LiquidateRequest::StakedAstroLp(request_coin_denom) => liquidate_astro_lp(
+                deps,
+                env,
+                &liquidator_account_id,
+                &liquidatee_account_id,
+                debt_coin,
+                &request_coin_denom,
+                prev_health,
+            ),
+        },
         CallbackMsg::SwapExactIn {
             account_id,
             coin_in,
@@ -642,5 +743,11 @@ pub fn execute_callback(
             account_id,
             lp_denom,
         } => claim_lp_rewards(deps, &account_id, &lp_denom),
+        CallbackMsg::ExecutePerpOrder {
+            account_id,
+            denom,
+            size,
+            reduce_only,
+        } => execute_perp_order(deps, account_id.as_str(), denom.as_str(), size, reduce_only),
     }
 }

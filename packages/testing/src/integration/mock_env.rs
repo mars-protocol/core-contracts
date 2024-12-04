@@ -12,6 +12,7 @@ use mars_types::{
     address_provider::{self, MarsAddressType},
     credit_manager::ActionCoin,
     incentives,
+    incentives::IncentiveKind,
     oracle::{
         self,
         ActionKind::{Default as ActionDefault, Liquidation},
@@ -27,10 +28,13 @@ use mars_types::{
 use pyth_sdk_cw::PriceIdentifier;
 
 use super::mock_contracts::mock_astroport_incentives;
-use crate::integration::mock_contracts::{
-    mock_address_provider_contract, mock_incentives_contract, mock_oracle_osmosis_contract,
-    mock_params_osmosis_contract, mock_pyth_contract, mock_red_bank_contract,
-    mock_rewards_collector_osmosis_contract,
+use crate::{
+    integration::mock_contracts::{
+        mock_address_provider_contract, mock_incentives_contract, mock_oracle_osmosis_contract,
+        mock_params_osmosis_contract, mock_pyth_contract, mock_red_bank_contract,
+        mock_rewards_collector_osmosis_contract,
+    },
+    multitest::helpers::mock_perps_contract,
 };
 
 pub struct MockEnv {
@@ -165,6 +169,7 @@ impl Incentives {
     pub fn init_asset_incentive_from_current_block(
         &self,
         env: &mut MockEnv,
+        kind: &IncentiveKind,
         collateral_denom: &str,
         incentive_denom: &str,
         emission_per_second: u128,
@@ -178,7 +183,8 @@ impl Incentives {
                 env.owner.clone(),
                 self.contract_addr.clone(),
                 &incentives::ExecuteMsg::SetAssetIncentive {
-                    collateral_denom: collateral_denom.to_string(),
+                    kind: kind.clone(),
+                    denom: collateral_denom.to_string(),
                     incentive_denom: incentive_denom.to_string(),
                     emission_per_second: emission_per_second.into(),
                     start_time: current_block_time,
@@ -192,6 +198,7 @@ impl Incentives {
     pub fn init_asset_incentive(
         &self,
         env: &mut MockEnv,
+        kind: &IncentiveKind,
         collateral_denom: &str,
         incentive_denom: &str,
         emission_per_second: u128,
@@ -203,7 +210,8 @@ impl Incentives {
                 env.owner.clone(),
                 self.contract_addr.clone(),
                 &incentives::ExecuteMsg::SetAssetIncentive {
-                    collateral_denom: collateral_denom.to_string(),
+                    kind: kind.clone(),
+                    denom: collateral_denom.to_string(),
                     incentive_denom: incentive_denom.to_string(),
                     emission_per_second: emission_per_second.into(),
                     start_time,
@@ -229,7 +237,8 @@ impl Incentives {
             self.contract_addr.clone(),
             &incentives::ExecuteMsg::ClaimRewards {
                 account_id,
-                start_after_collateral_denom: None,
+                start_after_kind: None,
+                start_after_denom: None,
                 start_after_incentive_denom: None,
                 limit: None,
             },
@@ -310,7 +319,8 @@ impl Incentives {
             &incentives::QueryMsg::UserUnclaimedRewards {
                 account_id,
                 user: user.to_string(),
-                start_after_collateral_denom: None,
+                start_after_kind: None,
+                start_after_denom: None,
                 start_after_incentive_denom: None,
                 limit: None,
             },
@@ -767,6 +777,7 @@ impl RewardsCollector {
             Addr::unchecked("anyone"),
             self.contract_addr.clone(),
             &mars_types::rewards_collector::ExecuteMsg::ClaimIncentiveRewards {
+                start_after_kind: None,
                 start_after_collateral_denom: None,
                 start_after_incentive_denom: None,
                 limit: None,
@@ -843,6 +854,13 @@ pub struct MockEnvBuilder {
     pyth_contract_addr: String,
 
     credit_manager_contract_addr: String,
+
+    // perps params
+    oracle_base_denom: String,
+    perps_base_denom: String,
+    cooldown_period: u64,
+    max_positions: u8,
+    max_unlocks: u8,
 }
 
 impl MockEnvBuilder {
@@ -864,6 +882,11 @@ impl MockEnvBuilder {
                 .to_string(), // correct bech32 addr to pass validation
             credit_manager_contract_addr:
                 "osmo1q7khj532p2fyvmnu83tul6xddl6yl0d0kmrzdz2pfel3lkxem92sw6zqrl".to_string(),
+            oracle_base_denom: "uusd".to_string(),
+            perps_base_denom: "uusdc".to_string(),
+            cooldown_period: 3600,
+            max_positions: 4,
+            max_unlocks: 5,
         }
     }
 
@@ -913,6 +936,7 @@ impl MockEnvBuilder {
     }
 
     pub fn build(&mut self) -> MockEnv {
+        let cm_addr = Addr::unchecked(&self.credit_manager_contract_addr);
         let address_provider_addr = self.deploy_address_provider();
         let incentives_addr = self.deploy_incentives(&address_provider_addr);
         let oracle_addr = self.deploy_oracle_osmosis();
@@ -921,6 +945,7 @@ impl MockEnvBuilder {
         let params_addr = self.deploy_params_osmosis(&address_provider_addr);
         let pyth_addr = self.deploy_mock_pyth();
         let astroport_incentives_addr = self.deploy_mock_astroport_incentives();
+        let perps_addr = self.deploy_perps(&address_provider_addr);
 
         self.update_address_provider(
             &address_provider_addr,
@@ -939,7 +964,7 @@ impl MockEnvBuilder {
             &rewards_collector_addr,
         );
         self.update_address_provider(&address_provider_addr, MarsAddressType::Params, &params_addr);
-        let cm_addr = Addr::unchecked(&self.credit_manager_contract_addr);
+
         self.update_address_provider(
             &address_provider_addr,
             MarsAddressType::CreditManager,
@@ -950,6 +975,7 @@ impl MockEnvBuilder {
             MarsAddressType::AstroportIncentives,
             &astroport_incentives_addr,
         );
+        self.update_address_provider(&address_provider_addr, MarsAddressType::Perps, &perps_addr);
 
         MockEnv {
             app: take(&mut self.app),
@@ -1091,11 +1117,37 @@ impl MockEnvBuilder {
                 self.owner.clone(),
                 &mars_types::params::InstantiateMsg {
                     owner: self.owner.to_string(),
+                    risk_manager: None,
                     address_provider: address_provider_addr.to_string(),
-                    target_health_factor: self.target_health_factor,
+                    max_perp_params: 40,
                 },
                 &[],
                 "params",
+                None,
+            )
+            .unwrap()
+    }
+
+    fn deploy_perps(&mut self, address_provider_addr: &Addr) -> Addr {
+        let code_id = self.app.store_code(mock_perps_contract());
+
+        self.app
+            .instantiate_contract(
+                code_id,
+                self.owner.clone(),
+                &mars_types::perps::InstantiateMsg {
+                    address_provider: address_provider_addr.to_string(),
+                    base_denom: self.perps_base_denom.clone(),
+                    cooldown_period: self.cooldown_period,
+                    max_positions: self.max_positions,
+                    protocol_fee_rate: Decimal::percent(25),
+                    target_vault_collateralization_ratio: Decimal::percent(125),
+                    deleverage_enabled: true,
+                    vault_withdraw_enabled: true,
+                    max_unlocks: self.max_unlocks,
+                },
+                &[],
+                "perps",
                 None,
             )
             .unwrap()

@@ -24,6 +24,7 @@ fn uses_liquidation_pricing() {
         params: AssetParamsUnchecked {
             denom: umars.to_string(),
             credit_manager: CmSettings {
+                withdraw_enabled: true,
                 whitelisted: false,
                 hls: Some(HlsParamsUnchecked {
                     max_loan_to_value: Decimal::from_str("0.8").unwrap(),
@@ -32,6 +33,7 @@ fn uses_liquidation_pricing() {
                 }),
             },
             red_bank: RedBankSettings {
+                withdraw_enabled: true,
                 deposit_enabled: false,
                 borrow_enabled: false,
             },
@@ -45,6 +47,7 @@ fn uses_liquidation_pricing() {
             },
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
+            close_factor: Decimal::percent(80u64),
         },
     };
 
@@ -68,21 +71,19 @@ fn uses_liquidation_pricing() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
     );
 
     // Default pricing should error
-    let err: StdError =
-        mock.query_health_state(account_id, AccountKind::Default, ActionKind::Default).unwrap_err();
+    let err: StdError = mock.query_health_state(account_id, ActionKind::Default).unwrap_err();
     assert_eq!(
         err,
         StdError::generic_err(
             "Querier contract error: Generic error: Querier contract error: type: cosmwasm_std::math::decimal::Decimal; key: [00, 12, 64, 65, 66, 61, 75, 6C, 74, 5F, 63, 6F, 69, 6E, 5F, 70, 72, 69, 63, 65, 75, 6D, 61, 72, 73] not found".to_string()
         )
     );
-    let err: StdError = mock
-        .query_health_values(account_id, AccountKind::Default, ActionKind::Default)
-        .unwrap_err();
+    let err: StdError = mock.query_health_values(account_id, ActionKind::Default).unwrap_err();
     assert_eq!(
         err,
         StdError::generic_err(
@@ -91,6 +92,6 @@ fn uses_liquidation_pricing() {
     );
 
     // Liquidation pricing is used and succeeds
-    mock.query_health_state(account_id, AccountKind::Default, ActionKind::Liquidation).unwrap();
-    mock.query_health_values(account_id, AccountKind::Default, ActionKind::Liquidation).unwrap();
+    mock.query_health_state(account_id, ActionKind::Liquidation).unwrap();
+    mock.query_health_values(account_id, ActionKind::Liquidation).unwrap();
 }

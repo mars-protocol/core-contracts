@@ -1,28 +1,33 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::Uint128;
 use mars_owner::OwnerUpdate;
 
-use super::{asset::AssetParamsUnchecked, vault::VaultConfigUnchecked};
+use super::{asset::AssetParamsUnchecked, vault::VaultConfigUnchecked, PerpParams};
 
 #[cw_serde]
 pub struct InstantiateMsg {
     /// Contract's owner
     pub owner: String,
+    /// Contracts optional risk manager
+    pub risk_manager: Option<String>,
     /// Address of the address provider contract
     pub address_provider: String,
-    /// Determines the ideal HF a position should be left at immediately after the position has been liquidated.
-    pub target_health_factor: Decimal,
+    /// Maximum number of perps that can be created
+    pub max_perp_params: u8,
 }
 
 #[cw_serde]
 pub enum ExecuteMsg {
     UpdateOwner(OwnerUpdate),
+    UpdateRiskManager(OwnerUpdate),
+    ResetRiskManager(),
     UpdateConfig {
         address_provider: Option<String>,
+        max_perp_params: Option<u8>,
     },
-    UpdateTargetHealthFactor(Decimal),
     UpdateAssetParams(AssetParamsUpdate),
     UpdateVaultConfig(VaultConfigUpdate),
+    UpdatePerpParams(PerpParamsUpdate),
     EmergencyUpdate(EmergencyUpdate),
 }
 
@@ -31,6 +36,9 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     #[returns(mars_owner::OwnerResponse)]
     Owner {},
+
+    #[returns(mars_owner::OwnerResponse)]
+    RiskManager {},
 
     #[returns(super::msg::ConfigResponse)]
     Config {},
@@ -42,6 +50,12 @@ pub enum QueryMsg {
 
     #[returns(Vec<super::asset::AssetParams>)]
     AllAssetParams {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
+    #[returns(cw_paginate::PaginationResponse<super::asset::AssetParams>)]
+    AllAssetParamsV2 {
         start_after: Option<String>,
         limit: Option<u32>,
     },
@@ -64,8 +78,22 @@ pub enum QueryMsg {
         limit: Option<u32>,
     },
 
-    #[returns(Decimal)]
-    TargetHealthFactor {},
+    #[returns(super::perp::PerpParams)]
+    PerpParams {
+        denom: String,
+    },
+
+    #[returns(Vec<super::perp::PerpParams>)]
+    AllPerpParams {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
+    #[returns(cw_paginate::PaginationResponse<super::perp::PerpParams>)]
+    AllPerpParamsV2 {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
 
     /// Compute the total amount deposited of the given asset across Red Bank
     /// and Credit Manager.
@@ -87,6 +115,8 @@ pub enum QueryMsg {
 pub struct ConfigResponse {
     /// Address provider returns addresses for all protocol contracts
     pub address_provider: String,
+    /// Maximum number of perps that can be created
+    pub max_perp_params: u8,
 }
 
 #[cw_serde]
@@ -111,19 +141,36 @@ pub enum VaultConfigUpdate {
 }
 
 #[cw_serde]
+pub enum PerpParamsUpdate {
+    AddOrUpdate {
+        params: PerpParams,
+    },
+}
+
+#[cw_serde]
 pub enum CmEmergencyUpdate {
     SetZeroMaxLtvOnVault(String),
     SetZeroDepositCapOnVault(String),
     DisallowCoin(String),
+    DisableWithdraw(String),
 }
 
 #[cw_serde]
 pub enum RedBankEmergencyUpdate {
     DisableBorrowing(String),
+    DisableWithdraw(String),
+}
+
+#[cw_serde]
+pub enum PerpsEmergencyUpdate {
+    DisableTrading(String),
+    DisableDeleverage(),
+    DisableCounterpartyVaultWithdraw(),
 }
 
 #[cw_serde]
 pub enum EmergencyUpdate {
     CreditManager(CmEmergencyUpdate),
     RedBank(RedBankEmergencyUpdate),
+    Perps(PerpsEmergencyUpdate),
 }

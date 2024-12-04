@@ -9,7 +9,6 @@ use mars_types::{
         Action::{Borrow, Deposit, EnterVault, Liquidate, RequestVaultUnlock},
         LiquidateRequest,
     },
-    health::AccountKind,
     oracle::ActionKind,
 };
 
@@ -25,11 +24,12 @@ use super::helpers::{
 fn liquidatee_must_have_the_request_vault_position() {
     let uatom = uatom_info();
     let uosmo = uosmo_info();
+    let ujake = ujake_info();
     let leverage_vault = unlocked_vault_info();
 
     let liquidatee = Addr::unchecked("liquidatee");
     let mut mock = MockEnv::new()
-        .set_params(&[uatom.clone(), uosmo.clone()])
+        .set_params(&[uatom.clone(), uosmo.clone(), ujake.clone()])
         .vault_configs(&[leverage_vault.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),
@@ -43,10 +43,16 @@ fn liquidatee_must_have_the_request_vault_position() {
     mock.update_credit_account(
         &liquidatee_account_id,
         &liquidatee,
-        vec![Deposit(uatom.to_coin(200)), Deposit(uosmo.to_coin(400))],
+        vec![Deposit(uatom.to_coin(200)), Deposit(uosmo.to_coin(400)), Borrow(ujake.to_coin(175))],
         &[uatom.to_coin(200), uosmo.to_coin(400)],
     )
     .unwrap();
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Liquidation,
+        denom: ujake.denom.clone(),
+        price: Decimal::from_atomics(20u128, 0).unwrap(),
+    });
 
     let liquidator = Addr::unchecked("liquidator");
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -68,7 +74,7 @@ fn liquidatee_must_have_the_request_vault_position() {
     assert_err(
         res,
         ContractError::Std(NotFound {
-            kind: "type: mars_types::adapters::vault::amount::VaultPositionAmount; key: [00, 0F, 76, 61, 75, 6C, 74, 5F, 70, 6F, 73, 69, 74, 69, 6F, 6E, 73, 00, 01, 32, 63, 6F, 6E, 74, 72, 61, 63, 74, 31, 31]".to_string(),
+            kind: "type: mars_types::adapters::vault::amount::VaultPositionAmount; key: [00, 0F, 76, 61, 75, 6C, 74, 5F, 70, 6F, 73, 69, 74, 69, 6F, 6E, 73, 00, 01, 32, 63, 6F, 6E, 74, 72, 61, 63, 74, 31, 33]".to_string(),
         }),
     )
 }
@@ -203,11 +209,12 @@ fn liquidator_does_not_have_debt_coin_in_credit_account() {
 #[test]
 fn wrong_position_type_sent_for_unlocked_vault() {
     let lp_token = lp_token_info();
+    let ujake = ujake_info();
     let leverage_vault = unlocked_vault_info();
 
     let liquidatee = Addr::unchecked("liquidatee");
     let mut mock = MockEnv::new()
-        .set_params(&[lp_token.clone()])
+        .set_params(&[lp_token.clone(), ujake.clone()])
         .vault_configs(&[leverage_vault.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),
@@ -228,10 +235,17 @@ fn wrong_position_type_sent_for_unlocked_vault() {
                 vault,
                 coin: lp_token.to_action_coin(200),
             },
+            Borrow(ujake.to_coin(175)),
         ],
         &[lp_token.to_coin(200)],
     )
     .unwrap();
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Liquidation,
+        denom: ujake.denom.clone(),
+        price: Decimal::from_atomics(20u128, 0).unwrap(),
+    });
 
     let liquidator = Addr::unchecked("liquidator");
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -273,10 +287,11 @@ fn wrong_position_type_sent_for_unlocked_vault() {
 fn wrong_position_type_sent_for_locked_vault() {
     let lp_token = lp_token_info();
     let leverage_vault = locked_vault_info();
+    let ujake = ujake_info();
 
     let liquidatee = Addr::unchecked("liquidatee");
     let mut mock = MockEnv::new()
-        .set_params(&[lp_token.clone()])
+        .set_params(&[lp_token.clone(), ujake.clone()])
         .vault_configs(&[leverage_vault.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),
@@ -297,10 +312,17 @@ fn wrong_position_type_sent_for_locked_vault() {
                 vault,
                 coin: lp_token.to_action_coin(200),
             },
+            Borrow(ujake.to_coin(175)),
         ],
         &[lp_token.to_coin(200)],
     )
     .unwrap();
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Liquidation,
+        denom: ujake.denom.clone(),
+        price: Decimal::from_atomics(20u128, 0).unwrap(),
+    });
 
     let liquidator = Addr::unchecked("liquidator");
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -370,8 +392,7 @@ fn liquidate_unlocked_vault() {
         price: Decimal::from_atomics(18u128, 0).unwrap(),
     });
 
-    let prev_health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let prev_health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(prev_health.liquidatable);
 
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -424,8 +445,7 @@ fn liquidate_unlocked_vault() {
     assert_eq!(lp.amount, Uint128::new(1));
 
     // Liq HF should improve
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(!health.liquidatable);
 }
 
@@ -476,8 +496,7 @@ fn liquidate_locked_vault() {
         price: Decimal::from_atomics(20u128, 0).unwrap(),
     });
 
-    let prev_health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let prev_health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(prev_health.liquidatable);
 
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -533,8 +552,7 @@ fn liquidate_locked_vault() {
     assert_eq!(lp_balance.amount, Uint128::new(1));
 
     // Liq HF should improve
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(health.liquidatable);
     assert!(
         prev_health.liquidation_health_factor.unwrap() < health.liquidation_health_factor.unwrap()
@@ -605,8 +623,7 @@ fn liquidate_unlocking_liquidation_order() {
         price: Decimal::from_atomics(20u128, 0).unwrap(),
     });
 
-    let prev_health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let prev_health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(prev_health.liquidatable);
 
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -671,8 +688,7 @@ fn liquidate_unlocking_liquidation_order() {
     assert_eq!(lp_balance.amount, Uint128::new(3));
 
     // Liq HF should improve
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(health.liquidatable);
     assert!(
         prev_health.liquidation_health_factor.unwrap() < health.liquidation_health_factor.unwrap()
@@ -700,7 +716,6 @@ fn liquidation_calculation_adjustment() {
             addr: liquidator.clone(),
             funds: vec![ujake.to_coin(500)],
         })
-        .target_health_factor(Decimal::from_atomics(15u128, 1).unwrap())
         .build()
         .unwrap();
 
@@ -728,8 +743,7 @@ fn liquidation_calculation_adjustment() {
         price: Decimal::from_atomics(20u128, 0).unwrap(),
     });
 
-    let prev_health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let prev_health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(prev_health.liquidatable);
 
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -786,7 +800,6 @@ fn liquidation_calculation_adjustment() {
     assert_eq!(position.debts.len(), 0);
 
     // Liq HF should improve
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(!health.liquidatable);
 }

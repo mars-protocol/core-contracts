@@ -5,6 +5,7 @@
  * and run the @cosmwasm/ts-codegen generate command to regenerate this file.
  */
 
+export type Decimal = string
 export type HlsAssetTypeForAddr =
   | {
       coin: {
@@ -17,7 +18,6 @@ export type HlsAssetTypeForAddr =
       }
     }
 export type Addr = string
-export type Decimal = string
 export type Uint128 = string
 export type AccountKind =
   | ('default' | 'high_levered_strategy')
@@ -26,6 +26,7 @@ export type AccountKind =
         vault_addr: string
       }
     }
+export type Int128 = string
 export type VaultPositionAmount =
   | {
       unlocked: VaultAmount
@@ -37,20 +38,19 @@ export type VaultAmount = string
 export type VaultAmount1 = string
 export type UnlockingPositions = VaultUnlockingPosition[]
 export interface HealthComputer {
-  denoms_data: DenomsData
+  asset_params: {
+    [k: string]: AssetParamsBaseForAddr
+  }
   kind: AccountKind
+  oracle_prices: {
+    [k: string]: Decimal
+  }
+  perps_data: PerpsData
   positions: Positions
   vaults_data: VaultsData
 }
-export interface DenomsData {
-  params: {
-    [k: string]: AssetParamsBaseForAddr
-  }
-  prices: {
-    [k: string]: Decimal
-  }
-}
 export interface AssetParamsBaseForAddr {
+  close_factor: Decimal
   credit_manager: CmSettingsForAddr
   denom: string
   deposit_cap: Uint128
@@ -63,6 +63,7 @@ export interface AssetParamsBaseForAddr {
 export interface CmSettingsForAddr {
   hls?: HlsParamsBaseForAddr | null
   whitelisted: boolean
+  withdraw_enabled: boolean
 }
 export interface HlsParamsBaseForAddr {
   correlations: HlsAssetTypeForAddr[]
@@ -78,6 +79,27 @@ export interface LiquidationBonus {
 export interface RedBankSettings {
   borrow_enabled: boolean
   deposit_enabled: boolean
+  withdraw_enabled: boolean
+}
+export interface PerpsData {
+  params: {
+    [k: string]: PerpParams
+  }
+}
+export interface PerpParams {
+  closing_fee_rate: Decimal
+  denom: string
+  enabled: boolean
+  liquidation_threshold: Decimal
+  max_funding_velocity: Decimal
+  max_loan_to_value: Decimal
+  max_long_oi_value: Uint128
+  max_net_oi_value: Uint128
+  max_position_value?: Uint128 | null
+  max_short_oi_value: Uint128
+  min_position_value: Uint128
+  opening_fee_rate: Decimal
+  skew_scale: Uint128
 }
 export interface Positions {
   account_id: string
@@ -85,6 +107,7 @@ export interface Positions {
   debts: DebtAmount[]
   deposits: Coin[]
   lends: Coin[]
+  perps: PerpPosition[]
   staked_astro_lps: Coin[]
   vaults: VaultPosition[]
 }
@@ -97,6 +120,24 @@ export interface Coin {
   amount: Uint128
   denom: string
   [k: string]: unknown
+}
+export interface PerpPosition {
+  base_denom: string
+  current_exec_price: Decimal
+  current_price: Decimal
+  denom: string
+  entry_exec_price: Decimal
+  entry_price: Decimal
+  realized_pnl: PnlAmounts
+  size: Int128
+  unrealized_pnl: PnlAmounts
+}
+export interface PnlAmounts {
+  accrued_funding: Int128
+  closing_fee: Int128
+  opening_fee: Int128
+  pnl: Int128
+  price_pnl: Int128
 }
 export interface VaultPosition {
   amount: VaultPositionAmount

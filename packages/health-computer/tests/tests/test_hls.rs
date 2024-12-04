@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
-use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
+use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
 use mars_types::{
     adapters::vault::{
         CoinValue, Vault, VaultAmount, VaultPosition, VaultPositionAmount, VaultPositionValue,
@@ -17,14 +17,16 @@ use super::helpers::ustars_info;
 fn hls_deposit() {
     let ustars = ustars_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(ustars.denom.clone(), ustars.price)]),
-        params: HashMap::from([(ustars.denom.clone(), ustars.params.clone())]),
-    };
+    let oracle_prices = HashMap::from([(ustars.denom.clone(), ustars.price)]);
+    let asset_params = HashMap::from([(ustars.denom.clone(), ustars.params.clone())]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        params: Default::default(),
     };
 
     let deposit_amount = Uint128::new(300);
@@ -42,9 +44,12 @@ fn hls_deposit() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        oracle_prices,
+        asset_params,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -73,10 +78,8 @@ fn hls_deposit() {
 fn hls_vault() {
     let ustars = ustars_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(ustars.denom.clone(), ustars.price)]),
-        params: HashMap::from([(ustars.denom.clone(), ustars.params.clone())]),
-    };
+    let oracle_prices = HashMap::from([(ustars.denom.clone(), ustars.price)]);
+    let asset_params = HashMap::from([(ustars.denom.clone(), ustars.params.clone())]);
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -113,6 +116,10 @@ fn hls_vault() {
         )]),
     };
 
+    let perps_data = PerpsData {
+        params: Default::default(),
+    };
+
     let h = HealthComputer {
         kind: AccountKind::HighLeveredStrategy,
         positions: Positions {
@@ -130,9 +137,12 @@ fn hls_vault() {
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::new(5264))),
             }],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -157,14 +167,16 @@ fn hls_on_blacklisted_asset() {
     let mut ustars = ustars_info();
     ustars.params.credit_manager.whitelisted = false;
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(ustars.denom.clone(), ustars.price)]),
-        params: HashMap::from([(ustars.denom.clone(), ustars.params.clone())]),
-    };
+    let asset_params = HashMap::from([(ustars.denom.clone(), ustars.params.clone())]);
+    let oracle_prices = HashMap::from([(ustars.denom.clone(), ustars.price)]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        params: Default::default(),
     };
 
     let deposit_amount = Uint128::new(300);
@@ -181,9 +193,12 @@ fn hls_on_blacklisted_asset() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();
@@ -207,10 +222,8 @@ fn hls_on_blacklisted_asset() {
 fn hls_on_blacklisted_vault() {
     let ustars = ustars_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(ustars.denom.clone(), ustars.price)]),
-        params: HashMap::from([(ustars.denom.clone(), ustars.params.clone())]),
-    };
+    let oracle_prices = HashMap::from([(ustars.denom.clone(), ustars.price)]);
+    let asset_params = HashMap::from([(ustars.denom.clone(), ustars.params.clone())]);
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -247,6 +260,10 @@ fn hls_on_blacklisted_vault() {
         )]),
     };
 
+    let perps_data = PerpsData {
+        params: Default::default(),
+    };
+
     let h = HealthComputer {
         kind: AccountKind::HighLeveredStrategy,
         positions: Positions {
@@ -264,9 +281,12 @@ fn hls_on_blacklisted_vault() {
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::new(5264))),
             }],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let health = h.compute_health().unwrap();

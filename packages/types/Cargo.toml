@@ -30,6 +30,8 @@ cw-utils          = { workspace = true }
 cw-vault-standard = { workspace = true }
 mars-owner        = { workspace = true }
 mars-utils        = { workspace = true }
+schemars          = { workspace = true }
+serde             = { workspace = true }
 serde-json-wasm   = { workspace = true }
 strum             = { workspace = true, features = ["derive"] }
 thiserror         = { workspace = true }

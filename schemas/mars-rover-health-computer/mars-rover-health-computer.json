@@ -4,17 +4,31 @@
   "description": "`HealthComputer` is a shared struct with the frontend that gets compiled to wasm. For this reason, it uses a dependency-injection-like pattern where all required data is needed up front.",
   "type": "object",
   "required": [
-    "denoms_data",
+    "asset_params",
     "kind",
+    "oracle_prices",
+    "perps_data",
     "positions",
     "vaults_data"
   ],
   "properties": {
-    "denoms_data": {
-      "$ref": "#/definitions/DenomsData"
+    "asset_params": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/AssetParamsBase_for_Addr"
+      }
     },
     "kind": {
       "$ref": "#/definitions/AccountKind"
+    },
+    "oracle_prices": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Decimal"
+      }
+    },
+    "perps_data": {
+      "$ref": "#/definitions/PerpsData"
     },
     "positions": {
       "$ref": "#/definitions/Positions"
@@ -65,6 +79,7 @@
     "AssetParamsBase_for_Addr": {
       "type": "object",
       "required": [
+        "close_factor",
         "credit_manager",
         "denom",
         "deposit_cap",
@@ -75,6 +90,9 @@
         "red_bank"
       ],
       "properties": {
+        "close_factor": {
+          "$ref": "#/definitions/Decimal"
+        },
         "credit_manager": {
           "$ref": "#/definitions/CmSettings_for_Addr"
         },
@@ -105,7 +123,8 @@
     "CmSettings_for_Addr": {
       "type": "object",
       "required": [
-        "whitelisted"
+        "whitelisted",
+        "withdraw_enabled"
       ],
       "properties": {
         "hls": {
@@ -119,6 +138,9 @@
           ]
         },
         "whitelisted": {
+          "type": "boolean"
+        },
+        "withdraw_enabled": {
           "type": "boolean"
         }
       },
@@ -193,29 +215,6 @@
       "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
       "type": "string"
     },
-    "DenomsData": {
-      "type": "object",
-      "required": [
-        "params",
-        "prices"
-      ],
-      "properties": {
-        "params": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/AssetParamsBase_for_Addr"
-          }
-        },
-        "prices": {
-          "description": "Must include data from info.base token for the vaults",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Decimal"
-          }
-        }
-      },
-      "additionalProperties": false
-    },
     "HlsAssetType_for_Addr": {
       "oneOf": [
         {
@@ -286,6 +285,10 @@
       },
       "additionalProperties": false
     },
+    "Int128": {
+      "description": "An implementation of i128 that is using strings for JSON encoding/decoding, such that the full i128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `i128` to get the value out:\n\n``` # use cosmwasm_std::Int128; let a = Int128::from(258i128); assert_eq!(a.i128(), 258); ```",
+      "type": "string"
+    },
     "LiquidationBonus": {
       "description": "The LB will depend on the Health Factor and a couple other parameters as follows: Liquidation Bonus = min( b + (slope * (1 - HF)), max( min(CR - 1, max_lb), min_lb ) )",
       "type": "object",
@@ -347,6 +350,219 @@
       },
       "additionalProperties": false
     },
+    "PerpParams": {
+      "type": "object",
+      "required": [
+        "closing_fee_rate",
+        "denom",
+        "enabled",
+        "liquidation_threshold",
+        "max_funding_velocity",
+        "max_loan_to_value",
+        "max_long_oi_value",
+        "max_net_oi_value",
+        "max_short_oi_value",
+        "min_position_value",
+        "opening_fee_rate",
+        "skew_scale"
+      ],
+      "properties": {
+        "closing_fee_rate": {
+          "description": "The fee paid by the user to close a position (as a percent)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "denom": {
+          "description": "Perp denomination",
+          "type": "string"
+        },
+        "enabled": {
+          "description": "Whether the perp is enabled",
+          "type": "boolean"
+        },
+        "liquidation_threshold": {
+          "description": "LTV at which a position becomes liquidatable",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "max_funding_velocity": {
+          "description": "Determines the maximum rate at which funding can be adjusted",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "max_loan_to_value": {
+          "description": "Max loan to position value for the position.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "max_long_oi_value": {
+          "description": "The maximum long open interest value (in oracle uusd denomination)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "max_net_oi_value": {
+          "description": "The maximum net open interest value (in oracle uusd denomination)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "max_position_value": {
+          "description": "The maximum value of a position (in oracle uusd denomination)",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "max_short_oi_value": {
+          "description": "The maximum short open interest value (in oracle uusd denomination)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "min_position_value": {
+          "description": "The minimum value of a position (in oracle uusd denomination)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "opening_fee_rate": {
+          "description": "The fee paid by the user to open a position (as a percent)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "skew_scale": {
+          "description": "Determines the funding rate for a given level of skew. The lower the skew_scale the higher the funding rate.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PerpPosition": {
+      "description": "This is the position data to be returned in a query. It includes current price and PnL.",
+      "type": "object",
+      "required": [
+        "base_denom",
+        "current_exec_price",
+        "current_price",
+        "denom",
+        "entry_exec_price",
+        "entry_price",
+        "realized_pnl",
+        "size",
+        "unrealized_pnl"
+      ],
+      "properties": {
+        "base_denom": {
+          "type": "string"
+        },
+        "current_exec_price": {
+          "$ref": "#/definitions/Decimal"
+        },
+        "current_price": {
+          "$ref": "#/definitions/Decimal"
+        },
+        "denom": {
+          "type": "string"
+        },
+        "entry_exec_price": {
+          "$ref": "#/definitions/Decimal"
+        },
+        "entry_price": {
+          "$ref": "#/definitions/Decimal"
+        },
+        "realized_pnl": {
+          "$ref": "#/definitions/PnlAmounts"
+        },
+        "size": {
+          "$ref": "#/definitions/Int128"
+        },
+        "unrealized_pnl": {
+          "$ref": "#/definitions/PnlAmounts"
+        }
+      },
+      "additionalProperties": false
+    },
+    "PerpsData": {
+      "type": "object",
+      "required": [
+        "params"
+      ],
+      "properties": {
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/PerpParams"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "PnlAmounts": {
+      "description": "Amounts denominated in the Perp Vault base denom (uusdc)",
+      "type": "object",
+      "required": [
+        "accrued_funding",
+        "closing_fee",
+        "opening_fee",
+        "pnl",
+        "price_pnl"
+      ],
+      "properties": {
+        "accrued_funding": {
+          "$ref": "#/definitions/Int128"
+        },
+        "closing_fee": {
+          "$ref": "#/definitions/Int128"
+        },
+        "opening_fee": {
+          "$ref": "#/definitions/Int128"
+        },
+        "pnl": {
+          "description": "PnL: price PnL + accrued funding + opening fee + closing fee",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Int128"
+            }
+          ]
+        },
+        "price_pnl": {
+          "$ref": "#/definitions/Int128"
+        }
+      },
+      "additionalProperties": false
+    },
     "Positions": {
       "type": "object",
       "required": [
@@ -355,6 +571,7 @@
         "debts",
         "deposits",
         "lends",
+        "perps",
         "staked_astro_lps",
         "vaults"
       ],
@@ -383,6 +600,12 @@
             "$ref": "#/definitions/Coin"
           }
         },
+        "perps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PerpPosition"
+          }
+        },
         "staked_astro_lps": {
           "type": "array",
           "items": {
@@ -402,13 +625,17 @@
       "type": "object",
       "required": [
         "borrow_enabled",
-        "deposit_enabled"
+        "deposit_enabled",
+        "withdraw_enabled"
       ],
       "properties": {
         "borrow_enabled": {
           "type": "boolean"
         },
         "deposit_enabled": {
+          "type": "boolean"
+        },
+        "withdraw_enabled": {
           "type": "boolean"
         }
       },

@@ -998,12 +998,13 @@ fn cannot_borrow_if_market_not_enabled() {
         AssetParams {
             credit_manager: CmSettings {
                 whitelisted: false,
-
+                withdraw_enabled: true,
                 hls: None,
             },
             red_bank: RedBankSettings {
                 deposit_enabled: false,
                 borrow_enabled: false,
+                withdraw_enabled: true,
             },
             ..th_default_asset_params()
         },

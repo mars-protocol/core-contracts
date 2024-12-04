@@ -36,4 +36,10 @@ pub enum QueryMsg {
         denom: String,
         kind: Option<ActionKind>,
     },
+
+    #[returns(std::collections::HashMap<String,Decimal>)]
+    PricesByDenoms {
+        denoms: Vec<String>,
+        kind: Option<ActionKind>,
+    },
 }

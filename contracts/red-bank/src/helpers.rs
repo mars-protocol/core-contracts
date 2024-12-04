@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, Decimal, QuerierWrapper, StdResult};
+use cosmwasm_std::{Coin, QuerierWrapper, StdResult};
 use mars_types::params::{AssetParams, QueryMsg};
 
 pub fn query_asset_params(
@@ -12,13 +12,6 @@ pub fn query_asset_params(
             denom: denom.into(),
         },
     )
-}
-
-pub fn query_target_health_factor(
-    querier: &QuerierWrapper,
-    params: impl Into<String>,
-) -> StdResult<Decimal> {
-    querier.query_wasm_smart(params.into(), &QueryMsg::TargetHealthFactor {})
 }
 
 pub fn query_total_deposit(

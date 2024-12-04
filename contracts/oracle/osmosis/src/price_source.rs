@@ -407,7 +407,7 @@ impl PriceSourceUnchecked<OsmosisPriceSourceChecked, Empty> for OsmosisPriceSour
                     *max_deviation,
                     *denom_decimals,
                 )?;
-                mars_oracle_base::pyth::assert_usd_price_source(deps, price_sources)?;
+                mars_oracle_base::assert_usd_price_source(deps, price_sources)?;
                 Ok(OsmosisPriceSourceChecked::Pyth {
                     contract_addr: deps.api.addr_validate(contract_addr)?,
                     price_feed_id: *price_feed_id,

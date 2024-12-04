@@ -15,6 +15,9 @@ pub fn generate_health_response(debt_value: u128, collateral_value: u128) -> Hea
         liquidation_health_factor: None,
         liquidatable: false,
         above_max_ltv: false,
+        perps_pnl_profit: Uint128::zero(),
+        perps_pnl_loss: Uint128::zero(),
+        has_perps: false,
     }
 }
 
@@ -28,5 +31,8 @@ pub fn below_max_for_burn() -> HealthValuesResponse {
         liquidation_health_factor: None,
         liquidatable: false,
         above_max_ltv: false,
+        perps_pnl_profit: Uint128::zero(),
+        perps_pnl_loss: Uint128::zero(),
+        has_perps: false,
     }
 }

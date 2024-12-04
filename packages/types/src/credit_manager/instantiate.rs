@@ -1,10 +1,12 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Decimal, Uint128};
 
+use super::KeeperFeeConfig;
 use crate::adapters::{
     account_nft::AccountNftUnchecked, health::HealthContractUnchecked,
     incentives::IncentivesUnchecked, oracle::OracleUnchecked, params::ParamsUnchecked,
-    red_bank::RedBankUnchecked, swapper::SwapperUnchecked, zapper::ZapperUnchecked,
+    perps::PerpsUnchecked, red_bank::RedBankUnchecked, swapper::SwapperUnchecked,
+    zapper::ZapperUnchecked,
 };
 
 #[cw_serde]
@@ -31,6 +33,17 @@ pub struct InstantiateMsg {
     pub params: ParamsUnchecked,
     /// Contract that handles lending incentive rewards
     pub incentives: IncentivesUnchecked,
+    /// Configuration for the keeper fee for trigger orders
+    pub keeper_fee_config: KeeperFeeConfig,
+    /// This variable represents the percentage of the original Liquidation Bonus (LB)
+    /// applied to negative PnL when liquidating (closing) perps positions. It serves as
+    /// a reward for the liquidator for closing perps in a loss and improving the account’s
+    /// Health Factor (HF). This modified LB specifically applies in perps liquidation cases,
+    /// allowing for a reduced bonus proportion when compared to standard spot liquidation.
+    /// For example, if set to 0.60, 60% of the original LB will be applied to the perps
+    /// PnL loss as follows:
+    /// `bonus applied to liquidation = perps_liquidation_bonus_ratio * original LB * PnL loss`
+    pub perps_liquidation_bonus_ratio: Decimal,
 }
 
 /// Used when you want to update fields on Instantiate config
@@ -46,6 +59,10 @@ pub struct ConfigUpdates {
     pub swapper: Option<SwapperUnchecked>,
     pub zapper: Option<ZapperUnchecked>,
     pub health_contract: Option<HealthContractUnchecked>,
+    pub params: Option<ParamsUnchecked>,
     /// The Mars Protocol rewards-collector contract. We collect protocol fee for its account.
     pub rewards_collector: Option<String>,
+    pub perps: Option<PerpsUnchecked>,
+    pub keeper_fee_config: Option<KeeperFeeConfig>,
+    pub perps_liquidation_bonus_ratio: Option<Decimal>,
 }

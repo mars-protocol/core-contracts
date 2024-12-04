@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use cosmwasm_std::{coin, Addr, Uint128};
-use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
+use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
 use mars_types::{
     adapters::vault::{
         CoinValue, Vault, VaultAmount, VaultPosition, VaultPositionAmount, VaultPositionValue,
@@ -18,17 +18,19 @@ fn missing_price_data() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(umars.denom.clone(), umars.price)]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let oracle_prices = HashMap::from([(umars.denom.clone(), umars.price)]);
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -53,9 +55,12 @@ fn missing_price_data() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let err: HealthError = h.compute_health().unwrap_err();
@@ -67,17 +72,18 @@ fn missing_params() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([(udai.denom.clone(), udai.params.clone())]),
-    };
+    let oracle_prices: HashMap<String, cosmwasm_std::Decimal> =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
+
+    let asset_params = HashMap::from([(udai.denom.clone(), udai.params.clone())]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -102,9 +108,12 @@ fn missing_params() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     // If asset params is missing for a denom (in params contract), both price and params will be missing in denoms_data.
@@ -132,10 +141,8 @@ fn missing_params() {
 
 #[test]
 fn missing_market_data_for_vault_base_token() {
-    let denoms_data = DenomsData {
-        prices: HashMap::default(),
-        params: HashMap::default(),
-    };
+    let oracle_prices = HashMap::default();
+    let asset_params = HashMap::default();
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -168,6 +175,10 @@ fn missing_market_data_for_vault_base_token() {
         )]),
     };
 
+    let perps_data = PerpsData {
+        params: Default::default(),
+    };
+
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -182,21 +193,22 @@ fn missing_market_data_for_vault_base_token() {
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::one())),
             }],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let err: HealthError = h.compute_health().unwrap_err();
-    assert_eq!(err, HealthError::MissingParams("base_token_xyz".to_string()))
+    assert_eq!(err, HealthError::MissingAssetParams("base_token_xyz".to_string()))
 }
 
 #[test]
 fn missing_vault_value() {
-    let denoms_data = DenomsData {
-        prices: HashMap::default(),
-        params: HashMap::default(),
-    };
+    let oracle_prices = HashMap::default();
+    let asset_params = HashMap::default();
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -215,6 +227,10 @@ fn missing_vault_value() {
         )]),
     };
 
+    let perps_data = PerpsData {
+        params: Default::default(),
+    };
+
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -229,9 +245,12 @@ fn missing_vault_value() {
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::one())),
             }],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let err: HealthError = h.compute_health().unwrap_err();
@@ -240,10 +259,8 @@ fn missing_vault_value() {
 
 #[test]
 fn missing_vault_config() {
-    let denoms_data = DenomsData {
-        prices: HashMap::default(),
-        params: HashMap::default(),
-    };
+    let oracle_prices = HashMap::default();
+    let asset_params = HashMap::default();
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -266,6 +283,10 @@ fn missing_vault_config() {
         vault_configs: HashMap::default(),
     };
 
+    let perps_data = PerpsData {
+        params: Default::default(),
+    };
+
     let h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -280,9 +301,12 @@ fn missing_vault_config() {
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::one())),
             }],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let err: HealthError = h.compute_health().unwrap_err();
@@ -293,14 +317,16 @@ fn missing_vault_config() {
 fn missing_hls_params() {
     let umars = umars_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(umars.denom.clone(), umars.price)]),
-        params: HashMap::from([(umars.denom.clone(), umars.params.clone())]),
-    };
+    let oracle_prices = HashMap::from([(umars.denom.clone(), umars.price)]);
+    let asset_params = HashMap::from([(umars.denom.clone(), umars.params.clone())]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -318,9 +344,12 @@ fn missing_hls_params() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let err: HealthError = h.compute_health().unwrap_err();

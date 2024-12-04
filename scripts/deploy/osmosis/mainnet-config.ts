@@ -7,6 +7,7 @@ const axl = 'ibc/903A61A498756EA560B85A85132D3AEE21B5DEDD41213725D22ABF276EA6945
 const stAtom = 'ibc/C140AFD542AE77BD7DCC83F13FDD8C5E5BB8C4929785E6EC2F4C636F98F17901'
 const wbtc = 'ibc/D1542AA8762DB13087D8364F3EA6509FD6F009A34F00426AF9E4F9FA85CBBF1F'
 const axlUSDC = 'ibc/D189335C6E4A68B513C10AB227BF1C1D38C746766278BA3EEB4FB14124F1D858'
+const nobleUSDC = 'ibc/498A0751C798A0D9A389AA3691123DADA57DAA4FE165D5C75894505B876BA6E4'
 const weth = 'ibc/EA1D43981D5C9A1C4AAEA9C23BB1D4FA126BA9BC7020A25E0AE4AA841EA25DC5'
 const atomOsmoPool = 'gamm/pool/1'
 const usdcOsmoPool = 'gamm/pool/678'
@@ -23,13 +24,12 @@ const protocolAdminAddr = 'osmo14w4x949nwcrqgfe53pxs3k7x53p0gvlrq34l5n'
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
 const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
 
-const defaultCreditLine = '100000000000000'
-
 // ----------------------------------- Markets -----------------------------------
 
 export const atomOsmoPoolAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: atomOsmoPool,
   denom: atomOsmoPool,
@@ -45,6 +45,7 @@ export const atomOsmoPoolAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: false,
+    withdraw_enabled: true,
   },
   deposit_cap: '0',
   reserve_factor: '0.1',
@@ -54,11 +55,13 @@ export const atomOsmoPoolAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const usdcOsmoPoolAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: usdcOsmoPool,
   denom: usdcOsmoPool,
@@ -74,6 +77,7 @@ export const usdcOsmoPoolAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: false,
+    withdraw_enabled: true,
   },
   deposit_cap: '0',
   reserve_factor: '0.1',
@@ -83,11 +87,13 @@ export const usdcOsmoPoolAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const wethOsmoPoolAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: wethOsmoPool,
   denom: wethOsmoPool,
@@ -103,6 +109,7 @@ export const wethOsmoPoolAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: false,
+    withdraw_enabled: true,
   },
   deposit_cap: '0',
   reserve_factor: '0.1',
@@ -112,11 +119,13 @@ export const wethOsmoPoolAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const wbtcOsmoPoolAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: wbtcOsmoPool,
   denom: wbtcOsmoPool,
@@ -132,6 +141,7 @@ export const wbtcOsmoPoolAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: false,
+    withdraw_enabled: true,
   },
   deposit_cap: '0',
   reserve_factor: '0.1',
@@ -141,11 +151,13 @@ export const wbtcOsmoPoolAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const atomStAtomPoolAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: atomStAtomPool,
   denom: atomStAtomPool,
@@ -161,6 +173,7 @@ export const atomStAtomPoolAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: false,
+    withdraw_enabled: true,
   },
   deposit_cap: '0',
   reserve_factor: '0.1',
@@ -170,11 +183,13 @@ export const atomStAtomPoolAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const osmoAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'OSMO',
   denom: osmo,
@@ -190,6 +205,7 @@ export const osmoAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '10000000000000',
   reserve_factor: '0.1',
@@ -199,11 +215,13 @@ export const osmoAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const atomAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'ATOM',
   denom: atom,
@@ -219,6 +237,7 @@ export const atomAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '700000000000',
   reserve_factor: '0.1',
@@ -228,11 +247,13 @@ export const atomAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const axlAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'AXL',
   denom: axl,
@@ -248,6 +269,7 @@ export const axlAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '400000000000',
   reserve_factor: '0.1',
@@ -257,11 +279,13 @@ export const axlAsset: AssetConfig = {
     slope_1: '0.17',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const stAtomAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'stATOM',
   denom: stAtom,
@@ -277,6 +301,7 @@ export const stAtomAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '350000000000',
   reserve_factor: '0.1',
@@ -286,11 +311,13 @@ export const stAtomAsset: AssetConfig = {
     slope_1: '0.1',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const wbtcAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'wBTC',
   denom: wbtc,
@@ -306,6 +333,7 @@ export const wbtcAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '2000000000',
   reserve_factor: '0.1',
@@ -315,11 +343,13 @@ export const wbtcAsset: AssetConfig = {
     slope_1: '0.1',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const axlUSDCAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'axlUSDC',
   denom: axlUSDC,
@@ -335,6 +365,7 @@ export const axlUSDCAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '3500000000000',
   reserve_factor: '0.1',
@@ -344,11 +375,13 @@ export const axlUSDCAsset: AssetConfig = {
     slope_1: '0.125',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const wethAsset: AssetConfig = {
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   symbol: 'WETH',
   denom: weth,
@@ -364,6 +397,7 @@ export const wethAsset: AssetConfig = {
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '300000000000000000000',
   reserve_factor: '0.1',
@@ -373,6 +407,7 @@ export const wethAsset: AssetConfig = {
     slope_1: '0.1',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const atomOsmoVault: VaultConfig = {
@@ -1001,6 +1036,9 @@ export const osmosisMainnetConfig: DeploymentConfig = {
   safetyFundAddr: safetyFundAddr,
   protocolAdminAddr: protocolAdminAddr,
   feeCollectorAddr: feeCollectorAddr,
+  keeperFeeConfig: {
+    min_fee: { amount: '1000000', denom: nobleUSDC },
+  },
   chain: {
     baseDenom: osmo,
     defaultGasPrice: 0.1,
@@ -1029,15 +1067,6 @@ export const osmosisMainnetConfig: DeploymentConfig = {
     name: 'osmosis',
     routes: swapperRoutes,
   },
-  targetHealthFactor: '1.05',
-  creditLineCoins: [
-    // AXL and stAtom has borrowing disabled
-    { denom: osmo, creditLine: defaultCreditLine },
-    { denom: atom, creditLine: defaultCreditLine },
-    { denom: wbtc, creditLine: defaultCreditLine },
-    { denom: axlUSDC, creditLine: defaultCreditLine },
-    { denom: weth, creditLine: '1000000000000000000000' },
-  ],
   maxValueForBurn: '10000',
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',
@@ -1073,5 +1102,6 @@ export const osmosisMainnetConfig: DeploymentConfig = {
     wbtcOsmoOracle,
     atomStAtomOracle,
   ],
-  // oracleConfigs: [osmoOracleTwap, atomOracleTwap, axlOracleTwap, stAtomOracleTwap, wbtcOracleTwap, axlUSDCOracleTwap, ethOracleTwap, atomOsmoOracle, usdcOsmoOracle, ethOsmoOracle, wbtcOsmoOracle, atomStAtomOracle],
+  maxPerpParams: 20,
+  perpsLiquidationBonusRatio: '0.6',
 }

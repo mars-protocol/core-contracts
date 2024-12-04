@@ -1,11 +1,10 @@
 use std::collections::HashMap;
 
-use cosmwasm_std::{to_json_binary, Binary, Coin, ContractResult, Decimal, QuerierResult, Uint128};
+use cosmwasm_std::{to_json_binary, Binary, Coin, ContractResult, QuerierResult, Uint128};
 use mars_types::params::{AssetParams, QueryMsg};
 
 #[derive(Default)]
 pub struct ParamsQuerier {
-    pub target_health_factor: Decimal,
     pub params: HashMap<String, AssetParams>,
     pub total_deposits: HashMap<String, Uint128>,
 }
@@ -13,7 +12,6 @@ pub struct ParamsQuerier {
 impl ParamsQuerier {
     pub fn handle_query(&self, query: QueryMsg) -> QuerierResult {
         let ret: ContractResult<Binary> = match query {
-            QueryMsg::TargetHealthFactor {} => to_json_binary(&self.target_health_factor).into(),
             QueryMsg::AssetParams {
                 denom,
             } => match self.params.get(&denom) {

@@ -2,12 +2,15 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::{Coin, Decimal, Uint128};
 use mars_owner::OwnerResponse;
 
+use super::{Action, Condition};
 use crate::{
     adapters::{
         rewards_collector::RewardsCollector,
         vault::{Vault, VaultPosition, VaultUnchecked},
     },
     health::AccountKind,
+    oracle::ActionKind,
+    perps::PerpPosition,
     traits::Coins,
 };
 
@@ -44,6 +47,7 @@ pub enum QueryMsg {
     #[returns(Positions)]
     Positions {
         account_id: String,
+        action: Option<ActionKind>,
     },
     /// Enumerate coin balances for all token positions; start_after accepts (account_id, denom)
     #[returns(Vec<CoinBalanceResponseItem>)]
@@ -90,6 +94,20 @@ pub enum QueryMsg {
     VaultPositionValue {
         vault_position: VaultPosition,
     },
+    /// Return all trigger orders.
+    #[returns(cw_paginate::PaginationResponse<TriggerOrderResponse>)]
+    AllTriggerOrders {
+        start_after: Option<(String, String)>,
+        limit: Option<u32>,
+    },
+    /// Return all trigger orders for an account.
+    #[returns(cw_paginate::PaginationResponse<TriggerOrderResponse>)]
+    AllAccountTriggerOrders {
+        account_id: String,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+
     /// Enumerate all vault bindings; start_after accepts account_id
     #[returns(Vec<VaultBinding>)]
     VaultBindings {
@@ -139,6 +157,20 @@ pub struct DebtAmount {
     pub amount: Uint128,
 }
 
+#[cw_serde]
+#[derive(Default)]
+pub struct KeeperFeeConfig {
+    pub min_fee: Coin,
+}
+
+#[cw_serde]
+pub struct TriggerOrder {
+    pub order_id: String,
+    pub actions: Vec<Action>,
+    pub conditions: Vec<Condition>,
+    pub keeper_fee: Coin,
+}
+
 impl Coins for Vec<DebtAmount> {
     fn to_coins(&self) -> Vec<Coin> {
         self.iter()
@@ -159,12 +191,19 @@ pub struct Positions {
     pub lends: Vec<Coin>,
     pub vaults: Vec<VaultPosition>,
     pub staked_astro_lps: Vec<Coin>,
+    pub perps: Vec<PerpPosition>,
 }
 
 #[cw_serde]
 pub struct VaultPositionResponseItem {
     pub account_id: String,
     pub position: VaultPosition,
+}
+
+#[cw_serde]
+pub struct TriggerOrderResponse {
+    pub account_id: String,
+    pub order: TriggerOrder,
 }
 
 #[cw_serde]
@@ -181,12 +220,15 @@ pub struct ConfigResponse {
     pub incentives: String,
     pub oracle: String,
     pub params: String,
+    pub perps: String,
     pub max_unlocking_positions: Uint128,
     pub max_slippage: Decimal,
     pub swapper: String,
     pub zapper: String,
     pub health_contract: String,
     pub rewards_collector: Option<RewardsCollector>,
+    pub keeper_fee_config: KeeperFeeConfig,
+    pub perps_liquidation_bonus_ratio: Decimal,
 }
 
 #[cw_serde]

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
-use mars_rover_health_computer::{DenomsData, HealthComputer, VaultsData};
+use mars_rover_health_computer::{HealthComputer, PerpsData, VaultsData};
 use mars_types::{
     adapters::vault::{
         CoinValue, Vault, VaultAmount, VaultPosition, VaultPositionAmount, VaultPositionValue,
@@ -18,17 +18,19 @@ fn missing_borrow_denom_price_data() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(umars.denom.clone(), umars.price)]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
+    let oracle_prices = HashMap::from([(umars.denom.clone(), umars.price)]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -52,9 +54,12 @@ fn missing_borrow_denom_price_data() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let err: HealthError =
@@ -67,17 +72,17 @@ fn missing_borrow_denom_params() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([(udai.denom.clone(), udai.params.clone())]),
-    };
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
+    let asset_params = HashMap::from([(udai.denom.clone(), udai.params.clone())]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -101,14 +106,17 @@ fn missing_borrow_denom_params() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let err: HealthError =
         h.max_borrow_amount_estimate(&umars.denom, &BorrowTarget::Deposit).unwrap_err();
-    assert_eq!(err, HealthError::MissingParams(umars.denom));
+    assert_eq!(err, HealthError::MissingAssetParams(umars.denom));
 }
 
 #[test]
@@ -116,20 +124,20 @@ fn cannot_borrow_when_unhealthy() {
     let umars = umars_info();
     let udai = udai_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([
-            (umars.denom.clone(), umars.price),
-            (udai.denom.clone(), udai.price),
-        ]),
-        params: HashMap::from([
-            (umars.denom.clone(), umars.params.clone()),
-            (udai.denom.clone(), udai.params.clone()),
-        ]),
-    };
+    let oracle_prices =
+        HashMap::from([(umars.denom.clone(), umars.price), (udai.denom.clone(), udai.price)]);
+    let asset_params = HashMap::from([
+        (umars.denom.clone(), umars.params.clone()),
+        (udai.denom.clone(), udai.params.clone()),
+    ]);
 
     let vaults_data = VaultsData {
         vault_values: Default::default(),
         vault_configs: Default::default(),
+    };
+
+    let perps_data = PerpsData {
+        params: Default::default(),
     };
 
     let h = HealthComputer {
@@ -153,9 +161,12 @@ fn cannot_borrow_when_unhealthy() {
             lends: vec![],
             vaults: vec![],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let max_withdraw_amount =
@@ -167,10 +178,8 @@ fn cannot_borrow_when_unhealthy() {
 fn hls_influences_max_borrow() {
     let ustars = ustars_info();
 
-    let denoms_data = DenomsData {
-        prices: HashMap::from([(ustars.denom.clone(), ustars.price)]),
-        params: HashMap::from([(ustars.denom.clone(), ustars.params.clone())]),
-    };
+    let oracle_prices = HashMap::from([(ustars.denom.clone(), ustars.price)]);
+    let asset_params = HashMap::from([(ustars.denom.clone(), ustars.params.clone())]);
 
     let vault = Vault::new(Addr::unchecked("vault_addr_123".to_string()));
 
@@ -207,6 +216,10 @@ fn hls_influences_max_borrow() {
         )]),
     };
 
+    let perps_data = PerpsData {
+        params: Default::default(),
+    };
+
     let mut h = HealthComputer {
         kind: AccountKind::Default,
         positions: Positions {
@@ -225,9 +238,12 @@ fn hls_influences_max_borrow() {
                 amount: VaultPositionAmount::Unlocked(VaultAmount::new(Uint128::new(5264))),
             }],
             staked_astro_lps: vec![],
+            perps: vec![],
         },
-        denoms_data,
+        asset_params,
+        oracle_prices,
         vaults_data,
+        perps_data,
     };
 
     let max_before = h.max_borrow_amount_estimate(&ustars.denom, &BorrowTarget::Deposit).unwrap();

@@ -1,8 +1,9 @@
-use std::{default::Default, str::FromStr};
+use std::default::Default;
 
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{
-    coin, coins, testing::MockApi, Addr, Coin, Decimal, Empty, StdResult, Timestamp, Uint128,
+    coin, coins, testing::MockApi, Addr, Coin, Decimal, Empty, Int128, StdError, StdResult,
+    Timestamp, Uint128,
 };
 use cw721::TokensResponse;
 use cw721_base::{Action::TransferOwnership, Ownership};
@@ -30,6 +31,7 @@ use mars_types::{
         incentives::{Incentives, IncentivesUnchecked},
         oracle::{Oracle, OracleBase, OracleUnchecked},
         params::Params,
+        perps::Perps,
         red_bank::RedBankUnchecked,
         swapper::{Swapper, SwapperBase},
         vault::{Vault, VaultPosition, VaultPositionValue as VPositionValue, VaultUnchecked},
@@ -38,9 +40,10 @@ use mars_types::{
     address_provider::{self, MarsAddressType},
     credit_manager::{
         Account, Action, CallbackMsg, CoinBalanceResponseItem, ConfigResponse, ConfigUpdates,
-        DebtShares, ExecuteMsg, InstantiateMsg, Positions,
+        DebtShares, ExecuteMsg, InstantiateMsg, KeeperFeeConfig, Positions,
         QueryMsg::{self, EstimateProvideLiquidity, VaultPositionValue},
-        SharesResponseItem, VaultBinding, VaultPositionResponseItem, VaultUtilizationResponse,
+        SharesResponseItem, TriggerOrderResponse, VaultBinding, VaultPositionResponseItem,
+        VaultUtilizationResponse,
     },
     health::{
         AccountKind, ExecuteMsg::UpdateConfig, HealthValuesResponse,
@@ -48,6 +51,7 @@ use mars_types::{
     },
     incentives::{
         ExecuteMsg::{BalanceChange, SetAssetIncentive},
+        IncentiveKind,
         QueryMsg::{StakedAstroLpPosition, StakedAstroLpRewards, UserUnclaimedRewards},
         StakedLpPositionResponse,
     },
@@ -55,15 +59,20 @@ use mars_types::{
     params::{
         AssetParams,
         AssetParamsUpdate::{self, AddOrUpdate},
-        ExecuteMsg::{UpdateAssetParams, UpdateVaultConfig},
-        InstantiateMsg as ParamsInstantiateMsg, QueryMsg as ParamsQueryMsg, VaultConfig,
-        VaultConfigUnchecked, VaultConfigUpdate,
+        ExecuteMsg::{UpdateAssetParams, UpdatePerpParams, UpdateVaultConfig},
+        InstantiateMsg as ParamsInstantiateMsg, PerpParamsUpdate, QueryMsg as ParamsQueryMsg,
+        VaultConfig, VaultConfigUnchecked, VaultConfigUpdate,
+    },
+    perps::{
+        self, Config, InstantiateMsg as PerpsInstantiateMsg, PnL, PositionResponse, TradingFee,
+        VaultPositionResponse, VaultResponse,
     },
     red_bank::{
         self, InitOrUpdateAssetParams, InterestRateModel,
         QueryMsg::{UserCollateral, UserDebt},
         UserCollateralResponse, UserDebtResponse,
     },
+    rewards_collector,
     swapper::{
         EstimateExactInSwapResponse, InstantiateMsg as SwapperInstantiateMsg,
         QueryMsg::EstimateExactInSwap, SwapperRoute,
@@ -77,11 +86,14 @@ use mars_zapper_mock::msg::{InstantiateMsg as ZapperInstantiateMsg, LpConfig};
 use super::{
     lp_token_info, mock_account_nft_contract, mock_address_provider_contract,
     mock_astro_incentives_contract, mock_health_contract, mock_incentives_contract,
-    mock_managed_vault_contract, mock_oracle_contract, mock_params_contract,
+    mock_managed_vault_contract, mock_oracle_contract, mock_params_contract, mock_perps_contract,
     mock_red_bank_contract, mock_rover_contract, mock_swapper_contract, mock_v2_zapper_contract,
     mock_vault_contract, AccountToFund, CoinInfo, VaultTestInfo, ASTRO_LP_DENOM,
 };
-use crate::multitest::modules::token_factory::{CustomApp, TokenFactory};
+use crate::{
+    integration::mock_contracts::mock_rewards_collector_osmosis_contract,
+    multitest::modules::token_factory::{CustomApp, TokenFactory},
+};
 
 pub const DEFAULT_RED_BANK_COIN_BALANCE: Uint128 = Uint128::new(1_000_000);
 
@@ -92,6 +104,7 @@ pub struct MockEnv {
     pub health_contract: HealthContract,
     pub incentives: Incentives,
     pub params: Params,
+    pub perps: Perps,
 }
 
 pub struct MockEnvBuilder {
@@ -108,11 +121,15 @@ pub struct MockEnvBuilder {
     pub deploy_nft_contract: bool,
     pub set_nft_contract_minter: bool,
     pub accounts_to_fund: Vec<AccountToFund>,
-    pub target_health_factor: Option<Decimal>,
     pub max_unlocking_positions: Option<Uint128>,
     pub max_slippage: Option<Decimal>,
     pub health_contract: Option<HealthContract>,
     pub evil_vault: Option<String>,
+    pub target_vault_collateralization_ratio: Option<Decimal>,
+    pub deleverage_enabled: Option<bool>,
+    pub withdraw_enabled: Option<bool>,
+    pub keeper_fee_config: Option<KeeperFeeConfig>,
+    pub perps_liquidation_bonus_ratio: Option<Decimal>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -135,11 +152,15 @@ impl MockEnv {
             deploy_nft_contract: true,
             set_nft_contract_minter: true,
             accounts_to_fund: vec![],
-            target_health_factor: None,
             max_unlocking_positions: None,
             max_slippage: None,
             health_contract: None,
             evil_vault: None,
+            target_vault_collateralization_ratio: None,
+            deleverage_enabled: None,
+            withdraw_enabled: None,
+            keeper_fee_config: None,
+            perps_liquidation_bonus_ratio: None,
         }
     }
 
@@ -167,6 +188,15 @@ impl MockEnv {
 
     pub fn query_block_time(&self) -> u64 {
         self.app.block_info().time.seconds()
+    }
+
+    pub fn fund_addr(&mut self, addr: &Addr, funds: Vec<Coin>) {
+        self.app
+            .sudo(SudoMsg::Bank(BankSudo::Mint {
+                to_address: addr.to_string(),
+                amount: funds,
+            }))
+            .unwrap();
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -238,6 +268,23 @@ impl MockEnv {
         )
     }
 
+    pub fn execute_trigger_order(
+        &mut self,
+        sender: &Addr,
+        account_id: &str,
+        trigger_order_id: &str,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.rover.clone(),
+            &ExecuteMsg::ExecuteTriggerOrder {
+                account_id: account_id.to_string(),
+                trigger_order_id: trigger_order_id.to_string(),
+            },
+            &[],
+        )
+    }
+
     pub fn update_config(
         &mut self,
         sender: &Addr,
@@ -250,6 +297,24 @@ impl MockEnv {
                 updates,
             },
             &[],
+        )
+    }
+
+    pub fn update_balance_after_deleverage(
+        &mut self,
+        sender: &Addr,
+        funds: &[Coin],
+        account_id: &str,
+        pnl: PnL,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.rover.clone(),
+            &ExecuteMsg::UpdateBalanceAfterDeleverage {
+                account_id: account_id.to_string(),
+                pnl,
+            },
+            funds,
         )
     }
 
@@ -272,6 +337,18 @@ impl MockEnv {
                 Addr::unchecked(config.ownership.owner.unwrap()),
                 Addr::unchecked(config.params),
                 &UpdateVaultConfig(update),
+                &[],
+            )
+            .unwrap();
+    }
+
+    pub fn update_perp_params(&mut self, update: PerpParamsUpdate) {
+        let config = self.query_config();
+        self.app
+            .execute_contract(
+                Addr::unchecked(config.ownership.owner.unwrap()),
+                Addr::unchecked(config.params),
+                &UpdatePerpParams(update),
                 &[],
             )
             .unwrap();
@@ -390,7 +467,7 @@ impl MockEnv {
         )
     }
 
-    pub fn add_incentive_reward(&mut self, account_id: &str, coin: Coin) {
+    pub fn add_incentive_reward(&mut self, account_id: &str, kind: &IncentiveKind, coin: Coin) {
         // Register reward in mock contract
         self.app
             .execute_contract(
@@ -399,9 +476,10 @@ impl MockEnv {
                 &BalanceChange {
                     user_addr: self.rover.clone(),
                     account_id: Some(account_id.to_string()),
+                    kind: kind.clone(),
                     denom: coin.denom.clone(),
-                    user_amount_scaled_before: coin.amount,
-                    total_amount_scaled_before: Default::default(),
+                    user_amount: coin.amount,
+                    total_amount: Default::default(),
                 },
                 &[],
             )
@@ -423,7 +501,8 @@ impl MockEnv {
                 self.rover.clone(),
                 self.incentives.addr.clone(),
                 &SetAssetIncentive {
-                    collateral_denom: lp_denom.to_string(),
+                    kind: IncentiveKind::RedBank,
+                    denom: lp_denom.to_string(),
                     incentive_denom: coin.denom.clone(),
                     // Emision per second is used for amount
                     emission_per_second: coin.amount,
@@ -444,35 +523,64 @@ impl MockEnv {
             .unwrap();
     }
 
+    pub fn deposit_to_perp_vault(
+        &mut self,
+        account_id: &str,
+        coin: &Coin,
+        max_shares_receivable: Option<Uint128>,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            self.rover.clone(),
+            self.perps.address().clone(),
+            &perps::ExecuteMsg::Deposit {
+                account_id: Some(account_id.to_string()),
+                max_shares_receivable,
+            },
+            &[coin.clone()],
+        )
+    }
+
+    pub fn deleverage(&mut self, account_id: &str, denom: &str) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            self.rover.clone(),
+            self.perps.address().clone(),
+            &perps::ExecuteMsg::Deleverage {
+                account_id: account_id.to_string(),
+                denom: denom.to_string(),
+            },
+            &[],
+        )
+    }
+
     //--------------------------------------------------------------------------------------------------
     // Queries
     //--------------------------------------------------------------------------------------------------
 
     pub fn query_positions(&self, account_id: &str) -> Positions {
-        self.app
-            .wrap()
-            .query_wasm_smart(
-                self.rover.clone(),
-                &QueryMsg::Positions {
-                    account_id: account_id.to_string(),
-                },
-            )
-            .unwrap()
+        self.query_positions_with_action(account_id, None).unwrap()
     }
 
-    pub fn query_health(
+    pub fn query_positions_with_action(
         &self,
         account_id: &str,
-        kind: AccountKind,
-        action: ActionKind,
-    ) -> HealthValuesResponse {
+        action: Option<ActionKind>,
+    ) -> Result<Positions, StdError> {
+        self.app.wrap().query_wasm_smart(
+            self.rover.clone(),
+            &QueryMsg::Positions {
+                account_id: account_id.to_string(),
+                action,
+            },
+        )
+    }
+
+    pub fn query_health(&self, account_id: &str, action: ActionKind) -> HealthValuesResponse {
         self.app
             .wrap()
             .query_wasm_smart(
                 self.health_contract.clone().address(),
                 &HealthValues {
                     account_id: account_id.to_string(),
-                    kind,
                     action,
                 },
             )
@@ -504,7 +612,8 @@ impl MockEnv {
                 &UserUnclaimedRewards {
                     user: self.rover.to_string(),
                     account_id: Some(account_id.to_string()),
-                    start_after_collateral_denom: None,
+                    start_after_kind: None,
+                    start_after_denom: None,
                     start_after_incentive_denom: None,
                     limit: None,
                 },
@@ -838,6 +947,42 @@ impl MockEnv {
             .unwrap()
     }
 
+    pub fn query_trigger_orders_for_account(
+        &self,
+        account_id: String,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> PaginationResponse<TriggerOrderResponse> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.rover.clone(),
+                &QueryMsg::AllAccountTriggerOrders {
+                    account_id,
+                    start_after,
+                    limit,
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_all_trigger_orders(
+        &self,
+        start_after: Option<(String, String)>,
+        limit: Option<u32>,
+    ) -> PaginationResponse<TriggerOrderResponse> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.rover.clone(),
+                &QueryMsg::AllTriggerOrders {
+                    start_after,
+                    limit,
+                },
+            )
+            .unwrap()
+    }
+
     pub fn query_swap_estimate(
         &self,
         coin_in: &Coin,
@@ -919,6 +1064,69 @@ impl MockEnv {
             },
         )
     }
+
+    pub fn query_perp_position(&self, account_id: &str, denom: &str) -> PositionResponse {
+        self.query_perp_position_with_modification_size(account_id, denom, None)
+    }
+
+    pub fn query_perp_position_with_modification_size(
+        &self,
+        account_id: &str,
+        denom: &str,
+        modification_size: Option<Int128>,
+    ) -> PositionResponse {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.address(),
+                &perps::QueryMsg::Position {
+                    account_id: account_id.to_string(),
+                    denom: denom.to_string(),
+                    order_size: modification_size,
+                    reduce_only: None,
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_perp_opening_fee(&self, denom: &str, size: Int128) -> TradingFee {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.address(),
+                &perps::QueryMsg::OpeningFee {
+                    denom: denom.to_string(),
+                    size,
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_perp_config(&self) -> Config<String> {
+        self.app.wrap().query_wasm_smart(self.perps.address(), &perps::QueryMsg::Config {}).unwrap()
+    }
+
+    pub fn query_perp_vault(&self, action: Option<ActionKind>) -> Result<VaultResponse, StdError> {
+        self.app.wrap().query_wasm_smart(
+            self.perps.address(),
+            &perps::QueryMsg::Vault {
+                action,
+            },
+        )
+    }
+
+    pub fn query_perp_vault_position(&self, acc_id: &str) -> Option<VaultPositionResponse> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.address(),
+                &perps::QueryMsg::VaultPosition {
+                    user_address: self.rover.to_string(),
+                    account_id: Some(acc_id.to_string()),
+                },
+            )
+            .unwrap()
+    }
 }
 
 impl MockEnvBuilder {
@@ -948,6 +1156,16 @@ impl MockEnvBuilder {
             );
         }
 
+        let perps = self.deploy_perps_contract();
+        self.update_config(
+            &rover,
+            ConfigUpdates {
+                perps: Some(perps.clone().into()),
+                keeper_fee_config: Some(self.get_keeper_fee_config()),
+                ..Default::default()
+            },
+        );
+
         self.fund_users();
 
         self.deploy_vaults();
@@ -959,6 +1177,7 @@ impl MockEnvBuilder {
             health_contract,
             incentives,
             params,
+            perps,
         })
     }
 
@@ -1085,12 +1304,15 @@ impl MockEnvBuilder {
         let swapper = self.deploy_swapper().into();
         let max_unlocking_positions = self.get_max_unlocking_positions();
         let max_slippage = self.get_max_slippage();
+        let perps_liquidation_bonus_ratio = self.get_perps_liquidation_ratio();
 
         let oracle = self.get_oracle().into();
         let zapper = self.deploy_zapper(&oracle)?.into();
         let health_contract = self.get_health_contract().into();
         let params = self.get_params_contract().into();
+        let keeper_fee_config = self.get_keeper_fee_config();
 
+        self.deploy_rewards_collector();
         self.deploy_astroport_incentives();
 
         let addr = self
@@ -1109,6 +1331,8 @@ impl MockEnvBuilder {
                     health_contract,
                     params,
                     incentives,
+                    keeper_fee_config,
+                    perps_liquidation_bonus_ratio,
                 },
                 &[],
                 "mock-rover-contract",
@@ -1171,11 +1395,16 @@ impl MockEnvBuilder {
                 price: item.price,
             })
             .collect();
-        prices.push(CoinPrice {
-            pricing: ActionKind::Default,
-            denom: "uusdc".to_string(),
-            price: Decimal::from_atomics(12345u128, 4).unwrap(),
-        });
+
+        // Don't override uusdc price if it's already set
+        let usdc_price_set = prices.iter().any(|p| p.denom == "uusdc");
+        if !usdc_price_set {
+            prices.push(CoinPrice {
+                pricing: ActionKind::Default,
+                denom: "uusdc".to_string(),
+                price: Decimal::from_atomics(12345u128, 4).unwrap(),
+            });
+        }
 
         // Ensures vault base token denoms are pricable in the oracle
         // even if they are not whitelisted in Rover
@@ -1203,6 +1432,9 @@ impl MockEnvBuilder {
                 None,
             )
             .unwrap();
+
+        self.set_address(MarsAddressType::Oracle, addr.clone());
+
         OracleBase::new(addr)
     }
 
@@ -1226,10 +1458,9 @@ impl MockEnvBuilder {
                 owner.clone(),
                 &ParamsInstantiateMsg {
                     owner: owner.to_string(),
+                    risk_manager: None,
                     address_provider: address_provider.into(),
-                    target_health_factor: self
-                        .target_health_factor
-                        .unwrap_or(Decimal::from_str("1.2").unwrap()),
+                    max_perp_params: 40,
                 },
                 &[],
                 "mock-params-contract",
@@ -1237,7 +1468,44 @@ impl MockEnvBuilder {
             )
             .unwrap();
 
+        self.set_address(MarsAddressType::Params, addr.clone());
+
         Params::new(addr)
+    }
+
+    fn deploy_perps_contract(&mut self) -> Perps {
+        let contract_code_id = self.app.store_code(mock_perps_contract());
+        let owner = self.get_owner();
+        let address_provider = self.get_address_provider();
+        let target_vault_collateralization_ratio = self.get_target_vault_collateralization_ratio();
+        let deleverage_enabled = self.get_delegerage_enabled();
+        let vault_withdraw_enabled = self.get_withdraw_enabled();
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                contract_code_id,
+                owner.clone(),
+                &PerpsInstantiateMsg {
+                    address_provider: address_provider.into(),
+                    base_denom: "uusdc".to_string(),
+                    cooldown_period: 360,
+                    max_positions: 4,
+                    protocol_fee_rate: Decimal::percent(0),
+                    target_vault_collateralization_ratio,
+                    deleverage_enabled,
+                    vault_withdraw_enabled,
+                    max_unlocks: 5,
+                },
+                &[],
+                "mock-perps-contract",
+                Some(owner.to_string()),
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::Perps, addr.clone());
+
+        Perps::new(addr)
     }
 
     fn get_health_contract(&mut self) -> HealthContract {
@@ -1417,6 +1685,38 @@ impl MockEnvBuilder {
         vault_addr
     }
 
+    fn deploy_rewards_collector(&mut self) -> Addr {
+        let code_id = self.app.store_code(mock_rewards_collector_osmosis_contract());
+        let owner = self.get_owner();
+        let address_provider = self.get_address_provider();
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                code_id,
+                owner.clone(),
+                &rewards_collector::InstantiateMsg {
+                    owner: owner.clone().to_string(),
+                    address_provider: address_provider.to_string(),
+                    safety_tax_rate: Default::default(),
+                    safety_fund_denom: "safety-fund-denom".to_string(),
+                    fee_collector_denom: "fee-collector-denom".to_string(),
+                    channel_id: "".to_string(),
+                    timeout_seconds: 1,
+                    slippage_tolerance: Default::default(),
+                    neutron_ibc_config: None,
+                },
+                &[],
+                "mock-rewards-collector",
+                None,
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::RewardsCollector, addr.clone());
+
+        addr
+    }
+
     fn deploy_swapper(&mut self) -> Swapper {
         let code_id = self.app.store_code(mock_swapper_contract());
         let addr = self
@@ -1498,6 +1798,12 @@ impl MockEnvBuilder {
             .collect()
     }
 
+    fn get_keeper_fee_config(&self) -> KeeperFeeConfig {
+        self.keeper_fee_config.clone().unwrap_or(KeeperFeeConfig {
+            min_fee: coin(1000000, "uusdc"),
+        })
+    }
+
     fn get_coin_params(&self) -> Vec<CoinInfo> {
         self.coin_params.clone().unwrap_or_default()
     }
@@ -1510,12 +1816,38 @@ impl MockEnvBuilder {
         self.max_slippage.unwrap_or_else(|| Decimal::percent(99))
     }
 
+    fn get_perps_liquidation_ratio(&self) -> Decimal {
+        self.perps_liquidation_bonus_ratio.unwrap_or_else(|| Decimal::percent(60))
+    }
+
+    fn get_target_vault_collateralization_ratio(&self) -> Decimal {
+        self.target_vault_collateralization_ratio.unwrap_or_else(|| Decimal::percent(125))
+    }
+
+    fn get_delegerage_enabled(&self) -> bool {
+        self.deleverage_enabled.unwrap_or(true)
+    }
+
+    fn get_withdraw_enabled(&self) -> bool {
+        self.withdraw_enabled.unwrap_or(true)
+    }
+
     //--------------------------------------------------------------------------------------------------
     // Setter functions
     //--------------------------------------------------------------------------------------------------
 
     pub fn fund_account(mut self, account: AccountToFund) -> Self {
         self.accounts_to_fund.push(account);
+        self
+    }
+
+    pub fn fund_accounts(mut self, addrs: Vec<Addr>, coins: Vec<Coin>) -> Self {
+        for addr in addrs {
+            self.accounts_to_fund.push(AccountToFund {
+                addr,
+                funds: coins.clone(),
+            });
+        }
         self
     }
 
@@ -1559,6 +1891,11 @@ impl MockEnvBuilder {
         self
     }
 
+    pub fn keeper_fee_config(mut self, config: KeeperFeeConfig) -> Self {
+        self.keeper_fee_config = Some(config);
+        self
+    }
+
     pub fn no_nft_contract(mut self) -> Self {
         self.deploy_nft_contract = false;
         self
@@ -1566,11 +1903,6 @@ impl MockEnvBuilder {
 
     pub fn no_nft_contract_minter(mut self) -> Self {
         self.set_nft_contract_minter = false;
-        self
-    }
-
-    pub fn target_health_factor(mut self, thf: Decimal) -> Self {
-        self.target_health_factor = Some(thf);
         self
     }
 
@@ -1584,8 +1916,23 @@ impl MockEnvBuilder {
         self
     }
 
+    pub fn perps_liquidation_bonus_ratio(mut self, lb_ratio: Decimal) -> Self {
+        self.perps_liquidation_bonus_ratio = Some(lb_ratio);
+        self
+    }
+
     pub fn evil_vault(mut self, credit_account: &str) -> Self {
         self.evil_vault = Some(credit_account.to_string());
+        self
+    }
+
+    pub fn target_vault_collaterization_ratio(mut self, ratio: Decimal) -> Self {
+        self.target_vault_collateralization_ratio = Some(ratio);
+        self
+    }
+
+    pub fn deleverage_enabled(mut self, enabled: bool) -> Self {
+        self.deleverage_enabled = Some(enabled);
         self
     }
 }

@@ -30,6 +30,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     await deployer.upload('zapper', wasmFile(config.zapperContractName))
     await deployer.upload('creditManager', wasmFile('mars_credit_manager'))
     await deployer.upload('health', wasmFile('mars_rover_health'))
+    await deployer.upload('perps', wasmFile('mars_perps'))
 
     // Instantiate contracts
     await deployer.instantiateAddressProvider()
@@ -44,6 +45,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     await deployer.instantiateHealthContract()
     await deployer.instantiateCreditManager()
     await deployer.instantiateNftContract()
+    await deployer.instantiatePerps()
     await deployer.setConfigOnHealthContract()
     await deployer.transferNftContractOwnership()
     await deployer.setConfigOnCreditManagerContract()
@@ -64,10 +66,14 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     for (const vault of config.vaults) {
       await deployer.updateVaultConfig(vault)
     }
+    if (config.perps) {
+      for (const perp of config.perps?.denoms) {
+        await deployer.initializePerpDenom(perp)
+      }
+    }
     for (const oracleConfig of config.oracleConfigs) {
       await deployer.setOracle(oracleConfig)
     }
-    await deployer.setRoutes()
 
     // Test basic user flows
     if (config.runTests && config.testActions) {
@@ -79,23 +85,23 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
 
       const rover = await deployer.newUserRoverClient(config.testActions)
       await rover.createCreditAccount()
-      await rover.deposit()
-      await rover.lend()
-      await rover.borrow()
-      await rover.swap()
-      await rover.repay()
-      await rover.reclaim()
-      await rover.withdraw()
+      await rover.depositWithTestParams()
+      await rover.lendWithTestParams()
+      await rover.borrowWithTestParams()
+      await rover.swapWithTestParams()
+      await rover.repayWithTestParams()
+      await rover.reclaimWithTestParams()
+      await rover.withdrawWithTestParams()
 
       const vaultConfig = config.vaults[0].vault
       const info = await rover.getVaultInfo(vaultConfig)
-      await rover.zap(info.tokens.base_token)
-      await rover.vaultDeposit(vaultConfig, info)
+      await rover.zapWithTestParams(info.tokens.base_token)
+      await rover.vaultDepositWithTestParams(vaultConfig, info)
       if (info.lockup) {
-        await rover.vaultRequestUnlock(vaultConfig, info)
+        await rover.vaultRequestUnlockWithTestParams(vaultConfig, info)
       } else {
-        await rover.vaultWithdraw(vaultConfig, info)
-        await rover.unzap(info.tokens.base_token)
+        await rover.vaultWithdrawWithTestParams(vaultConfig, info)
+        await rover.unzapWithTestParams(info.tokens.base_token)
       }
       await rover.refundAllBalances()
     }

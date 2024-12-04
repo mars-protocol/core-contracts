@@ -4,6 +4,7 @@ import {
   AstroportConfig,
   DeploymentConfig,
   OracleConfig,
+  PerpDenom,
   SwapperExecuteMsg,
   TestActions,
   VaultConfig,
@@ -18,6 +19,7 @@ import { InstantiateMsg as VaultInstantiateMsg } from '../../types/generated/mar
 import { InstantiateMsg as HealthInstantiateMsg } from '../../types/generated/mars-rover-health/MarsRoverHealth.types'
 import { InstantiateMsg as ZapperInstantiateMsg } from '../../types/generated/mars-zapper-base/MarsZapperBase.types'
 import {
+  ConfigUpdates,
   ExecuteMsg as CreditManagerExecute,
   InstantiateMsg as RoverInstantiateMsg,
 } from '../../types/generated/mars-credit-manager/MarsCreditManager.types'
@@ -33,6 +35,7 @@ import {
   ExecuteMsg as RedBankExecuteMsg,
   QueryMsg as RedBankQueryMsg,
 } from '../../types/generated/mars-red-bank/MarsRedBank.types'
+import { InstantiateMsg as PerpsInstantiateMsg } from '../../types/generated/mars-perps/MarsPerps.types'
 import {
   AddressResponseItem,
   InstantiateMsg as AddressProviderInstantiateMsg,
@@ -201,6 +204,8 @@ export class Deployer {
       zapper: this.storage.addresses.zapper!,
       health_contract: this.storage.addresses.health!,
       incentives: this.storage.addresses.incentives!,
+      keeper_fee_config: this.config.keeperFeeConfig,
+      perps_liquidation_bonus_ratio: this.config.perpsLiquidationBonusRatio,
     }
 
     await this.instantiate('creditManager', this.storage.codeIds.creditManager!, msg)
@@ -226,11 +231,15 @@ export class Deployer {
         },
       })
 
-      printBlue('Setting rewards-collector address in credit manager contract')
+      printBlue('Setting rewards-collector and perps address in credit manager contract')
+      const configUpdates: ConfigUpdates = {
+        rewards_collector: this.storage.addresses.rewardsCollector!,
+      }
+      if (this.config.perps) {
+        configUpdates.perps = this.storage.addresses.perps!
+      }
       await hExec.updateConfig({
-        updates: {
-          rewards_collector: this.storage.addresses.rewardsCollector!,
-        },
+        updates: configUpdates,
       })
     }
     this.storage.actions.creditManagerContractConfigUpdate = true
@@ -276,6 +285,10 @@ export class Deployer {
       coin(testActions.startingAmountForTestUser, this.config.chain.baseDenom),
     )
     return this.getRoverClient(address, client, testActions)
+  }
+
+  async deployerAsRoverClient(testActions?: TestActions) {
+    return this.getRoverClient(this.deployerAddr, this.cwClient, testActions)
   }
 
   async saveDeploymentAddrsToFile(label: string) {
@@ -347,7 +360,11 @@ export class Deployer {
     return { client, address }
   }
 
-  private getRoverClient(address: string, client: SigningCosmWasmClient, testActions: TestActions) {
+  private getRoverClient(
+    address: string,
+    client: SigningCosmWasmClient,
+    testActions?: TestActions,
+  ) {
     return new Rover(address, this.storage, this.config, client, testActions)
   }
 
@@ -415,7 +432,7 @@ export class Deployer {
     const msg: ParamsInstantiateMsg = {
       owner: this.deployerAddr,
       address_provider: this.storage.addresses['addressProvider']!,
-      target_health_factor: this.config.targetHealthFactor,
+      max_perp_params: this.config.maxPerpParams,
     }
     await this.instantiate('params', this.storage.codeIds.params!, msg)
   }
@@ -434,6 +451,7 @@ export class Deployer {
             credit_manager: {
               hls: assetConfig.credit_manager.hls,
               whitelisted: assetConfig.credit_manager.whitelisted,
+              withdraw_enabled: assetConfig.credit_manager.withdraw_enabled,
             },
             denom: assetConfig.denom,
             liquidation_bonus: assetConfig.liquidation_bonus,
@@ -443,8 +461,10 @@ export class Deployer {
             red_bank: {
               borrow_enabled: assetConfig.red_bank.borrow_enabled,
               deposit_enabled: assetConfig.red_bank.deposit_enabled,
+              withdraw_enabled: assetConfig.red_bank.withdraw_enabled,
             },
             deposit_cap: assetConfig.deposit_cap,
+            close_factor: assetConfig.close_factor,
           },
         },
       },
@@ -455,6 +475,69 @@ export class Deployer {
     printYellow(`${assetConfig.symbol} updated.`)
 
     this.storage.actions.assetsSet.push(assetConfig.denom)
+  }
+
+  async instantiatePerps(cooldownPeriod?: number) {
+    if (this.config.perps) {
+      const cooldownPeriodUpdated =
+        cooldownPeriod !== undefined ? cooldownPeriod : this.config.perps.cooldownPeriod
+
+      const msg: PerpsInstantiateMsg = {
+        base_denom: this.config.perps.baseDenom,
+        cooldown_period: cooldownPeriodUpdated,
+        max_positions: this.config.perps.maxPositions,
+        protocol_fee_rate: this.config.perps.protocolFeeRate,
+        target_vault_collateralization_ratio: this.config.perps.targetCollaterizationRatio,
+        address_provider: this.storage.addresses.addressProvider!,
+        deleverage_enabled: this.config.perps.deleverageEnabled,
+        vault_withdraw_enabled: this.config.perps.vaultWithdrawEnabled,
+        max_unlocks: this.config.perps.maxUnlocks,
+      }
+      await this.instantiate('perps', this.storage.codeIds.perps!, msg)
+    } else {
+      printYellow('No perps config found')
+    }
+  }
+
+  async initializePerpDenom(perpDenom: PerpDenom, minPositionVal?: number) {
+    if (this.storage.actions.perpsSet.includes(perpDenom.denom)) {
+      printBlue(`${perpDenom.denom} already initialized in perps and params contracts`)
+      return
+    }
+    printBlue(`Initializing perp ${perpDenom.denom}...`)
+
+    const minPositionValue = minPositionVal?.toString() || perpDenom.minPositionValue
+
+    const paramsMsg: ParamsExecuteMsg = {
+      update_perp_params: {
+        add_or_update: {
+          params: {
+            denom: perpDenom.denom,
+            enabled: true,
+            max_net_oi_value: perpDenom.maxNetOiValue,
+            max_long_oi_value: perpDenom.maxLongOiValue,
+            max_short_oi_value: perpDenom.maxShortOiValue,
+            closing_fee_rate: perpDenom.closingFeeRate,
+            opening_fee_rate: perpDenom.openingFeeRate,
+            liquidation_threshold: perpDenom.liquidationThreshold,
+            max_loan_to_value: perpDenom.maxLoanToValue,
+            max_position_value: perpDenom.maxPositionValue,
+            min_position_value: minPositionValue,
+            max_funding_velocity: perpDenom.maxFundingVelocity,
+            skew_scale: perpDenom.skewScale,
+          },
+        },
+      },
+    }
+    await this.cwClient.execute(
+      this.deployerAddr,
+      this.storage.addresses['params']!,
+      paramsMsg,
+      'auto',
+    )
+    printYellow(`${perpDenom.denom} initialized in params contract`)
+
+    this.storage.actions.perpsSet.push(perpDenom.denom)
   }
 
   async initializeMarket(assetConfig: AssetConfig) {
@@ -619,6 +702,10 @@ export class Deployer {
         address: this.storage.addresses.creditManager!,
         address_type: 'credit_manager',
       },
+      {
+        address: this.storage.addresses.perps!,
+        address_type: 'perps',
+      },
     ]
 
     for (const addrObj of addressesToSet) {
@@ -652,8 +739,8 @@ export class Deployer {
     printYellow(`Twap snapshots recorded for denoms: ${denoms.join(',')}.`)
   }
 
-  async setOracle(oracleConfig: OracleConfig) {
-    if (this.storage.actions.oraclePricesSet.includes(oracleConfig.denom)) {
+  async setOracle(oracleConfig: OracleConfig, forceUpdate: boolean = false) {
+    if (!forceUpdate && this.storage.actions.oraclePricesSet.includes(oracleConfig.denom)) {
       printBlue(`${oracleConfig.denom} already set in Oracle contract`)
       return
     }

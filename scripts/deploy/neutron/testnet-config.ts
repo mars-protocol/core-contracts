@@ -1,4 +1,4 @@
-import { DeploymentConfig, AssetConfig, OracleConfig } from '../../types/config'
+import { DeploymentConfig, AssetConfig, OracleConfig, PerpDenom } from '../../types/config'
 import { NeutronIbcConfig } from '../../types/generated/mars-rewards-collector-base/MarsRewardsCollectorBase.types'
 
 const nobleUsdcDenom = 'ibc/4C19E7EC06C1AB2EC2D70C6855FEB6D48E9CE174913991DA0A517D21978E7E42'
@@ -11,11 +11,19 @@ const pclLpMarsDenom = 'factory/neutron1wm8jd0hrw79pfhhm9xmuq43jwz4wtukvxfgkkw/m
 const pclLpUsdcDenom = 'factory/neutron1wm8jd0hrw79pfhhm9xmuq43jwz4wtukvxfgkkw/usdc'
 const pclLpMarsUsdcPairAddr = 'neutron1sf456kx85dz0wfjs4sx0s80dyzmc360pfc0rdzactxt8xrse9ykqsdpy2y'
 
+// dummy denoms for testing
+const btcDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/ubtc'
+const ethDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/ueth'
+const injDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/uinj'
+const dydxDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/udydx'
+const tiaDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/utia'
+const solDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/usol'
+
 const protocolAdminAddr = 'neutron1ke0vqqzyymlp5esr8gjwuzh94ysnpvj8er5hm7'
 
 const marsNeutronChannelId = 'channel-97'
 const chainId = 'pion-1'
-const rpcEndpoint = 'https://rpc-palvus.pion-1.ntrn.tech'
+const rpcEndpoint = 'https://neutron-testnet-rpc.polkachu.com'
 
 // Astroport configuration
 const astroportFactory = 'neutron1jj0scx400pswhpjes589aujlqagxgcztw04srynmhf0f6zplzn2qqmhwj7'
@@ -25,12 +33,6 @@ const astroportIncentives = 'neutron1slxs8heecwyw0n6zmj7unj3nenrfhk2zpagfz2lt87d
 // note the following three addresses are all 'mars' bech32 prefix
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
 const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
-
-// Pyth configuration
-const pythAddr = 'neutron15ldst8t80982akgr8w8ekcytejzkmfpgdkeq4xgtge48qs7435jqp87u3t'
-const pythAtomID = 'b00b60f88b03a6a625a8d1c048c3f66653edf217439983d037e7222c4e612819'
-const pythUsdcID = 'eaa020c61cc479712813461ce153894a96a6c00b21ed0cfc2798d1f9a9e9c94a'
-const pythNtrnID = 'a8e6517966a52cb1df864b2764f3629fde3f21d2b640b5c572fcd654cbccd65e'
 
 // IBC config for rewards-collector. See https://rest-palvus.pion-1.ntrn.tech/neutron-org/neutron/feerefunder/params
 export const neutronIbcConfig: NeutronIbcConfig = {
@@ -53,13 +55,10 @@ export const neutronIbcConfig: NeutronIbcConfig = {
 export const ntrnOracle: OracleConfig = {
   denom: 'untrn',
   price_source: {
-    pyth: {
-      contract_addr: pythAddr,
-      price_feed_id: pythNtrnID,
+    slinky: {
+      base_symbol: 'NTRN',
       denom_decimals: 6,
-      max_staleness: 300, // 5 minutes
-      max_confidence: '0.1',
-      max_deviation: '0.15',
+      max_blocks_old: 5,
     },
   },
 }
@@ -67,13 +66,10 @@ export const ntrnOracle: OracleConfig = {
 export const atomOracle: OracleConfig = {
   denom: atomDenom,
   price_source: {
-    pyth: {
-      contract_addr: pythAddr,
-      price_feed_id: pythAtomID,
+    slinky: {
+      base_symbol: 'ATOM',
       denom_decimals: 6,
-      max_staleness: 300, // 5 minutes
-      max_confidence: '0.1',
-      max_deviation: '0.15',
+      max_blocks_old: 5,
     },
   },
 }
@@ -81,13 +77,76 @@ export const atomOracle: OracleConfig = {
 export const nobleUSDCOracle: OracleConfig = {
   denom: nobleUsdcDenom,
   price_source: {
-    pyth: {
-      contract_addr: pythAddr,
-      price_feed_id: pythUsdcID,
+    slinky: {
+      base_symbol: 'USDT', // TODO: change to USDC when available on Slinky
       denom_decimals: 6,
-      max_staleness: 300, // 5 minutes
-      max_confidence: '0.1',
-      max_deviation: '0.15',
+      max_blocks_old: 5,
+    },
+  },
+}
+
+export const btcOracle: OracleConfig = {
+  denom: btcDenom,
+  price_source: {
+    slinky: {
+      base_symbol: 'BTC',
+      denom_decimals: 8,
+      max_blocks_old: 5,
+    },
+  },
+}
+
+export const ethOracle: OracleConfig = {
+  denom: ethDenom,
+  price_source: {
+    slinky: {
+      base_symbol: 'ETH',
+      denom_decimals: 18,
+      max_blocks_old: 5,
+    },
+  },
+}
+
+export const injOracle: OracleConfig = {
+  denom: injDenom,
+  price_source: {
+    slinky: {
+      base_symbol: 'INJ',
+      denom_decimals: 18,
+      max_blocks_old: 5,
+    },
+  },
+}
+
+export const dydxOracle: OracleConfig = {
+  denom: dydxDenom,
+  price_source: {
+    slinky: {
+      base_symbol: 'DYDX',
+      denom_decimals: 18,
+      max_blocks_old: 5,
+    },
+  },
+}
+
+export const tiaOracle: OracleConfig = {
+  denom: tiaDenom,
+  price_source: {
+    slinky: {
+      base_symbol: 'TIA',
+      denom_decimals: 6,
+      max_blocks_old: 5,
+    },
+  },
+}
+
+export const solOracle: OracleConfig = {
+  denom: solDenom,
+  price_source: {
+    slinky: {
+      base_symbol: 'SOL',
+      denom_decimals: 9,
+      max_blocks_old: 5,
     },
   },
 }
@@ -274,10 +333,12 @@ export const ntrnAsset: AssetConfig = {
   symbol: 'NTRN',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '5000000000000',
   reserve_factor: '0.1',
@@ -287,6 +348,7 @@ export const ntrnAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const atomAsset: AssetConfig = {
@@ -303,10 +365,12 @@ export const atomAsset: AssetConfig = {
   symbol: 'ATOM',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '150000000000',
   reserve_factor: '0.1',
@@ -316,6 +380,7 @@ export const atomAsset: AssetConfig = {
     slope_1: '0.14',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const nobleUSDCAsset: AssetConfig = {
@@ -332,10 +397,12 @@ export const nobleUSDCAsset: AssetConfig = {
   symbol: 'nobleUSDC',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '500000000000',
   reserve_factor: '0.1',
@@ -345,6 +412,7 @@ export const nobleUSDCAsset: AssetConfig = {
     slope_1: '0.2',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const pclLpMarsUsdcAsset: AssetConfig = {
@@ -361,10 +429,12 @@ export const pclLpMarsUsdcAsset: AssetConfig = {
   symbol: 'PCL_LP_MARS_USDC',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: false,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '1000000000000000000',
   reserve_factor: '0.1',
@@ -374,6 +444,7 @@ export const pclLpMarsUsdcAsset: AssetConfig = {
     slope_1: '0.15',
     slope_2: '3',
   },
+  close_factor: '0.9',
 }
 
 export const pclLpMarsAsset: AssetConfig = {
@@ -390,10 +461,12 @@ export const pclLpMarsAsset: AssetConfig = {
   symbol: 'PCL_LP_MARS',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '500000000000',
   reserve_factor: '0.1',
@@ -403,6 +476,7 @@ export const pclLpMarsAsset: AssetConfig = {
     slope_1: '0.125',
     slope_2: '2',
   },
+  close_factor: '0.9',
 }
 
 export const pclLpUsdcAsset: AssetConfig = {
@@ -419,10 +493,12 @@ export const pclLpUsdcAsset: AssetConfig = {
   symbol: 'PCL_LP_USDC',
   credit_manager: {
     whitelisted: true,
+    withdraw_enabled: true,
   },
   red_bank: {
     borrow_enabled: true,
     deposit_enabled: true,
+    withdraw_enabled: true,
   },
   deposit_cap: '500000000000',
   reserve_factor: '0.1',
@@ -432,6 +508,120 @@ export const pclLpUsdcAsset: AssetConfig = {
     slope_1: '0.125',
     slope_2: '2',
   },
+  close_factor: '0.9',
+}
+
+// Perps configurations
+export const atomPerpDenom: PerpDenom = {
+  denom: atomDenom,
+  maxFundingVelocity: '36',
+  skewScale: '7227323000000',
+  maxNetOiValue: '45591000000',
+  maxLongOiValue: '490402700000',
+  maxShortOiValue: '490402700000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.86',
+  maxLoanToValue: '0.85',
+}
+
+export const ntrnPerpDenom: PerpDenom = {
+  denom: 'untrn',
+  maxFundingVelocity: '36',
+  skewScale: '7227323000000',
+  maxNetOiValue: '45591000000',
+  maxLongOiValue: '490402700000',
+  maxShortOiValue: '490402700000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.86',
+  maxLoanToValue: '0.85',
+}
+
+export const btcPerpDenom: PerpDenom = {
+  denom: btcDenom,
+  maxFundingVelocity: '36',
+  skewScale: '8892400000000',
+  maxNetOiValue: '88882000000',
+  maxLongOiValue: '28135198400000',
+  maxShortOiValue: '28135198400000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.91',
+  maxLoanToValue: '0.90',
+}
+
+export const ethPerpDenom: PerpDenom = {
+  denom: ethDenom,
+  maxFundingVelocity: '36',
+  skewScale: '1186268000000000000000000',
+  maxNetOiValue: '86049000000',
+  maxLongOiValue: '19093576000000',
+  maxShortOiValue: '19093576000000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.91',
+  maxLoanToValue: '0.90',
+}
+
+export const injPerpDenom: PerpDenom = {
+  denom: injDenom,
+  maxFundingVelocity: '36',
+  skewScale: '1805314000000000000000000',
+  maxNetOiValue: '33496000000',
+  maxLongOiValue: '400314200000',
+  maxShortOiValue: '400314200000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.88',
+  maxLoanToValue: '0.83',
+}
+
+export const dydxPerpDenom: PerpDenom = {
+  denom: dydxDenom,
+  maxFundingVelocity: '36',
+  skewScale: '1462272000000000000000000',
+  maxNetOiValue: '32529000000',
+  maxLongOiValue: '221088700000',
+  maxShortOiValue: '221088700000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.82',
+  maxLoanToValue: '0.80',
+}
+
+export const tiaPerpDenom: PerpDenom = {
+  denom: tiaDenom,
+  maxFundingVelocity: '36',
+  skewScale: '4504227000000',
+  maxNetOiValue: '22081000000',
+  maxLongOiValue: '316093400000',
+  maxShortOiValue: '316093400000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.76',
+  maxLoanToValue: '0.71',
+}
+
+export const solPerpDenom: PerpDenom = {
+  denom: solDenom,
+  maxFundingVelocity: '36',
+  skewScale: '3954627000000000',
+  maxNetOiValue: '36869000000',
+  maxLongOiValue: '3396453000000',
+  maxShortOiValue: '3396453000000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.88',
+  maxLoanToValue: '0.85',
 }
 
 export const neutronTestnetConfig: DeploymentConfig = {
@@ -442,6 +632,9 @@ export const neutronTestnetConfig: DeploymentConfig = {
   safetyFundAddr: safetyFundAddr,
   protocolAdminAddr: protocolAdminAddr,
   feeCollectorAddr: feeCollectorAddr,
+  keeperFeeConfig: {
+    min_fee: { amount: '1000000', denom: nobleUsdcDenom },
+  },
   chain: {
     baseDenom: 'untrn',
     defaultGasPrice: 0.02,
@@ -474,8 +667,6 @@ export const neutronTestnetConfig: DeploymentConfig = {
     name: 'astroport',
     routes: [atomUsdcRoute, atomMarsRoute, ntrnUsdcRoute, ntrnMarsRoute, usdcMarsRoute],
   },
-  targetHealthFactor: '1.05',
-  creditLineCoins: [],
   maxValueForBurn: '10000',
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',
@@ -498,10 +689,38 @@ export const neutronTestnetConfig: DeploymentConfig = {
     pclLpMarsOracle,
     pclLpUsdcOracle,
     pclLpMarsUsdcOracle,
+    btcOracle,
+    ethOracle,
+    injOracle,
+    dydxOracle,
+    tiaOracle,
+    solOracle,
   ],
   astroportConfig: {
     factory: astroportFactory,
     router: astroportRouter,
     incentives: astroportIncentives,
   },
+  perps: {
+    baseDenom: nobleUsdcDenom,
+    cooldownPeriod: 300, // 5 min
+    maxPositions: 4,
+    maxUnlocks: 5,
+    protocolFeeRate: '0.1',
+    targetCollaterizationRatio: '1.2',
+    deleverageEnabled: true,
+    vaultWithdrawEnabled: true,
+    denoms: [
+      atomPerpDenom,
+      ntrnPerpDenom,
+      btcPerpDenom,
+      ethPerpDenom,
+      injPerpDenom,
+      dydxPerpDenom,
+      tiaPerpDenom,
+      solPerpDenom,
+    ],
+  },
+  maxPerpParams: 20,
+  perpsLiquidationBonusRatio: '0.6',
 }

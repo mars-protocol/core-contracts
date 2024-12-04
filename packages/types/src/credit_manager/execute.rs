@@ -1,17 +1,21 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_binary, Addr, Coin, CosmosMsg, Decimal, StdResult, Uint128, WasmMsg};
+use cosmwasm_std::{
+    to_json_binary, Addr, Coin, CosmosMsg, Decimal, Int128, StdResult, Uint128, WasmMsg,
+};
 use mars_owner::OwnerUpdate;
 
 use super::ConfigUpdates;
 use crate::{
     account_nft::NftConfigUpdates,
     adapters::vault::{Vault, VaultPositionType, VaultUnchecked},
-    health::{AccountKind, HealthState},
+    health::{AccountKind, HealthState, HealthValuesResponse},
+    perps::PnL,
     swapper::SwapperRoute,
 };
 
+#[allow(clippy::large_enum_variant)]
 #[cw_serde]
 pub enum ExecuteMsg {
     //--------------------------------------------------------------------------------------------------
@@ -31,6 +35,11 @@ pub enum ExecuteMsg {
         account_id: String,
     },
 
+    ExecuteTriggerOrder {
+        account_id: String,
+        trigger_order_id: String,
+    },
+
     //--------------------------------------------------------------------------------------------------
     // Privileged messages
     //--------------------------------------------------------------------------------------------------
@@ -47,6 +56,19 @@ pub enum ExecuteMsg {
     },
     /// Internal actions only callable by the contract itself
     Callback(CallbackMsg),
+
+    /// This is part of the deleveraging process initiated by the perps contract.
+    ///
+    /// Updates the account balance based on the specified PnL for the given account.
+    /// Depending on the PnL type:
+    /// - Profit: increases the account balance.
+    /// - Loss: decreases the account balance and borrows from the red-bank if necessary.
+    /// - Break-even: no action is taken.
+    /// If the total PnL results in a loss, the corresponding amount of coins must be sent to the perps contract.
+    UpdateBalanceAfterDeleverage {
+        account_id: String,
+        pnl: PnL,
+    },
 }
 
 #[cw_serde]
@@ -116,6 +138,46 @@ pub enum LiquidateRequest<T> {
     StakedAstroLp(String),
 }
 
+#[cw_serde]
+pub enum Comparison {
+    GreaterThan,
+    LessThan,
+}
+
+impl Comparison {
+    pub fn is_met(&self, lhs: Decimal, rhs: Decimal) -> bool {
+        match self {
+            Comparison::GreaterThan => lhs > rhs,
+            Comparison::LessThan => lhs < rhs,
+        }
+    }
+}
+
+#[cw_serde]
+pub enum Condition {
+    /// If the oracle price is above or below the specified threshold, depending
+    /// on the comparison, the condition is met.
+    OraclePrice {
+        denom: String,
+        price: Decimal,
+        comparison: Comparison,
+    },
+    /// Trigger based on a relative price or price ratio of two prices.
+    /// The given price is compared to the Base / Quote ratio.
+    RelativePrice {
+        base_price_denom: String,
+        quote_price_denom: String,
+        price: Decimal,
+        comparison: Comparison,
+    },
+    /// If the health factor of the account is above or below the specified
+    /// threshold, depending on the comparison, the condition is met.
+    HealthFactor {
+        threshold: Decimal,
+        comparison: Comparison,
+    },
+}
+
 /// The list of actions that users can perform on their positions
 #[cw_serde]
 pub enum Action {
@@ -145,6 +207,43 @@ pub enum Action {
         recipient_account_id: Option<String>,
         coin: ActionCoin,
     },
+    /// Provide liquidity of the base token to the perp vault
+    DepositToPerpVault {
+        coin: ActionCoin,
+        max_receivable_shares: Option<Uint128>,
+    },
+
+    /// Unlock liquidity from the perp vault. The unlocked tokens will have to wait
+    /// a cooldown period before they can be withdrawn.
+    UnlockFromPerpVault {
+        shares: Uint128,
+    },
+    /// Withdraw liquidity from the perp vault
+    WithdrawFromPerpVault {
+        min_receive: Option<Uint128>,
+    },
+    /// Execute a state update against the specified perp market for the given account.
+    /// If no position exists in the given market, a position is created. Existing postions are modified.
+    /// Note that size is signed
+    ///     - to increase short or reduce long, use a negative value
+    ///     - to reduce short or increase long, use a positive value
+    ExecutePerpOrder {
+        denom: String,
+        order_size: Int128,
+        reduce_only: Option<bool>,
+    },
+
+    /// Dispatch orders to be triggered under specified conditions
+    CreateTriggerOrder {
+        actions: Vec<Action>,
+        conditions: Vec<Condition>,
+        keeper_fee: Coin,
+    },
+
+    DeleteTriggerOrder {
+        trigger_order_id: String,
+    },
+
     /// Deposit coins into vault strategy
     /// If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault
     EnterVault {
@@ -272,6 +371,34 @@ pub enum CallbackMsg {
     AssertDepositCaps {
         denoms: BTreeMap<String, Option<Uint128>>,
     },
+    /// Corresponding to the DepositToPerpVault action
+    DepositToPerpVault {
+        account_id: String,
+        coin: ActionCoin,
+        max_receivable_shares: Option<Uint128>,
+    },
+    /// Corresponding to the UnlockFromPerpVault action
+    UnlockFromPerpVault {
+        account_id: String,
+        shares: Uint128,
+    },
+    /// Corresponding to the WithdrawFromPerpVault action
+    WithdrawFromPerpVault {
+        account_id: String,
+        min_receive: Option<Uint128>,
+    },
+    // Creates a trigger order for an account
+    CreateTriggerOrder {
+        account_id: String,
+        actions: Vec<Action>,
+        conditions: Vec<Condition>,
+        keeper_fee: Coin,
+    },
+    // Deletes an accounts trigger order
+    DeleteTriggerOrder {
+        account_id: String,
+        trigger_order_id: String,
+    },
     /// Adds coin to a vault strategy
     EnterVault {
         account_id: String,
@@ -292,6 +419,13 @@ pub enum CallbackMsg {
         /// Total vault coin balance in Rover
         previous_total_balance: Uint128,
     },
+    /// Executes a perp order against the given market. If no position exists, a position is opened.
+    ExecutePerpOrder {
+        account_id: String,
+        denom: String,
+        size: Int128,
+        reduce_only: Option<bool>,
+    },
     /// Requests unlocking of shares for a vault with a lock period
     RequestVaultUnlock {
         account_id: String,
@@ -304,12 +438,17 @@ pub enum CallbackMsg {
         vault: Vault,
         position_id: u64,
     },
+    /// Close all perp positions before liquidation
+    CloseAllPerps {
+        account_id: String,
+    },
     /// Pay back debts of a liquidatable rover account for a bonus
     Liquidate {
         liquidator_account_id: String,
         liquidatee_account_id: String,
         debt_coin: Coin,
         request: LiquidateRequest<Vault>,
+        prev_health: HealthValuesResponse,
     },
     /// Perform a swapper with an exact-in amount. Requires slippage allowance %.
     /// If `coin_in.amount: AccountBalance`, the accounts entire balance of `coin_in.denom` will be used.

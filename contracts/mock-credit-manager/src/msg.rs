@@ -9,6 +9,7 @@ pub struct InstantiateMsg {
     pub config: ConfigResponse,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[cw_serde]
 pub enum ExecuteMsg {
     SetPositionsResponse {

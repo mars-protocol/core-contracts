@@ -31,9 +31,6 @@ mars-types      = { workspace = true }
 mars-utils      = { workspace = true }
 thiserror       = { workspace = true }
 
-# Old red-bank types used for migration.
-mars-red-bank-types-old = { package = "mars-red-bank-types", git = "https://github.com/mars-protocol/red-bank", tag = "v1.0.0" }
-
 [dev-dependencies]
 mars-testing        = { workspace = true }
 osmosis-std         = { workspace = true }

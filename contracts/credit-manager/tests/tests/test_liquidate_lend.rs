@@ -6,7 +6,6 @@ use mars_types::{
         Action::{Borrow, Deposit, Lend, Liquidate},
         LiquidateRequest,
     },
-    health::AccountKind,
     oracle::ActionKind,
 };
 
@@ -42,8 +41,7 @@ fn lent_positions_contribute_to_health() {
     )
     .unwrap();
 
-    let health_1 =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let health_1 = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(!health_1.liquidatable);
 
     mock.update_credit_account(
@@ -55,8 +53,7 @@ fn lent_positions_contribute_to_health() {
     .unwrap();
 
     // Collateral should be the same after Lend
-    let health_2 =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let health_2 = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(!health_2.liquidatable);
     // health_2.total_collateral_value bigger (+1) because of simulated yield
     assert_eq!(health_1.total_collateral_value, health_2.total_collateral_value - Uint128::one());
@@ -131,8 +128,7 @@ fn liquidatee_does_not_have_requested_lent_coin() {
         price: Decimal::from_atomics(20u128, 0).unwrap(),
     });
 
-    let health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(health.liquidatable);
 
     let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
@@ -145,13 +141,13 @@ fn liquidatee_does_not_have_requested_lent_coin() {
             Liquidate {
                 liquidatee_account_id: liquidatee_account_id.clone(),
                 debt_coin: uosmo_info.to_coin(10),
-                request: LiquidateRequest::Lend(ujake_info.denom),
+                request: LiquidateRequest::Lend(ujake_info.denom.clone()),
             },
         ],
         &[uosmo_info.to_coin(10)],
     );
 
-    assert_err(res, ContractError::NoneLent);
+    assert_err(res, ContractError::CoinNotAvailable(ujake_info.denom));
 }
 
 #[test]
@@ -163,7 +159,6 @@ fn lent_position_partially_liquidated() {
     let liquidatee = Addr::unchecked("liquidatee");
 
     let mut mock = MockEnv::new()
-        .target_health_factor(Decimal::from_atomics(12u128, 1).unwrap())
         .set_params(&[uosmo_info.clone(), uatom_info.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),
@@ -196,8 +191,7 @@ fn lent_position_partially_liquidated() {
         price: Decimal::from_atomics(22u128, 1).unwrap(),
     });
 
-    let health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(health.liquidatable);
     assert_eq!(health.total_collateral_value, Uint128::new(2462u128));
     assert_eq!(health.total_debt_value, Uint128::new(2203u128));
@@ -255,8 +249,7 @@ fn lent_position_partially_liquidated() {
     assert_eq!(position.debts.len(), 0);
 
     // Liq HF should improve
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(!health.liquidatable);
 }
 
@@ -269,7 +262,6 @@ fn lent_position_fully_liquidated() {
     let liquidatee = Addr::unchecked("liquidatee");
 
     let mut mock = MockEnv::new()
-        .target_health_factor(Decimal::from_atomics(12u128, 1).unwrap())
         .set_params(&[uosmo_info.clone(), uatom_info.clone()])
         .fund_account(AccountToFund {
             addr: liquidatee.clone(),
@@ -314,8 +306,7 @@ fn lent_position_fully_liquidated() {
         price: Decimal::from_atomics(50u128, 1).unwrap(),
     });
 
-    let prev_health =
-        mock.query_health(&liquidatee_account_id, AccountKind::Default, ActionKind::Liquidation);
+    let prev_health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(prev_health.liquidatable);
     assert_eq!(prev_health.total_collateral_value, Uint128::new(2801u128));
     assert_eq!(prev_health.total_debt_value, Uint128::new(2505u128));
@@ -375,8 +366,7 @@ fn lent_position_fully_liquidated() {
     assert_eq!(rc_osmo_lent.amount, Uint128::new(1));
 
     // Liq HF should improve
-    let account_kind = mock.query_account_kind(&liquidatee_account_id);
-    let health = mock.query_health(&liquidatee_account_id, account_kind, ActionKind::Liquidation);
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
     assert!(!health.liquidatable);
     assert!(
         prev_health.liquidation_health_factor.unwrap() < health.liquidation_health_factor.unwrap()

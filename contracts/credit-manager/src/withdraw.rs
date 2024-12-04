@@ -4,7 +4,7 @@ use mars_types::credit_manager::{ActionAmount, ActionCoin};
 use crate::{
     error::{ContractError, ContractResult},
     state::COIN_BALANCES,
-    utils::decrement_coin_balance,
+    utils::{assert_withdraw_enabled, decrement_coin_balance},
 };
 
 pub fn withdraw(
@@ -13,6 +13,8 @@ pub fn withdraw(
     coin: &ActionCoin,
     recipient: Addr,
 ) -> ContractResult<Response> {
+    assert_withdraw_enabled(deps.storage, &deps.querier, &coin.denom)?;
+
     let amount_to_withdraw = get_withdraw_amount(deps.as_ref(), account_id, coin)?;
 
     decrement_coin_balance(deps.storage, account_id, &amount_to_withdraw)?;

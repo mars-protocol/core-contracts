@@ -33,7 +33,8 @@ impl IncentivesQuerier {
             QueryMsg::UserUnclaimedRewards {
                 user: _,
                 account_id: _,
-                start_after_collateral_denom: _,
+                start_after_kind: _,
+                start_after_denom: _,
                 start_after_incentive_denom: _,
                 limit: _,
             } => {

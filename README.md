@@ -199,7 +199,13 @@ cargo make test
 
 ## License
 
-Contents of this repository are open source under [GNU General Public License v3](./LICENSE) or later.
+This project is licensed under the Functional Source License, Version 1.1, Apache 2.0 Future License (FSL-1.1-Apache-2.0).
+
+Key points:
+- You can use, copy, modify, and redistribute this software for any purpose other than a Competing Use as defined in the license.
+- On the second anniversary of the date we made this software available, it will also become available under the Apache License, Version 2.0.
+
+For full terms and conditions, see the [LICENSE](./LICENSE) file.
 
 [1]: https://github.com/mars-protocol/mars-audits
 [2]: https://immunefi.com/bounty/mars/

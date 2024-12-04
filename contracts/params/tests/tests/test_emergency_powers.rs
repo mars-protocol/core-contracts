@@ -1,9 +1,13 @@
 use cosmwasm_std::Addr;
 use mars_owner::OwnerError;
 use mars_params::error::ContractError::Owner;
-use mars_types::params::{
-    AssetParamsUpdate, CmEmergencyUpdate, EmergencyUpdate, RedBankEmergencyUpdate,
-    VaultConfigUpdate,
+use mars_testing::multitest::helpers::default_perp_params;
+use mars_types::{
+    params::{
+        AssetParamsUpdate, CmEmergencyUpdate, EmergencyUpdate, PerpParamsUpdate,
+        PerpsEmergencyUpdate, RedBankEmergencyUpdate, VaultConfigUpdate,
+    },
+    perps::Config,
 };
 
 use super::helpers::{assert_err, default_asset_params, default_vault_config, MockEnv};
@@ -100,6 +104,68 @@ fn disallow_coin() {
 }
 
 #[test]
+fn disabled_withdraw_cm() {
+    let emergency_owner = Addr::unchecked("miles_morales");
+    let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();
+    let denom = "atom".to_string();
+
+    let params = default_asset_params(&denom);
+
+    mock.update_asset_params(
+        &mock.query_owner(),
+        AssetParamsUpdate::AddOrUpdate {
+            params,
+        },
+    )
+    .unwrap();
+
+    let params = mock.query_asset_params(&denom);
+
+    // Withdraw enabled should be true by default
+    assert!(params.credit_manager.withdraw_enabled);
+
+    mock.emergency_update(
+        &emergency_owner,
+        EmergencyUpdate::CreditManager(CmEmergencyUpdate::DisableWithdraw(denom.clone())),
+    )
+    .unwrap();
+
+    let params = mock.query_asset_params(&denom);
+    assert!(!params.credit_manager.withdraw_enabled);
+}
+
+#[test]
+fn disabled_withdraw_rb() {
+    let emergency_owner = Addr::unchecked("miles_morales");
+    let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();
+    let denom = "atom".to_string();
+
+    let params = default_asset_params(&denom);
+
+    mock.update_asset_params(
+        &mock.query_owner(),
+        AssetParamsUpdate::AddOrUpdate {
+            params,
+        },
+    )
+    .unwrap();
+
+    let params = mock.query_asset_params(&denom);
+
+    // Withdraw enabled should be true by default
+    assert!(params.red_bank.withdraw_enabled);
+
+    mock.emergency_update(
+        &emergency_owner,
+        EmergencyUpdate::RedBank(RedBankEmergencyUpdate::DisableWithdraw(denom.clone())),
+    )
+    .unwrap();
+
+    let params = mock.query_asset_params(&denom);
+    assert!(!params.red_bank.withdraw_enabled);
+}
+
+#[test]
 fn set_zero_max_ltv() {
     let emergency_owner = Addr::unchecked("miles_morales");
     let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();
@@ -151,4 +217,88 @@ fn set_zero_deposit_cap() {
 
     let params = mock.query_vault_config(&vault);
     assert!(params.deposit_cap.amount.is_zero());
+}
+
+#[test]
+fn disabled_perp_trading() {
+    let emergency_owner = Addr::unchecked("miles_morales");
+    let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();
+    let denom = "atom".to_string();
+
+    let params = default_perp_params(&denom);
+
+    mock.update_perp_params(
+        &mock.query_owner(),
+        PerpParamsUpdate::AddOrUpdate {
+            params,
+        },
+    )
+    .unwrap();
+
+    let params = mock.query_perp_params(&denom);
+
+    assert!(params.enabled);
+
+    mock.emergency_update(
+        &emergency_owner,
+        EmergencyUpdate::Perps(PerpsEmergencyUpdate::DisableTrading(denom.clone())),
+    )
+    .unwrap();
+
+    let params = mock.query_perp_params(&denom);
+    assert!(!params.enabled);
+}
+
+#[test]
+fn disable_perp_cpv_deleverage() {
+    // Set up and ensure deleverage is enabled
+    let emergency_owner = Addr::unchecked("miles_morales");
+    let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();
+    let initial_config = mock.query_perp_config();
+    assert!(initial_config.deleverage_enabled);
+
+    // Disable deleverage
+    mock.emergency_update(
+        &emergency_owner,
+        EmergencyUpdate::Perps(PerpsEmergencyUpdate::DisableDeleverage()),
+    )
+    .unwrap();
+
+    // Verify deleverage disabled
+    let updated_config = mock.query_perp_config();
+    assert_eq!(
+        updated_config,
+        Config {
+            deleverage_enabled: false,
+            ..initial_config
+        }
+    );
+    assert!(!updated_config.deleverage_enabled);
+}
+
+#[test]
+fn disable_perp_vault_withdraw() {
+    // Set up and ensure withdraw is enabled
+    let emergency_owner = Addr::unchecked("miles_morales");
+    let mut mock = MockEnv::new().emergency_owner(emergency_owner.as_str()).build().unwrap();
+    let initial_config = mock.query_perp_config();
+    assert!(initial_config.vault_withdraw_enabled);
+
+    // Disable withdraw
+    mock.emergency_update(
+        &emergency_owner,
+        EmergencyUpdate::Perps(PerpsEmergencyUpdate::DisableCounterpartyVaultWithdraw()),
+    )
+    .unwrap();
+
+    // Verify withdraw disabled
+    let updated_config = mock.query_perp_config();
+    assert_eq!(
+        updated_config,
+        Config {
+            vault_withdraw_enabled: false,
+            ..initial_config
+        }
+    );
+    assert!(!updated_config.vault_withdraw_enabled);
 }

@@ -48,6 +48,46 @@ fn only_token_owner_can_swap_for_account() {
 }
 
 #[test]
+fn swap_in_withdraw_disabled() {
+    let mut atom_info = uatom_info();
+    atom_info.withdraw_enabled = false;
+    let another_coin = uosmo_info();
+
+    let user = Addr::unchecked("user");
+    let mut mock = MockEnv::new()
+        .set_params(&[atom_info.clone()])
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![Coin::new(10_000u128, atom_info.denom.clone())],
+        })
+        .build()
+        .unwrap();
+
+    let account_id = mock.create_credit_account(&user).unwrap();
+    let res = mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Deposit(atom_info.to_coin(10_000)),
+            SwapExactIn {
+                coin_in: atom_info.to_action_coin(10_000),
+                denom_out: another_coin.denom.clone(),
+                min_receive: Uint128::zero(),
+                route: None,
+            },
+        ],
+        &[atom_info.to_coin(10_000)],
+    );
+
+    assert_err(
+        res,
+        ContractError::WithdrawNotEnabled {
+            denom: atom_info.denom.clone(),
+        },
+    );
+}
+
+#[test]
 fn denom_out_does_not_have_to_be_whitelisted() {
     let atom_info = uatom_info();
     let another_coin = uosmo_info();

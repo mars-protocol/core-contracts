@@ -12,6 +12,14 @@ pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
 
+    #[error("Caller is not owner or risk manager")]
+    NotOwnerOrRiskManager {},
+
+    #[error("Risk manager cannot update: {reason}")]
+    RiskManagerUnauthorized {
+        reason: String,
+    },
+
     #[error("{0}")]
     DecimalRangeExceeded(#[from] DecimalRangeExceeded),
 
@@ -26,4 +34,9 @@ pub enum ContractError {
 
     #[error("{0}")]
     Version(#[from] VersionError),
+
+    #[error("Reached the maximum number of perp params: {max}")]
+    MaxPerpParamsReached {
+        max: u8,
+    },
 }

@@ -18,9 +18,13 @@ import {
   OwnerUpdate,
   Action,
   ActionAmount,
+  Int128,
+  Condition,
+  Comparison,
   LiquidateRequestForVaultBaseForString,
   VaultPositionType,
   SwapperRoute,
+  IncentiveKind,
   UpdateConfig,
   ActionCoin,
   VaultBaseForString,
@@ -87,6 +91,7 @@ export interface MarsRewardsCollectorBaseClaimIncentiveRewardsMutation {
     limit?: number
     startAfterCollateralDenom?: string
     startAfterIncentiveDenom?: string
+    startAfterKind?: IncentiveKind
   }
   args?: {
     fee?: number | StdFee | 'auto'

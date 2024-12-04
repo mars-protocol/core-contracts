@@ -1,8 +1,10 @@
-use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Api, Decimal, QuerierWrapper, StdResult};
-use cw_paginate::PaginationResponse;
+use std::collections::HashMap;
 
-use crate::params::{AssetParams, QueryMsg, TotalDepositResponse, VaultConfig};
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{Addr, Api, QuerierWrapper, StdResult};
+use cw_paginate::{PaginationResponse, MAX_LIMIT};
+
+use crate::params::{AssetParams, PerpParams, QueryMsg, TotalDepositResponse, VaultConfig};
 
 #[cw_serde]
 pub struct ParamsBase<T>(T);
@@ -41,6 +43,19 @@ impl Params {
         querier.query_wasm_smart(
             self.address().to_string(),
             &QueryMsg::AssetParams {
+                denom: denom.to_string(),
+            },
+        )
+    }
+
+    pub fn query_perp_params(
+        &self,
+        querier: &QuerierWrapper,
+        denom: &str,
+    ) -> StdResult<PerpParams> {
+        querier.query_wasm_smart(
+            self.address().to_string(),
+            &QueryMsg::PerpParams {
                 denom: denom.to_string(),
             },
         )
@@ -87,7 +102,28 @@ impl Params {
         )
     }
 
-    pub fn query_target_health_factor(&self, querier: &QuerierWrapper) -> StdResult<Decimal> {
-        querier.query_wasm_smart(self.address().to_string(), &QueryMsg::TargetHealthFactor {})
+    pub fn query_all_perp_params_v2(
+        &self,
+        querier: &QuerierWrapper,
+    ) -> StdResult<HashMap<String, PerpParams>> {
+        let mut start_after = Option::<String>::None;
+        let mut has_more = true;
+        let mut all_perp_params = HashMap::new();
+        while has_more {
+            let response: PaginationResponse<PerpParams> = querier.query_wasm_smart(
+                self.address().to_string(),
+                &QueryMsg::AllPerpParamsV2 {
+                    start_after: start_after.clone(),
+                    limit: Some(MAX_LIMIT - 1),
+                },
+            )?;
+            for item in response.data {
+                let denom = item.denom.clone();
+                all_perp_params.insert(denom.clone(), item);
+                start_after = Some(denom);
+            }
+            has_more = response.metadata.has_more;
+        }
+        Ok(all_perp_params)
     }
 }
