@@ -10,8 +10,8 @@ use crate::{
     contract::{CONTRACT_NAME, CONTRACT_VERSION},
     error::ContractError,
     state::{
-        EMISSIONS, INCENTIVE_STATES, MIGRATION_GUARD, OWNER, USER_ASSET_INDICES,
-        USER_UNCLAIMED_REWARDS,
+        ASTRO_USER_LP_DEPOSITS, EMISSIONS, INCENTIVE_STATES, MIGRATION_GUARD, OWNER,
+        USER_ASSET_INDICES, USER_ASTRO_INCENTIVE_STATES, USER_UNCLAIMED_REWARDS,
     },
 };
 
@@ -27,6 +27,15 @@ pub mod v2_state {
     pub const USER_ASSET_INDICES: Map<(&UserIdKey, &str, &str), Decimal> = Map::new("indices_v2");
     pub const USER_UNCLAIMED_REWARDS: Map<(&UserIdKey, &str, &str), Uint128> =
         Map::new("unclaimed_rewards_v2");
+
+    // Map of User Lp deposits. Key is (user_id, lp_denom)
+    pub const ASTRO_USER_LP_DEPOSITS: Map<(&str, &str), Uint128> = Map::new("lp_deposits");
+
+    /// A map containing the individual incentive index for each unique user
+    /// Note - this may contain many denoms for one user
+    /// The key is (account_id, lp_token_denom, reward_denom)
+    pub const USER_ASTRO_INCENTIVE_STATES: Map<(&str, &str, &str), Decimal> =
+        Map::new("user_astroport_incentive_states");
 }
 
 pub fn migrate(mut deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
@@ -41,6 +50,8 @@ pub fn migrate(mut deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, Co
     migrate_incentive_states(&mut deps)?;
     migrate_emissions(&mut deps)?;
 
+    // Clear all zero balances in astro incentives
+    clear_zero_amounts_in_staked_astro_lp(&mut deps)?;
     set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), CONTRACT_VERSION)?;
 
     Ok(Response::new()
@@ -151,6 +162,44 @@ fn migrate_user_unclaimed_rewards(deps: DepsMut, limit: usize) -> Result<Respons
         .add_attribute("has_more", has_more.to_string()))
 }
 
+/// Clear all zero amounts in staked astro LP positions
+/// This will delete all incentive states for (account_id, lp_denom) keys where the associated
+/// staked amount is zero.
+fn clear_zero_amounts_in_staked_astro_lp(deps: &mut DepsMut) -> Result<(), ContractError> {
+    // Collect all LP positions that are zero
+    let zero_balance_items = ASTRO_USER_LP_DEPOSITS
+        .range(deps.storage, None, None, Order::Ascending)
+        .filter_map(|item| match item {
+            Ok(((user_id, account), value)) if value.is_zero() => {
+                Some(Ok(((user_id.to_string(), account.to_string()), value)))
+            }
+            Ok(_) => None,
+            Err(e) => Some(Err(e)),
+        })
+        .collect::<StdResult<Vec<_>>>()?;
+
+    // Iterate all LP positions that are zero, and delete the associated incentive indexes
+    for ((account_id, denom), _) in zero_balance_items.iter() {
+        ASTRO_USER_LP_DEPOSITS.remove(deps.storage, (account_id, denom));
+
+        // Get all incentives for (user, lp_token_denom) key
+        let prefix = USER_ASTRO_INCENTIVE_STATES.prefix((account_id, denom));
+
+        // Iterate over all reward_denom keys
+        let keys_to_remove = prefix
+            .keys(deps.storage, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<String>>>()?;
+
+        // Delete each matching (account_id, lp_token_denom, reward_denom) incentive index.
+        for incentive_denom in keys_to_remove {
+            USER_ASTRO_INCENTIVE_STATES
+                .remove(deps.storage, (account_id, denom.as_str(), &incentive_denom));
+        }
+    }
+
+    Ok(())
+}
+
 fn migrate_user_asset_indices(deps: DepsMut, limit: usize) -> Result<Response, ContractError> {
     // Only allow to migrate users asset indices if guard is locked via `migrate` entrypoint
     MIGRATION_GUARD.assert_locked(deps.storage)?;
@@ -240,6 +289,8 @@ fn clear_v2_state(deps: DepsMut) -> Result<Response, ContractError> {
 
 #[cfg(test)]
 pub mod tests {
+    use std::str::FromStr;
+
     use cosmwasm_std::{attr, testing::mock_dependencies, Addr, Decimal, Uint128};
     use mars_types::incentives::IncentiveState;
     use mars_utils::error::GuardError;
@@ -292,6 +343,231 @@ pub mod tests {
                 attr("limit", "10"),
                 attr("has_more", "false"),
             ]
+        );
+    }
+
+    #[test]
+    fn clear_zero_amounts_in_staked_astro_lps() {
+        let mut deps = mock_dependencies();
+
+        MIGRATION_GUARD.try_lock(deps.as_mut().storage).unwrap();
+
+        let lp_denom_1 = "factory/neutronasdfkldshfkldsjfklfdsaaaaassss111/astroport/share";
+        let lp_denom_2 = "factory/neutronasdfkldshfkldsjfklfdsfdsfdsfd2222/astroport/share";
+        let reward_denom_1 = "untrn";
+        let reward_denom_2 = "ibc/D189335C6E4A68B513C10AB227BF1C1D38C746766278BA3EEB4FB14124F1D858";
+
+        //
+        // Instantiate Deposits
+        //
+
+        // User 1
+        // Lp_denom 1 has balance > 0
+        // LP_denom 2 balance of 0
+        v2_state::ASTRO_USER_LP_DEPOSITS
+            .save(deps.as_mut().storage, ("1", lp_denom_1), &Uint128::new(100000000))
+            .unwrap();
+        v2_state::ASTRO_USER_LP_DEPOSITS
+            .save(deps.as_mut().storage, ("1", lp_denom_2), &Uint128::new(0))
+            .unwrap();
+
+        // User 2
+        // Lp_denom 1 has balance of 0
+        // LP_denom 2 balance > 0
+        v2_state::ASTRO_USER_LP_DEPOSITS
+            .save(deps.as_mut().storage, ("2", lp_denom_1), &Uint128::new(0))
+            .unwrap();
+
+        v2_state::ASTRO_USER_LP_DEPOSITS
+            .save(deps.as_mut().storage, ("2", lp_denom_2), &Uint128::new(100000000))
+            .unwrap();
+
+        // User 3
+        // Lp_denom 1 has balance > 0
+        v2_state::ASTRO_USER_LP_DEPOSITS
+            .save(deps.as_mut().storage, ("3", lp_denom_1), &Uint128::new(100000000))
+            .unwrap();
+
+        // User 4
+        // Lp_denom 1 has balance of 0
+        v2_state::ASTRO_USER_LP_DEPOSITS
+            .save(deps.as_mut().storage, ("4", lp_denom_1), &Uint128::new(0))
+            .unwrap();
+
+        // User 5
+        // Lp_denom 1 has balance > 0
+        // Lp_denom 2 has balance > 0
+        v2_state::ASTRO_USER_LP_DEPOSITS
+            .save(deps.as_mut().storage, ("5", lp_denom_1), &Uint128::new(100000000))
+            .unwrap();
+        v2_state::ASTRO_USER_LP_DEPOSITS
+            .save(deps.as_mut().storage, ("5", lp_denom_2), &Uint128::new(100000000))
+            .unwrap();
+
+        //
+        // Instantiate user reward states
+        //
+
+        // User 1
+        v2_state::USER_ASTRO_INCENTIVE_STATES
+            .save(
+                deps.as_mut().storage,
+                ("1", lp_denom_1, reward_denom_2),
+                &Decimal::from_str("1.0001456").unwrap(),
+            )
+            .unwrap();
+
+        v2_state::USER_ASTRO_INCENTIVE_STATES
+            .save(
+                deps.as_mut().storage,
+                ("1", lp_denom_1, reward_denom_1),
+                &Decimal::from_str("1.0001456").unwrap(),
+            )
+            .unwrap();
+
+        v2_state::USER_ASTRO_INCENTIVE_STATES
+            .save(
+                deps.as_mut().storage,
+                ("1", lp_denom_2, reward_denom_1),
+                &Decimal::from_str("1.21456").unwrap(),
+            )
+            .unwrap();
+        v2_state::USER_ASTRO_INCENTIVE_STATES
+            .save(
+                deps.as_mut().storage,
+                ("1", lp_denom_2, reward_denom_2),
+                &Decimal::from_str("1.21456").unwrap(),
+            )
+            .unwrap();
+
+        // User 2
+        v2_state::USER_ASTRO_INCENTIVE_STATES
+            .save(
+                deps.as_mut().storage,
+                ("2", lp_denom_1, reward_denom_2),
+                &Decimal::from_str("1.0001456").unwrap(),
+            )
+            .unwrap();
+
+        v2_state::USER_ASTRO_INCENTIVE_STATES
+            .save(
+                deps.as_mut().storage,
+                ("2", lp_denom_2, reward_denom_1),
+                &Decimal::from_str("1.0001456").unwrap(),
+            )
+            .unwrap();
+
+        // User 3
+        v2_state::USER_ASTRO_INCENTIVE_STATES
+            .save(
+                deps.as_mut().storage,
+                ("3", lp_denom_1, reward_denom_2),
+                &Decimal::from_str("1.0001456").unwrap(),
+            )
+            .unwrap();
+        v2_state::USER_ASTRO_INCENTIVE_STATES
+            .save(
+                deps.as_mut().storage,
+                ("3", lp_denom_1, reward_denom_1),
+                &Decimal::from_str("1.0001456").unwrap(),
+            )
+            .unwrap();
+
+        // User 4 no incentive states
+
+        // User 5 - only 1 reward asset
+        v2_state::USER_ASTRO_INCENTIVE_STATES
+            .save(
+                deps.as_mut().storage,
+                ("5", lp_denom_1, reward_denom_2),
+                &Decimal::from_str("1.0001456").unwrap(),
+            )
+            .unwrap();
+        v2_state::USER_ASTRO_INCENTIVE_STATES
+            .save(
+                deps.as_mut().storage,
+                ("5", lp_denom_2, reward_denom_2),
+                &Decimal::from_str("1.0001456").unwrap(),
+            )
+            .unwrap();
+
+        // Assert user positions before
+        let user_deposits_before = v2_state::ASTRO_USER_LP_DEPOSITS
+            .range(deps.as_ref().storage, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<_>>>()
+            .unwrap();
+
+        assert_eq!(user_deposits_before.len(), 8);
+        assert_eq!(user_deposits_before[0].0, ("1".to_string(), lp_denom_1.to_string()));
+        assert_eq!(user_deposits_before[1].0, ("1".to_string(), lp_denom_2.to_string()));
+        assert_eq!(user_deposits_before[2].0, ("2".to_string(), lp_denom_1.to_string()));
+        assert_eq!(user_deposits_before[3].0, ("2".to_string(), lp_denom_2.to_string()));
+        assert_eq!(user_deposits_before[4].0, ("3".to_string(), lp_denom_1.to_string()));
+        assert_eq!(user_deposits_before[5].0, ("4".to_string(), lp_denom_1.to_string()));
+        assert_eq!(user_deposits_before[6].0, ("5".to_string(), lp_denom_1.to_string()));
+        assert_eq!(user_deposits_before[7].0, ("5".to_string(), lp_denom_2.to_string()));
+
+        let incentive_states_before = v2_state::USER_ASTRO_INCENTIVE_STATES
+            .range(deps.as_ref().storage, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<_>>>()
+            .unwrap();
+
+        // Assert all incentives are there
+        assert_eq!(incentive_states_before.len(), 10);
+
+        // Clear balances
+        clear_zero_amounts_in_staked_astro_lp(&mut deps.as_mut()).unwrap();
+
+        let user_deposits_after = v2_state::ASTRO_USER_LP_DEPOSITS
+            .range(deps.as_ref().storage, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<_>>>()
+            .unwrap();
+
+        assert_eq!(user_deposits_after[0].0, ("1".to_string(), lp_denom_1.to_string()));
+        assert_eq!(user_deposits_after[1].0, ("2".to_string(), lp_denom_2.to_string()));
+        assert_eq!(user_deposits_after[2].0, ("3".to_string(), lp_denom_1.to_string()));
+        assert_eq!(user_deposits_after[3].0, ("5".to_string(), lp_denom_1.to_string()));
+        assert_eq!(user_deposits_after[4].0, ("5".to_string(), lp_denom_2.to_string()));
+
+        // Incentive records that should be cleared
+        // (user_1,lp_denom_2)
+        // - both incentives (2 records deleted)
+
+        // (User 2, lp_denom_1)
+        // - one incentive
+        let incentive_states_after = v2_state::USER_ASTRO_INCENTIVE_STATES
+            .range(deps.as_ref().storage, None, None, Order::Ascending)
+            .collect::<StdResult<Vec<_>>>()
+            .unwrap();
+
+        assert_eq!(incentive_states_after.len(), 7); // because we deleted 3 records
+        assert_eq!(
+            incentive_states_after[0].0,
+            ("1".to_string(), lp_denom_1.to_string(), reward_denom_2.to_string())
+        );
+        assert_eq!(
+            incentive_states_after[1].0,
+            ("1".to_string(), lp_denom_1.to_string(), reward_denom_1.to_string())
+        );
+        assert_eq!(
+            incentive_states_after[2].0,
+            ("2".to_string(), lp_denom_2.to_string(), reward_denom_1.to_string())
+        );
+        assert_eq!(
+            incentive_states_after[3].0,
+            ("3".to_string(), lp_denom_1.to_string(), reward_denom_2.to_string())
+        );
+        assert_eq!(
+            incentive_states_after[4].0,
+            ("3".to_string(), lp_denom_1.to_string(), reward_denom_1.to_string())
+        );
+        assert_eq!(
+            incentive_states_after[5].0,
+            ("5".to_string(), lp_denom_1.to_string(), reward_denom_2.to_string())
+        );
+        assert_eq!(
+            incentive_states_after[6].0,
+            ("5".to_string(), lp_denom_2.to_string(), reward_denom_2.to_string())
         );
     }
 
