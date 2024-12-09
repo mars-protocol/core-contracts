@@ -158,7 +158,7 @@ pub fn execute(
             max_whitelisted_denoms,
         )?),
         ExecuteMsg::UpdateOwner(update) => config::update_owner(deps, info, update),
-        ExecuteMsg::Migrate(msg) => migrations::v2_0_1::execute_migration(deps, info, msg),
+        ExecuteMsg::Migrate(msg) => migrations::v2_2_0::execute_migration(deps, info, msg),
     }
 }
 
@@ -266,5 +266,5 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 /// MIGRATION
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, env: Env, msg: Empty) -> Result<Response, ContractError> {
-    migrations::v2_0_1::migrate(deps, env, msg)
+    migrations::v2_2_0::migrate(deps, env, msg)
 }

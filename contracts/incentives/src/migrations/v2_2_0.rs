@@ -2,7 +2,7 @@ use cosmwasm_std::{DepsMut, Empty, Env, MessageInfo, Order, Response, StdResult}
 use cw2::{assert_contract_version, set_contract_version};
 use cw_storage_plus::Bound;
 use mars_types::{
-    incentives::{IncentiveKind, MigrateV2ToV2_0_1},
+    incentives::{IncentiveKind, MigrateV2_1_0ToV2_2_0},
     keys::{IncentiveId, IncentiveIdKey, IncentiveKindKey, UserId, UserIdKey},
 };
 
@@ -15,7 +15,26 @@ use crate::{
     },
 };
 
-const FROM_VERSION: &str = "2.0.0";
+const FROM_VERSION: &str = "2.1.0";
+
+pub mod v1_state {
+    use cosmwasm_std::{Addr, Decimal, DepsMut, Uint128};
+    use cw_storage_plus::Map;
+
+    /// Don't care about the actual types, just use some dummy types to clear the storage
+    pub const ASSET_INCENTIVES: Map<&str, String> = Map::new("incentives");
+    pub const USER_ASSET_INDICES: Map<(&Addr, &str), Decimal> = Map::new("indices");
+    pub const USER_UNCLAIMED_REWARDS: Map<&Addr, Uint128> = Map::new("unclaimed_rewards");
+    pub const USER_UNCLAIMED_REWARDS_BACKUP: Map<&Addr, Uint128> = Map::new("ur_backup");
+
+    /// Clear old state so we can re-use the keys
+    pub fn clear_state(deps: &mut DepsMut) {
+        ASSET_INCENTIVES.clear(deps.storage);
+        USER_ASSET_INDICES.clear(deps.storage);
+        USER_UNCLAIMED_REWARDS.clear(deps.storage);
+        USER_UNCLAIMED_REWARDS_BACKUP.clear(deps.storage);
+    }
+}
 
 pub mod v2_state {
     use cosmwasm_std::{Decimal, Uint128};
@@ -42,6 +61,9 @@ pub fn migrate(mut deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, Co
     // Lock incentives to prevent any operations during migration.
     // Unlock is executed after full migration in `migrate_users_indexes_and_rewards`.
     MIGRATION_GUARD.try_lock(deps.storage)?;
+
+    // Clear old state
+    v1_state::clear_state(&mut deps);
 
     // make sure we're migrating the correct contract and from the correct version
     assert_contract_version(deps.storage, &format!("crates.io:{CONTRACT_NAME}"), FROM_VERSION)?;
@@ -95,16 +117,16 @@ fn migrate_emissions(deps: &mut DepsMut) -> Result<(), ContractError> {
 pub fn execute_migration(
     deps: DepsMut,
     info: MessageInfo,
-    msg: MigrateV2ToV2_0_1,
+    msg: MigrateV2_1_0ToV2_2_0,
 ) -> Result<Response, ContractError> {
     match msg {
-        MigrateV2ToV2_0_1::UserUnclaimedRewards {
+        MigrateV2_1_0ToV2_2_0::UserUnclaimedRewards {
             limit,
         } => migrate_user_unclaimed_rewards(deps, limit as usize),
-        MigrateV2ToV2_0_1::UserAssetIndices {
+        MigrateV2_1_0ToV2_2_0::UserAssetIndices {
             limit,
         } => migrate_user_asset_indices(deps, limit as usize),
-        MigrateV2ToV2_0_1::ClearV2State {} => {
+        MigrateV2_1_0ToV2_2_0::ClearV2State {} => {
             OWNER.assert_owner(deps.storage, &info.sender)?;
             clear_v2_state(deps)
         }
@@ -297,6 +319,7 @@ pub mod tests {
 
     use super::*;
     use crate::error::ContractError;
+
     #[test]
     fn cannot_migrate_without_lock() {
         let mut deps = mock_dependencies();

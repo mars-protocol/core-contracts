@@ -30,7 +30,7 @@ pub const WHITELIST_COUNT: Item<u8> = Item::new("whitelist_count");
 /// A map containing the incentive index and last updated time for a given collateral and incentive
 /// denom. The key is (incentive kind, collateral denom, incentive denom).
 pub const INCENTIVE_STATES: Map<(&IncentiveKindKey, &str, &str), IncentiveState> =
-    Map::new("incentive_states_v2_0_1");
+    Map::new("incentive_states_v2_2_0");
 
 /// A map containing the global incentive index for a given lp token
 /// The key is (lp token denom, incentive denom).
@@ -45,17 +45,17 @@ pub const USER_ASTRO_INCENTIVE_STATES: Map<(&str, &str, &str), Decimal> =
 
 /// A map containing emission speeds (incentive tokens per second) for a given collateral and
 /// incentive denom. The key is (incentive id (kind + col denom), incentive denom, schedule start time).
-pub const EMISSIONS: Map<(&IncentiveIdKey, &str, u64), Uint128> = Map::new("emissions_v2_0_1");
+pub const EMISSIONS: Map<(&IncentiveIdKey, &str, u64), Uint128> = Map::new("emissions_v2_2_0");
 
 /// A map containing the incentive index for a given user, collateral denom and incentive denom.
 /// The key is (user address with optional account id, incentive id (kind + col denom), incentive denom).
 pub const USER_ASSET_INDICES: Map<(&UserIdKey, &IncentiveIdKey, &str), Decimal> =
-    Map::new("indices_v2_0_1");
+    Map::new("indices_v2_2_0");
 
 /// A map containing the amount of unclaimed incentives for a given user and incentive denom.
 /// The key is (user address with optional account id, incentive id (kind + col denom), incentive denom).
 pub const USER_UNCLAIMED_REWARDS: Map<(&UserIdKey, &IncentiveIdKey, &str), Uint128> =
-    Map::new("unclaimed_rewards_v2_0_1");
+    Map::new("unclaimed_rewards_v2_2_0");
 
 /// Used to mark the contract as locked during migrations
 pub const MIGRATION_GUARD: Guard = Guard::new("guard");

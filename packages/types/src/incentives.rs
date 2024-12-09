@@ -203,12 +203,12 @@ pub enum ExecuteMsg {
     UpdateOwner(OwnerUpdate),
 
     // Manages migration. It is used to handle migration in batches to avoid out of gas errors.
-    Migrate(MigrateV2ToV2_0_1),
+    Migrate(MigrateV2_1_0ToV2_2_0),
 }
 
-/// Migrate from V2 to V2_0_1, only owner can call
+/// Migrate from V2_1_0 to V2_2_0, only owner can call
 #[cw_serde]
-pub enum MigrateV2ToV2_0_1 {
+pub enum MigrateV2_1_0ToV2_2_0 {
     /// Migrate users unclaimed rewards
     UserUnclaimedRewards {
         limit: u32,

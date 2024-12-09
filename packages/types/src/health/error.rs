@@ -3,6 +3,7 @@ use cosmwasm_std::{
     ConversionOverflowError, DecimalRangeExceeded, DivideByZeroError, OverflowError,
     SignedDecimalRangeExceeded, StdError,
 };
+use cw2::VersionError;
 use mars_owner::OwnerError;
 use thiserror::Error;
 
@@ -79,4 +80,7 @@ pub enum HealthError {
 
     #[error("{0}")]
     CheckedMultiplyRatio(#[from] CheckedMultiplyRatioError),
+
+    #[error("{0}")]
+    Version(#[from] VersionError),
 }

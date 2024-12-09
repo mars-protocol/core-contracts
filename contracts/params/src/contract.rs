@@ -1,11 +1,11 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response};
+use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
 use cw2::set_contract_version;
 use mars_owner::OwnerInit::SetInitialOwner;
 use mars_types::params::{
-    CmEmergencyUpdate, EmergencyUpdate, ExecuteMsg, InstantiateMsg, PerpsEmergencyUpdate, QueryMsg,
-    RedBankEmergencyUpdate,
+    CmEmergencyUpdate, EmergencyUpdate, ExecuteMsg, InstantiateMsg, MigrateMsg,
+    PerpsEmergencyUpdate, QueryMsg, RedBankEmergencyUpdate,
 };
 
 use crate::{
@@ -165,6 +165,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
-    migrations::v2_2_0::migrate(deps)
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    migrations::v2_2_0::migrate(deps, msg)
 }

@@ -2136,6 +2136,7 @@ dependencies = [
  "mars-mock-credit-manager",
  "mars-mock-rover-health",
  "mars-owner",
+ "mars-testing",
  "mars-types",
  "serde_json",
  "thiserror",
@@ -2590,6 +2591,7 @@ dependencies = [
  "mars-owner",
  "mars-params",
  "mars-rover-health-computer",
+ "mars-testing",
  "mars-types",
 ]
 
@@ -2735,6 +2737,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw-vault-standard",
+ "cw2 1.1.2",
  "cw721 0.18.0",
  "cw721-base 0.18.0",
  "mars-owner",
