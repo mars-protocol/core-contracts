@@ -1,6 +1,6 @@
 use cosmwasm_std::{attr, testing::mock_env, Empty, Event};
 use cw2::{ContractVersion, VersionError};
-use mars_credit_manager::{contract::migrate, error::ContractError};
+use mars_credit_manager::{contract::migrate, error::ContractError, state::NEXT_TRIGGER_ID};
 use mars_testing::mock_dependencies;
 
 #[test]
@@ -43,6 +43,9 @@ fn successful_migration() {
         .unwrap();
 
     let res = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap();
+
+    let order_id = NEXT_TRIGGER_ID.load(deps.as_ref().storage).unwrap();
+    assert_eq!(order_id, 1);
 
     assert_eq!(res.messages, vec![]);
     assert_eq!(res.events, vec![] as Vec<Event>);
