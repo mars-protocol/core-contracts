@@ -1,5 +1,5 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Decimal, Uint128};
 use mars_owner::OwnerUpdate;
 
 use super::{asset::AssetParamsUnchecked, vault::VaultConfigUnchecked, PerpParams};
@@ -173,4 +173,9 @@ pub enum EmergencyUpdate {
     CreditManager(CmEmergencyUpdate),
     RedBank(RedBankEmergencyUpdate),
     Perps(PerpsEmergencyUpdate),
+}
+
+#[cw_serde]
+pub struct MigrateMsg {
+    pub close_factor: Decimal,
 }
