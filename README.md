@@ -19,7 +19,7 @@ A bug bounty is currently open for these contracts. See details [here][2].
 2. Get the wasm binary executable on your local machine.
 
    ```bash
-   git clone https://github.com/mars-protocol/contracts.git
+   git clone https://github.com/mars-protocol/core-contracts.git
    git checkout <commit-id>
    cargo make rust-optimizer
    ```
@@ -178,17 +178,18 @@ cargo make test
 
 | Contract                  | Address                                                                    | Tag
 | ------------------------- | -------------------------------------------------------------------------- | --------------
-| mars-address-provider     | [`neutron17yehp4x7n79zq9dlw4g7xmnrvwdjjj2yecq26844sg8yu74knlxqfx5vqv`][24] | [`v2.1.0`][57] |
-| mars-account-nft          | [`neutron184kvu96rqtetmunkkmhu5hru8yaqg7qfhd8ldu5avjnamdqu69squrh3f5`][52] | [`v2.1.0`][57] |
-| mars-credit-manager       | [`neutron1qdzn3l4kn7gsjna2tfpg3g3mwd6kunx4p50lfya59k02846xas6qslgs3r`][53] | [`v2.1.0`][57] |
-| mars-health               | [`neutron17ktfwsr7ghlxzzma0gw0hke3j3rnssd58q87jv2wzfrk6uhawa3sv8xxtm`][54] | [`v2.1.0`][57] |
-| mars-incentives           | [`neutron1aszpdh35zsaz0yj80mz7f5dtl9zq5jfl8hgm094y0j0vsychfekqxhzd39`][25] | [`v2.1.0`][57] |
-| mars-oracle               | [`neutron1dwp6m7pdrz6rnhdyrx5ha0acsduydqcpzkylvfgspsz60pj2agxqaqrr7g`][26] | [`v2.1.0`][57] |
-| mars-params               | [`neutron1x4rgd7ry23v2n49y7xdzje0743c5tgrnqrqsvwyya2h6m48tz4jqqex06x`][55] | [`v2.1.0`][57] |
-| mars-red-bank             | [`neutron1n97wnm7q6d2hrcna3rqlnyqw2we6k0l8uqvmyqq6gsml92epdu7quugyph`][27] | [`v2.1.0`][57] |
-| mars-rewards-collector    | [`neutron1h4l6rvylzcuxwdw3gzkkdzfjdxf4mv2ypfdgvnvag0dtz6x07gps6fl2vm`][28] | [`v2.1.0`][57] |
-| mars-swapper              | [`neutron1udr9fc3kd743dezrj38v2ac74pxxr6qsx4xt4nfpcfczgw52rvyqyjp5au`][29] | [`v2.1.0`][57] |
-| mars-zapper               | [`neutron1dr0ckm3u2ztjuscmgqjr85lwyduphxkgl3tc02ac8zp54r05t5dqp5tgyq`][56] | [`v2.1.0`][57] |
+| mars-address-provider     | [`neutron17yehp4x7n79zq9dlw4g7xmnrvwdjjj2yecq26844sg8yu74knlxqfx5vqv`][24] | [`v2.2.0`][57] |
+| mars-account-nft          | [`neutron184kvu96rqtetmunkkmhu5hru8yaqg7qfhd8ldu5avjnamdqu69squrh3f5`][52] | [`v2.2.0`][57] |
+| mars-credit-manager       | [`neutron1qdzn3l4kn7gsjna2tfpg3g3mwd6kunx4p50lfya59k02846xas6qslgs3r`][53] | [`v2.2.0`][57] |
+| mars-health               | [`neutron17ktfwsr7ghlxzzma0gw0hke3j3rnssd58q87jv2wzfrk6uhawa3sv8xxtm`][54] | [`v2.2.0`][57] |
+| mars-incentives           | [`neutron1aszpdh35zsaz0yj80mz7f5dtl9zq5jfl8hgm094y0j0vsychfekqxhzd39`][25] | [`v2.2.0`][57] |
+| mars-oracle               | [`neutron1dwp6m7pdrz6rnhdyrx5ha0acsduydqcpzkylvfgspsz60pj2agxqaqrr7g`][26] | [`v2.2.0`][57] |
+| mars-params               | [`neutron1x4rgd7ry23v2n49y7xdzje0743c5tgrnqrqsvwyya2h6m48tz4jqqex06x`][55] | [`v2.2.0`][57] |
+| mars-perps                | [`neutron1g3catxyv0fk8zzsra2mjc0v4s69a7xygdjt85t54l7ym3gv0un4q2xhaf6`][58] | [`v2.2.0`][57] |
+| mars-red-bank             | [`neutron1n97wnm7q6d2hrcna3rqlnyqw2we6k0l8uqvmyqq6gsml92epdu7quugyph`][27] | [`v2.2.0`][57] |
+| mars-rewards-collector    | [`neutron1h4l6rvylzcuxwdw3gzkkdzfjdxf4mv2ypfdgvnvag0dtz6x07gps6fl2vm`][28] | [`v2.2.0`][57] |
+| mars-swapper              | [`neutron1udr9fc3kd743dezrj38v2ac74pxxr6qsx4xt4nfpcfczgw52rvyqyjp5au`][29] | [`v2.2.0`][57] |
+| mars-zapper               | [`neutron1dr0ckm3u2ztjuscmgqjr85lwyduphxkgl3tc02ac8zp54r05t5dqp5tgyq`][56] | [`v2.2.0`][57] |
 
 ### mars-1
 
@@ -242,19 +243,15 @@ For full terms and conditions, see the [LICENSE](./LICENSE) file.
 [39]: https://github.com/osmosis-labs/test-tube
 [40]: https://github.com/mars-protocol/contracts/releases/tag/v2.0.0
 [41]: https://github.com/mars-protocol/contracts/releases/tag/v2.0.1
-[42]: https://github.com/mars-protocol/contracts/releases/tag/v2.0.2
 [43]: https://github.com/mars-protocol/rover/releases/tag/v2.0.0
-[44]: https://github.com/mars-protocol/contracts/releases/tag/v1.2.0
-[45]: https://github.com/mars-protocol/contracts/releases/tag/v1.2.1
 [46]: https://github.com/mars-protocol/contracts/releases/tag/v2.0.3
 [47]: https://github.com/mars-protocol/contracts/releases/tag/v2.0.4
-[48]: https://github.com/mars-protocol/contracts/releases/tag/v1.2.2
 [49]: https://github.com/mars-protocol/contracts/releases/tag/v2.0.5
 [50]: https://github.com/mars-protocol/contracts/releases/tag/v2.0.7
-[51]: https://github.com/mars-protocol/contracts/releases/tag/v1.3.0
 [52]: https://neutron.celat.one/neutron-1/contracts/neutron184kvu96rqtetmunkkmhu5hru8yaqg7qfhd8ldu5avjnamdqu69squrh3f5
 [53]: https://neutron.celat.one/neutron-1/contracts/neutron1qdzn3l4kn7gsjna2tfpg3g3mwd6kunx4p50lfya59k02846xas6qslgs3r
 [54]: https://neutron.celat.one/neutron-1/contracts/neutron17ktfwsr7ghlxzzma0gw0hke3j3rnssd58q87jv2wzfrk6uhawa3sv8xxtm
 [55]: https://neutron.celat.one/neutron-1/contracts/neutron1x4rgd7ry23v2n49y7xdzje0743c5tgrnqrqsvwyya2h6m48tz4jqqex06x
 [56]: https://neutron.celat.one/neutron-1/contracts/neutron1dr0ckm3u2ztjuscmgqjr85lwyduphxkgl3tc02ac8zp54r05t5dqp5tgyq
-[57]: https://github.com/mars-protocol/contracts/releases/tag/v2.1.0
+[57]: https://github.com/mars-protocol/core-contracts/releases/tag/v2.2.0-perps
+[58]: https://neutron.celat.one/neutron-1/contracts/neutron1g3catxyv0fk8zzsra2mjc0v4s69a7xygdjt85t54l7ym3gv0un4q2xhaf6
