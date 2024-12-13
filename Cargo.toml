@@ -54,7 +54,7 @@ authors       = [
 ]
 edition       = "2021"
 license       = "FSL-1.1-Apache-2.0"
-repository    = "https://github.com/mars-protocol/contracts"
+repository    = "https://github.com/mars-protocol/core-contracts"
 homepage      = "https://marsprotocol.io"
 documentation = "https://docs.marsprotocol.io/"
 keywords      = ["mars", "cosmos", "cosmwasm"]
