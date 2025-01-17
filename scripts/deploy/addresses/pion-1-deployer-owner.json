@@ -1,14 +1,14 @@
 {
-  "addressProvider": "neutron17gs9wu3kqsk3au28qpew6d2fdevv6htafjf4apywd92pspngzuvswtvs5w",
-  "redBank": "neutron14zjmuel0t8q9rqezp2vtj706ckl8eqtrkc2cjexsssh8vgpuzxdqjuqydr",
-  "incentives": "neutron1lkk4e6y9pjkev9patc3t6lwey7032f3eqh577v8dvk9ws8awsv4sk0t45a",
-  "oracle": "neutron1hkggq76w07x53z9hu2hhq8kn8n9e77vc0nztrl2h3sn4cgz9v0ps577a53",
-  "rewardsCollector": "neutron140xs4mpefp3zquzp3w3xkervt0n8fdd84a7ce6u8nqrqmv6vtams7dmwcc",
-  "swapper": "neutron1pj9qaxj6wecnpu3yam5kz0mqq9wwjatfk7ssmsaq7uuhxy277atqy4cgwj",
-  "params": "neutron15tdtcemvkj3g7vuuz83twcekg86j3f58jet9lv08u0j7j8ztymsqd47l9z",
-  "zapper": "neutron1rthg6ey22zetm39knlshvp805xrxctu5dvwm92ee5j4e366rd68sklst25",
-  "health": "neutron1z9jkdvwwzrwjkgma0xzrz57jn7gpxclp8cdkwjszktqp2wsu8dsqqe5jmh",
-  "creditManager": "neutron1gtqq647nrkgwxr3anrdty6fqfvfqav9kkwuu7el0gw754yx42dgs0s92zx",
-  "accountNft": "neutron128pgfadzvmck5qccgpcjwew4lgsn5e4ha82cu7rrnyg45rrpxessuqdnmt",
-  "perps": "neutron1mmjd5gz5943s4nnd5929s5hxfzw6lv3jrp3zthkxkanve70qax4qwyyzt5"
+  "addressProvider": "neutron13pnnlhjlcjwyrwqpuc2nxruyzlp8g42rwj2ywf3q4vt63d47qzkqk7gkd8",
+  "redBank": "neutron10z0hh8rkgpxay28zf4zm0knd7h6v6qulw8tmcg28qyrzqvnkrrcsre06tx",
+  "incentives": "neutron192dwv4j2f08z959k0htzlutgejzxa3mkgp0ux3xj798yjqzcg7aqrw4dmj",
+  "oracle": "neutron1k529nj77qcyk4ure79mxzcud636l8x6yjdep2sqreypk6fkm5afq6vlhxu",
+  "rewardsCollector": "neutron1qa0anpcpsng3k4re9kk8684djyqn7ar0phresjajscf7rvqp7kzsslgfy4",
+  "swapper": "neutron1a7hv8g5r890npkl4f6clu4uxp0jremeftw4mawnddvft90qyy39qv32hak",
+  "params": "neutron19hxedyjky47wyn5h3xpc0gcl94rnx5gmydgycfl7hdkstuvn9w2sna5zu9",
+  "zapper": "neutron198tpmmpc557wps0r09ctk9vq9p9hq7g6hjxgt62luh4kfgqfek0qvh8pze",
+  "health": "neutron1tvftv4gktkdnqut57yyg4w42cg0tl0qdxn22a6k8tentx8zdv7vsuhy28w",
+  "creditManager": "neutron1gkh5u8ue3djq9rfgc4ymyt35yfjt7l0gx0mwg4j2jwnf9w54lhashy44uc",
+  "accountNft": "neutron1xcp7qn8f6wjhgvg2cn7vjkmn6sqpslf7ezea3sfvhmlhysels4nqnldu3w",
+  "perps": "neutron19p5zu0fuhl9qnc5pz4xj0fzhy74r2h50g5cmumgy7yntht0zau7sck3aky"
 }
