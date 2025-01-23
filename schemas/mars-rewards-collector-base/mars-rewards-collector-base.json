@@ -616,6 +616,16 @@
                   "order_size": {
                     "$ref": "#/definitions/Int128"
                   },
+                  "order_type": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ExecutePerpOrderType"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "reduce_only": {
                     "type": [
                       "boolean",
@@ -657,6 +667,16 @@
                   },
                   "keeper_fee": {
                     "$ref": "#/definitions/Coin"
+                  },
+                  "order_type": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/CreateTriggerOrderType"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "additionalProperties": false
@@ -1198,12 +1218,77 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "description": "If the other trigger_order is successfully executed, the condition is met.",
+            "type": "object",
+            "required": [
+              "trigger_order_executed"
+            ],
+            "properties": {
+              "trigger_order_executed": {
+                "type": "object",
+                "required": [
+                  "trigger_order_id"
+                ],
+                "properties": {
+                  "trigger_order_id": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "CreateTriggerOrderType": {
+        "oneOf": [
+          {
+            "description": "Marks the order to have no relation to another trigger order.",
+            "type": "string",
+            "enum": [
+              "default"
+            ]
+          },
+          {
+            "description": "Marks the order to have exactly 1 parent trigger order. This order can only be executed when the parent has been executed prior.",
+            "type": "string",
+            "enum": [
+              "parent"
+            ]
+          },
+          {
+            "description": "Marks the order as a parent order. This means 1+ trigger orders depend on this order to be executed before they are considered executable.",
+            "type": "string",
+            "enum": [
+              "child"
+            ]
           }
         ]
       },
       "Decimal": {
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
+      },
+      "ExecutePerpOrderType": {
+        "oneOf": [
+          {
+            "description": "Marks the perp order as default, without any trigger orders depending on it.",
+            "type": "string",
+            "enum": [
+              "default"
+            ]
+          },
+          {
+            "description": "Marks the perp order as parent. This means that 1+ trigger orders depend on this perp order to be executed before they are considered executable. A perp order can not be a child, as a perp order is executed directly, since it is NOT a trigger order.",
+            "type": "string",
+            "enum": [
+              "parent"
+            ]
+          }
+        ]
       },
       "IncentiveKind": {
         "type": "string",

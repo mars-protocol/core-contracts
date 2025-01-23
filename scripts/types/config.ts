@@ -79,6 +79,7 @@ export interface DeploymentConfig {
     routes: SwapRoute[]
   }
   maxValueForBurn: string
+  maxTriggerOrders: number
   maxUnlockingPositions: string
   maxSlippage: string
   runTests: boolean

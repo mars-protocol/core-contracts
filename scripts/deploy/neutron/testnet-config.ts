@@ -668,6 +668,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
     routes: [atomUsdcRoute, atomMarsRoute, ntrnUsdcRoute, ntrnMarsRoute, usdcMarsRoute],
   },
   maxValueForBurn: '10000',
+  maxTriggerOrders: 50,
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',
   zapperContractName: 'mars_zapper_astroport',

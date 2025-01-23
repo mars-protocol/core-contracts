@@ -121,6 +121,7 @@ pub struct MockEnvBuilder {
     pub deploy_nft_contract: bool,
     pub set_nft_contract_minter: bool,
     pub accounts_to_fund: Vec<AccountToFund>,
+    pub max_trigger_orders: Option<u8>,
     pub max_unlocking_positions: Option<Uint128>,
     pub max_slippage: Option<Decimal>,
     pub health_contract: Option<HealthContract>,
@@ -152,6 +153,7 @@ impl MockEnv {
             deploy_nft_contract: true,
             set_nft_contract_minter: true,
             accounts_to_fund: vec![],
+            max_trigger_orders: None,
             max_unlocking_positions: None,
             max_slippage: None,
             health_contract: None,
@@ -1302,6 +1304,7 @@ impl MockEnvBuilder {
         let red_bank = self.get_red_bank();
         let incentives = self.get_incentives();
         let swapper = self.deploy_swapper().into();
+        let max_trigger_orders = self.get_max_trigger_orders();
         let max_unlocking_positions = self.get_max_unlocking_positions();
         let max_slippage = self.get_max_slippage();
         let perps_liquidation_bonus_ratio = self.get_perps_liquidation_ratio();
@@ -1324,6 +1327,7 @@ impl MockEnvBuilder {
                     owner: self.get_owner().to_string(),
                     red_bank,
                     oracle,
+                    max_trigger_orders,
                     max_unlocking_positions,
                     max_slippage,
                     swapper,
@@ -1808,6 +1812,10 @@ impl MockEnvBuilder {
         self.coin_params.clone().unwrap_or_default()
     }
 
+    fn get_max_trigger_orders(&self) -> u8 {
+        self.max_trigger_orders.unwrap_or(20u8)
+    }
+
     fn get_max_unlocking_positions(&self) -> Uint128 {
         self.max_unlocking_positions.unwrap_or_else(|| Uint128::new(100))
     }
@@ -1903,6 +1911,11 @@ impl MockEnvBuilder {
 
     pub fn no_nft_contract_minter(mut self) -> Self {
         self.set_nft_contract_minter = false;
+        self
+    }
+
+    pub fn max_trigger_orders(mut self, max: u8) -> Self {
+        self.max_trigger_orders = Some(max);
         self
     }
 

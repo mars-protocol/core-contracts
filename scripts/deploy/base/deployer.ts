@@ -195,6 +195,7 @@ export class Deployer {
   async instantiateCreditManager() {
     const msg: RoverInstantiateMsg = {
       params: this.storage.addresses.params!,
+      max_trigger_orders: this.config.maxTriggerOrders,
       max_unlocking_positions: this.config.maxUnlockingPositions,
       max_slippage: this.config.maxSlippage,
       oracle: this.storage.addresses.oracle!,

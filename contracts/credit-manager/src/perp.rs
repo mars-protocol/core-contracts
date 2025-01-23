@@ -12,6 +12,7 @@ use crate::{
     borrow,
     error::{ContractError, ContractResult},
     state::{COIN_BALANCES, PERPS, RED_BANK},
+    trigger::remove_invalid_trigger_orders,
     utils::{decrement_coin_balance, increment_coin_balance},
 };
 
@@ -101,6 +102,7 @@ pub fn execute_perp_order(
     // computes the PnL **again** to assert the amount is correct.
     let position =
         perps.query_position(&deps.querier, account_id, denom, Some(order_size), reduce_only)?;
+
     Ok(match position {
         Some(position) => {
             // Modify existing position
@@ -113,6 +115,14 @@ pub fn execute_perp_order(
             let msg =
                 perps.execute_perp_order(account_id, denom, order_size, reduce_only, funds)?;
 
+            let new_size = position.size.checked_add(order_size)?;
+
+            // When size is 0 or positions flips, any active (order is a default or parent, or child order
+            // with parent being executed) with reduce_only should be removed.
+            if new_size.is_zero() || (new_size.is_negative() != position.size.is_negative()) {
+                remove_invalid_trigger_orders(deps.storage, account_id, &position.denom)?;
+            }
+
             response
                 .add_message(msg)
                 .add_attribute("action", "execute_perp_order")
@@ -121,7 +131,7 @@ pub fn execute_perp_order(
                 .add_attribute("realized_pnl", pnl_string)
                 .add_attribute("reduce_only", reduce_only.unwrap_or(false).to_string())
                 .add_attribute("order_size", order_size.to_string())
-                .add_attribute("new_size", position.size.checked_add(order_size)?.to_string())
+                .add_attribute("new_size", new_size.to_string())
         }
         None => {
             // Open new position

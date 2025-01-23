@@ -33,7 +33,9 @@ use crate::{
     stake_astro_lp::stake_lp,
     state::{ACCOUNT_KINDS, ACCOUNT_NFT, REENTRANCY_GUARD, VAULTS},
     swap::swap_exact_in,
-    trigger::{create_trigger_order, delete_trigger_order},
+    trigger::{
+        check_order_relations_and_set_parent_id, create_trigger_order, delete_trigger_order,
+    },
     unstake_astro_lp::unstake_lp,
     update_coin_balances::{update_coin_balance, update_coin_balance_after_vault_liquidation},
     utils::{assert_is_authorized, get_account_kind},
@@ -101,7 +103,7 @@ pub fn dispatch_actions(
     info: MessageInfo,
     account_id: Option<String>,
     account_kind: Option<AccountKind>,
-    actions: Vec<Action>,
+    mut actions: Vec<Action>,
     enforce_ownership: bool,
 ) -> ContractResult<Response> {
     let mut response = Response::new();
@@ -149,6 +151,10 @@ pub fn dispatch_actions(
     } else {
         None
     };
+
+    // Check the actions and ensure that ExecutePerpOrder and CreateTriggerOrder relation conditions
+    // are met. Fill in the relational `trigger_order_id` of child orders when needed.
+    check_order_relations_and_set_parent_id(deps.storage, account_id, &mut actions)?;
 
     // We use a Map to record all denoms whose deposited amount may go up as the
     // result of any action. We invoke the AssertDepositCaps callback in the end
@@ -254,6 +260,7 @@ pub fn dispatch_actions(
                 denom,
                 order_size: size,
                 reduce_only,
+                ..
             } => callbacks.push(CallbackMsg::ExecutePerpOrder {
                 account_id: account_id.to_string(),
                 denom,
@@ -264,6 +271,7 @@ pub fn dispatch_actions(
                 actions,
                 conditions,
                 keeper_fee,
+                ..
             } => callbacks.push(CallbackMsg::CreateTriggerOrder {
                 account_id: account_id.to_string(),
                 actions,
@@ -274,7 +282,7 @@ pub fn dispatch_actions(
                 trigger_order_id,
             } => callbacks.push(CallbackMsg::DeleteTriggerOrder {
                 account_id: account_id.to_string(),
-                trigger_order_id: trigger_order_id.to_string(),
+                trigger_order_id,
             }),
             Action::EnterVault {
                 vault,

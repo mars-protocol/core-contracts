@@ -110,6 +110,11 @@ pub enum ContractError {
         request_coin: Coin,
     },
 
+    #[error("Maximum number of trigger orders reached. Unable to create more than {max_trigger_orders:?} trigger orders.")]
+    MaxTriggerOrdersReached {
+        max_trigger_orders: u8,
+    },
+
     #[error("No coin amount set for action")]
     NoAmount,
 
@@ -238,4 +243,24 @@ pub enum ContractError {
         "Illegal trigger action. Trigger actions may only contain execute_perp_order and lend"
     )]
     IllegalTriggerAction,
+
+    #[error("Trigger conditions may only have one OrderExecuted")]
+    MultipleOrderExecutedConditions,
+
+    #[error("Unable to find a valid parent order")]
+    NoValidParentOrderFound,
+
+    #[error("No child orders found for parent order")]
+    NoChildOrdersFound,
+
+    #[error("Invalid order conditions. Reason: {reason}")]
+    InvalidOrderConditions {
+        reason: String,
+    },
+
+    #[error("Cannot have a default and parent/child CreateTriggerOrder in the same transaction")]
+    InvalidCreateTriggerOrderType,
+
+    #[error("Parent order has to be the first order in the transaction")]
+    InvalidParentOrderPosition,
 }

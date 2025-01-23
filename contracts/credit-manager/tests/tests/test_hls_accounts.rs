@@ -4,7 +4,10 @@ use cosmwasm_std::{coin, coins, Addr, Decimal, Int128, Uint128};
 use mars_credit_manager::error::ContractError;
 use mars_testing::multitest::helpers::{coin_info, default_perp_params, uosmo_info};
 use mars_types::{
-    credit_manager::Action::{Borrow, Deposit, EnterVault, ExecutePerpOrder, Lend, StakeAstroLp},
+    credit_manager::{
+        Action::{Borrow, Deposit, EnterVault, ExecutePerpOrder, Lend, StakeAstroLp},
+        ExecutePerpOrderType,
+    },
     health::{AccountKind, HealthValuesResponse},
     oracle::ActionKind,
     params::{AssetParamsUpdate::AddOrUpdate, HlsAssetType, PerpParamsUpdate},
@@ -491,6 +494,7 @@ fn cannot_have_perps_in_hls_account() {
                 denom: atom_info.denom.clone(),
                 order_size: Int128::from_str("400").unwrap(),
                 reduce_only: None,
+                order_type: Some(ExecutePerpOrderType::Default),
             },
         ],
         &[osmo_coin_deposited.clone()],

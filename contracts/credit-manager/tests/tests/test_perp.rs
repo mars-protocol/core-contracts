@@ -6,7 +6,7 @@ use mars_mock_oracle::msg::CoinPrice;
 use mars_types::{
     credit_manager::{
         Action::{Deposit, ExecutePerpOrder, Lend, Withdraw},
-        ActionAmount, ActionCoin, Positions,
+        ActionAmount, ActionCoin, ExecutePerpOrderType, Positions,
     },
     oracle::ActionKind,
     params::PerpParamsUpdate,
@@ -107,6 +107,7 @@ fn open_position_with_correct_payment(
             denom: atom_info.denom.clone(),
             order_size: perp_size,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -234,6 +235,7 @@ fn close_losing_position_with_correct_payment(
             denom: atom_info.denom.clone(),
             order_size: perp_size,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -270,6 +272,7 @@ fn close_losing_position_with_correct_payment(
             denom: atom_info.denom,
             order_size,
             reduce_only: Some(true),
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -320,6 +323,7 @@ fn close_perp_position_with_profit() {
             denom: atom_info.denom.clone(),
             order_size: perp_size,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -366,6 +370,7 @@ fn close_perp_position_with_profit() {
             denom: atom_info.denom.clone(),
             order_size: Int128::zero() - perp_size,
             reduce_only: Some(true),
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -422,6 +427,7 @@ fn increase_position_with_realized_pnl() {
             denom: atom_info.denom.clone(),
             order_size: perp_size,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -465,6 +471,7 @@ fn increase_position_with_realized_pnl() {
             denom: atom_info.denom.clone(),
             order_size: delta_change,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -523,6 +530,7 @@ fn increase_position_with_realized_pnl() {
             denom: atom_info.denom.clone(),
             order_size: delta_change,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -576,6 +584,7 @@ fn decrease_position_with_realized_pnl() {
             denom: atom_info.denom.clone(),
             order_size: perp_size,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -618,6 +627,7 @@ fn decrease_position_with_realized_pnl() {
             denom: atom_info.denom.clone(),
             order_size: delta_change,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -676,6 +686,7 @@ fn decrease_position_with_realized_pnl() {
             denom: atom_info.denom,
             order_size: delta_change,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -730,6 +741,7 @@ fn flip_position_with_realized_pnl() {
             denom: atom_info.denom.clone(),
             order_size: perp_size,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -774,6 +786,7 @@ fn flip_position_with_realized_pnl() {
             denom: atom_info.denom.clone(),
             order_size: delta_change,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -832,6 +845,7 @@ fn flip_position_with_realized_pnl() {
             denom: atom_info.denom.clone(),
             order_size: delta_change,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -889,6 +903,7 @@ fn cannot_open_perp_above_max_ltv() {
             denom: atom_info.denom.clone(),
             order_size: perp_size,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     );
@@ -931,6 +946,7 @@ fn health_check_works_if_no_spot_base_denom() {
             denom: atom_info.denom.clone(),
             order_size: perp_size,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )
@@ -967,6 +983,7 @@ fn health_check_works_if_no_spot_base_denom() {
             denom: atom_info.denom,
             order_size: Int128::zero().checked_sub(perp_size).unwrap(),
             reduce_only: Some(true),
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )

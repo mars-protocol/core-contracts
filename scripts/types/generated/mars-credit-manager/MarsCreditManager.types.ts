@@ -19,6 +19,7 @@ export interface InstantiateMsg {
   incentives: IncentivesUnchecked
   keeper_fee_config: KeeperFeeConfig
   max_slippage: Decimal
+  max_trigger_orders: number
   max_unlocking_positions: Uint128
   oracle: OracleBaseForString
   owner: string
@@ -139,6 +140,7 @@ export type Action =
       execute_perp_order: {
         denom: string
         order_size: Int128
+        order_type?: ExecutePerpOrderType | null
         reduce_only?: boolean | null
       }
     }
@@ -147,6 +149,7 @@ export type Action =
         actions: Action[]
         conditions: Condition[]
         keeper_fee: Coin
+        order_type?: CreateTriggerOrderType | null
       }
     }
   | {
@@ -230,6 +233,7 @@ export type ActionAmount =
       exact: Uint128
     }
 export type Int128 = string
+export type ExecutePerpOrderType = 'default' | 'parent'
 export type Condition =
   | {
       oracle_price: {
@@ -252,7 +256,13 @@ export type Condition =
         threshold: Decimal
       }
     }
+  | {
+      trigger_order_executed: {
+        trigger_order_id: string
+      }
+    }
 export type Comparison = 'greater_than' | 'less_than'
+export type CreateTriggerOrderType = 'default' | 'parent' | 'child'
 export type LiquidateRequestForVaultBaseForString =
   | {
       deposit: string
@@ -591,6 +601,7 @@ export interface ConfigUpdates {
   incentives?: IncentivesUnchecked | null
   keeper_fee_config?: KeeperFeeConfig | null
   max_slippage?: Decimal | null
+  max_trigger_orders?: number | null
   max_unlocking_positions?: Uint128 | null
   oracle?: OracleBaseForString | null
   params?: ParamsBaseForString | null

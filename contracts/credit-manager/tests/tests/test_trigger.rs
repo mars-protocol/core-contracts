@@ -13,7 +13,8 @@ use mars_types::{
         },
         ActionAmount, ActionCoin, Comparison,
         Condition::{HealthFactor, OraclePrice},
-        LiquidateRequest, TriggerOrder, TriggerOrderResponse,
+        CreateTriggerOrderType, ExecutePerpOrderType, LiquidateRequest, TriggerOrder,
+        TriggerOrderResponse,
     },
     params::PerpParamsUpdate,
 };
@@ -21,6 +22,85 @@ use test_case::test_case;
 
 use super::helpers::MockEnv;
 use crate::tests::helpers::{coin_info, default_perp_params, uatom_info, uosmo_info};
+
+#[test]
+fn error_when_exceeding_max_trigger_orders() {
+    let user = Addr::unchecked("user");
+    let keeper_fee = Coin {
+        denom: "uusdc".to_string(),
+        amount: Uint128::new(1000000),
+    };
+    let mut mock = MockEnv::new()
+        .max_trigger_orders(1)
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![Coin {
+                denom: "uusdc".to_string(),
+                amount: Uint128::new(10000000000000),
+            }],
+        })
+        .build()
+        .unwrap();
+
+    let account_id = mock.create_credit_account(&user).unwrap();
+
+    // Create the first trigger order. This should work fine.
+    mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Deposit(keeper_fee.clone()),
+            CreateTriggerOrder {
+                order_type: Some(CreateTriggerOrderType::Default),
+                actions: vec![ExecutePerpOrder {
+                    denom: "perp1".to_string(),
+                    order_size: Int128::from_str("10").unwrap(),
+                    reduce_only: None,
+                    order_type: Some(ExecutePerpOrderType::Default),
+                }],
+                conditions: vec![OraclePrice {
+                    denom: "perp1".to_string(),
+                    price: Decimal::from_str("100").unwrap(),
+                    comparison: Comparison::GreaterThan,
+                }],
+                keeper_fee: keeper_fee.clone(),
+            },
+        ],
+        &[keeper_fee.clone()],
+    )
+    .unwrap();
+
+    let res = mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Deposit(keeper_fee.clone()),
+            CreateTriggerOrder {
+                order_type: Some(CreateTriggerOrderType::Default),
+                actions: vec![ExecutePerpOrder {
+                    denom: "perp1".to_string(),
+                    order_size: Int128::from_str("10").unwrap(),
+                    reduce_only: None,
+                    order_type: Some(ExecutePerpOrderType::Default),
+                }],
+                conditions: vec![OraclePrice {
+                    denom: "perp1".to_string(),
+                    price: Decimal::from_str("100").unwrap(),
+                    comparison: Comparison::GreaterThan,
+                }],
+                keeper_fee: keeper_fee.clone(),
+            },
+        ],
+        &[keeper_fee.clone()],
+    );
+
+    check_result_for_expected_error(
+        res,
+        Some(ContractError::MaxTriggerOrdersReached {
+            max_trigger_orders: 1,
+        }),
+    );
+}
 
 #[test]
 fn lend_action_whitelisted_in_trigger_orders() {
@@ -48,11 +128,13 @@ fn lend_action_whitelisted_in_trigger_orders() {
         vec![
             Deposit(keeper_fee.clone()),
             CreateTriggerOrder {
+                order_type: Some(CreateTriggerOrderType::Default),
                 actions: vec![
                     ExecutePerpOrder {
                         denom: "perp1".to_string(),
                         order_size: Int128::from_str("10").unwrap(),
                         reduce_only: None,
+                        order_type: Some(ExecutePerpOrderType::Default),
                     },
                     Lend(ActionCoin {
                         denom: keeper_fee.denom.clone(),
@@ -107,6 +189,7 @@ fn query_all_trigger_orders() {
                     denom: "perp1".to_string(),
                     order_size,
                     reduce_only: None,
+                    order_type: Some(ExecutePerpOrderType::Default),
                 }],
                 conditions: vec![OraclePrice {
                     denom: "perp1".to_string(),
@@ -126,6 +209,7 @@ fn query_all_trigger_orders() {
             vec![
                 Deposit(order.order.keeper_fee.clone()),
                 CreateTriggerOrder {
+                    order_type: Some(CreateTriggerOrderType::Default),
                     actions: order.order.actions.clone(),
                     conditions: order.order.conditions.clone(),
                     keeper_fee: order.order.keeper_fee.clone(),
@@ -171,10 +255,12 @@ fn delete_trigger_order() {
         vec![
             Deposit(keeper_fee.clone()),
             CreateTriggerOrder {
+                order_type: Some(CreateTriggerOrderType::Default),
                 actions: vec![ExecutePerpOrder {
                     denom: "perp1".to_string(),
                     order_size: Int128::from_str("-10").unwrap(),
                     reduce_only: None,
+                    order_type: Some(ExecutePerpOrderType::Default),
                 }],
                 conditions: vec![OraclePrice {
                     denom: "perp1".to_string(),
@@ -199,6 +285,7 @@ fn delete_trigger_order() {
             denom: "perp1".to_string(),
             order_size: Int128::from_str("-10").unwrap(),
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default)
         }]
     );
     assert_eq!(
@@ -240,10 +327,12 @@ fn delete_trigger_order() {
     coin_info("uusdc").to_coin(1),
     vec![
         CreateTriggerOrder {
+            order_type: Some(CreateTriggerOrderType::Default),
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
                 order_size: Int128::from_str("-10").unwrap(),
                 reduce_only: None,
+                order_type: Some(ExecutePerpOrderType::Default)
             }],
             conditions: vec![OraclePrice {
                 denom: uatom_info().denom.to_string(),
@@ -265,10 +354,12 @@ fn delete_trigger_order() {
     vec![
         Deposit(coin_info("uusdc").to_coin(1)),
         CreateTriggerOrder {
+            order_type: Some(CreateTriggerOrderType::Default),
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
                 order_size: Int128::from_str("-10").unwrap(),
                 reduce_only: None,
+                order_type: Some(ExecutePerpOrderType::Default)
             }],
             conditions: vec![OraclePrice {
                 denom: uatom_info().denom.to_string(),
@@ -291,10 +382,12 @@ fn delete_trigger_order() {
     coin_info("uusdc").to_coin(1),
     vec![
         CreateTriggerOrder {
+            order_type: Some(CreateTriggerOrderType::Default),
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
                 order_size: Int128::from_str("-10").unwrap(),
                 reduce_only: None,
+                order_type: Some(ExecutePerpOrderType::Default)
             }],
             conditions: vec![OraclePrice {
                 denom: uatom_info().denom.to_string(),
@@ -320,10 +413,12 @@ fn delete_trigger_order() {
     vec![
         Deposit(coin_info("uusdc").to_coin(1000000)),
         CreateTriggerOrder {
+            order_type: Some(CreateTriggerOrderType::Default),
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
                 order_size: Int128::from_str("-10").unwrap(),
                 reduce_only: None,
+                order_type: Some(ExecutePerpOrderType::Default)
             }],
             conditions: vec![OraclePrice {
                 denom: uatom_info().denom.to_string(),
@@ -336,7 +431,7 @@ fn delete_trigger_order() {
     Some(12347),
     vec![coin_info("uusdc").to_coin(1000000)],
     None,
-    Some(ContractError::TriggerOrderNotFound { order_id: "12347".to_string() , account_id: "2".to_string() });
+    Some(ContractError::TriggerOrderNotFound { order_id: "12347".to_string(), account_id: "2".to_string() });
     "Error when no trigger id found"
 )]
 #[test_case(
@@ -344,10 +439,12 @@ fn delete_trigger_order() {
     vec![
         Deposit(coin_info("uusdc").to_coin(1000000)),
         CreateTriggerOrder {
+            order_type: Some(CreateTriggerOrderType::Default),
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
                 order_size: Int128::from_str("-10").unwrap(),
                 reduce_only: None,
+                order_type: Some(ExecutePerpOrderType::Default)
             }],
             conditions: vec![OraclePrice {
                 denom: uatom_info().denom.to_string(),
@@ -368,10 +465,12 @@ fn delete_trigger_order() {
     vec![
         Deposit(coin_info("uusdc").to_coin(100000000)),
         CreateTriggerOrder {
+            order_type: Some(CreateTriggerOrderType::Default),
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
                 order_size: Int128::from_str("-1").unwrap(),
                 reduce_only: None,
+                order_type: Some(ExecutePerpOrderType::Default)
             }],
             conditions: vec![OraclePrice {
                 denom: uatom_info().denom.to_string(),
@@ -392,10 +491,12 @@ fn delete_trigger_order() {
     vec![
         Deposit(coin_info("uusdc").to_coin(100000000)),
         CreateTriggerOrder {
+            order_type: Some(CreateTriggerOrderType::Default),
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
                 order_size: Int128::from_str("-1").unwrap(),
                 reduce_only: None,
+                order_type: Some(ExecutePerpOrderType::Default)
             }],
             conditions: vec![
                 OraclePrice {
@@ -422,6 +523,7 @@ fn delete_trigger_order() {
     vec![
         Deposit(coin_info("uusdc").to_coin(100000000)),
         CreateTriggerOrder {
+            order_type: Some(CreateTriggerOrderType::Default),
             actions: vec![Deposit(coin_info("uusdc").to_coin(100000000))],
             conditions: vec![],
             keeper_fee: coin_info("uusdc").to_coin(1000000),
@@ -438,6 +540,7 @@ fn delete_trigger_order() {
     vec![
         Deposit(coin_info("uusdc").to_coin(100000000)),
         CreateTriggerOrder {
+            order_type: Some(CreateTriggerOrderType::Default),
             actions: vec![Liquidate{
                 debt_coin: coin_info("uusdc").to_coin(100000000),
                 liquidatee_account_id: "1".to_string(),
@@ -458,10 +561,12 @@ fn delete_trigger_order() {
     vec![
         Deposit(coin_info("uusdc").to_coin(100000000)),
         CreateTriggerOrder {
+            order_type: Some(CreateTriggerOrderType::Default),
             actions: vec![ExecutePerpOrder {
                 denom: uatom_info().denom.to_string(),
                 order_size: Int128::from_str("-1").unwrap(),
                 reduce_only: None,
+                order_type: Some(ExecutePerpOrderType::Default)
             }],
             conditions: vec![
                 OraclePrice {
@@ -516,7 +621,6 @@ fn verify_trigger_orders(
             vec![cm_user.clone(), vault_depositor.clone()],
             vec![osmo_coin.clone(), usdc_coin.clone(), usdc_coin.clone(), ntrn_coin.clone()],
         )
-        // .set_perp_params()
         .build()
         .unwrap();
 
@@ -531,13 +635,13 @@ fn verify_trigger_orders(
     // Keep record of whether the trigger order was successfully placed
     let mut successful_execute = result.is_ok();
 
-    check_result_for_exepected_error(result, maybe_expected_error_on_create);
+    check_result_for_expected_error(result, maybe_expected_error_on_create);
 
     if let Some(order) = maybe_order_to_execute {
         let execute_result =
             mock.execute_trigger_order(&keeper_bot, &account_id, &order.to_string());
         successful_execute = execute_result.is_ok() && successful_execute;
-        check_result_for_exepected_error(execute_result, maybe_expected_error_on_execute);
+        check_result_for_expected_error(execute_result, maybe_expected_error_on_execute);
     }
 
     if successful_execute {
@@ -551,7 +655,7 @@ fn verify_trigger_orders(
     }
 }
 
-fn check_result_for_exepected_error(
+fn check_result_for_expected_error(
     result: Result<AppResponse, Error>,
     expected_error: Option<ContractError>,
 ) {

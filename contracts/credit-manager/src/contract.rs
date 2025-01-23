@@ -1,10 +1,10 @@
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response,
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
 };
 use cw2::set_contract_version;
 use mars_types::{
     adapters::vault::VAULT_REQUEST_REPLY_ID,
-    credit_manager::{ExecuteMsg, InstantiateMsg, QueryMsg},
+    credit_manager::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     oracle::ActionKind,
 };
 
@@ -177,6 +177,11 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
-    migrations::v2_2_0::migrate(deps)
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    match msg {
+        MigrateMsg::V2_1_0ToV2_2_0 {} => migrations::v2_2_0::migrate(deps),
+        MigrateMsg::V2_2_0ToV2_2_1 {
+            max_trigger_orders,
+        } => migrations::v2_2_1::migrate(deps, max_trigger_orders),
+    }
 }
