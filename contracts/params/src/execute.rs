@@ -8,6 +8,7 @@ use mars_types::{
     address_provider::{self, MarsAddressType},
     params::{AssetParams, AssetParamsUpdate, PerpParams, PerpParamsUpdate, VaultConfigUpdate},
     perps::ExecuteMsg,
+    red_bank::{ExecuteMsg as RedBankExecuteMsg, MarketParams, MarketParamsUpdate},
 };
 use mars_utils::helpers::option_string_to_addr;
 
@@ -85,9 +86,33 @@ pub fn update_asset_params(
             // Risk manager cannot change the liquidation threshold
             permission.validate_asset_liquidation_threshold_unchanged(&params)?;
 
+            // Risk manager cannot change the reserve factor
+            let market_params = (&params).into();
+            permission.validate_market_reserve_factor_unchanged(&market_params)?;
+
             ASSET_PARAMS.save(deps.storage, &params.denom, &params)?;
+
+            let ap_addr = ADDRESS_PROVIDER.load(deps.storage)?;
+            let rb_addr = address_provider::helpers::query_contract_addr(
+                deps.as_ref(),
+                &ap_addr,
+                MarsAddressType::RedBank,
+            )?;
+
+            let msg = CosmosMsg::Wasm(WasmMsg::Execute {
+                contract_addr: rb_addr.to_string(),
+                msg: to_json_binary(&RedBankExecuteMsg::UpdateMarketParams(
+                    MarketParamsUpdate::AddOrUpdate {
+                        params: market_params,
+                    },
+                ))?,
+                funds: vec![],
+            });
+
             response = response
+                .add_message(msg)
                 .add_attribute("action_type", "add_or_update")
+                .add_attribute("sender", info.sender)
                 .add_attribute("denom", params.denom);
         }
     }
@@ -237,6 +262,32 @@ impl<'a> Permission<'a> {
             } else {
                 return Err(ContractError::RiskManagerUnauthorized {
                     reason: "new perp".to_string(),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    pub fn validate_market_reserve_factor_unchanged(
+        &self,
+        new_params: &MarketParams,
+    ) -> ContractResult<()> {
+        // If the risk_manager is not set to the default (owner) apply restrictions
+        if self.risk_manager && !self.owner {
+            let current_asset_params =
+                ASSET_PARAMS.may_load(self.deps.storage, &new_params.denom)?;
+
+            if let Some(current_asset_params) = current_asset_params {
+                ensure_eq!(
+                    Some(current_asset_params.reserve_factor),
+                    new_params.reserve_factor,
+                    ContractError::RiskManagerUnauthorized {
+                        reason: "market param reserve factor".to_string()
+                    }
+                )
+            } else {
+                return Err(ContractError::RiskManagerUnauthorized {
+                    reason: "new asset".to_string(),
                 });
             }
         }

@@ -20,8 +20,8 @@ use mars_types::{
     },
     params::{AssetParams, AssetParamsUpdate, TotalDepositResponse},
     red_bank::{
-        self, CreateOrUpdateConfig, InitOrUpdateAssetParams, Market, MarketV2Response,
-        UserCollateralResponse, UserDebtResponse, UserPositionResponse,
+        self, CreateOrUpdateConfig, Market, MarketV2Response, UserCollateralResponse,
+        UserDebtResponse, UserPositionResponse,
     },
     rewards_collector,
 };
@@ -419,20 +419,6 @@ impl Oracle {
 }
 
 impl RedBank {
-    pub fn init_asset(&self, env: &mut MockEnv, denom: &str, params: InitOrUpdateAssetParams) {
-        env.app
-            .execute_contract(
-                env.owner.clone(),
-                self.contract_addr.clone(),
-                &red_bank::ExecuteMsg::InitAsset {
-                    denom: denom.to_string(),
-                    params,
-                },
-                &[],
-            )
-            .unwrap();
-    }
-
     pub fn update_user_collateral_status(
         &self,
         env: &mut MockEnv,

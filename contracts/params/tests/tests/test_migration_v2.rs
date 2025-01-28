@@ -5,27 +5,24 @@ use cw2::{ContractVersion, VersionError};
 use mars_params::{
     contract::migrate,
     error::ContractError,
-    migrations::v2_2_0::v2_1_0_state,
-    state::{ASSET_PARAMS, OWNER, RISK_MANAGER},
+    migrations::v2_2_1::v2_2_0_state,
+    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, RISK_MANAGER},
 };
 use mars_testing::mock_dependencies;
-use mars_types::params::{
-    AssetParams, CmSettings, HlsAssetType, HlsParams, LiquidationBonus, MigrateMsg, RedBankSettings,
+use mars_types::{
+    params::{
+        AssetParams, CmSettings, HlsAssetType, HlsParams, LiquidationBonus, MigrateMsg,
+        RedBankSettings,
+    },
+    red_bank::{InterestRateModel, Market},
 };
 
 #[test]
 fn wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.1.0").unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.2.0").unwrap();
 
-    let err = migrate(
-        deps.as_mut(),
-        mock_env(),
-        MigrateMsg {
-            close_factor: Decimal::one(),
-        },
-    )
-    .unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), migration_msg()).unwrap_err();
 
     assert_eq!(
         err,
@@ -41,19 +38,12 @@ fn wrong_contract_version() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "2.0.0").unwrap();
 
-    let err = migrate(
-        deps.as_mut(),
-        mock_env(),
-        MigrateMsg {
-            close_factor: Decimal::one(),
-        },
-    )
-    .unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), migration_msg()).unwrap_err();
 
     assert_eq!(
         err,
         ContractError::Version(VersionError::WrongVersion {
-            expected: "2.1.0".to_string(),
+            expected: "2.2.0".to_string(),
             found: "2.0.0".to_string()
         })
     );
@@ -62,7 +52,7 @@ fn wrong_contract_version() {
 #[test]
 fn successful_migration() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "2.1.0").unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "2.2.0").unwrap();
 
     // Initialize the OWNER storage item so we can later verify the migration has set the risk manager to the owner as default
     let owner = Addr::unchecked("owner");
@@ -76,31 +66,28 @@ fn successful_migration() {
             },
         )
         .unwrap();
+    ADDRESS_PROVIDER.save(deps.as_mut().storage, &Addr::unchecked("address_provider")).unwrap();
 
     // Initialize the ASSET_PARAMS storage items with the old state
-    v2_1_0_state::ASSET_PARAMS.save(deps.as_mut().storage, "asset_2", &asset_2()).unwrap();
-    v2_1_0_state::ASSET_PARAMS.save(deps.as_mut().storage, "asset_1", &asset_1()).unwrap();
+    v2_2_0_state::ASSET_PARAMS.save(deps.as_mut().storage, "asset_2", &asset_2()).unwrap();
+    v2_2_0_state::ASSET_PARAMS.save(deps.as_mut().storage, "asset_1", &asset_1()).unwrap();
 
-    let res = migrate(
-        deps.as_mut(),
-        mock_env(),
-        MigrateMsg {
-            close_factor: Decimal::from_str("0.9").unwrap(),
-        },
-    )
-    .unwrap();
+    // Add a market to the querier so we can later verify the migration has set the market params correctly
+    deps.querier.set_redbank_market(market_2());
+
+    let res = migrate(deps.as_mut(), mock_env(), migration_msg()).unwrap();
 
     assert_eq!(res.messages, vec![]);
     assert_eq!(res.events, vec![] as Vec<Event>);
     assert!(res.data.is_none());
     assert_eq!(
         res.attributes,
-        vec![attr("action", "migrate"), attr("from_version", "2.1.0"), attr("to_version", "2.2.0")]
+        vec![attr("action", "migrate"), attr("from_version", "2.2.0"), attr("to_version", "2.2.1")]
     );
 
     let new_contract_version = ContractVersion {
         contract: "crates.io:mars-params".to_string(),
-        version: "2.2.0".to_string(),
+        version: "2.2.1".to_string(),
     };
     assert_eq!(cw2::get_contract_version(deps.as_ref().storage).unwrap(), new_contract_version);
 
@@ -118,32 +105,20 @@ fn successful_migration() {
     assert_eq!(asset_params.get("asset_2").unwrap(), &expected_asset_2());
 }
 
-fn asset_1() -> v2_1_0_state::AssetParams {
-    v2_1_0_state::AssetParams {
-        denom: "asset_1".to_string(),
-        credit_manager: v2_1_0_state::CmSettings {
-            whitelisted: false,
-            hls: None,
+fn migration_msg() -> MigrateMsg {
+    MigrateMsg {
+        reserve_factor: Decimal::percent(49),
+        interest_rate_model: InterestRateModel {
+            optimal_utilization_rate: Decimal::percent(82u64),
+            base: Decimal::from_str("2").unwrap(),
+            slope_1: Decimal::percent(17u64),
+            slope_2: Decimal::percent(35u64),
         },
-        red_bank: v2_1_0_state::RedBankSettings {
-            deposit_enabled: false,
-            borrow_enabled: false,
-        },
-        max_loan_to_value: Decimal::from_str("0.6").unwrap(),
-        liquidation_threshold: Decimal::from_str("0.65").unwrap(),
-        liquidation_bonus: v2_1_0_state::LiquidationBonus {
-            starting_lb: Decimal::from_str("0.1").unwrap(),
-            slope: Decimal::from_str("0.2").unwrap(),
-            min_lb: Decimal::from_str("0.3").unwrap(),
-            max_lb: Decimal::from_str("0.4").unwrap(),
-        },
-        protocol_liquidation_fee: Decimal::from_str("0.05").unwrap(),
-        deposit_cap: Uint128::from(1230000u128),
     }
 }
 
-fn expected_asset_1() -> AssetParams {
-    AssetParams {
+fn asset_1() -> v2_2_0_state::AssetParams {
+    v2_2_0_state::AssetParams {
         denom: "asset_1".to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
@@ -169,34 +144,66 @@ fn expected_asset_1() -> AssetParams {
     }
 }
 
-fn asset_2() -> v2_1_0_state::AssetParams {
-    v2_1_0_state::AssetParams {
+fn expected_asset_1() -> AssetParams {
+    let migrate_msg = migration_msg();
+    AssetParams {
+        denom: "asset_1".to_string(),
+        credit_manager: CmSettings {
+            whitelisted: false,
+            hls: None,
+            withdraw_enabled: true,
+        },
+        red_bank: RedBankSettings {
+            deposit_enabled: false,
+            borrow_enabled: false,
+            withdraw_enabled: false,
+        },
+        max_loan_to_value: Decimal::from_str("0.6").unwrap(),
+        liquidation_threshold: Decimal::from_str("0.65").unwrap(),
+        liquidation_bonus: LiquidationBonus {
+            starting_lb: Decimal::from_str("0.1").unwrap(),
+            slope: Decimal::from_str("0.2").unwrap(),
+            min_lb: Decimal::from_str("0.3").unwrap(),
+            max_lb: Decimal::from_str("0.4").unwrap(),
+        },
+        protocol_liquidation_fee: Decimal::from_str("0.05").unwrap(),
+        deposit_cap: Uint128::from(1230000u128),
+        close_factor: Decimal::from_str("0.9").unwrap(),
+        reserve_factor: migrate_msg.reserve_factor,
+        interest_rate_model: migrate_msg.interest_rate_model,
+    }
+}
+
+fn asset_2() -> v2_2_0_state::AssetParams {
+    v2_2_0_state::AssetParams {
         denom: "asset_2".to_string(),
-        credit_manager: v2_1_0_state::CmSettings {
+        credit_manager: CmSettings {
             whitelisted: true,
-            hls: Some(v2_1_0_state::HlsParams {
+            hls: Some(HlsParams {
                 max_loan_to_value: Decimal::from_str("0.2").unwrap(),
                 liquidation_threshold: Decimal::from_str("0.22").unwrap(),
                 correlations: vec![
-                    v2_1_0_state::HlsAssetType::Coin {
+                    HlsAssetType::Coin {
                         denom: "denom_1".to_string(),
                     },
-                    v2_1_0_state::HlsAssetType::Vault {
+                    HlsAssetType::Vault {
                         addr: Addr::unchecked("vault_addr_123"),
                     },
-                    v2_1_0_state::HlsAssetType::Coin {
+                    HlsAssetType::Coin {
                         denom: "denom_2".to_string(),
                     },
                 ],
             }),
+            withdraw_enabled: true,
         },
-        red_bank: v2_1_0_state::RedBankSettings {
+        red_bank: RedBankSettings {
             deposit_enabled: true,
             borrow_enabled: true,
+            withdraw_enabled: true,
         },
         max_loan_to_value: Decimal::from_str("0.89").unwrap(),
         liquidation_threshold: Decimal::from_str("0.67").unwrap(),
-        liquidation_bonus: v2_1_0_state::LiquidationBonus {
+        liquidation_bonus: LiquidationBonus {
             starting_lb: Decimal::from_str("0.2").unwrap(),
             slope: Decimal::from_str("0.1").unwrap(),
             min_lb: Decimal::from_str("0.4").unwrap(),
@@ -204,10 +211,26 @@ fn asset_2() -> v2_1_0_state::AssetParams {
         },
         protocol_liquidation_fee: Decimal::from_str("0.15").unwrap(),
         deposit_cap: Uint128::from(123u128),
+        close_factor: Decimal::from_str("0.6").unwrap(),
+    }
+}
+
+fn market_2() -> Market {
+    Market {
+        denom: "asset_2".to_string(),
+        reserve_factor: Decimal::percent(28),
+        interest_rate_model: InterestRateModel {
+            optimal_utilization_rate: Decimal::percent(80u64),
+            base: Decimal::one(),
+            slope_1: Decimal::percent(7u64),
+            slope_2: Decimal::percent(45u64),
+        },
+        ..Default::default()
     }
 }
 
 fn expected_asset_2() -> AssetParams {
+    let market = market_2();
     AssetParams {
         denom: "asset_2".to_string(),
         credit_manager: CmSettings {
@@ -244,6 +267,8 @@ fn expected_asset_2() -> AssetParams {
         },
         protocol_liquidation_fee: Decimal::from_str("0.15").unwrap(),
         deposit_cap: Uint128::from(123u128),
-        close_factor: Decimal::from_str("0.9").unwrap(),
+        close_factor: Decimal::from_str("0.6").unwrap(),
+        reserve_factor: market.reserve_factor,
+        interest_rate_model: market.interest_rate_model,
     }
 }

@@ -32,7 +32,6 @@ import { InstantiateMsg as ParamsInstantiateMsg } from '../../types/generated/ma
 import { ExecuteMsg as ParamsExecuteMsg } from '../../types/generated/mars-params/MarsParams.types'
 import {
   InstantiateMsg as RedBankInstantiateMsg,
-  ExecuteMsg as RedBankExecuteMsg,
   QueryMsg as RedBankQueryMsg,
 } from '../../types/generated/mars-red-bank/MarsRedBank.types'
 import { InstantiateMsg as PerpsInstantiateMsg } from '../../types/generated/mars-perps/MarsPerps.types'
@@ -466,6 +465,13 @@ export class Deployer {
             },
             deposit_cap: assetConfig.deposit_cap,
             close_factor: assetConfig.close_factor,
+            reserve_factor: assetConfig.reserve_factor,
+            interest_rate_model: {
+              base: assetConfig.interest_rate_model.base,
+              slope_1: assetConfig.interest_rate_model.slope_1,
+              slope_2: assetConfig.interest_rate_model.slope_2,
+              optimal_utilization_rate: assetConfig.interest_rate_model.optimal_utilization_rate,
+            },
           },
         },
       },
@@ -539,35 +545,6 @@ export class Deployer {
     printYellow(`${perpDenom.denom} initialized in params contract`)
 
     this.storage.actions.perpsSet.push(perpDenom.denom)
-  }
-
-  async initializeMarket(assetConfig: AssetConfig) {
-    if (this.storage.actions.redBankMarketsSet.includes(assetConfig.denom)) {
-      printBlue(`${assetConfig.symbol} already initialized in red-bank contract`)
-      return
-    }
-    printBlue(`Initializing ${assetConfig.symbol}...`)
-
-    const msg: RedBankExecuteMsg = {
-      init_asset: {
-        denom: assetConfig.denom,
-        params: {
-          reserve_factor: assetConfig.reserve_factor,
-          interest_rate_model: {
-            optimal_utilization_rate: assetConfig.interest_rate_model.optimal_utilization_rate,
-            base: assetConfig.interest_rate_model.base,
-            slope_1: assetConfig.interest_rate_model.slope_1,
-            slope_2: assetConfig.interest_rate_model.slope_2,
-          },
-        },
-      },
-    }
-
-    await this.cwClient.execute(this.deployerAddr, this.storage.addresses['redBank']!, msg, 'auto')
-
-    printYellow(`${assetConfig.symbol} initialized`)
-
-    this.storage.actions.redBankMarketsSet.push(assetConfig.denom)
   }
 
   async updateVaultConfig(vaultConfig: VaultConfig) {

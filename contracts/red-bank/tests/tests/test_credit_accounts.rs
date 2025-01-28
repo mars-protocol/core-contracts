@@ -20,11 +20,9 @@ fn deposit_and_withdraw_for_credit_account_works() {
     let account_id = "111".to_string();
 
     // setup red-bank
-    let (market_params, asset_params) = osmo_asset_params();
-    red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
+    let asset_params = osmo_asset_params();
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = usdc_asset_params();
-    red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
+    let asset_params = usdc_asset_params();
     params.init_params(&mut mock_env, asset_params);
 
     // setup oracle

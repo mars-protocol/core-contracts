@@ -2,8 +2,9 @@ use std::str::FromStr;
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Decimal;
-use mars_types::params::{
-    AssetParams, CmSettings, HlsAssetType, HlsParams, LiquidationBonus, RedBankSettings,
+use mars_types::{
+    params::{AssetParams, CmSettings, HlsAssetType, HlsParams, LiquidationBonus, RedBankSettings},
+    red_bank::InterestRateModel,
 };
 
 #[cw_serde]
@@ -19,7 +20,7 @@ pub fn umars_info() -> CoinInfo {
         denom: denom.clone(),
         price: Decimal::from_atomics(1u128, 0).unwrap(),
         params: AssetParams {
-            denom,
+            denom: denom.clone(),
             max_loan_to_value: Decimal::from_atomics(8u128, 1).unwrap(),
             liquidation_threshold: Decimal::from_atomics(84u128, 2).unwrap(),
             liquidation_bonus: LiquidationBonus {
@@ -41,6 +42,13 @@ pub fn umars_info() -> CoinInfo {
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
             close_factor: Decimal::percent(80u64),
+            reserve_factor: Decimal::percent(10u64),
+            interest_rate_model: InterestRateModel {
+                optimal_utilization_rate: Decimal::percent(80u64),
+                base: Decimal::zero(),
+                slope_1: Decimal::percent(7u64),
+                slope_2: Decimal::percent(45u64),
+            },
         },
     }
 }
@@ -48,10 +56,10 @@ pub fn umars_info() -> CoinInfo {
 pub fn udai_info() -> CoinInfo {
     let denom = "udai".to_string();
     CoinInfo {
-        denom,
+        denom: denom.clone(),
         price: Decimal::from_atomics(313451u128, 6).unwrap(),
         params: AssetParams {
-            denom: "udai".to_string(),
+            denom: denom.clone(),
             max_loan_to_value: Decimal::from_atomics(85u128, 2).unwrap(),
             liquidation_threshold: Decimal::from_atomics(9u128, 1).unwrap(),
             liquidation_bonus: LiquidationBonus {
@@ -73,6 +81,13 @@ pub fn udai_info() -> CoinInfo {
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
             close_factor: Decimal::percent(80u64),
+            reserve_factor: Decimal::percent(10u64),
+            interest_rate_model: InterestRateModel {
+                optimal_utilization_rate: Decimal::percent(80u64),
+                base: Decimal::zero(),
+                slope_1: Decimal::percent(7u64),
+                slope_2: Decimal::percent(45u64),
+            },
         },
     }
 }
@@ -83,7 +98,7 @@ pub fn uluna_info() -> CoinInfo {
         denom: denom.clone(),
         price: Decimal::from_atomics(100u128, 1).unwrap(),
         params: AssetParams {
-            denom,
+            denom: denom.clone(),
             max_loan_to_value: Decimal::from_atomics(7u128, 1).unwrap(),
             liquidation_threshold: Decimal::from_atomics(78u128, 2).unwrap(),
             liquidation_bonus: LiquidationBonus {
@@ -105,6 +120,13 @@ pub fn uluna_info() -> CoinInfo {
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
             close_factor: Decimal::percent(80u64),
+            reserve_factor: Decimal::percent(10u64),
+            interest_rate_model: InterestRateModel {
+                optimal_utilization_rate: Decimal::percent(80u64),
+                base: Decimal::zero(),
+                slope_1: Decimal::percent(7u64),
+                slope_2: Decimal::percent(45u64),
+            },
         },
     }
 }
@@ -115,7 +137,7 @@ pub fn ustars_info() -> CoinInfo {
         denom: denom.clone(),
         price: Decimal::from_atomics(5265478965412365487125u128, 12).unwrap(),
         params: AssetParams {
-            denom,
+            denom: denom.clone(),
             max_loan_to_value: Decimal::from_atomics(6u128, 1).unwrap(),
             liquidation_threshold: Decimal::from_atomics(7u128, 1).unwrap(),
             liquidation_bonus: LiquidationBonus {
@@ -149,6 +171,13 @@ pub fn ustars_info() -> CoinInfo {
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
             close_factor: Decimal::percent(80u64),
+            reserve_factor: Decimal::percent(10u64),
+            interest_rate_model: InterestRateModel {
+                optimal_utilization_rate: Decimal::percent(80u64),
+                base: Decimal::zero(),
+                slope_1: Decimal::percent(7u64),
+                slope_2: Decimal::percent(45u64),
+            },
         },
     }
 }
@@ -159,7 +188,7 @@ pub fn ujuno_info() -> CoinInfo {
         denom: denom.clone(),
         price: Decimal::from_atomics(7012302005u128, 3).unwrap(),
         params: AssetParams {
-            denom,
+            denom: denom.clone(),
             max_loan_to_value: Decimal::from_atomics(8u128, 1).unwrap(),
             liquidation_threshold: Decimal::from_atomics(9u128, 1).unwrap(),
             liquidation_bonus: LiquidationBonus {
@@ -181,6 +210,13 @@ pub fn ujuno_info() -> CoinInfo {
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
             close_factor: Decimal::percent(80u64),
+            reserve_factor: Decimal::percent(10u64),
+            interest_rate_model: InterestRateModel {
+                optimal_utilization_rate: Decimal::percent(80u64),
+                base: Decimal::zero(),
+                slope_1: Decimal::percent(7u64),
+                slope_2: Decimal::percent(45u64),
+            },
         },
     }
 }
@@ -191,7 +227,7 @@ pub fn uatom_info() -> CoinInfo {
         denom: denom.clone(),
         price: Decimal::from_atomics(941236u128, 6).unwrap(),
         params: AssetParams {
-            denom,
+            denom: denom.clone(),
             max_loan_to_value: Decimal::from_atomics(65u128, 2).unwrap(),
             liquidation_threshold: Decimal::from_atomics(7u128, 1).unwrap(),
             liquidation_bonus: LiquidationBonus {
@@ -219,6 +255,13 @@ pub fn uatom_info() -> CoinInfo {
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
             close_factor: Decimal::percent(80u64),
+            reserve_factor: Decimal::percent(10u64),
+            interest_rate_model: InterestRateModel {
+                optimal_utilization_rate: Decimal::percent(80u64),
+                base: Decimal::zero(),
+                slope_1: Decimal::percent(7u64),
+                slope_2: Decimal::percent(45u64),
+            },
         },
     }
 }
@@ -229,7 +272,7 @@ pub fn uusdc_info() -> CoinInfo {
         denom: denom.clone(),
         price: Decimal::from_str("1.00").unwrap(),
         params: AssetParams {
-            denom,
+            denom: denom.clone(),
             max_loan_to_value: Decimal::from_str("0.9").unwrap(),
             liquidation_threshold: Decimal::from_str("0.95").unwrap(),
             liquidation_bonus: LiquidationBonus {
@@ -257,6 +300,13 @@ pub fn uusdc_info() -> CoinInfo {
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
             close_factor: Decimal::percent(80u64),
+            reserve_factor: Decimal::percent(10u64),
+            interest_rate_model: InterestRateModel {
+                optimal_utilization_rate: Decimal::percent(80u64),
+                base: Decimal::zero(),
+                slope_1: Decimal::percent(7u64),
+                slope_2: Decimal::percent(45u64),
+            },
         },
     }
 }
@@ -271,7 +321,7 @@ pub fn create_coin_info(
         denom: denom.clone(),
         price,
         params: AssetParams {
-            denom,
+            denom: denom.clone(),
             max_loan_to_value: max_ltv,
             liquidation_threshold,
             liquidation_bonus: LiquidationBonus {
@@ -293,6 +343,13 @@ pub fn create_coin_info(
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Default::default(),
             close_factor: Decimal::percent(80u64),
+            reserve_factor: Decimal::percent(10u64),
+            interest_rate_model: InterestRateModel {
+                optimal_utilization_rate: Decimal::percent(80u64),
+                base: Decimal::zero(),
+                slope_1: Decimal::percent(7u64),
+                slope_2: Decimal::percent(45u64),
+            },
         },
     }
 }

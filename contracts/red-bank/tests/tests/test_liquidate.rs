@@ -13,11 +13,10 @@ use mars_testing::{
 };
 use mars_types::{
     address_provider::MarsAddressType,
-    incentives,
-    incentives::IncentiveKind,
+    incentives::{self, IncentiveKind},
     params::{AssetParams, CmSettings, LiquidationBonus, RedBankSettings},
     red_bank::{
-        ExecuteMsg, InitOrUpdateAssetParams, InterestRateModel, Market, QueryMsg,
+        ExecuteMsg, InterestRateModel, Market, MarketParamsUpdate, QueryMsg,
         UserCollateralResponse, UserDebtResponse,
     },
 };
@@ -583,21 +582,19 @@ fn same_asset_for_debt_and_collateral_with_refund() {
     let liquidator = Addr::unchecked("liquidator");
 
     // setup red-bank
-    let (market_params, asset_params) = default_asset_params_with(
+    let asset_params = default_asset_params_with(
         "uosmo",
         Decimal::percent(70),
         Decimal::percent(78),
         Decimal::percent(80),
     );
-    red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params_with(
+    let asset_params = default_asset_params_with(
         "uatom",
         Decimal::percent(82),
         Decimal::percent(90),
         Decimal::percent(80),
     );
-    red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
     params.init_params(&mut mock_env, asset_params);
 
     // setup oracle
@@ -703,9 +700,9 @@ fn response_verification() {
     let mut deps = th_setup(&[]);
 
     let env = mock_env_at_block_time(100_000);
-    let info = mock_info("owner", &[]);
+    let info = mock_info("params", &[]);
 
-    let (market_params, asset_params) = default_asset_params_with(
+    let asset_params = default_asset_params_with(
         "uosmo",
         Decimal::percent(70),
         Decimal::percent(78),
@@ -715,14 +712,13 @@ fn response_verification() {
         deps.as_mut(),
         env.clone(),
         info.clone(),
-        ExecuteMsg::InitAsset {
-            denom: asset_params.denom.clone(),
-            params: market_params,
-        },
+        ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
+            params: (&asset_params).into(),
+        }),
     )
     .unwrap();
     deps.querier.set_redbank_params(&asset_params.denom.clone(), asset_params);
-    let (market_params, asset_params) = default_asset_params_with(
+    let asset_params = default_asset_params_with(
         "uatom",
         Decimal::percent(82),
         Decimal::percent(90),
@@ -732,14 +728,13 @@ fn response_verification() {
         deps.as_mut(),
         env.clone(),
         info.clone(),
-        ExecuteMsg::InitAsset {
-            denom: asset_params.denom.clone(),
-            params: market_params,
-        },
+        ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
+            params: (&asset_params).into(),
+        }),
     )
     .unwrap();
     deps.querier.set_redbank_params(&asset_params.denom.clone(), asset_params);
-    let (market_params, asset_params) = default_asset_params_with(
+    let asset_params = default_asset_params_with(
         "uusdc",
         Decimal::percent(90),
         Decimal::percent(95),
@@ -749,14 +744,13 @@ fn response_verification() {
         deps.as_mut(),
         env.clone(),
         info.clone(),
-        ExecuteMsg::InitAsset {
-            denom: asset_params.denom.clone(),
-            params: market_params,
-        },
+        ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
+            params: (&asset_params).into(),
+        }),
     )
     .unwrap();
     deps.querier.set_redbank_params(&asset_params.denom.clone(), asset_params);
-    let (market_params, asset_params) = default_asset_params_with(
+    let asset_params = default_asset_params_with(
         "untrn",
         Decimal::percent(90),
         Decimal::percent(96),
@@ -766,10 +760,9 @@ fn response_verification() {
         deps.as_mut(),
         env.clone(),
         info,
-        ExecuteMsg::InitAsset {
-            denom: asset_params.denom.clone(),
-            params: market_params,
-        },
+        ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
+            params: (&asset_params).into(),
+        }),
     )
     .unwrap();
     deps.querier.set_redbank_params(&asset_params.denom.clone(), asset_params);
@@ -1086,41 +1079,36 @@ fn setup_env_with_usdc_cf(mock_env: &mut MockEnv, usdc_cf: Decimal) -> (u128, Ad
     // setup red-bank
     let red_bank = mock_env.red_bank.clone();
     let params = mock_env.params.clone();
-    let (market_params, asset_params) = default_asset_params_with(
+    let asset_params = default_asset_params_with(
         "uosmo",
         Decimal::percent(70),
         Decimal::percent(78),
         Decimal::percent(80),
     );
-    red_bank.init_asset(mock_env, &asset_params.denom, market_params);
     params.init_params(mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params_with(
+    let asset_params = default_asset_params_with(
         "ujake",
         Decimal::percent(50),
         Decimal::percent(55),
         Decimal::percent(80),
     );
-    red_bank.init_asset(mock_env, &asset_params.denom, market_params);
     params.init_params(mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params_with(
+    let asset_params = default_asset_params_with(
         "uatom",
         Decimal::percent(82),
         Decimal::percent(90),
         Decimal::percent(80),
     );
-    red_bank.init_asset(mock_env, &asset_params.denom, market_params);
     params.init_params(mock_env, asset_params);
-    let (market_params, asset_params) =
+    let asset_params =
         default_asset_params_with("uusdc", Decimal::percent(90), Decimal::percent(95), usdc_cf);
-    red_bank.init_asset(mock_env, &asset_params.denom, market_params);
     params.init_params(mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params_with(
+    let asset_params = default_asset_params_with(
         "untrn",
         Decimal::percent(90),
         Decimal::percent(96),
         Decimal::percent(80),
     );
-    red_bank.init_asset(mock_env, &asset_params.denom, market_params);
     params.init_params(mock_env, asset_params);
 
     // setup oracle
@@ -1194,7 +1182,7 @@ fn default_asset_params_with(
     max_loan_to_value: Decimal,
     liquidation_threshold: Decimal,
     close_factor: Decimal,
-) -> (InitOrUpdateAssetParams, AssetParams) {
+) -> AssetParams {
     _default_asset_params_with(
         denom,
         max_loan_to_value,
@@ -1215,17 +1203,8 @@ fn _default_asset_params_with(
     liquidation_threshold: Decimal,
     close_factor: Decimal,
     liquidation_bonus: LiquidationBonus,
-) -> (InitOrUpdateAssetParams, AssetParams) {
-    let market_params = InitOrUpdateAssetParams {
-        reserve_factor: Some(Decimal::percent(20)),
-        interest_rate_model: Some(InterestRateModel {
-            optimal_utilization_rate: Decimal::percent(10),
-            base: Decimal::percent(30),
-            slope_1: Decimal::percent(25),
-            slope_2: Decimal::percent(30),
-        }),
-    };
-    let asset_params = AssetParams {
+) -> AssetParams {
+    AssetParams {
         denom: denom.to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
@@ -1243,8 +1222,14 @@ fn _default_asset_params_with(
         protocol_liquidation_fee: Decimal::percent(2),
         deposit_cap: Uint128::MAX,
         close_factor,
-    };
-    (market_params, asset_params)
+        reserve_factor: Decimal::percent(20),
+        interest_rate_model: InterestRateModel {
+            optimal_utilization_rate: Decimal::percent(10),
+            base: Decimal::percent(30),
+            slope_1: Decimal::percent(25),
+            slope_2: Decimal::percent(30),
+        },
+    }
 }
 
 trait MapDefaultValue {

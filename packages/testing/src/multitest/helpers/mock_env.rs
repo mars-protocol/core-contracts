@@ -68,7 +68,6 @@ use mars_types::{
         VaultPositionResponse, VaultResponse,
     },
     red_bank::{
-        self, InitOrUpdateAssetParams, InterestRateModel,
         QueryMsg::{UserCollateral, UserDebt},
         UserCollateralResponse, UserDebtResponse,
     },
@@ -1234,26 +1233,9 @@ impl MockEnvBuilder {
     fn add_params_to_contract(&mut self) {
         let params_to_set = self.get_coin_params();
         let params_contract = self.get_params_contract();
-        let red_bank_contract = self.get_red_bank();
 
         for coin_info in params_to_set {
-            // initialize red bank market
-            self.app
-                .execute_contract(
-                    Addr::unchecked("red_bank_contract_owner"),
-                    Addr::unchecked(red_bank_contract.address()),
-                    &red_bank::ExecuteMsg::InitAsset {
-                        denom: coin_info.denom.clone(),
-                        params: InitOrUpdateAssetParams {
-                            reserve_factor: Some(Decimal::zero()),
-                            interest_rate_model: Some(InterestRateModel::default()),
-                        },
-                    },
-                    &[],
-                )
-                .unwrap();
-
-            // save asset params to mars-params contract
+            // save asset params to mars-params contract (also initalizes the red bank market)
             self.app
                 .execute_contract(
                     self.get_owner(),

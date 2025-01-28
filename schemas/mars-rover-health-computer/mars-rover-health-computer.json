@@ -83,11 +83,13 @@
         "credit_manager",
         "denom",
         "deposit_cap",
+        "interest_rate_model",
         "liquidation_bonus",
         "liquidation_threshold",
         "max_loan_to_value",
         "protocol_liquidation_fee",
-        "red_bank"
+        "red_bank",
+        "reserve_factor"
       ],
       "properties": {
         "close_factor": {
@@ -101,6 +103,9 @@
         },
         "deposit_cap": {
           "$ref": "#/definitions/Uint128"
+        },
+        "interest_rate_model": {
+          "$ref": "#/definitions/InterestRateModel"
         },
         "liquidation_bonus": {
           "$ref": "#/definitions/LiquidationBonus"
@@ -116,6 +121,9 @@
         },
         "red_bank": {
           "$ref": "#/definitions/RedBankSettings"
+        },
+        "reserve_factor": {
+          "$ref": "#/definitions/Decimal"
         }
       },
       "additionalProperties": false
@@ -288,6 +296,50 @@
     "Int128": {
       "description": "An implementation of i128 that is using strings for JSON encoding/decoding, such that the full i128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `i128` to get the value out:\n\n``` # use cosmwasm_std::Int128; let a = Int128::from(258i128); assert_eq!(a.i128(), 258); ```",
       "type": "string"
+    },
+    "InterestRateModel": {
+      "type": "object",
+      "required": [
+        "base",
+        "optimal_utilization_rate",
+        "slope_1",
+        "slope_2"
+      ],
+      "properties": {
+        "base": {
+          "description": "Base rate",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "optimal_utilization_rate": {
+          "description": "Optimal utilization rate",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "slope_1": {
+          "description": "Slope parameter for interest rate model function when utilization_rate <= optimal_utilization_rate",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "slope_2": {
+          "description": "Slope parameter for interest rate model function when utilization_rate > optimal_utilization_rate",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
     },
     "LiquidationBonus": {
       "description": "The LB will depend on the Health Factor and a couple other parameters as follows: Liquidation Bonus = min( b + (slope * (1 - HF)), max( min(CR - 1, max_lb), min_lb ) )",

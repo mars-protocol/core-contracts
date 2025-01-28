@@ -2445,7 +2445,7 @@ dependencies = [
 
 [[package]]
 name = "mars-params"
-version = "2.2.0"
+version = "2.2.1"
 dependencies = [
  "anyhow",
  "astroport 5.2.0",
@@ -2456,10 +2456,13 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "mars-address-provider",
+ "mars-incentives",
  "mars-interest-rate",
  "mars-oracle-osmosis",
  "mars-owner",
  "mars-perps",
+ "mars-red-bank",
+ "mars-rewards-collector-osmosis",
  "mars-testing",
  "mars-types",
  "mars-utils",
@@ -2506,7 +2509,7 @@ dependencies = [
 
 [[package]]
 name = "mars-red-bank"
-version = "2.2.0"
+version = "2.2.1"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -2585,8 +2588,10 @@ dependencies = [
  "cw-utils 1.0.3",
  "cw-vault-standard",
  "cw2 1.1.2",
+ "mars-address-provider",
  "mars-mock-credit-manager",
  "mars-mock-oracle",
+ "mars-mock-red-bank",
  "mars-mock-vault",
  "mars-owner",
  "mars-params",

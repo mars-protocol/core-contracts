@@ -15,7 +15,7 @@ use mars_types::{
     oracle::{ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg},
     params::AssetParamsUpdate,
     red_bank::{
-        CreateOrUpdateConfig, ExecuteMsg as ExecuteRedBank,
+        CreateOrUpdateConfig,
         ExecuteMsg::{Borrow, Deposit},
         InstantiateMsg as InstantiateRedBank,
     },
@@ -1379,18 +1379,8 @@ fn setup_redbank(wasm: &Wasm<OsmosisTestApp>, signer: &SigningAccount) -> (Strin
     )
     .unwrap();
 
-    let (market_params, asset_params) = default_asset_params("uosmo");
+    let asset_params = default_asset_params("uosmo");
 
-    wasm.execute(
-        &red_bank_addr,
-        &ExecuteRedBank::InitAsset {
-            denom: "uosmo".to_string(),
-            params: market_params,
-        },
-        &[],
-        signer,
-    )
-    .unwrap();
     wasm.execute(
         &params_addr,
         &mars_types::params::ExecuteMsg::UpdateAssetParams(AssetParamsUpdate::AddOrUpdate {
@@ -1401,18 +1391,7 @@ fn setup_redbank(wasm: &Wasm<OsmosisTestApp>, signer: &SigningAccount) -> (Strin
     )
     .unwrap();
 
-    let (market_params, asset_params) = default_asset_params("uatom");
-
-    wasm.execute(
-        &red_bank_addr,
-        &ExecuteRedBank::InitAsset {
-            denom: "uatom".to_string(),
-            params: market_params,
-        },
-        &[],
-        signer,
-    )
-    .unwrap();
+    let asset_params = default_asset_params("uatom");
 
     wasm.execute(
         &params_addr,

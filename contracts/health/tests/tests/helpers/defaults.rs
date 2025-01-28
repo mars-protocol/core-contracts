@@ -1,8 +1,11 @@
 use std::str::FromStr;
 
 use cosmwasm_std::Decimal;
-use mars_types::params::{
-    AssetParamsUnchecked, CmSettings, HlsParamsUnchecked, LiquidationBonus, RedBankSettings,
+use mars_types::{
+    params::{
+        AssetParamsUnchecked, CmSettings, HlsParamsUnchecked, LiquidationBonus, RedBankSettings,
+    },
+    red_bank::InterestRateModel,
 };
 
 pub fn default_asset_params(denom: &str) -> AssetParamsUnchecked {
@@ -33,5 +36,12 @@ pub fn default_asset_params(denom: &str) -> AssetParamsUnchecked {
         protocol_liquidation_fee: Decimal::percent(2u64),
         deposit_cap: Default::default(),
         close_factor: Decimal::percent(80u64),
+        reserve_factor: Decimal::percent(10u64),
+        interest_rate_model: InterestRateModel {
+            optimal_utilization_rate: Decimal::percent(80u64),
+            base: Decimal::zero(),
+            slope_1: Decimal::percent(7u64),
+            slope_2: Decimal::percent(45u64),
+        },
     }
 }

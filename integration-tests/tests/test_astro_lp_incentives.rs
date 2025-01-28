@@ -26,7 +26,7 @@ fn can_be_first_staker() {
     let lp_coin = coin(1_000_000_000, lp_denom.to_string());
 
     // Set asset params for lp token
-    let (_, asset_params) = default_asset_params(lp_denom);
+    let asset_params = default_asset_params(lp_denom);
     params.init_params(&mut mock_env, asset_params);
 
     // Fund accounts
@@ -67,7 +67,7 @@ fn claim_rewards() {
     };
 
     // Set asset params for lp token
-    let (_, asset_params) = default_asset_params(lp_denom);
+    let asset_params = default_asset_params(lp_denom);
     params.init_params(&mut mock_env, asset_params);
 
     // Fund accounts
@@ -123,7 +123,7 @@ fn claim_rewards_without_active_schedule() {
     };
 
     // Set asset params for lp token
-    let (_, asset_params) = default_asset_params(lp_denom);
+    let asset_params = default_asset_params(lp_denom);
     params.init_params(&mut mock_env, asset_params);
 
     // Fund accounts
@@ -172,7 +172,7 @@ fn unstake_claims_rewards() {
     };
 
     // Set asset params for lp token
-    let (_, asset_params) = default_asset_params(lp_denom);
+    let asset_params = default_asset_params(lp_denom);
     params.init_params(&mut mock_env, asset_params);
 
     // Fund accounts
@@ -304,7 +304,7 @@ impl AstroIncentivesTestHelper {
         let params = mock_env.params.clone();
 
         // Set asset params for lp token
-        let (_, asset_params) = default_asset_params(lp_denom.as_str());
+        let asset_params = default_asset_params(lp_denom.as_str());
         params.init_params(&mut mock_env, asset_params);
 
         // Fund accounts we need funded
