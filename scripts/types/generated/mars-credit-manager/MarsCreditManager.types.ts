@@ -145,6 +145,11 @@ export type Action =
       }
     }
   | {
+      close_perp_position: {
+        denom: string
+      }
+    }
+  | {
       create_trigger_order: {
         actions: Action[]
         conditions: Condition[]
@@ -442,6 +447,12 @@ export type CallbackMsg =
         denom: string
         reduce_only?: boolean | null
         size: Int128
+      }
+    }
+  | {
+      close_perp_position: {
+        account_id: string
+        denom: string
       }
     }
   | {

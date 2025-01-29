@@ -693,7 +693,29 @@
             "additionalProperties": false
           },
           {
-            "description": "Dispatch orders to be triggered under specified conditions",
+            "description": "Executes a perp order against the given market for the current position size to close the position.",
+            "type": "object",
+            "required": [
+              "close_perp_position"
+            ],
+            "properties": {
+              "close_perp_position": {
+                "type": "object",
+                "required": [
+                  "denom"
+                ],
+                "properties": {
+                  "denom": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Dispatch orders to be triggered under specified conditions.",
             "type": "object",
             "required": [
               "create_trigger_order"
@@ -760,7 +782,7 @@
             "additionalProperties": false
           },
           {
-            "description": "Deposit coins into vault strategy If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault",
+            "description": "Deposit coins into vault strategy. If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault.",
             "type": "object",
             "required": [
               "enter_vault"
@@ -1744,6 +1766,32 @@
                   },
                   "size": {
                     "$ref": "#/definitions/Int128"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Executes a perp order against the given market for the current position size.",
+            "type": "object",
+            "required": [
+              "close_perp_position"
+            ],
+            "properties": {
+              "close_perp_position": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "denom"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "denom": {
+                    "type": "string"
                   }
                 },
                 "additionalProperties": false
@@ -4150,7 +4198,29 @@
               "additionalProperties": false
             },
             {
-              "description": "Dispatch orders to be triggered under specified conditions",
+              "description": "Executes a perp order against the given market for the current position size to close the position.",
+              "type": "object",
+              "required": [
+                "close_perp_position"
+              ],
+              "properties": {
+                "close_perp_position": {
+                  "type": "object",
+                  "required": [
+                    "denom"
+                  ],
+                  "properties": {
+                    "denom": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Dispatch orders to be triggered under specified conditions.",
               "type": "object",
               "required": [
                 "create_trigger_order"
@@ -4217,7 +4287,7 @@
               "additionalProperties": false
             },
             {
-              "description": "Deposit coins into vault strategy If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault",
+              "description": "Deposit coins into vault strategy. If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault.",
               "type": "object",
               "required": [
                 "enter_vault"
@@ -5400,7 +5470,29 @@
               "additionalProperties": false
             },
             {
-              "description": "Dispatch orders to be triggered under specified conditions",
+              "description": "Executes a perp order against the given market for the current position size to close the position.",
+              "type": "object",
+              "required": [
+                "close_perp_position"
+              ],
+              "properties": {
+                "close_perp_position": {
+                  "type": "object",
+                  "required": [
+                    "denom"
+                  ],
+                  "properties": {
+                    "denom": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Dispatch orders to be triggered under specified conditions.",
               "type": "object",
               "required": [
                 "create_trigger_order"
@@ -5467,7 +5559,7 @@
               "additionalProperties": false
             },
             {
-              "description": "Deposit coins into vault strategy If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault",
+              "description": "Deposit coins into vault strategy. If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault.",
               "type": "object",
               "required": [
                 "enter_vault"

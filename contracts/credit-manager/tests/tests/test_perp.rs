@@ -5,7 +5,7 @@ use mars_credit_manager::error::ContractError;
 use mars_mock_oracle::msg::CoinPrice;
 use mars_types::{
     credit_manager::{
-        Action::{Deposit, ExecutePerpOrder, Lend, Withdraw},
+        Action::{ClosePerpPosition, Deposit, ExecutePerpOrder, Lend, Withdraw},
         ActionAmount, ActionCoin, ExecutePerpOrderType, Positions,
     },
     oracle::ActionKind,
@@ -992,6 +992,128 @@ fn health_check_works_if_no_spot_base_denom() {
     // there should be no perp position
     let position = mock.query_positions(&account_id);
     assert!(position.perps.is_empty());
+}
+
+#[test]
+fn close_perp_position() {
+    let osmo_info = uosmo_info();
+    let atom_info = uatom_info();
+    let usdc_info = coin_info("uusdc");
+
+    let osmo_coin_deposited = osmo_info.to_coin(10000);
+    let usdc_coin_deposited = usdc_info.to_coin(1000);
+
+    let cm_user = Addr::unchecked("user");
+
+    let (mut mock, account_id) = setup(
+        &osmo_info,
+        &atom_info,
+        &usdc_info,
+        &osmo_coin_deposited,
+        &usdc_coin_deposited,
+        &cm_user,
+    );
+
+    let perp_size = Int128::from_str("200").unwrap();
+
+    // check perp data before any action
+    let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let opening_fee = mock.query_perp_opening_fee(&atom_info.denom, perp_size);
+
+    // wrongly try to close a not existing position
+    let res = mock.update_credit_account(
+        &account_id,
+        &cm_user,
+        vec![ClosePerpPosition {
+            denom: atom_info.denom.clone(),
+        }],
+        &[],
+    );
+
+    assert_err(
+        res,
+        ContractError::NoPerpPosition {
+            denom: atom_info.denom.clone(),
+        },
+    );
+
+    // open perp position
+    mock.update_credit_account(
+        &account_id,
+        &cm_user,
+        vec![ExecutePerpOrder {
+            denom: atom_info.denom.clone(),
+            order_size: perp_size,
+            reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
+        }],
+        &[],
+    )
+    .unwrap();
+
+    // check position data
+    let position = mock.query_positions(&account_id);
+    assert_eq!(position.deposits.len(), 2);
+    assert_present(&position, &osmo_coin_deposited.denom, osmo_coin_deposited.amount);
+    let expected_pos_usdc_amt_after_opening_perp =
+        usdc_coin_deposited.amount - opening_fee.fee.amount; // opening fee deducted from deposit
+    assert_present(&position, &usdc_coin_deposited.denom, expected_pos_usdc_amt_after_opening_perp);
+    assert_eq!(position.lends.len(), 0);
+    assert_eq!(position.debts.len(), 0);
+    assert_eq!(position.perps.len(), 1);
+    let perp_position = position.perps.first().unwrap().clone();
+    let expected_perp_position =
+        mock.query_perp_position(&account_id, &atom_info.denom).position.unwrap();
+    assert_eq!(perp_position, expected_perp_position);
+
+    // check if perp balance increased by opening fee
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    let expected_vault_usdc_balance_after_opening_perp =
+        vault_usdc_balance.amount + opening_fee.fee.amount;
+    assert_eq!(current_vault_usdc_balance.amount, expected_vault_usdc_balance_after_opening_perp);
+
+    // simulate profit in perp position
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: atom_info.denom.clone(),
+        price: atom_info.price * Decimal::percent(120u64), // 20% profit in price
+    });
+
+    // check perp position pnl
+    let perp_position = mock.query_perp_position(&account_id, &atom_info.denom).position.unwrap();
+    let profit_amt =
+        pnl_profit(perp_position.unrealized_pnl.to_coins(&perp_position.base_denom).pnl);
+
+    // close perp position
+    mock.update_credit_account(
+        &account_id,
+        &cm_user,
+        vec![ClosePerpPosition {
+            denom: atom_info.denom.clone(),
+        }],
+        &[],
+    )
+    .unwrap();
+
+    // check position data
+    let position = mock.query_positions(&account_id);
+    assert_eq!(position.deposits.len(), 2);
+    assert_present(&position, &osmo_coin_deposited.denom, osmo_coin_deposited.amount);
+    assert_present(
+        &position,
+        &usdc_coin_deposited.denom,
+        expected_pos_usdc_amt_after_opening_perp + profit_amt, // deposit increased by perp profit
+    );
+    assert_eq!(position.lends.len(), 0);
+    assert_eq!(position.debts.len(), 0);
+    assert_eq!(position.perps.len(), 0);
+
+    // check if perp balance decreased by position profit
+    let current_vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
+    assert_eq!(
+        current_vault_usdc_balance.amount,
+        expected_vault_usdc_balance_after_opening_perp - profit_amt
+    );
 }
 
 fn setup(

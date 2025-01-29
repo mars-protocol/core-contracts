@@ -240,7 +240,13 @@ pub enum Action {
         order_type: Option<ExecutePerpOrderType>,
     },
 
-    /// Dispatch orders to be triggered under specified conditions
+    /// Executes a perp order against the given market for the current position size to close the
+    /// position.
+    ClosePerpPosition {
+        denom: String,
+    },
+
+    /// Dispatch orders to be triggered under specified conditions.
     CreateTriggerOrder {
         actions: Vec<Action>,
         conditions: Vec<Condition>,
@@ -252,8 +258,8 @@ pub enum Action {
         trigger_order_id: String,
     },
 
-    /// Deposit coins into vault strategy
-    /// If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault
+    /// Deposit coins into vault strategy.
+    /// If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault.
     EnterVault {
         vault: VaultUnchecked,
         coin: ActionCoin,
@@ -433,6 +439,11 @@ pub enum CallbackMsg {
         denom: String,
         size: Int128,
         reduce_only: Option<bool>,
+    },
+    /// Executes a perp order against the given market for the current position size.
+    ClosePerpPosition {
+        account_id: String,
+        denom: String,
     },
     /// Requests unlocking of shares for a vault with a lock period
     RequestVaultUnlock {

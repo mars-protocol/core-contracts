@@ -25,7 +25,7 @@ use crate::{
     liquidate_astro_lp::liquidate_astro_lp,
     liquidate_deposit::liquidate_deposit,
     liquidate_lend::liquidate_lend,
-    perp::{close_all_perps, execute_perp_order},
+    perp::{close_all_perps, close_perp_position, execute_perp_order},
     perp_vault::{deposit_to_perp_vault, unlock_from_perp_vault, withdraw_from_perp_vault},
     reclaim::reclaim,
     refund::refund_coin_balances,
@@ -266,6 +266,12 @@ pub fn dispatch_actions(
                 denom,
                 size,
                 reduce_only,
+            }),
+            Action::ClosePerpPosition {
+                denom,
+            } => callbacks.push(CallbackMsg::ClosePerpPosition {
+                denom,
+                account_id: account_id.to_string(),
             }),
             Action::CreateTriggerOrder {
                 actions,
@@ -613,6 +619,10 @@ pub fn execute_callback(
             account_id,
             trigger_order_id,
         } => delete_trigger_order(deps, &account_id, &trigger_order_id),
+        CallbackMsg::ClosePerpPosition {
+            denom,
+            account_id,
+        } => close_perp_position(deps, &account_id, &denom),
         CallbackMsg::CloseAllPerps {
             account_id,
         } => close_all_perps(deps, &account_id, ActionKind::Liquidation),

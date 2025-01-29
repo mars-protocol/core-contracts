@@ -39,10 +39,13 @@ pub fn create_trigger_order(
     );
 
     // Ensure that the trigger order does not contain any illegal actions
-    // Initially, this is limited to just execute_perp_order and lend
-    let contains_legal_actions = actions
-        .iter()
-        .all(|action| matches!(action, Action::ExecutePerpOrder { .. } | Action::Lend(..)));
+    // Initially, this is limited to just execute_perp_order, lend and close_perp_position
+    let contains_legal_actions = actions.iter().all(|action| {
+        matches!(
+            action,
+            Action::ExecutePerpOrder { .. } | Action::Lend(..) | Action::ClosePerpPosition { .. }
+        )
+    });
     ensure!(contains_legal_actions, ContractError::IllegalTriggerAction);
 
     // Generate & increment id
@@ -304,39 +307,43 @@ pub fn remove_invalid_trigger_orders(
         let (_, trigger_order) = item?;
 
         for action in trigger_order.actions {
-            if let Action::ExecutePerpOrder {
-                denom,
-                reduce_only,
-                ..
-            } = action
-            {
-                // Only check orders with `reduce_only` and for the same market
-                if reduce_only.unwrap_or(false) && denom == *market.to_string() {
-                    let mut is_child = false;
+            let should_check_order = match action {
+                Action::ClosePerpPosition {
+                    denom,
+                } => denom == market,
+                Action::ExecutePerpOrder {
+                    denom,
+                    reduce_only,
+                    ..
+                } => reduce_only.unwrap_or(false) && denom == market,
+                _ => false,
+            };
 
-                    for condition in &trigger_order.conditions {
-                        // It's a child order
-                        if let Condition::TriggerOrderExecuted {
-                            trigger_order_id,
-                        } = condition
-                        {
-                            is_child = true;
-                            let is_parent_executed = EXECUTED_TRIGGER_ORDERS
-                                .may_load(storage, (account_id, trigger_order_id))?
-                                .is_some();
+            if should_check_order {
+                let mut is_child = false;
 
-                            // Remove this order
-                            if is_parent_executed {
-                                order_ids_to_remove.push(trigger_order.order_id.clone());
-                            }
+                for condition in &trigger_order.conditions {
+                    if let Condition::TriggerOrderExecuted {
+                        trigger_order_id,
+                    } = condition
+                    {
+                        is_child = true;
+                        let is_parent_executed = EXECUTED_TRIGGER_ORDERS
+                            .may_load(storage, (account_id, trigger_order_id))?
+                            .is_some();
+
+                        if is_parent_executed {
+                            order_ids_to_remove.push(trigger_order.order_id.clone());
+                            break;
                         }
                     }
-
-                    // Any parent_orders
-                    if !is_child {
-                        order_ids_to_remove.push(trigger_order.order_id.clone());
-                    }
                 }
+
+                if !is_child {
+                    order_ids_to_remove.push(trigger_order.order_id.clone());
+                }
+
+                break; // Exit action loop once we've found a matching action
             }
         }
     }
@@ -380,6 +387,9 @@ pub fn check_order_relations_and_set_parent_id(
                     CreateTriggerOrderType::Parent => {
                         ensure_parent_order_conditions(conditions, is_trigger_order_initialized)?;
 
+                        // We only need to check what ID will be assigned during the actual
+                        // execution of the action. So there is no need to increment the
+                        // NEXT_TRIGGER_ID here.
                         let order_id = NEXT_TRIGGER_ID.load(storage)?;
                         parent_order_id = Some(order_id.to_string());
                     }

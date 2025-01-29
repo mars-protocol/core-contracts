@@ -263,4 +263,9 @@ pub enum ContractError {
 
     #[error("Parent order has to be the first order in the transaction")]
     InvalidParentOrderPosition,
+
+    #[error("Perp position not found for denom {denom:?}")]
+    NoPerpPosition {
+        denom: String,
+    },
 }

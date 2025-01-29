@@ -8,8 +8,8 @@ use mars_testing::multitest::helpers::AccountToFund;
 use mars_types::{
     credit_manager::{
         Action::{
-            self, CreateTriggerOrder, DeleteTriggerOrder, Deposit, ExecutePerpOrder, Lend,
-            Liquidate,
+            self, ClosePerpPosition, CreateTriggerOrder, DeleteTriggerOrder, Deposit,
+            ExecutePerpOrder, Lend, Liquidate,
         },
         ActionAmount, ActionCoin, Comparison,
         Condition::{HealthFactor, OraclePrice},
@@ -144,6 +144,54 @@ fn lend_action_whitelisted_in_trigger_orders() {
                 conditions: vec![OraclePrice {
                     denom: "perp1".to_string(),
                     price: Decimal::from_str("100").unwrap(),
+                    comparison: Comparison::GreaterThan,
+                }],
+                keeper_fee: keeper_fee.clone(),
+            },
+        ],
+        &[keeper_fee.clone()],
+    )
+    .unwrap();
+}
+
+#[test]
+fn close_perp_position_action_whitelisted_in_trigger_orders() {
+    let user = Addr::unchecked("user");
+    let keeper_fee = Coin {
+        denom: "uusdc".to_string(),
+        amount: Uint128::new(1000000),
+    };
+
+    let mut mock = MockEnv::new()
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![Coin {
+                denom: "uusdc".to_string(),
+                amount: Uint128::new(10000000000000),
+            }],
+        })
+        .build()
+        .unwrap();
+
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params("perp1"),
+    });
+
+    let account_id = mock.create_credit_account(&user).unwrap();
+
+    mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Deposit(keeper_fee.clone()),
+            CreateTriggerOrder {
+                order_type: Some(CreateTriggerOrderType::Default),
+                actions: vec![ClosePerpPosition {
+                    denom: "perp1".to_string(),
+                }],
+                conditions: vec![OraclePrice {
+                    denom: "perp1".to_string(),
+                    price: Decimal::from_str("120").unwrap(),
                     comparison: Comparison::GreaterThan,
                 }],
                 keeper_fee: keeper_fee.clone(),

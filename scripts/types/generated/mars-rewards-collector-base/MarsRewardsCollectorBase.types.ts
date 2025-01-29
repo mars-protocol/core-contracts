@@ -144,6 +144,11 @@ export type Action =
       }
     }
   | {
+      close_perp_position: {
+        denom: string
+      }
+    }
+  | {
       create_trigger_order: {
         actions: Action[]
         conditions: Condition[]
