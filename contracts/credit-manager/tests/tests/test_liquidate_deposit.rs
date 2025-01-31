@@ -6,6 +6,7 @@ use mars_credit_manager::error::{
     ContractError::{AboveMaxLTV, LiquidationNotProfitable, NotLiquidatable},
 };
 use mars_mock_oracle::msg::CoinPrice;
+use mars_testing::multitest::helpers::blacklisted_coin_info;
 use mars_types::{
     credit_manager::{
         Action::{Borrow, Deposit, EnterVault, Liquidate, Withdraw},
@@ -186,6 +187,145 @@ fn liquidatee_does_not_have_requested_asset() {
     );
 
     assert_err(res, ContractError::CoinNotAvailable(ujake_info.denom))
+}
+
+#[test]
+fn can_not_request_blacklisted_asset() {
+    let uosmo_info = uosmo_info();
+    let uatom_info = uatom_info();
+    let ujake_info = ujake_info();
+    let blacklisted_info = blacklisted_coin_info();
+
+    let liquidatee = Addr::unchecked("liquidatee");
+    let mut mock = MockEnv::new()
+        .set_params(&[
+            uosmo_info.clone(),
+            uatom_info.clone(),
+            ujake_info.clone(),
+            blacklisted_info.clone(),
+        ])
+        .fund_account(AccountToFund {
+            addr: liquidatee.clone(),
+            funds: coins(300, uosmo_info.denom.clone()),
+        })
+        .fund_account(AccountToFund {
+            addr: liquidatee.clone(),
+            funds: coins(500, blacklisted_info.denom.clone()),
+        })
+        .build()
+        .unwrap();
+    let liquidatee_account_id = mock.create_credit_account(&liquidatee).unwrap();
+
+    mock.update_credit_account(
+        &liquidatee_account_id,
+        &liquidatee,
+        vec![
+            Deposit(uosmo_info.to_coin(300)),
+            Deposit(blacklisted_info.to_coin(500)),
+            Borrow(uatom_info.to_coin(105)),
+        ],
+        &[Coin::new(300, uosmo_info.denom), Coin::new(500, blacklisted_info.denom.clone())],
+    )
+    .unwrap();
+
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
+    assert!(!health.liquidatable);
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Liquidation,
+        denom: uatom_info.denom.clone(),
+        price: Decimal::from_atomics(20u128, 0).unwrap(),
+    });
+
+    let liquidator = Addr::unchecked("liquidator");
+    let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
+
+    let res = mock.update_credit_account(
+        &liquidator_account_id,
+        &liquidator,
+        vec![
+            Borrow(uatom_info.to_coin(50)),
+            Liquidate {
+                liquidatee_account_id: liquidatee_account_id.clone(),
+                debt_coin: uatom_info.to_coin(10),
+                request: LiquidateRequest::Deposit(blacklisted_info.denom.clone()),
+            },
+        ],
+        &[],
+    );
+
+    // Since the request involves a blacklisted asset (which isn’t considered for the Health Factor), the liquidation should be rejected.
+    // The requested coin doesn't have any value in the liquidation process.
+    assert_err(
+        res,
+        ContractError::LiquidationNotProfitable {
+            debt_coin: uatom_info.to_coin(0),
+            request_coin: blacklisted_info.to_coin(0),
+        },
+    )
+}
+
+#[test]
+fn can_not_request_asset_from_trade_any_asset_feature() {
+    let uosmo_info = uosmo_info();
+    let uatom_info = uatom_info();
+    let ujake_info = ujake_info();
+    let blacklisted_info = blacklisted_coin_info();
+
+    let liquidatee = Addr::unchecked("liquidatee");
+    let mut mock = MockEnv::new()
+        .set_params(&[uosmo_info.clone(), uatom_info.clone(), ujake_info.clone()]) // Don't include blacklisted_info, simulate it as a trade-any-asset feature
+        .fund_account(AccountToFund {
+            addr: liquidatee.clone(),
+            funds: coins(300, uosmo_info.denom.clone()),
+        })
+        .fund_account(AccountToFund {
+            addr: liquidatee.clone(),
+            funds: coins(500, blacklisted_info.denom.clone()),
+        })
+        .build()
+        .unwrap();
+    let liquidatee_account_id = mock.create_credit_account(&liquidatee).unwrap();
+
+    mock.update_credit_account(
+        &liquidatee_account_id,
+        &liquidatee,
+        vec![
+            Deposit(uosmo_info.to_coin(300)),
+            Deposit(blacklisted_info.to_coin(500)),
+            Borrow(uatom_info.to_coin(105)),
+        ],
+        &[Coin::new(300, uosmo_info.denom), Coin::new(500, blacklisted_info.denom.clone())],
+    )
+    .unwrap();
+
+    let health = mock.query_health(&liquidatee_account_id, ActionKind::Liquidation);
+    assert!(!health.liquidatable);
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Liquidation,
+        denom: uatom_info.denom.clone(),
+        price: Decimal::from_atomics(20u128, 0).unwrap(),
+    });
+
+    let liquidator = Addr::unchecked("liquidator");
+    let liquidator_account_id = mock.create_credit_account(&liquidator).unwrap();
+
+    // Should fail, no param / pricing for requested asset
+    mock.update_credit_account(
+        &liquidator_account_id,
+        &liquidator,
+        vec![
+            Borrow(uatom_info.to_coin(50)),
+            Liquidate {
+                liquidatee_account_id: liquidatee_account_id.clone(),
+                debt_coin: uatom_info.to_coin(10),
+                request: LiquidateRequest::Deposit(blacklisted_info.denom.clone()),
+            },
+        ],
+        &[],
+    )
+    .unwrap_err();
 }
 
 #[test]
