@@ -1943,11 +1943,10 @@ fn deploy_nft_contract(app: &mut CustomApp, minter: &Addr) -> Addr {
         minter.clone(),
         &NftInstantiateMsg {
             max_value_for_burn: Default::default(),
-            health_contract: None,
             name: "Rover Credit Account".to_string(),
             symbol: "RCA".to_string(),
             minter: minter.to_string(),
-            credit_manager_contract: None,
+            address_provider_contract: "ap_contract".to_string(), // dummy value because burning is not used in tests
         },
         &[],
         "manager-mock-account-nft",

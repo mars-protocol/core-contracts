@@ -152,6 +152,7 @@ export class Deployer {
   async instantiateNftContract() {
     const msg: NftInstantiateMsg = {
       max_value_for_burn: this.config.maxValueForBurn,
+      address_provider_contract: this.storage.addresses.addressProvider!,
       minter: this.deployerAddr,
       name: 'credit-manager-accounts',
       symbol: 'rNFT',
@@ -226,8 +227,7 @@ export class Deployer {
       )
       await hExec.updateNftConfig({
         config: {
-          health_contract_addr: this.storage.addresses.health!,
-          credit_manager_contract_addr: this.storage.addresses.creditManager!,
+          address_provider_contract_addr: this.storage.addresses.addressProvider!,
         },
       })
 
@@ -683,6 +683,10 @@ export class Deployer {
       {
         address: this.storage.addresses.perps!,
         address_type: 'perps',
+      },
+      {
+        address: this.storage.addresses.health!,
+        address_type: 'health',
       },
     ]
 

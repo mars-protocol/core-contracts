@@ -1,31 +1,22 @@
 {
   "contract_name": "mars-account-nft",
-  "contract_version": "2.2.0",
+  "contract_version": "2.2.1",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "InstantiateMsg",
     "type": "object",
     "required": [
+      "address_provider_contract",
       "max_value_for_burn",
       "minter",
       "name",
       "symbol"
     ],
     "properties": {
-      "credit_manager_contract": {
-        "description": "Used to query the account kind",
-        "type": [
-          "string",
-          "null"
-        ]
-      },
-      "health_contract": {
-        "description": "Used to validate the account id's health status allows for burning. Can be set later, but no burning allowed until set.",
-        "type": [
-          "string",
-          "null"
-        ]
+      "address_provider_contract": {
+        "description": "Used to query contract addresses to validate the account state in other contracts",
+        "type": "string"
       },
       "max_value_for_burn": {
         "description": "The maximum value of Debts + Collaterals (denominated in base token) for an account before burns are disallowed for the NFT. Meant to prevent accidental account deletions",
@@ -418,13 +409,7 @@
       "NftConfigUpdates": {
         "type": "object",
         "properties": {
-          "credit_manager_contract_addr": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "health_contract_addr": {
+          "address_provider_contract_addr": {
             "type": [
               "string",
               "null"
@@ -1281,20 +1266,12 @@
       "title": "NftConfigBase_for_String",
       "type": "object",
       "required": [
+        "address_provider_contract_addr",
         "max_value_for_burn"
       ],
       "properties": {
-        "credit_manager_contract_addr": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "health_contract_addr": {
-          "type": [
-            "string",
-            "null"
-          ]
+        "address_provider_contract_addr": {
+          "type": "string"
         },
         "max_value_for_burn": {
           "$ref": "#/definitions/Uint128"

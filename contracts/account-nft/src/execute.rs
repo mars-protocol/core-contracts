@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    to_json_binary, DepsMut, Empty, Env, MessageInfo, QueryRequest, Response, WasmQuery,
+    to_json_binary, Addr, DepsMut, Empty, Env, MessageInfo, QueryRequest, Response, WasmQuery,
 };
 use cw721::Cw721Execute;
 use cw721_base::{
@@ -8,13 +8,15 @@ use cw721_base::{
 };
 use mars_types::{
     account_nft::NftConfigUpdates,
+    adapters::perps::PerpsBase,
+    address_provider::{self, MarsAddressType},
     health::{HealthValuesResponse, QueryMsg::HealthValues},
     oracle::ActionKind,
 };
 
 use crate::{
     contract::Parent,
-    error::ContractError::{self, BaseError, BurnNotAllowed, HealthContractNotSet},
+    error::ContractError::{self, BaseError, BurnNotAllowed},
     state::{CONFIG, NEXT_ID},
 };
 
@@ -36,13 +38,19 @@ pub fn burn(
     token_id: String,
 ) -> Result<Response, ContractError> {
     let config = CONFIG.load(deps.storage)?;
-    let Some(health_contract_addr) = config.health_contract_addr else {
-        return Err(HealthContractNotSet);
-    };
+
+    let addresses = address_provider::helpers::query_contract_addrs(
+        deps.as_ref(),
+        &config.address_provider_contract_addr,
+        vec![MarsAddressType::Health, MarsAddressType::CreditManager, MarsAddressType::Perps],
+    )?;
+    let health_addr = &addresses[&MarsAddressType::Health];
+    let cm_addr = &addresses[&MarsAddressType::CreditManager];
+    let perps_addr = &addresses[&MarsAddressType::Perps];
 
     let response: HealthValuesResponse =
         deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: health_contract_addr.into(),
+            contract_addr: health_addr.into(),
             msg: to_json_binary(&HealthValues {
                 account_id: token_id.clone(),
                 action: ActionKind::Default,
@@ -64,6 +72,22 @@ pub fn burn(
         });
     }
 
+    if response.has_perps {
+        return Err(BurnNotAllowed {
+            reason: "Account has active perp positions".to_string(),
+        });
+    }
+
+    let perps: PerpsBase<Addr> = PerpsBase::new(perps_addr.clone());
+    let vault_pos = perps.query_vault_position(&deps.querier, cm_addr, token_id.clone())?;
+    if let Some(pos) = vault_pos {
+        if !pos.deposit.amount.is_zero() || !pos.unlocks.is_empty() {
+            return Err(BurnNotAllowed {
+                reason: "Account has active perp vault deposits / unlocks".to_string(),
+            });
+        }
+    }
+
     Parent::default().burn(deps, env, info, token_id).map_err(Into::into)
 }
 
@@ -82,19 +106,11 @@ pub fn update_config(
     let mut response = Response::new().add_attribute("action", "update_config");
     let mut config = CONFIG.load(deps.storage)?;
 
-    if let Some(unchecked) = updates.health_contract_addr {
+    if let Some(unchecked) = updates.address_provider_contract_addr {
         let addr = deps.api.addr_validate(&unchecked)?;
-        config.health_contract_addr = Some(addr.clone());
+        config.address_provider_contract_addr = addr.clone();
         response = response
-            .add_attribute("key", "health_contract_addr")
-            .add_attribute("value", addr.to_string());
-    }
-
-    if let Some(unchecked) = updates.credit_manager_contract_addr {
-        let addr = deps.api.addr_validate(&unchecked)?;
-        config.credit_manager_contract_addr = Some(addr.clone());
-        response = response
-            .add_attribute("key", "credit_manager_contract_addr")
+            .add_attribute("key", "address_provider_contract_addr")
             .add_attribute("value", addr.to_string());
     }
 
