@@ -557,6 +557,7 @@ export type HealthState =
   | 'healthy'
   | {
       unhealthy: {
+        liquidation_health_factor: Decimal
         max_ltv_health_factor: Decimal
       }
     }

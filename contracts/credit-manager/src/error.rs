@@ -88,6 +88,14 @@ pub enum ContractError {
         new_hf: String,
     },
 
+    #[error(
+        "Actions result in a lower liquidation health factor: before: {prev_hf:?}, after: {new_hf:?}"
+    )]
+    UnhealthyLiquidationHfDecrease {
+        prev_hf: String,
+        new_hf: String,
+    },
+
     #[error("{reason:?}")]
     HLS {
         reason: String,
