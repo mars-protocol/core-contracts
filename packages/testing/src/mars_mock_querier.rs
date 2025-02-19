@@ -40,6 +40,7 @@ use crate::{
     red_bank_querier::RedBankQuerier,
     redemption_rate_querier::RedemptionRateQuerier,
     slinky_querier::SlinkyQuerier,
+    swapper_querier::SwapperQuerier,
 };
 
 pub struct MarsMockQuerier {
@@ -55,6 +56,7 @@ pub struct MarsMockQuerier {
     cosmwasm_pool_queries: CosmWasmPoolQuerier,
     slinky_querier: SlinkyQuerier,
     perps_querier: PerpsQuerier,
+    swapper_querier: SwapperQuerier,
 }
 
 impl Querier for MarsMockQuerier {
@@ -106,6 +108,7 @@ impl MarsMockQuerier {
             cosmwasm_pool_queries: CosmWasmPoolQuerier::default(),
             slinky_querier: SlinkyQuerier::default(),
             perps_querier: PerpsQuerier::default(),
+            swapper_querier: SwapperQuerier::default(),
         }
     }
 
@@ -163,6 +166,10 @@ impl MarsMockQuerier {
 
     pub fn set_query_pool_response(&mut self, pool_id: u64, pool_response: PoolResponse) {
         self.osmosis_querier.pools.insert(pool_id, pool_response);
+    }
+
+    pub fn set_swapper_estimate_price(&mut self, denom: &str, price: Decimal) {
+        self.swapper_querier.swap_prices.insert(denom.to_string(), price);
     }
 
     pub fn set_spot_price(
@@ -364,14 +371,18 @@ impl MarsMockQuerier {
                     return self.params_querier.handle_query(params_query);
                 }
 
-                // Params Queries
+                // Perps Queries
                 if let Ok(perps_query) = from_json::<mars_types::perps::QueryMsg>(msg) {
                     return self.perps_querier.handle_query(perps_query);
                 }
 
+                // Swapper Queries
+                if let Ok(swapper_query) = from_json::<mars_types::swapper::QueryMsg>(msg) {
+                    return self.swapper_querier.handle_query(&contract_addr, swapper_query);
+                }
+
                 // CosmWasm pool Queries
                 if let Ok(cw_pool_query) = from_json::<CalcOutAmtGivenInRequest>(msg) {
-                    println!("query: {:?}", cw_pool_query);
                     return self.cosmwasm_pool_queries.handle_query(cw_pool_query);
                 }
 
