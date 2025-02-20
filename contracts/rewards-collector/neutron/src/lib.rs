@@ -7,7 +7,7 @@ pub mod entry {
     };
     use cw2::set_contract_version;
     use mars_rewards_collector_base::{contract::Collector, ContractResult};
-    use mars_types::rewards_collector::{ExecuteMsg, InstantiateMsg, QueryMsg};
+    use mars_types::rewards_collector::{ExecuteMsg, InstantiateMsg, NeutronMigrateMsg, QueryMsg};
 
     use crate::migrations;
 
@@ -46,7 +46,10 @@ pub mod entry {
     }
 
     #[entry_point]
-    pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> ContractResult<Response> {
-        migrations::v2_2_0::migrate(deps)
+    pub fn migrate(deps: DepsMut, _env: Env, msg: NeutronMigrateMsg) -> ContractResult<Response> {
+        match msg {
+            NeutronMigrateMsg::V2_1_0ToV2_2_0 {} => migrations::v2_2_0::migrate(deps),
+            NeutronMigrateMsg::V2_2_0ToV2_2_1 {} => migrations::v2_2_1::migrate(deps),
+        }
     }
 }

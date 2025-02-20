@@ -38,7 +38,7 @@ pub mod entry {
     use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
     use cw2::set_contract_version;
     use mars_rewards_collector_base::{ContractError, ContractResult};
-    use mars_types::rewards_collector::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+    use mars_types::rewards_collector::{ExecuteMsg, InstantiateMsg, OsmosisMigrateMsg, QueryMsg};
 
     use crate::{migrations, OsmosisCollector};
 
@@ -75,10 +75,15 @@ pub mod entry {
     }
 
     #[entry_point]
-    pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    pub fn migrate(
+        deps: DepsMut,
+        _env: Env,
+        msg: OsmosisMigrateMsg,
+    ) -> Result<Response, ContractError> {
         match msg {
-            MigrateMsg::V1_0_0ToV2_0_0 {} => migrations::v2_0_0::migrate(deps),
-            MigrateMsg::V2_0_0ToV2_0_1 {} => migrations::v2_0_1::migrate(deps),
+            OsmosisMigrateMsg::V1_0_0ToV2_0_0 {} => migrations::v2_0_0::migrate(deps),
+            OsmosisMigrateMsg::V2_0_0ToV2_0_1 {} => migrations::v2_0_1::migrate(deps),
+            OsmosisMigrateMsg::V2_1_0ToV2_1_1 {} => migrations::v2_1_1::migrate(deps),
         }
     }
 }
