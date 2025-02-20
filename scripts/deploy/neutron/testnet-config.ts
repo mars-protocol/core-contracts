@@ -1,5 +1,4 @@
 import { DeploymentConfig, AssetConfig, OracleConfig, PerpDenom } from '../../types/config'
-import { NeutronIbcConfig } from '../../types/generated/mars-rewards-collector-base/MarsRewardsCollectorBase.types'
 
 const nobleUsdcDenom = 'ibc/4C19E7EC06C1AB2EC2D70C6855FEB6D48E9CE174913991DA0A517D21978E7E42'
 const atomDenom = 'ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9'
@@ -33,23 +32,6 @@ const astroportIncentives = 'neutron1slxs8heecwyw0n6zmj7unj3nenrfhk2zpagfz2lt87d
 // note the following three addresses are all 'mars' bech32 prefix
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
 const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
-
-// IBC config for rewards-collector. See https://rest-palvus.pion-1.ntrn.tech/neutron-org/neutron/feerefunder/params
-export const neutronIbcConfig: NeutronIbcConfig = {
-  source_port: 'transfer',
-  acc_fee: [
-    {
-      denom: 'untrn',
-      amount: '1000',
-    },
-  ],
-  timeout_fee: [
-    {
-      denom: 'untrn',
-      amount: '1000',
-    },
-  ],
-}
 
 // Oracle configurations
 export const ntrnOracle: OracleConfig = {
@@ -653,11 +635,21 @@ export const neutronTestnetConfig: DeploymentConfig = {
     name: 'neutron',
     timeoutSeconds: 600,
     channelId: marsNeutronChannelId,
-    safetyFundFeeShare: '0.5',
-    feeCollectorDenom: marsDenom,
-    safetyFundDenom: nobleUsdcDenom,
+    safetyFundFeeShare: '0.45',
+    revenueShare: '0.1',
+    revenueShareConfig: {
+      target_denom: nobleUsdcDenom,
+      transfer_type: 'bank',
+    },
+    safetyFundConfig: {
+      target_denom: nobleUsdcDenom,
+      transfer_type: 'bank',
+    },
+    feeCollectorConfig: {
+      target_denom: marsDenom,
+      transfer_type: 'ibc',
+    },
     slippageTolerance: '0.01',
-    neutronIbcConfig: neutronIbcConfig,
   },
   incentives: {
     epochDuration: 604800, // 1 week
