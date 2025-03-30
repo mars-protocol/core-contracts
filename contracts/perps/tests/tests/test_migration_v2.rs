@@ -14,7 +14,7 @@ fn wrong_contract_name() {
     assert_eq!(
         err,
         ContractError::Version(VersionError::WrongContract {
-            expected: "crates.io:mars-perps".to_string(),
+            expected: "mars-perps".to_string(),
             found: "contract_xyz".to_string()
         })
     );
@@ -23,7 +23,7 @@ fn wrong_contract_name() {
 #[test]
 fn wrong_contract_version() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-perps", "4.1.0").unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, "mars-perps", "4.1.0").unwrap();
 
     let err = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap_err();
 
@@ -39,7 +39,7 @@ fn wrong_contract_version() {
 #[test]
 fn successful_migration() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-perps", "2.2.0").unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, "mars-perps", "2.2.0").unwrap();
 
     MARKET_STATES.save(deps.as_mut().storage, "perps/utia", &MarketState::default()).unwrap();
     MARKET_STATES.save(deps.as_mut().storage, "perps/unil", &MarketState::default()).unwrap();
