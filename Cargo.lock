@@ -2469,7 +2469,7 @@ dependencies = [
 
 [[package]]
 name = "mars-perps"
-version = "2.2.0"
+version = "2.2.1"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
