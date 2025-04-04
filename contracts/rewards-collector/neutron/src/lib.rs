@@ -49,7 +49,7 @@ pub mod entry {
     pub fn migrate(deps: DepsMut, _env: Env, msg: NeutronMigrateMsg) -> ContractResult<Response> {
         match msg {
             NeutronMigrateMsg::V2_1_0ToV2_2_0 {} => migrations::v2_2_0::migrate(deps),
-            NeutronMigrateMsg::V2_2_0ToV2_2_1 {} => migrations::v2_2_1::migrate(deps),
+            NeutronMigrateMsg::V2_2_0ToV2_2_2 {} => migrations::v2_2_2::migrate(deps),
         }
     }
 }
