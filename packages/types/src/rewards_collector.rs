@@ -251,5 +251,5 @@ pub enum OsmosisMigrateMsg {
 #[cw_serde]
 pub enum NeutronMigrateMsg {
     V2_1_0ToV2_2_0 {},
-    V2_2_0ToV2_2_1 {},
+    V2_2_0ToV2_2_2 {},
 }

@@ -3,7 +3,7 @@ use cw2::{ContractVersion, VersionError};
 use mars_rewards_collector_base::ContractError;
 use mars_rewards_collector_neutron::{
     entry::{migrate, NeutronCollector},
-    migrations::v2_2_1::previous_state,
+    migrations::v2_2_2::previous_state,
 };
 use mars_testing::mock_dependencies;
 use mars_types::rewards_collector::{NeutronMigrateMsg, TransferType};
@@ -13,7 +13,7 @@ fn wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.2.0").unwrap();
 
-    let err = migrate(deps.as_mut(), mock_env(), NeutronMigrateMsg::V2_2_0ToV2_2_1 {}).unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), NeutronMigrateMsg::V2_2_0ToV2_2_2 {}).unwrap_err();
 
     assert_eq!(
         err,
@@ -34,7 +34,7 @@ fn wrong_contract_version() {
     )
     .unwrap();
 
-    let err = migrate(deps.as_mut(), mock_env(), NeutronMigrateMsg::V2_2_0ToV2_2_1 {}).unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), NeutronMigrateMsg::V2_2_0ToV2_2_2 {}).unwrap_err();
 
     assert_eq!(
         err,
@@ -69,19 +69,19 @@ fn successful_migration() {
     };
     previous_state::CONFIG.save(deps.as_mut().storage, &old_config).unwrap();
 
-    let res = migrate(deps.as_mut(), mock_env(), NeutronMigrateMsg::V2_2_0ToV2_2_1 {}).unwrap();
+    let res = migrate(deps.as_mut(), mock_env(), NeutronMigrateMsg::V2_2_0ToV2_2_2 {}).unwrap();
 
     assert_eq!(res.messages, vec![]);
     assert_eq!(res.events, vec![] as Vec<Event>);
     assert!(res.data.is_none());
     assert_eq!(
         res.attributes,
-        vec![attr("action", "migrate"), attr("from_version", "2.2.0"), attr("to_version", "2.2.1")]
+        vec![attr("action", "migrate"), attr("from_version", "2.2.0"), attr("to_version", "2.2.2")]
     );
 
     let new_contract_version = ContractVersion {
         contract: "crates.io:mars-rewards-collector-neutron".to_string(),
-        version: "2.2.1".to_string(),
+        version: "2.2.2".to_string(),
     };
 
     assert_eq!(cw2::get_contract_version(deps.as_ref().storage).unwrap(), new_contract_version);
