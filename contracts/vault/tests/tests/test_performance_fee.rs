@@ -4,9 +4,9 @@ use cosmwasm_std::{coin, Addr, Decimal, Int128, Uint128};
 use cw_multi_test::{BankSudo, SudoMsg};
 use mars_mock_oracle::msg::CoinPrice;
 use mars_testing::multitest::helpers::{
-    coin_info, deploy_managed_vault_with_performance_fee, uatom_info, CoinInfo,
+    coin_info, default_perp_params, deploy_managed_vault_with_performance_fee, uatom_info, CoinInfo,
 };
-use mars_types::{credit_manager::Action, oracle::ActionKind};
+use mars_types::{credit_manager::Action, oracle::ActionKind, params::PerpParamsUpdate};
 use mars_vault::{
     error::ContractError,
     performance_fee::{PerformanceFeeConfig, PerformanceFeeState},
@@ -19,7 +19,8 @@ use super::{
 use crate::tests::{
     helpers::deploy_managed_vault,
     vault_helpers::{
-        execute_deposit, execute_redeem, execute_unlock, query_performance_fee, query_vault_info,
+        execute_deposit, execute_redeem, execute_unlock, open_perp_position,
+        query_account_positions, query_performance_fee, query_vault_info,
     },
 };
 
@@ -121,6 +122,7 @@ fn cannot_withdraw_zero_performance_fee() {
             fee_rate: Decimal::from_str("0.0000208").unwrap(),
             withdrawal_interval: 60,
         },
+        &uusdc_info.denom,
     );
 
     mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
@@ -161,6 +163,7 @@ fn cannot_withdraw_if_withdrawal_interval_not_passed() {
             fee_rate: Decimal::from_str("0.0000208").unwrap(),
             withdrawal_interval: performance_fee_interval,
         },
+        &uusdc_info.denom,
     );
 
     let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
@@ -232,36 +235,14 @@ fn cannot_withdraw_if_withdrawal_interval_not_passed() {
 fn performance_fee_correctly_accumulated() {
     let uusdc_info = coin_info("uusdc");
     let uatom_info = uatom_info();
-
-    let fund_manager = Addr::unchecked("fund-manager");
     let user = Addr::unchecked("user");
-    let user_funded_amt = Uint128::new(100_000_000_000);
-    let mut mock = MockEnv::new()
-        .set_params(&[uusdc_info.clone(), uatom_info.clone()])
-        .fund_account(AccountToFund {
-            addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
-        })
-        .fund_account(AccountToFund {
-            addr: user.clone(),
-            funds: vec![coin(user_funded_amt.u128(), "uusdc")],
-        })
-        .build()
-        .unwrap();
-    let credit_manager = mock.rover.clone();
 
-    let managed_vault_addr = deploy_managed_vault_with_performance_fee(
-        &mut mock.app,
-        &fund_manager,
-        &credit_manager,
-        1,
-        PerformanceFeeConfig {
-            fee_rate: Decimal::from_str("0.0000208").unwrap(),
-            withdrawal_interval: 60,
-        },
-    );
-
-    let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
+    let VaultSetup {
+        mut mock,
+        fund_manager,
+        managed_vault_addr,
+        fund_acc_id,
+    } = instantiate_vault(&uusdc_info, &uatom_info, &uusdc_info.denom);
 
     // simulate base token price = 1 USD
     mock.price_change(CoinPrice {
@@ -467,6 +448,245 @@ fn performance_fee_correctly_accumulated() {
     );
 }
 
+#[test]
+fn performance_fee_correctly_accumulated_with_perp_position() {
+    let uusdc_info = coin_info("uusdc");
+    let uatom_info = uatom_info();
+    let base_denom = uusdc_info.denom.clone();
+    let btc_perp_denom = "perp/btc";
+    let user = Addr::unchecked("user");
+    let VaultSetup {
+        mut mock,
+        fund_manager,
+        managed_vault_addr,
+        fund_acc_id,
+    } = instantiate_vault(&uusdc_info, &uatom_info, &base_denom);
+
+    // add perp params
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params(btc_perp_denom),
+    });
+
+    // set usdc price to 1 USD
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: uusdc_info.denom.clone(),
+        price: Decimal::from_str("1").unwrap(),
+    });
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: btc_perp_denom.to_string(),
+        price: Decimal::from_str("10").unwrap(),
+    });
+
+    // perform deposit
+    let deposited_amt = Uint128::new(100_000_000);
+    execute_deposit(
+        &mut mock,
+        &user,
+        &managed_vault_addr,
+        Uint128::zero(), // we don't care about the amount, we are using the funds
+        None,
+        &[coin(deposited_amt.u128(), "uusdc")],
+    )
+    .unwrap();
+
+    // open perp position
+    open_perp_position(
+        &mut mock,
+        &fund_acc_id,
+        &fund_manager,
+        btc_perp_denom,
+        Int128::from_str("-1000000").unwrap(),
+    );
+
+    // update price to reflect profit
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: btc_perp_denom.to_string(),
+        price: Decimal::from_str("9").unwrap(),
+    });
+
+    // query position pnl of vault, verify that it's positive
+    let positions = query_account_positions(&mock, &mock.rover, &fund_acc_id);
+    assert_eq!(positions.perps.len(), 1);
+    let position = positions.perps.first().unwrap();
+    assert_eq!(position.unrealized_pnl.pnl, Int128::from_str("909999").unwrap());
+
+    // move by 48 hours
+    mock.increment_by_time(48 * 60 * 60);
+
+    // get our performance of the vault
+    let performance_fee = query_performance_fee(&mock, &managed_vault_addr);
+
+    // non PNL has actually accumulated yet, so we expect performance fee to not incorporate pnl or fees.
+    assert_eq!(
+        performance_fee,
+        PerformanceFeeState {
+            last_withdrawal: 1571797419_u64,
+            base_tokens_amt: Uint128::new(100_000_000),
+            accumulated_pnl: Int128::zero(),
+            accumulated_fee: Uint128::zero(),
+        }
+    );
+
+    // trigger a performance fee update using a deposit.
+    let deposited_amt = Uint128::new(100_000_000);
+    execute_deposit(
+        &mut mock,
+        &user,
+        &managed_vault_addr,
+        Uint128::zero(), // we don't care about the amount, we are using the funds
+        None,
+        &[coin(deposited_amt.u128(), "uusdc")],
+    )
+    .unwrap();
+
+    let performance_fee: PerformanceFeeState = query_performance_fee(&mock, &managed_vault_addr);
+
+    // ensure that performance fee is updated.
+    assert_eq!(
+        performance_fee,
+        PerformanceFeeState {
+            last_withdrawal: 1571797419_u64,
+            base_tokens_amt: Uint128::new(200809999),
+            accumulated_pnl: Int128::new(809999),
+            accumulated_fee: Uint128::new(808),
+        }
+    );
+
+    // move by 48 hours
+    mock.increment_by_time(48 * 60 * 60);
+
+    // trigger a performance fee update using a deposit
+    let deposited_amt = Uint128::new(100_000_000);
+    execute_deposit(
+        &mut mock,
+        &user,
+        &managed_vault_addr,
+        Uint128::zero(), // we don't care about the amount, we are using the funds
+        None,
+        &[coin(deposited_amt.u128(), uusdc_info.denom.clone())],
+    )
+    .unwrap();
+
+    // get our pnl of the vault
+    let performance_fee = query_performance_fee(&mock, &managed_vault_addr);
+
+    // ensure that performance fee is updated.
+    assert_eq!(
+        performance_fee,
+        PerformanceFeeState {
+            last_withdrawal: 1571797419_u64,
+            base_tokens_amt: Uint128::new(300809997),
+            accumulated_pnl: Int128::new(809997),
+            accumulated_fee: Uint128::new(1617),
+        }
+    );
+}
+#[test]
+fn performance_fee_correctly_accumulated_when_base_denom_is_uatom() {
+    let uusdc_info = coin_info("uusdc");
+    let uatom_info = uatom_info();
+    let base_denom = uatom_info.denom.clone();
+    let atom_perp_denom = "atom/btc";
+    let user = Addr::unchecked("user");
+
+    let VaultSetup {
+        mut mock,
+        fund_manager,
+        managed_vault_addr,
+        fund_acc_id,
+    } = instantiate_vault(&uusdc_info, &uatom_info, &base_denom);
+
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params(atom_perp_denom),
+    });
+
+    // Set usdc price to 1 USD
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: uusdc_info.denom.clone(),
+        price: Decimal::from_str("1").unwrap(),
+    });
+
+    // Set atom price to 10 USD
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: uatom_info.denom.clone(),
+        price: Decimal::from_str("10").unwrap(),
+    });
+
+    // Set perp price to 10 USD
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: atom_perp_denom.to_string(),
+        price: Decimal::from_str("10").unwrap(),
+    });
+
+    // Step 1 - Perform deposit
+    let deposited_amt = Uint128::new(100_000_000);
+    execute_deposit(
+        &mut mock,
+        &user,
+        &managed_vault_addr,
+        Uint128::zero(), // we don't care about the amount, we are using the funds
+        None,
+        &[coin(deposited_amt.u128(), base_denom.clone())],
+    )
+    .unwrap();
+
+    // Step 2 - open perp position
+    open_perp_position(
+        &mut mock,
+        &fund_acc_id,
+        &fund_manager,
+        atom_perp_denom,
+        Int128::from_str("-1000000").unwrap(),
+    );
+
+    // Step 3 - update price of both spot and perp
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: uatom_info.denom.clone(),
+        price: Decimal::from_str("9.0").unwrap(),
+    });
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: atom_perp_denom.to_string(),
+        price: Decimal::from_str("9.0").unwrap(),
+    });
+
+    // Step 4 - move time by 48 hours
+    mock.increment_by_time(48 * 60 * 60);
+
+    // step 5 - deposit to trigger performance fee update
+    let deposited_amt = Uint128::new(100_000_000);
+    execute_deposit(
+        &mut mock,
+        &user,
+        &managed_vault_addr,
+        Uint128::zero(), // we don't care about the amount, we are using the funds
+        None,
+        &[coin(deposited_amt.u128(), base_denom.clone())],
+    )
+    .unwrap();
+
+    // Step 6 - verify that performance fee is updated
+    let performance_fee = query_performance_fee(&mock, &managed_vault_addr);
+    assert_eq!(
+        performance_fee,
+        PerformanceFeeState {
+            last_withdrawal: 1571797419_u64,
+            base_tokens_amt: Uint128::new(200_089_999),
+            accumulated_pnl: Int128::new(89999),
+            accumulated_fee: Uint128::new(89),
+        }
+    );
+}
+
 fn swap_usdc_to_atom(
     mock: &mut MockEnv,
     fund_acc_id: &str,
@@ -521,4 +741,55 @@ fn calculate_pnl(mock: &mut MockEnv, fund_acc_id: &str, new_atom_price: Decimal)
     }
 
     pnl
+}
+
+struct VaultSetup {
+    mock: MockEnv,
+    fund_manager: Addr,
+    managed_vault_addr: Addr,
+    fund_acc_id: String,
+}
+
+fn instantiate_vault(uusdc_info: &CoinInfo, uatom_info: &CoinInfo, base_denom: &str) -> VaultSetup {
+    let fund_manager = Addr::unchecked("fund-manager");
+    let user = Addr::unchecked("user");
+    let user_funded_amt = Uint128::new(100_000_000_000);
+    let mut mock = MockEnv::new()
+        .set_params(&[uusdc_info.clone(), uatom_info.clone()])
+        .fund_account(AccountToFund {
+            addr: fund_manager.clone(),
+            funds: vec![coin(1_000_000_000, "untrn")],
+        })
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![coin(user_funded_amt.u128(), uusdc_info.denom.clone())],
+        })
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![coin(user_funded_amt.u128(), uatom_info.denom.clone())],
+        })
+        .build()
+        .unwrap();
+    let credit_manager = mock.rover.clone();
+
+    let managed_vault_addr = deploy_managed_vault_with_performance_fee(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        1,
+        PerformanceFeeConfig {
+            fee_rate: Decimal::from_str("0.0000208").unwrap(),
+            withdrawal_interval: 60,
+        },
+        base_denom,
+    );
+
+    let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
+
+    VaultSetup {
+        mock,
+        fund_manager,
+        managed_vault_addr,
+        fund_acc_id,
+    }
 }

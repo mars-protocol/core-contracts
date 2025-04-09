@@ -81,6 +81,13 @@ pub enum ContractError {
 
     #[error("Contract owner not set")]
     NoOwner {},
+
+    #[error(
+        "Vault with credit account id {vault_account_id:?} is bankrupt. Actions on this vault are not allowed."
+    )]
+    VaultBankrupt {
+        vault_account_id: String,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

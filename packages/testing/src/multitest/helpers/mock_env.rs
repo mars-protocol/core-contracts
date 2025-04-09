@@ -95,7 +95,7 @@ use crate::{
     multitest::modules::token_factory::{CustomApp, TokenFactory},
 };
 
-pub const DEFAULT_RED_BANK_COIN_BALANCE: Uint128 = Uint128::new(1_000_000);
+pub const DEFAULT_RED_BANK_COIN_BALANCE: Uint128 = Uint128::new(100_000_000);
 
 pub struct MockEnv {
     pub app: CustomApp,
@@ -1994,6 +1994,7 @@ pub fn deploy_managed_vault(app: &mut CustomApp, sender: &Addr, credit_manager: 
             fee_rate: Decimal::zero(),
             withdrawal_interval: 0,
         },
+        "uusdc",
     )
 }
 
@@ -2003,13 +2004,14 @@ pub fn deploy_managed_vault_with_performance_fee(
     credit_manager: &Addr,
     cooldown_period: u64,
     pf_config: PerformanceFeeConfig,
+    base_denom: &str,
 ) -> Addr {
     let contract_code_id = app.store_code(mock_managed_vault_contract());
     app.instantiate_contract(
         contract_code_id,
         sender.clone(),
         &ManagedVaultInstantiateMsg {
-            base_token: "uusdc".to_string(),
+            base_token: base_denom.to_string(),
             vault_token_subdenom: "vault".to_string(),
             title: None,
             subtitle: None,
