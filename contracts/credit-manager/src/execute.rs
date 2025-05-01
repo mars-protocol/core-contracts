@@ -16,7 +16,7 @@ use crate::{
     borrow::borrow,
     claim_astro_lp_rewards::claim_lp_rewards,
     claim_rewards::claim_rewards,
-    deposit::{assert_deposit_caps, deposit, update_or_reset_denom_deposits},
+    deposit::{assert_deposit_caps, deposit, update_or_reset_denom_deposits, validate_deposit},
     error::{ContractError, ContractResult},
     health::{assert_max_ltv, query_health_state},
     hls::assert_hls_rules,
@@ -36,7 +36,7 @@ use crate::{
     trigger::{create_trigger_order, delete_trigger_order},
     unstake_astro_lp::unstake_lp,
     update_coin_balances::{update_coin_balance, update_coin_balance_after_vault_liquidation},
-    utils::{assert_is_authorized, get_account_kind},
+    utils::{assert_is_authorized, extract_action_names, get_account_kind},
     vault::{
         enter_vault, exit_vault, exit_vault_unlocked, liquidate_vault, request_vault_unlock,
         update_vault_coin_balance,
@@ -106,19 +106,18 @@ pub fn dispatch_actions(
 ) -> ContractResult<Response> {
     let mut response = Response::new();
 
-    let account_id = match account_id {
+    let (account_id, account_kind) = match account_id {
         Some(acc_id) => {
             validate_account(&deps, &info, &acc_id, &actions, enforce_ownership)?;
-            acc_id
+            let kind = get_account_kind(deps.storage, &acc_id)?;
+            (acc_id, kind)
         }
         None => {
-            let (acc_id, res) = create_credit_account(
-                &mut deps,
-                info.sender.clone(),
-                account_kind.unwrap_or(AccountKind::Default),
-            )?;
+            let account_kind = account_kind.unwrap_or(AccountKind::Default);
+            let (acc_id, res) =
+                create_credit_account(&mut deps, info.sender.clone(), account_kind.clone())?;
             response = res;
-            acc_id
+            (acc_id, account_kind)
         }
     };
     let account_id = &account_id;
@@ -175,6 +174,7 @@ pub fn dispatch_actions(
     for action in actions {
         match action {
             Action::Deposit(coin) => {
+                validate_deposit(deps.as_ref(), &account_kind, &coin)?;
                 response = deposit(&mut deps, response, account_id, &coin, &mut received_coins)?;
                 // add the denom to the map to check the deposit cap in the end of the TX
                 update_or_reset_denom_deposits(
@@ -518,6 +518,23 @@ fn validate_account(
                     user: acc_id.to_string(),
                     action: "deposit, withdraw, refund_all_coin_balances, withdraw_to_wallet"
                         .to_string(),
+                });
+            }
+        }
+        AccountKind::UsdcMargin => {
+            if enforce_ownership {
+                assert_is_authorized(deps, &info.sender, acc_id)?;
+            }
+
+            let actions_not_allowed: Vec<&Action> =
+                actions.iter().filter(|action| !action.is_allowed_for_usdc_margin()).collect();
+
+            if !actions_not_allowed.is_empty() {
+                let action = extract_action_names(&actions_not_allowed);
+
+                return Err(ContractError::IllegalAction {
+                    user: acc_id.to_string(),
+                    action,
                 });
             }
         }

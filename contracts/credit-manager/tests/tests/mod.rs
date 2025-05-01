@@ -44,6 +44,7 @@ mod test_update_admin;
 mod test_update_config;
 mod test_update_credit_account_with_new_acc;
 mod test_update_nft_config;
+mod test_usdc_accounts;
 mod test_utilization_query;
 mod test_utilizations_all_query;
 mod test_vault_enter;

@@ -3,8 +3,8 @@ use cosmwasm_std::{Decimal, Uint128};
 use mars_utils::helpers::{decimal_param_le_one, decimal_param_lt_one};
 
 use super::assertions::{
-    assert_lqt_gt_max_ltv, assert_max_net_oi_le_max_oi_long, assert_max_net_oi_le_max_oi_short,
-    assert_max_size_gt_min, assert_skew_scale,
+    assert_lqt_gt_max_ltv, assert_lqt_usdc_gt_max_ltv_usdc, assert_max_net_oi_le_max_oi_long,
+    assert_max_net_oi_le_max_oi_short, assert_max_size_gt_min, assert_skew_scale,
 };
 use crate::error::MarsError;
 
@@ -33,7 +33,10 @@ pub struct PerpParams {
     pub max_loan_to_value: Decimal,
     /// LTV at which a position becomes liquidatable
     pub liquidation_threshold: Decimal,
-    /// Determines the maximum rate at which funding can be adjusted
+    /// Max loan to position value for the position for USDC margin accounts.
+    pub max_loan_to_value_usdc: Option<Decimal>,
+    /// LTV at which a position becomes liquidatable for USDC margin accounts.
+    pub liquidation_threshold_usdc: Option<Decimal>,
     pub max_funding_velocity: Decimal,
     /// Determines the funding rate for a given level of skew.
     /// The lower the skew_scale the higher the funding rate.
@@ -43,7 +46,15 @@ pub struct PerpParams {
 impl PerpParams {
     pub fn check(&self) -> Result<PerpParams, MarsError> {
         decimal_param_le_one(self.liquidation_threshold, "liquidation_threshold")?;
+        decimal_param_le_one(
+            self.liquidation_threshold_usdc.unwrap_or(self.liquidation_threshold),
+            "liquidation_threshold_usdc",
+        )?;
         assert_lqt_gt_max_ltv(self.max_loan_to_value, self.liquidation_threshold)?;
+        assert_lqt_usdc_gt_max_ltv_usdc(
+            self.max_loan_to_value_usdc,
+            self.liquidation_threshold_usdc,
+        )?;
         decimal_param_lt_one(self.opening_fee_rate, "opening_fee_rate")?;
         decimal_param_lt_one(self.closing_fee_rate, "closing_fee_rate")?;
         assert_max_net_oi_le_max_oi_long(self.max_long_oi_value, self.max_net_oi_value)?;
@@ -65,6 +76,8 @@ impl PerpParams {
             liquidation_threshold: self.liquidation_threshold,
             max_funding_velocity: self.max_funding_velocity,
             skew_scale: self.skew_scale,
+            max_loan_to_value_usdc: self.max_loan_to_value_usdc,
+            liquidation_threshold_usdc: self.liquidation_threshold_usdc,
         })
     }
 }
