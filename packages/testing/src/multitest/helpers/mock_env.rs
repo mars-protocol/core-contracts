@@ -130,6 +130,7 @@ pub struct MockEnvBuilder {
     pub withdraw_enabled: Option<bool>,
     pub keeper_fee_config: Option<KeeperFeeConfig>,
     pub perps_liquidation_bonus_ratio: Option<Decimal>,
+    pub perps_protocol_fee_ratio: Option<Decimal>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -161,6 +162,7 @@ impl MockEnv {
             withdraw_enabled: None,
             keeper_fee_config: None,
             perps_liquidation_bonus_ratio: None,
+            perps_protocol_fee_ratio: None,
         }
     }
 
@@ -1480,7 +1482,7 @@ impl MockEnvBuilder {
         let target_vault_collateralization_ratio = self.get_target_vault_collateralization_ratio();
         let deleverage_enabled = self.get_delegerage_enabled();
         let vault_withdraw_enabled = self.get_withdraw_enabled();
-
+        let perps_protocol_fee_ratio = self.get_perps_protocol_fee_ratio();
         let addr = self
             .app
             .instantiate_contract(
@@ -1491,7 +1493,7 @@ impl MockEnvBuilder {
                     base_denom: "uusdc".to_string(),
                     cooldown_period: 360,
                     max_positions: 4,
-                    protocol_fee_rate: Decimal::percent(0),
+                    protocol_fee_rate: perps_protocol_fee_ratio,
                     target_vault_collateralization_ratio,
                     deleverage_enabled,
                     vault_withdraw_enabled,
@@ -1842,6 +1844,10 @@ impl MockEnvBuilder {
         self.withdraw_enabled.unwrap_or(true)
     }
 
+    fn get_perps_protocol_fee_ratio(&self) -> Decimal {
+        self.perps_protocol_fee_ratio.unwrap_or_else(|| Decimal::percent(0))
+    }
+
     //--------------------------------------------------------------------------------------------------
     // Setter functions
     //--------------------------------------------------------------------------------------------------
@@ -1943,6 +1949,11 @@ impl MockEnvBuilder {
 
     pub fn deleverage_enabled(mut self, enabled: bool) -> Self {
         self.deleverage_enabled = Some(enabled);
+        self
+    }
+
+    pub fn perps_protocol_fee_ratio(mut self, ratio: Decimal) -> Self {
+        self.perps_protocol_fee_ratio = Some(ratio);
         self
     }
 }
