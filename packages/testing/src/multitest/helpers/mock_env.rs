@@ -37,7 +37,7 @@ use mars_types::{
         vault::{Vault, VaultPosition, VaultPositionValue as VPositionValue, VaultUnchecked},
         zapper::{Zapper, ZapperBase},
     },
-    address_provider::{self, MarsAddressType},
+    address_provider::{self, AddressResponseItem, MarsAddressType},
     credit_manager::{
         Account, Action, CallbackMsg, CoinBalanceResponseItem, ConfigResponse, ConfigUpdates,
         DebtShares, ExecuteMsg, InstantiateMsg, KeeperFeeConfig, Positions,
@@ -105,6 +105,7 @@ pub struct MockEnv {
     pub incentives: Incentives,
     pub params: Params,
     pub perps: Perps,
+    pub address_provider: Addr,
 }
 
 pub struct MockEnvBuilder {
@@ -1129,12 +1130,27 @@ impl MockEnv {
             )
             .unwrap()
     }
+
+    pub fn query_address_provider(&self, address_type: MarsAddressType) -> Addr {
+        let res: AddressResponseItem = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                self.address_provider.to_string(),
+                &address_provider::QueryMsg::Address(address_type),
+            )
+            .unwrap();
+
+        Addr::unchecked(res.address)
+    }
 }
 
 impl MockEnvBuilder {
     pub fn build(mut self) -> AnyResult<MockEnv> {
         let rover = self.get_rover()?;
         self.set_emergency_owner(&rover);
+
+        let addr_provider = self.get_address_provider();
 
         let mars_oracle = self.get_oracle();
         let incentives =
@@ -1180,6 +1196,7 @@ impl MockEnvBuilder {
             incentives,
             params,
             perps,
+            address_provider: addr_provider,
         })
     }
 

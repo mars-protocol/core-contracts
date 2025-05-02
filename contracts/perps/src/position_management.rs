@@ -616,7 +616,7 @@ pub fn apply_pnl_and_fees(
     unrealized_pnl: &PnlAmounts,
     attrs: &mut Vec<Attribute>,
     msgs: &mut Vec<CosmosMsg>,
-) -> ContractResult<()> {
+) -> ContractResult<Uint128> {
     // Update realized pnl with total fees
     realized_pnl.add(unrealized_pnl)?;
 
@@ -681,7 +681,7 @@ pub fn apply_pnl_and_fees(
     attrs.push(Attribute::new("protocol_opening_fee", protocol_opening_fee.to_string()));
     attrs.push(Attribute::new("protocol_closing_fee", protocol_closing_fee.to_string()));
 
-    Ok(())
+    Ok(total_protocol_fee)
 }
 
 /// Applies payments to the credit manager if necessary based on the PnL and paid amount.

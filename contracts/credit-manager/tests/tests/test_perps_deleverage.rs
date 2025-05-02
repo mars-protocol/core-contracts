@@ -6,6 +6,7 @@ use mars_mock_oracle::msg::CoinPrice;
 use mars_perps::error::ContractError as PerpsContractError;
 use mars_testing::multitest::helpers::{default_perp_params, get_coin, uatom_info, AccountToFund};
 use mars_types::{
+    address_provider::MarsAddressType,
     credit_manager::{
         Action::{Deposit, ExecutePerpOrder},
         Positions,
@@ -372,8 +373,19 @@ fn deleverage(
     mock.remove_price(&usdc_info.denom, ActionKind::Default);
     mock.remove_price(&tia_info.denom, ActionKind::Default);
 
+    // check rewards collector balance before deleverage
+    let rewards_collector_addr = mock.query_address_provider(MarsAddressType::RewardsCollector);
+    let rewards_collector_balance_before =
+        mock.query_balance(&rewards_collector_addr, &usdc_info.denom);
+
     // deleverage
     let result = mock.deleverage(acc_to_close, &denom_to_close);
+
+    // check rewards collector balance after deleverage
+    let rewards_collector_balance_after =
+        mock.query_balance(&rewards_collector_addr, &usdc_info.denom);
+    let protocol_fee =
+        rewards_collector_balance_after.amount - rewards_collector_balance_before.amount;
 
     // check result
     match (result, exp_error) {
@@ -391,7 +403,12 @@ fn deleverage(
 
     // check perp vault balance
     let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
-    assert_eq!(vault_usdc_balance.amount, vault_usdc_balance_before.amount + pnl_loss - pnl_profit);
+    let mut expected_vault_usdc_balance = vault_usdc_balance_before.amount + pnl_loss - pnl_profit;
+    if pnl_loss > Uint128::zero() {
+        // if there is a loss, the vault should have only pnl without protocol fee
+        expected_vault_usdc_balance -= protocol_fee;
+    }
+    assert_eq!(vault_usdc_balance.amount, expected_vault_usdc_balance);
 
     // query the liquidatee's position with Default pricing should fail
     let res = mock.query_positions_with_action(acc_to_close, Some(ActionKind::Default));
