@@ -81,6 +81,13 @@ pub enum ContractError {
 
     #[error("Contract owner not set")]
     NoOwner {},
+
+    #[error("Minimum amount of {denom} required to create a vault is {min_value:?} uusd, got {actual_value:?} uusd")]
+    MinAmountRequired {
+        min_value: u128,
+        actual_value: u128,
+        denom: String,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

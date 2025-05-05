@@ -1,5 +1,6 @@
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Uint128};
 use mars_owner::OwnerInit;
+use mars_types::{credit_manager, oracle};
 use mars_utils::helpers::validate_native_denom;
 
 use crate::{
@@ -11,6 +12,7 @@ use crate::{
         PERFORMANCE_FEE_STATE, SUBTITLE, TITLE, VAULT_TOKEN,
     },
     token_factory::TokenFactoryDenom,
+    MIN_VAULT_FEE_CREATION_IN_UUSD,
 };
 
 pub fn init(
@@ -19,6 +21,8 @@ pub fn init(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> ContractResult<Response> {
+    let sent_base_token_amt = cw_utils::must_pay(&info, &msg.base_token)?;
+
     // initialize contract ownership info
     OWNER.initialize(
         deps.storage,
@@ -62,5 +66,39 @@ pub fn init(
     validate_native_denom(&msg.base_token)?;
     BASE_TOKEN.save(deps.storage, &msg.base_token)?;
 
+    validate_base_token_value(
+        &deps,
+        &credit_manager.to_string(),
+        &msg.base_token,
+        sent_base_token_amt,
+    )?;
+
     Ok(vault_token.instantiate()?)
+}
+
+/// Validates the base token value to be greater than the minimum creation amount in uusd
+fn validate_base_token_value(
+    deps: &DepsMut,
+    credit_manager: &str,
+    base_token: &str,
+    sent_base_token_amt: Uint128,
+) -> ContractResult<()> {
+    let config: credit_manager::ConfigResponse =
+        deps.querier.query_wasm_smart(credit_manager, &credit_manager::QueryMsg::Config {})?;
+    let price: oracle::PriceResponse = deps.querier.query_wasm_smart(
+        config.oracle,
+        &oracle::QueryMsg::Price {
+            denom: base_token.to_string(),
+            kind: None,
+        },
+    )?;
+    let sent_base_token_value = sent_base_token_amt.checked_mul_floor(price.price)?;
+    if sent_base_token_value < Uint128::from(MIN_VAULT_FEE_CREATION_IN_UUSD) {
+        return Err(ContractError::MinAmountRequired {
+            min_value: MIN_VAULT_FEE_CREATION_IN_UUSD,
+            actual_value: sent_base_token_value.u128(),
+            denom: base_token.to_string(),
+        });
+    }
+    Ok(())
 }
