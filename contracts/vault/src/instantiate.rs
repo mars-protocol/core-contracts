@@ -1,5 +1,4 @@
 use cosmwasm_std::{coins, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
-use cw_utils::PaymentError;
 use mars_owner::OwnerInit;
 use mars_types::{credit_manager, oracle};
 use mars_utils::helpers::validate_native_denom;
@@ -22,11 +21,8 @@ pub fn init(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> ContractResult<Response> {
-    let sent_base_token_opt = info.funds.iter().find(|c| c.denom == msg.base_token);
-    let Some(sent_base_token) = sent_base_token_opt else {
-        return Err(ContractError::Payment(PaymentError::MissingDenom(msg.base_token.to_string())));
-    };
-    let sent_base_token_amt = sent_base_token.amount;
+    let sent_base_token_amt =
+        info.funds.iter().find(|c| c.denom == msg.base_token).map(|c| c.amount).unwrap_or_default();
 
     // initialize contract ownership info
     OWNER.initialize(
