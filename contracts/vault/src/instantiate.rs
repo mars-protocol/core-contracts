@@ -1,4 +1,4 @@
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response, Uint128};
+use cosmwasm_std::{coins, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
 use mars_owner::OwnerInit;
 use mars_types::{credit_manager, oracle};
 use mars_utils::helpers::validate_native_denom;
@@ -66,14 +66,14 @@ pub fn init(
     validate_native_denom(&msg.base_token)?;
     BASE_TOKEN.save(deps.storage, &msg.base_token)?;
 
-    validate_base_token_value(
+    let msg = validate_base_token_value(
         &deps,
-        &credit_manager.to_string(),
+        credit_manager.as_ref(),
         &msg.base_token,
         sent_base_token_amt,
     )?;
 
-    Ok(vault_token.instantiate()?)
+    Ok(vault_token.instantiate()?.add_message(msg))
 }
 
 /// Validates the base token value to be greater than the minimum creation amount in uusd
@@ -82,7 +82,7 @@ fn validate_base_token_value(
     credit_manager: &str,
     base_token: &str,
     sent_base_token_amt: Uint128,
-) -> ContractResult<()> {
+) -> ContractResult<CosmosMsg> {
     let config: credit_manager::ConfigResponse =
         deps.querier.query_wasm_smart(credit_manager, &credit_manager::QueryMsg::Config {})?;
     let price: oracle::PriceResponse = deps.querier.query_wasm_smart(
@@ -100,5 +100,16 @@ fn validate_base_token_value(
             denom: base_token.to_string(),
         });
     }
-    Ok(())
+
+    // It should never happen, but we check for it anyway
+    let Some(rewards_collector) = config.rewards_collector else {
+        // Return an error that rewards collector is not set
+        return Err(ContractError::RewardsCollectorNotSet {});
+    };
+
+    let msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: rewards_collector.address,
+        amount: coins(sent_base_token_amt.u128(), base_token),
+    });
+    Ok(msg)
 }

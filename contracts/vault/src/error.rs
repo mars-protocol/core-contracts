@@ -88,6 +88,9 @@ pub enum ContractError {
         actual_value: u128,
         denom: String,
     },
+
+    #[error("Rewards collector not set in Credit Manager")]
+    RewardsCollectorNotSet {},
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;
