@@ -1984,7 +1984,12 @@ fn propose_new_nft_minter(
     app.execute_contract(old_minter.clone(), nft_contract, &proposal_msg, &[]).unwrap();
 }
 
-pub fn deploy_managed_vault(app: &mut CustomApp, sender: &Addr, credit_manager: &Addr) -> Addr {
+pub fn deploy_managed_vault(
+    app: &mut CustomApp,
+    sender: &Addr,
+    credit_manager: &Addr,
+    creation_fee: Option<Coin>,
+) -> Addr {
     deploy_managed_vault_with_performance_fee(
         app,
         sender,
@@ -1994,6 +1999,7 @@ pub fn deploy_managed_vault(app: &mut CustomApp, sender: &Addr, credit_manager: 
             fee_rate: Decimal::zero(),
             withdrawal_interval: 0,
         },
+        creation_fee,
     )
 }
 
@@ -2003,7 +2009,14 @@ pub fn deploy_managed_vault_with_performance_fee(
     credit_manager: &Addr,
     cooldown_period: u64,
     pf_config: PerformanceFeeConfig,
+    creation_fee: Option<Coin>,
 ) -> Addr {
+    let mut funds = vec![];
+    funds.push(coin(10_000_000, "untrn")); // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
+    if let Some(creation_fee) = creation_fee {
+        funds.push(creation_fee);
+    }
+
     let contract_code_id = app.store_code(mock_managed_vault_contract());
     app.instantiate_contract(
         contract_code_id,
@@ -2018,7 +2031,7 @@ pub fn deploy_managed_vault_with_performance_fee(
             cooldown_period,
             performance_fee_config: pf_config,
         },
-        &[coin(10_000_000, "untrn")], // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
+        &funds,
         "mock-managed-vault",
         None,
     )

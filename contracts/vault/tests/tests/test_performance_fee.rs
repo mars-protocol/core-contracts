@@ -30,7 +30,10 @@ fn deposit_if_credit_manager_account_not_binded() {
     let mut mock = MockEnv::new()
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -40,7 +43,12 @@ fn deposit_if_credit_manager_account_not_binded() {
         .unwrap();
     let credit_manager = mock.rover.clone();
 
-    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
 
     let res = execute_withdraw_performance_fee(&mut mock, &user, &managed_vault_addr, None);
     assert_vault_err(res, ContractError::VaultAccountNotFound {});
@@ -54,7 +62,10 @@ fn unauthorized_performance_fee_withdraw() {
     let mut mock = MockEnv::new()
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -64,7 +75,12 @@ fn unauthorized_performance_fee_withdraw() {
         .unwrap();
     let credit_manager = mock.rover.clone();
 
-    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
 
     let vault_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
@@ -102,7 +118,10 @@ fn cannot_withdraw_zero_performance_fee() {
         .set_params(&[uusdc_info.clone(), uatom_info.clone()])
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc"),
+            ], // uusdc price is 0.25 uusd
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -121,6 +140,7 @@ fn cannot_withdraw_zero_performance_fee() {
             fee_rate: Decimal::from_str("0.0000208").unwrap(),
             withdrawal_interval: 60,
         },
+        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc")),
     );
 
     mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
@@ -141,7 +161,10 @@ fn cannot_withdraw_if_withdrawal_interval_not_passed() {
         .set_params(&[uusdc_info.clone(), uatom_info.clone()])
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc"),
+            ], // uusdc price is 0.25 uusd
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -161,6 +184,7 @@ fn cannot_withdraw_if_withdrawal_interval_not_passed() {
             fee_rate: Decimal::from_str("0.0000208").unwrap(),
             withdrawal_interval: performance_fee_interval,
         },
+        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc")),
     );
 
     let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
@@ -240,7 +264,10 @@ fn performance_fee_correctly_accumulated() {
         .set_params(&[uusdc_info.clone(), uatom_info.clone()])
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc"),
+            ], // uusdc price is 0.25 uusd
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -259,6 +286,7 @@ fn performance_fee_correctly_accumulated() {
             fee_rate: Decimal::from_str("0.0000208").unwrap(),
             withdrawal_interval: 60,
         },
+        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc")),
     );
 
     let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
