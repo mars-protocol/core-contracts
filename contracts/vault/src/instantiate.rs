@@ -67,27 +67,25 @@ pub fn init(
     validate_native_denom(&msg.base_token)?;
     BASE_TOKEN.save(deps.storage, &msg.base_token)?;
 
-    let msg = validate_base_token_value(
-        &deps,
-        credit_manager.as_ref(),
-        &msg.base_token,
-        sent_base_token_amt,
-    )?;
+    let config: credit_manager::ConfigResponse = deps
+        .querier
+        .query_wasm_smart(credit_manager.as_ref(), &credit_manager::QueryMsg::Config {})?;
 
-    Ok(vault_token.instantiate()?.add_message(msg))
+    validate_base_token_value(&deps, &config, &msg.base_token, sent_base_token_amt)?;
+    let rc_msg = prepare_rewards_collector_msg(&config, &msg.base_token, sent_base_token_amt)?;
+
+    Ok(vault_token.instantiate()?.add_message(rc_msg))
 }
 
 /// Validates the base token value to be greater than the minimum creation amount in uusd
 fn validate_base_token_value(
     deps: &DepsMut,
-    credit_manager: &str,
+    config: &credit_manager::ConfigResponse,
     base_token: &str,
     sent_base_token_amt: Uint128,
-) -> ContractResult<CosmosMsg> {
-    let config: credit_manager::ConfigResponse =
-        deps.querier.query_wasm_smart(credit_manager, &credit_manager::QueryMsg::Config {})?;
+) -> ContractResult<()> {
     let price: oracle::PriceResponse = deps.querier.query_wasm_smart(
-        config.oracle,
+        config.oracle.clone(),
         &oracle::QueryMsg::Price {
             denom: base_token.to_string(),
             kind: None,
@@ -101,15 +99,23 @@ fn validate_base_token_value(
             denom: base_token.to_string(),
         });
     }
+    Ok(())
+}
 
+/// Prepares a message to send the base token to the rewards collector
+fn prepare_rewards_collector_msg(
+    config: &credit_manager::ConfigResponse,
+    base_token: &str,
+    sent_base_token_amt: Uint128,
+) -> ContractResult<CosmosMsg> {
     // It should never happen, but we check for it anyway
-    let Some(rewards_collector) = config.rewards_collector else {
+    let Some(rewards_collector) = &config.rewards_collector else {
         // Return an error that rewards collector is not set
         return Err(ContractError::RewardsCollectorNotSet {});
     };
 
     let msg = CosmosMsg::Bank(BankMsg::Send {
-        to_address: rewards_collector.address,
+        to_address: rewards_collector.address.clone(),
         amount: coins(sent_base_token_amt.u128(), base_token),
     });
     Ok(msg)
