@@ -568,6 +568,43 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "description": "Query the PNL metrics for a user",
+            "type": "object",
+            "required": [
+              "user_pnl"
+            ],
+            "properties": {
+              "user_pnl": {
+                "type": "object",
+                "required": [
+                  "user_address"
+                ],
+                "properties": {
+                  "user_address": {
+                    "description": "The address of the user to query",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Query the vault's total PNL",
+            "type": "object",
+            "required": [
+              "vault_pnl"
+            ],
+            "properties": {
+              "vault_pnl": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
