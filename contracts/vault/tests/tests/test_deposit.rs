@@ -19,7 +19,10 @@ fn deposit_invalid_funds() {
     let mut mock = MockEnv::new()
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -29,7 +32,12 @@ fn deposit_invalid_funds() {
         .unwrap();
     let credit_manager = mock.rover.clone();
 
-    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
 
     mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
@@ -71,7 +79,10 @@ fn deposit_if_credit_manager_account_not_binded() {
     let mut mock = MockEnv::new()
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -81,7 +92,12 @@ fn deposit_if_credit_manager_account_not_binded() {
         .unwrap();
     let credit_manager = mock.rover.clone();
 
-    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
 
     let deposited_amt = Uint128::new(123_000_000);
     let res = execute_deposit(
@@ -104,7 +120,10 @@ fn deposit_succeded() {
         .set_params(&[uusdc_info()])
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -114,7 +133,12 @@ fn deposit_succeded() {
         .unwrap();
     let credit_manager = mock.rover.clone();
 
-    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
     let vault_info_res = query_vault_info(&mock, &managed_vault_addr);
     let vault_token = vault_info_res.vault_token;
 
