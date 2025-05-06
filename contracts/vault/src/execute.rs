@@ -91,11 +91,12 @@ pub fn deposit(
         calculate_vault_tokens(amount, total_base_tokens_without_fee, vault_token_supply)?;
 
     // Update PNL tracking
-    let vault_pnl_index =
+    let (vault_pnl_index, updated_vault_pnl) =
         pnl::update_vault_pnl_index(deps.storage, total_base_tokens, vault_token_supply)?;
 
     // Record entry PNL for the user
-    pnl::update_user_pnl(deps.storage, &vault_token_recipient, vault_tokens, vault_pnl_index)?;
+    let user_pnl =
+        pnl::update_user_pnl(deps.storage, &vault_token_recipient, vault_tokens, vault_pnl_index)?;
 
     // update last net worth to include deposit amount
     LAST_NET_WORTH.save(deps.storage, &total_base_tokens.checked_add(amount)?)?;
@@ -119,6 +120,9 @@ pub fn deposit(
         attr("action", "mint_vault_tokens"),
         attr("recipient", vault_token_recipient.to_string()),
         attr("vault_tokens_minted", vault_tokens),
+        attr("vault_pnl", updated_vault_pnl),
+        attr("user_pnl", user_pnl),
+        attr("user", vault_token_recipient.to_string()),
     ]);
 
     Ok(vault_token
@@ -240,14 +244,15 @@ pub fn redeem(
     let vault_token_supply = vault_token.query_total_supply(deps.as_ref())?;
 
     // Update PNL tracking before processing redemption
-    let vault_pnl_index =
+    let (vault_pnl_index, updated_vault_pnl) =
         pnl::update_vault_pnl_index(deps.storage, total_base_tokens, vault_token_supply)?;
 
     let user_vault_tokens =
         vault_token.query_balance(deps.as_ref(), &info.sender)?.checked_add(vault_tokens)?;
 
     // update user's PNL record
-    pnl::update_user_pnl(deps.storage, &info.sender, user_vault_tokens, vault_pnl_index)?;
+    let updated_user_pnl =
+        pnl::update_user_pnl(deps.storage, &info.sender, user_vault_tokens, vault_pnl_index)?;
 
     let mut performance_fee_state = PERFORMANCE_FEE_STATE.load(deps.storage)?;
     let performance_fee_config = PERFORMANCE_FEE_CONFIG.load(deps.storage)?;
@@ -287,6 +292,9 @@ pub fn redeem(
         attr("recipient", recipient.clone()),
         attr("vault_tokens_burned", vault_tokens),
         attr("base_tokens_redeemed", base_tokens_to_redeem),
+        attr("vault_pnl", updated_vault_pnl),
+        attr("user_pnl", updated_user_pnl),
+        attr("user", info.sender.to_string()),
     ]);
 
     if !refund_vault_tokens.is_zero() {

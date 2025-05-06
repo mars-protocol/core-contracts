@@ -36,7 +36,7 @@ pub fn update_vault_pnl_index(
     storage: &mut dyn Storage,
     net_worth_now: Uint128,
     vault_shares: Uint128,
-) -> Result<SignedDecimal, ContractError> {
+) -> Result<(SignedDecimal, Int128), ContractError> {
     let (vault_pnl_index, vault_pnl_delta) =
         query_current_vault_pnl_index(storage, net_worth_now, vault_shares)?;
 
@@ -46,7 +46,7 @@ pub fn update_vault_pnl_index(
         VAULT_PNL.may_load(storage)?.unwrap_or(Int128::zero()).checked_add(vault_pnl_delta)?;
     VAULT_PNL.save(storage, &updated_vault_pnl)?;
 
-    Ok(vault_pnl_index)
+    Ok((vault_pnl_index, updated_vault_pnl))
 }
 
 /// Calculates the current vault PNL index and PNL delta based on the current net worth and total shares
@@ -239,7 +239,7 @@ pub fn update_user_pnl(
     user: &Addr,
     user_shares: Uint128,
     vault_pnl_index: SignedDecimal,
-) -> Result<(), ContractError> {
+) -> Result<Int128, ContractError> {
     let user_pnl = query_user_pnl(storage, user, user_shares, vault_pnl_index)?;
 
     USER_TRACKED_PNL.save(storage, user, &user_pnl)?;
@@ -247,5 +247,5 @@ pub fn update_user_pnl(
     // set the users entry pnl index to the current pnl index
     USER_ENTRY_PNL_INDEX.save(storage, user, &vault_pnl_index)?;
 
-    Ok(())
+    Ok(user_pnl)
 }
