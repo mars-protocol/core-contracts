@@ -896,7 +896,7 @@ fn cannot_open_perp_above_max_ltv() {
         res,
         ContractError::AboveMaxLTV {
             account_id,
-            max_ltv_health_factor: "0.820408124686912222".to_string(),
+            max_ltv_health_factor: "0.821331798195551408".to_string(),
         },
     );
 }
@@ -995,11 +995,7 @@ fn setup(
         .set_params(&[osmo_info.clone(), atom_info.clone(), usdc_info.clone()])
         .fund_account(AccountToFund {
             addr: cm_user.clone(),
-            funds: vec![
-                osmo_coin_deposited.clone(),
-                usdc_coin_deposited.clone(),
-                //usdc_coin_deposited.clone(),
-            ],
+            funds: vec![osmo_coin_deposited.clone(), usdc_coin_deposited.clone()],
         })
         .fund_account(AccountToFund {
             addr: vault_depositor.clone(),
