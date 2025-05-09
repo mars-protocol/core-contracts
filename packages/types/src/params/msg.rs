@@ -29,6 +29,7 @@ pub enum ExecuteMsg {
     UpdateVaultConfig(VaultConfigUpdate),
     UpdatePerpParams(PerpParamsUpdate),
     EmergencyUpdate(EmergencyUpdate),
+    UpdateManagedVault(ManagedVaultUpdate),
 }
 
 #[cw_serde]
@@ -42,6 +43,9 @@ pub enum QueryMsg {
 
     #[returns(super::msg::ConfigResponse)]
     Config {},
+
+    #[returns(super::msg::ManagedVaultConfigResponse)]
+    ManagedVaultConfig {},
 
     #[returns(Option<super::asset::AssetParams>)]
     AssetParams {
@@ -120,6 +124,14 @@ pub struct ConfigResponse {
 }
 
 #[cw_serde]
+pub struct ManagedVaultConfigResponse {
+    /// Minimum fee creation in uusd for managed vaults
+    pub min_fee_creation_in_uusd: u128,
+    /// List of code ids for managed vaults
+    pub code_ids: Vec<u32>,
+}
+
+#[cw_serde]
 pub struct TotalDepositResponse {
     pub denom: String,
     pub cap: Uint128,
@@ -173,6 +185,13 @@ pub enum EmergencyUpdate {
     CreditManager(CmEmergencyUpdate),
     RedBank(RedBankEmergencyUpdate),
     Perps(PerpsEmergencyUpdate),
+}
+
+#[cw_serde]
+pub enum ManagedVaultUpdate {
+    AddCodeId(u32),
+    RemoveCodeId(u32),
+    SetMinFeeCreationInUusd(u128),
 }
 
 #[cw_serde]

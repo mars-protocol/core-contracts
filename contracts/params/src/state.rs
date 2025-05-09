@@ -1,3 +1,4 @@
+use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Addr;
 use cw_storage_plus::{Item, Map};
 use mars_owner::Owner;
@@ -12,3 +13,14 @@ pub const MAX_PERP_PARAMS: Item<u8> = Item::new("max_perp_params");
 pub const ASSET_PARAMS: Map<&str, AssetParams> = Map::new("asset_params");
 pub const VAULT_CONFIGS: Map<&Addr, VaultConfig> = Map::new("vault_configs");
 pub const PERP_PARAMS: Map<&str, PerpParams> = Map::new("perp_params");
+
+// Managed vault min fee creation in uusd
+pub const MANAGED_VAULT_MIN_FEE_CREATION_IN_UUSD: Item<u128> = Item::new("vault_min_fee");
+
+#[cw_serde]
+pub struct ManagedVaultCodeIds {
+    pub code_ids: Vec<u32>,
+}
+
+// Managed vault allowed code ids
+pub const MANAGED_VAULT_CODE_IDS: Item<ManagedVaultCodeIds> = Item::new("vault_code_ids");
