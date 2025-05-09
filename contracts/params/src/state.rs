@@ -18,6 +18,7 @@ pub const PERP_PARAMS: Map<&str, PerpParams> = Map::new("perp_params");
 pub const MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD: Item<u128> = Item::new("vault_min_creation_fee");
 
 #[cw_serde]
+#[derive(Default)]
 pub struct ManagedVaultCodeIds {
     pub code_ids: Vec<u32>,
 }

@@ -16,7 +16,7 @@ use crate::{
     },
     error::{ContractError, ContractResult},
     execute::{
-        reset_risk_manager, update_asset_params, update_config, update_managed_vault,
+        reset_risk_manager, update_asset_params, update_config, update_managed_vault_config,
         update_perp_params, update_vault_config,
     },
     migrations,
@@ -112,8 +112,8 @@ pub fn execute(
                 }
             },
         },
-        ExecuteMsg::UpdateManagedVault(managed_vault_update) => {
-            update_managed_vault(deps, info, managed_vault_update)
+        ExecuteMsg::UpdateManagedVaultConfig(managed_vault_update) => {
+            update_managed_vault_config(deps, info, managed_vault_update)
         }
     }
 }

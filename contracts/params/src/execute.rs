@@ -248,18 +248,18 @@ impl<'a> Permission<'a> {
     }
 }
 
-pub fn update_managed_vault(
+pub fn update_managed_vault_config(
     deps: DepsMut,
     info: MessageInfo,
     update: ManagedVaultUpdate,
 ) -> ContractResult<Response> {
     let _permission = Permission::new(deps.as_ref(), &info.sender)?;
 
-    let mut response = Response::new().add_attribute("action", "update_managed_vault");
+    let mut response = Response::new().add_attribute("action", "update_managed_vault_config");
 
     match update {
         ManagedVaultUpdate::AddCodeId(code_id) => {
-            let mut code_ids = MANAGED_VAULT_CODE_IDS.load(deps.storage)?;
+            let mut code_ids = MANAGED_VAULT_CODE_IDS.may_load(deps.storage)?.unwrap_or_default();
 
             if !code_ids.code_ids.contains(&code_id) {
                 code_ids.code_ids.push(code_id);
@@ -271,7 +271,7 @@ pub fn update_managed_vault(
             }
         }
         ManagedVaultUpdate::RemoveCodeId(code_id) => {
-            let mut code_ids = MANAGED_VAULT_CODE_IDS.load(deps.storage)?;
+            let mut code_ids = MANAGED_VAULT_CODE_IDS.may_load(deps.storage)?.unwrap_or_default();
 
             if let Some(index) = code_ids.code_ids.iter().position(|id| *id == code_id) {
                 code_ids.code_ids.remove(index);

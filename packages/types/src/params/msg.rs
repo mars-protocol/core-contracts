@@ -29,7 +29,7 @@ pub enum ExecuteMsg {
     UpdateVaultConfig(VaultConfigUpdate),
     UpdatePerpParams(PerpParamsUpdate),
     EmergencyUpdate(EmergencyUpdate),
-    UpdateManagedVault(ManagedVaultUpdate),
+    UpdateManagedVaultConfig(ManagedVaultUpdate),
 }
 
 #[cw_serde]
