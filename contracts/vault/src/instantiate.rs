@@ -1,6 +1,6 @@
 use cosmwasm_std::{coins, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
 use mars_owner::OwnerInit;
-use mars_types::{credit_manager, oracle};
+use mars_types::{credit_manager, oracle, params};
 use mars_utils::helpers::validate_native_denom;
 
 use crate::{
@@ -12,7 +12,6 @@ use crate::{
         PERFORMANCE_FEE_STATE, SUBTITLE, TITLE, VAULT_TOKEN,
     },
     token_factory::TokenFactoryDenom,
-    MIN_VAULT_FEE_CREATION_IN_UUSD,
 };
 
 pub fn init(
@@ -84,6 +83,10 @@ fn validate_base_token_value(
     base_token: &str,
     sent_base_token_amt: Uint128,
 ) -> ContractResult<()> {
+    let managed_vault_config: params::ManagedVaultConfigResponse = deps
+        .querier
+        .query_wasm_smart(config.params.clone(), &params::QueryMsg::ManagedVaultConfig {})?;
+
     let price: oracle::PriceResponse = deps.querier.query_wasm_smart(
         config.oracle.clone(),
         &oracle::QueryMsg::Price {
@@ -92,9 +95,9 @@ fn validate_base_token_value(
         },
     )?;
     let sent_base_token_value = sent_base_token_amt.checked_mul_floor(price.price)?;
-    if sent_base_token_value < Uint128::from(MIN_VAULT_FEE_CREATION_IN_UUSD) {
+    if sent_base_token_value < Uint128::from(managed_vault_config.min_creation_fee_in_uusd) {
         return Err(ContractError::MinAmountRequired {
-            min_value: MIN_VAULT_FEE_CREATION_IN_UUSD,
+            min_value: managed_vault_config.min_creation_fee_in_uusd,
             actual_value: sent_base_token_value.u128(),
             denom: base_token.to_string(),
         });

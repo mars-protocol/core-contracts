@@ -18,7 +18,7 @@ fn fund_manager_wallet_cannot_deposit_and_withdraw() {
             funds: vec![
                 coin(1_000_000_000, "untrn"),
                 coin(300, coin_info.denom.clone()),
-                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
             ],
         })
         .build()
@@ -29,7 +29,7 @@ fn fund_manager_wallet_cannot_deposit_and_withdraw() {
         &mut mock.app,
         &fund_manager_wallet,
         &credit_manager,
-        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
 
     let account_id = mock.create_fund_manager_account(&fund_manager_wallet, &managed_vault_addr);
@@ -173,7 +173,7 @@ fn addr_not_connected_to_fund_manager_acc_does_not_work() {
             addr: fund_manager_wallet.clone(),
             funds: vec![
                 coin(1_000_000_000, "untrn"),
-                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
             ],
         })
         .build()
@@ -184,7 +184,7 @@ fn addr_not_connected_to_fund_manager_acc_does_not_work() {
         &mut mock.app,
         &fund_manager_wallet,
         &credit_manager,
-        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
 
     let account_id = mock.create_fund_manager_account(&fund_manager_wallet, &managed_vault_addr);
@@ -219,7 +219,7 @@ fn fund_manager_wallet_can_work_on_behalf_of_vault() {
             funds: vec![
                 coin(1_000_000_000, "untrn"),
                 coin(funded_amt.u128(), coin_info.denom.clone()),
-                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
             ],
         })
         .build()
@@ -230,7 +230,7 @@ fn fund_manager_wallet_can_work_on_behalf_of_vault() {
         &mut mock.app,
         &fund_manager_wallet,
         &credit_manager,
-        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
     mock.app
         .sudo(SudoMsg::Bank(BankSudo::Mint {
@@ -324,7 +324,7 @@ fn vault_bindings() {
             addr: fund_manager_wallet.clone(),
             funds: vec![
                 coin(1_000_000_000, "untrn"),
-                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD * 3, "uusdc"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD * 3, "uusdc"),
             ],
         })
         .build()
@@ -336,7 +336,7 @@ fn vault_bindings() {
         &mut mock.app,
         &fund_manager_wallet,
         &credit_manager,
-        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
     let fund_acc_id_1 = mock.create_fund_manager_account(&fund_manager_wallet, &vault_addr_1);
 
@@ -358,14 +358,14 @@ fn vault_bindings() {
         &mut mock.app,
         &fund_manager_wallet,
         &credit_manager,
-        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
     let fund_acc_id_2 = mock.create_fund_manager_account(&fund_manager_wallet, &vault_addr_2);
     let vault_addr_3 = deploy_managed_vault(
         &mut mock.app,
         &fund_manager_wallet,
         &credit_manager,
-        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
     let fund_acc_id_3 = mock.create_fund_manager_account(&fund_manager_wallet, &vault_addr_3);
 

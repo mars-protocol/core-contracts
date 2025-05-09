@@ -1,4 +1,5 @@
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
+use mars_types::params::ManagedVaultConfigUpdate;
 use mars_vault::{
     error::ContractError, msg::VaultInfoResponseExt, performance_fee::PerformanceFeeConfig,
 };
@@ -17,18 +18,22 @@ fn only_credit_manager_can_bind_account() {
             addr: fund_manager.clone(),
             funds: vec![
                 coin(1_000_000_000, "untrn"),
-                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
             ],
         })
         .build()
         .unwrap();
     let credit_manager = mock.rover.clone();
 
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
+
     let managed_vault_addr = deploy_managed_vault(
         &mut mock.app,
         &fund_manager,
         &credit_manager,
-        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
 
     let res = execute_bind_credit_manager_account(
@@ -71,18 +76,22 @@ fn only_one_binding_allowed() {
             addr: fund_manager.clone(),
             funds: vec![
                 coin(1_000_000_000, "untrn"),
-                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
             ],
         })
         .build()
         .unwrap();
     let credit_manager = mock.rover.clone();
 
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
+
     let managed_vault_addr = deploy_managed_vault(
         &mut mock.app,
         &fund_manager,
         &credit_manager,
-        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
 
     mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
@@ -106,18 +115,22 @@ fn account_owner_can_not_be_different_than_contract_owner() {
             addr: fund_manager.clone(),
             funds: vec![
                 coin(1_000_000_000, "untrn"),
-                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
             ],
         })
         .build()
         .unwrap();
     let credit_manager = mock.rover.clone();
 
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
+
     let managed_vault_addr = deploy_managed_vault(
         &mut mock.app,
         &fund_manager,
         &credit_manager,
-        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
 
     let random_existing_acc_id = mock.create_credit_account(&random_wallet).unwrap();

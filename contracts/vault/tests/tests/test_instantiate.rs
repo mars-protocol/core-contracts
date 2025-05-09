@@ -4,7 +4,7 @@ use anyhow::Result as AnyResult;
 use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use cw_multi_test::Executor;
 use mars_mock_oracle::msg::CoinPrice;
-use mars_types::oracle::ActionKind;
+use mars_types::{oracle::ActionKind, params::ManagedVaultConfigUpdate};
 use mars_utils::error::ValidationError;
 use mars_vault::{
     error::ContractError,
@@ -23,18 +23,22 @@ fn instantiate_with_empty_metadata() {
             addr: fund_manager.clone(),
             funds: vec![
                 coin(1_000_000_000, "untrn"),
-                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
             ],
         })
         .build()
         .unwrap();
     let credit_manager = mock.rover.clone();
 
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
+
     let managed_vault_addr = deploy_managed_vault(
         &mut mock.app,
         &fund_manager,
         &credit_manager,
-        Some(coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
 
     let vault_info_res = query_vault_info(&mock, &managed_vault_addr);
@@ -68,12 +72,16 @@ fn instantiate_with_metadata() {
             addr: fund_manager.clone(),
             funds: vec![
                 coin(1_000_000_000, "untrn"),
-                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
             ],
         })
         .build()
         .unwrap();
     let credit_manager = mock.rover.clone();
+
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
 
     let contract_code_id = mock.app.store_code(mock_managed_vault_contract());
     let managed_vault_addr = mock
@@ -94,7 +102,10 @@ fn instantiate_with_metadata() {
                     withdrawal_interval: 1563,
                 },
             },
-            &[coin(10_000_000, "untrn"), coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")], // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
+            &[
+                coin(10_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ], // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
             "mock-managed-vault",
             None,
         )
@@ -137,6 +148,10 @@ fn instantiate_and_creation_fee_received_in_rewards_collector() {
         .unwrap();
     let credit_manager = mock.rover.clone();
 
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
+
     mock.price_change(CoinPrice {
         pricing: ActionKind::Default,
         denom: "uusdc".to_string(),
@@ -167,6 +182,10 @@ fn cannot_instantiate_zero_creation_fee() {
         .build()
         .unwrap();
     let credit_manager = mock.rover.clone();
+
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
 
     let contract_code_id = mock.app.store_code(mock_managed_vault_contract());
     let res = mock.app.instantiate_contract(
@@ -202,7 +221,7 @@ fn cannot_instantiate_zero_creation_fee() {
 
 #[test]
 fn cannot_instantiate_not_enough_creation_fee() {
-    let creation_fee_sent = mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD - 1;
+    let creation_fee_sent = mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD - 1;
 
     let fund_manager = Addr::unchecked("fund-manager");
     let mut mock = MockEnv::new()
@@ -213,6 +232,10 @@ fn cannot_instantiate_not_enough_creation_fee() {
         .build()
         .unwrap();
     let credit_manager = mock.rover.clone();
+
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
 
     mock.price_change(CoinPrice {
         pricing: ActionKind::Default,
@@ -245,7 +268,7 @@ fn cannot_instantiate_not_enough_creation_fee() {
     assert_vault_err(
         res,
         ContractError::MinAmountRequired {
-            min_value: mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD,
+            min_value: mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
             actual_value: creation_fee_sent,
             denom: "uusdc".to_string(),
         },
@@ -260,12 +283,16 @@ fn cannot_instantiate_with_invalid_performance_fee() {
             addr: fund_manager.clone(),
             funds: vec![
                 coin(1_000_000_000, "untrn"),
-                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
             ],
         })
         .build()
         .unwrap();
     let credit_manager = mock.rover.clone();
+
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
 
     let contract_code_id = mock.app.store_code(mock_managed_vault_contract());
     let res = mock.app.instantiate_contract(
@@ -284,7 +311,7 @@ fn cannot_instantiate_with_invalid_performance_fee() {
                 withdrawal_interval: 1563,
             },
         },
-        &[coin(10_000_000, "untrn"), coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")], // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
+        &[coin(10_000_000, "untrn"), coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")], // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
         "mock-managed-vault",
         None,
     );
@@ -306,12 +333,16 @@ fn cannot_instantiate_with_zero_cooldown_period() {
             addr: fund_manager.clone(),
             funds: vec![
                 coin(1_000_000_000, "untrn"),
-                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
             ],
         })
         .build()
         .unwrap();
     let credit_manager = mock.rover.clone();
+
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
 
     let contract_code_id = mock.app.store_code(mock_managed_vault_contract());
     let res = mock.app.instantiate_contract(
@@ -330,7 +361,7 @@ fn cannot_instantiate_with_zero_cooldown_period() {
                 withdrawal_interval: 1563,
             },
         },
-        &[coin(10_000_000, "untrn"), coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")], // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
+        &[coin(10_000_000, "untrn"), coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")], // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
         "mock-managed-vault",
         None,
     );
@@ -346,12 +377,16 @@ fn cannot_instantiate_with_invalid_base_denom() {
             addr: fund_manager.clone(),
             funds: vec![
                 coin(1_000_000_000, "untrn"),
-                coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "!*jadfaefc"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "!*jadfaefc"),
             ],
         })
         .build()
         .unwrap();
     let credit_manager = mock.rover.clone();
+
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
 
     let contract_code_id = mock.app.store_code(mock_managed_vault_contract());
     let res = mock.app.instantiate_contract(
@@ -372,7 +407,7 @@ fn cannot_instantiate_with_invalid_base_denom() {
         },
         &[
             coin(10_000_000, "untrn"),
-            coin(mars_vault::MIN_VAULT_FEE_CREATION_IN_UUSD, "!*jadfaefc"),
+            coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "!*jadfaefc"),
         ], // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
         "mock-managed-vault",
         None,
