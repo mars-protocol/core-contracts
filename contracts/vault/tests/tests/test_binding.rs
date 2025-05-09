@@ -35,6 +35,8 @@ fn only_credit_manager_can_bind_account() {
         &credit_manager,
         Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     let res = execute_bind_credit_manager_account(
         &mut mock,
@@ -93,6 +95,8 @@ fn only_one_binding_allowed() {
         &credit_manager,
         Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 

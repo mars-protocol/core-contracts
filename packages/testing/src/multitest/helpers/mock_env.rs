@@ -2,8 +2,8 @@ use std::default::Default;
 
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{
-    coin, coins, testing::MockApi, Addr, Coin, Decimal, Empty, Int128, StdError, StdResult,
-    Timestamp, Uint128,
+    coin, coins, testing::MockApi, Addr, Coin, ContractInfoResponse, Decimal, Empty, Int128,
+    StdError, StdResult, Timestamp, Uint128,
 };
 use cw721::TokensResponse;
 use cw721_base::{Action::TransferOwnership, Ownership};
@@ -200,6 +200,11 @@ impl MockEnv {
                 amount: funds,
             }))
             .unwrap();
+    }
+
+    pub fn query_code_id(&self, addr: &Addr) -> u64 {
+        let res: ContractInfoResponse = self.app.wrap().query_wasm_contract_info(addr).unwrap();
+        res.code_id
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -424,6 +429,21 @@ impl MockEnv {
             &[],
         )?;
         Ok(self.get_account_id(res))
+    }
+
+    pub fn create_fund_manager_account_with_error(
+        &mut self,
+        sender: &Addr,
+        vault: &Addr,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.rover.clone(),
+            &ExecuteMsg::CreateCreditAccount(AccountKind::FundManager {
+                vault_addr: vault.to_string(),
+            }),
+            &[],
+        )
     }
 
     pub fn get_account_id(&mut self, res: AppResponse) -> String {

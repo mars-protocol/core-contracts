@@ -20,7 +20,7 @@ pub const MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD: Item<u128> = Item::new("vault_
 #[cw_serde]
 #[derive(Default)]
 pub struct ManagedVaultCodeIds {
-    pub code_ids: Vec<u32>,
+    pub code_ids: Vec<u64>,
 }
 
 // Managed vault allowed code ids

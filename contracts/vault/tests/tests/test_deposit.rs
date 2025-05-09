@@ -43,6 +43,8 @@ fn deposit_invalid_funds() {
         &credit_manager,
         Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
@@ -152,6 +154,8 @@ fn deposit_succeded() {
         &credit_manager,
         Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
     let vault_info_res = query_vault_info(&mock, &managed_vault_addr);
     let vault_token = vault_info_res.vault_token;
 

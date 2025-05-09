@@ -238,4 +238,7 @@ pub enum ContractError {
         "Illegal trigger action. Trigger actions may only contain execute_perp_order and lend"
     )]
     IllegalTriggerAction,
+
+    #[error("Invalid vault code id. Allowed code ids configured in params")]
+    InvalidVaultCodeId {},
 }

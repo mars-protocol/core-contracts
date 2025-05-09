@@ -89,6 +89,8 @@ fn unauthorized_performance_fee_withdraw() {
         &credit_manager,
         Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
     );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     let vault_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
@@ -154,6 +156,8 @@ fn cannot_withdraw_zero_performance_fee() {
         },
         Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc")),
     );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
@@ -202,6 +206,8 @@ fn cannot_withdraw_if_withdrawal_interval_not_passed() {
         },
         Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc")),
     );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
@@ -308,6 +314,8 @@ fn performance_fee_correctly_accumulated() {
         },
         Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc")),
     );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
