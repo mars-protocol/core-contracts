@@ -29,7 +29,7 @@ pub enum ExecuteMsg {
     UpdateVaultConfig(VaultConfigUpdate),
     UpdatePerpParams(PerpParamsUpdate),
     EmergencyUpdate(EmergencyUpdate),
-    UpdateManagedVaultConfig(ManagedVaultUpdate),
+    UpdateManagedVaultConfig(ManagedVaultConfigUpdate),
 }
 
 #[cw_serde]
@@ -188,7 +188,7 @@ pub enum EmergencyUpdate {
 }
 
 #[cw_serde]
-pub enum ManagedVaultUpdate {
+pub enum ManagedVaultConfigUpdate {
     AddCodeId(u32),
     RemoveCodeId(u32),
     SetMinCreationFeeInUusd(u128),

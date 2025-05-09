@@ -112,8 +112,8 @@ pub fn execute(
                 }
             },
         },
-        ExecuteMsg::UpdateManagedVaultConfig(managed_vault_update) => {
-            update_managed_vault_config(deps, info, managed_vault_update)
+        ExecuteMsg::UpdateManagedVaultConfig(managed_vault_config_update) => {
+            update_managed_vault_config(deps, info, managed_vault_config_update)
         }
     }
 }

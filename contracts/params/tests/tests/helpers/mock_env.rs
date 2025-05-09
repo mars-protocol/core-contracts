@@ -10,7 +10,7 @@ use mars_types::{
     oracle,
     params::{
         AssetParams, AssetParamsUpdate, ConfigResponse, EmergencyUpdate, ExecuteMsg,
-        InstantiateMsg, ManagedVaultConfigResponse, ManagedVaultUpdate, PerpParams,
+        InstantiateMsg, ManagedVaultConfigResponse, ManagedVaultConfigUpdate, PerpParams,
         PerpParamsUpdate, QueryMsg, VaultConfig, VaultConfigUpdate,
     },
     perps::{self, Config},
@@ -142,7 +142,7 @@ impl MockEnv {
     pub fn update_managed_vault_config(
         &mut self,
         sender: &Addr,
-        update: ManagedVaultUpdate,
+        update: ManagedVaultConfigUpdate,
     ) -> AnyResult<AppResponse> {
         self.app.execute_contract(
             sender.clone(),

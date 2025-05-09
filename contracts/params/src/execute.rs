@@ -7,7 +7,7 @@ use mars_owner::OwnerInit::SetInitialOwner;
 use mars_types::{
     address_provider::{self, MarsAddressType},
     params::{
-        AssetParams, AssetParamsUpdate, ManagedVaultUpdate, PerpParams, PerpParamsUpdate,
+        AssetParams, AssetParamsUpdate, ManagedVaultConfigUpdate, PerpParams, PerpParamsUpdate,
         VaultConfigUpdate,
     },
     perps::ExecuteMsg,
@@ -251,14 +251,14 @@ impl<'a> Permission<'a> {
 pub fn update_managed_vault_config(
     deps: DepsMut,
     info: MessageInfo,
-    update: ManagedVaultUpdate,
+    update: ManagedVaultConfigUpdate,
 ) -> ContractResult<Response> {
     let _permission = Permission::new(deps.as_ref(), &info.sender)?;
 
     let mut response = Response::new().add_attribute("action", "update_managed_vault_config");
 
     match update {
-        ManagedVaultUpdate::AddCodeId(code_id) => {
+        ManagedVaultConfigUpdate::AddCodeId(code_id) => {
             let mut code_ids = MANAGED_VAULT_CODE_IDS.may_load(deps.storage)?.unwrap_or_default();
 
             if !code_ids.code_ids.contains(&code_id) {
@@ -270,7 +270,7 @@ pub fn update_managed_vault_config(
                     .add_attribute("code_id", code_id.to_string());
             }
         }
-        ManagedVaultUpdate::RemoveCodeId(code_id) => {
+        ManagedVaultConfigUpdate::RemoveCodeId(code_id) => {
             let mut code_ids = MANAGED_VAULT_CODE_IDS.may_load(deps.storage)?.unwrap_or_default();
 
             if let Some(index) = code_ids.code_ids.iter().position(|id| *id == code_id) {
@@ -282,7 +282,7 @@ pub fn update_managed_vault_config(
                     .add_attribute("code_id", code_id.to_string());
             }
         }
-        ManagedVaultUpdate::SetMinCreationFeeInUusd(min_creation_fee_in_uusd) => {
+        ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(min_creation_fee_in_uusd) => {
             MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD.save(deps.storage, &min_creation_fee_in_uusd)?;
             response = response
                 .add_attribute("action_type", "set_min_creation_fee_in_uusd")

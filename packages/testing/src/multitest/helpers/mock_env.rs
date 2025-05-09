@@ -59,9 +59,12 @@ use mars_types::{
     params::{
         AssetParams,
         AssetParamsUpdate::{self, AddOrUpdate},
-        ExecuteMsg::{UpdateAssetParams, UpdatePerpParams, UpdateVaultConfig},
-        InstantiateMsg as ParamsInstantiateMsg, PerpParamsUpdate, QueryMsg as ParamsQueryMsg,
-        VaultConfig, VaultConfigUnchecked, VaultConfigUpdate,
+        ExecuteMsg::{
+            UpdateAssetParams, UpdateManagedVaultConfig, UpdatePerpParams, UpdateVaultConfig,
+        },
+        InstantiateMsg as ParamsInstantiateMsg, ManagedVaultConfigResponse,
+        ManagedVaultConfigUpdate, PerpParamsUpdate, QueryMsg as ParamsQueryMsg, VaultConfig,
+        VaultConfigUnchecked, VaultConfigUpdate,
     },
     perps::{
         self, Config, InstantiateMsg as PerpsInstantiateMsg, PnL, PositionResponse, TradingFee,
@@ -349,6 +352,18 @@ impl MockEnv {
                 Addr::unchecked(config.ownership.owner.unwrap()),
                 Addr::unchecked(config.params),
                 &UpdatePerpParams(update),
+                &[],
+            )
+            .unwrap();
+    }
+
+    pub fn update_managed_vault_config(&mut self, update: ManagedVaultConfigUpdate) {
+        let config = self.query_config();
+        self.app
+            .execute_contract(
+                Addr::unchecked(config.ownership.owner.unwrap()),
+                Addr::unchecked(config.params),
+                &UpdateManagedVaultConfig(update),
                 &[],
             )
             .unwrap();
@@ -744,6 +759,13 @@ impl MockEnv {
                     denom: denom.to_string(),
                 },
             )
+            .unwrap()
+    }
+
+    pub fn query_managed_vault_config(&self) -> ManagedVaultConfigResponse {
+        self.app
+            .wrap()
+            .query_wasm_smart(self.params.address(), &ParamsQueryMsg::ManagedVaultConfig {})
             .unwrap()
     }
 

@@ -1,6 +1,6 @@
 use cosmwasm_std::Addr;
 use mars_params::error::ContractError;
-use mars_types::params::ManagedVaultUpdate;
+use mars_types::params::ManagedVaultConfigUpdate;
 use test_case::test_case;
 
 use super::helpers::{assert_err, MockEnv};
@@ -22,14 +22,16 @@ fn non_owner_or_risk_manager_cannot_update_managed_vault_config() {
 
     let bad_guy = Addr::unchecked("doctor_otto_983");
 
-    let res = mock.update_managed_vault_config(&bad_guy, ManagedVaultUpdate::AddCodeId(1));
+    let res = mock.update_managed_vault_config(&bad_guy, ManagedVaultConfigUpdate::AddCodeId(1));
     assert_err(res, ContractError::NotOwnerOrRiskManager {});
 
-    let res = mock.update_managed_vault_config(&bad_guy, ManagedVaultUpdate::RemoveCodeId(1));
+    let res = mock.update_managed_vault_config(&bad_guy, ManagedVaultConfigUpdate::RemoveCodeId(1));
     assert_err(res, ContractError::NotOwnerOrRiskManager {});
 
-    let res = mock
-        .update_managed_vault_config(&bad_guy, ManagedVaultUpdate::SetMinCreationFeeInUusd(50_000));
+    let res = mock.update_managed_vault_config(
+        &bad_guy,
+        ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(50_000),
+    );
     assert_err(res, ContractError::NotOwnerOrRiskManager {});
 }
 
@@ -66,21 +68,21 @@ fn owner_or_risk_manager_can_modify_managed_vault_code_ids(
     };
 
     // Add code id
-    mock.update_managed_vault_config(&sender, ManagedVaultUpdate::AddCodeId(102)).unwrap();
+    mock.update_managed_vault_config(&sender, ManagedVaultConfigUpdate::AddCodeId(102)).unwrap();
     let config = mock.query_managed_vault_config();
     assert_eq!(config.code_ids.len(), 1);
     assert_eq!(config.code_ids[0], 102);
     assert_eq!(config.min_creation_fee_in_uusd, 0);
 
     // Add code id
-    mock.update_managed_vault_config(&sender, ManagedVaultUpdate::AddCodeId(99)).unwrap();
+    mock.update_managed_vault_config(&sender, ManagedVaultConfigUpdate::AddCodeId(99)).unwrap();
     let config = mock.query_managed_vault_config();
     assert_eq!(config.code_ids.len(), 2);
     assert_eq!(config.code_ids[0], 102);
     assert_eq!(config.code_ids[1], 99);
     assert_eq!(config.min_creation_fee_in_uusd, 0);
     // Add code id
-    mock.update_managed_vault_config(&sender, ManagedVaultUpdate::AddCodeId(1005)).unwrap();
+    mock.update_managed_vault_config(&sender, ManagedVaultConfigUpdate::AddCodeId(1005)).unwrap();
     let config = mock.query_managed_vault_config();
     assert_eq!(config.code_ids.len(), 3);
     assert_eq!(config.code_ids[0], 102);
@@ -88,7 +90,8 @@ fn owner_or_risk_manager_can_modify_managed_vault_code_ids(
     assert_eq!(config.code_ids[2], 1005);
     assert_eq!(config.min_creation_fee_in_uusd, 0);
     // Remove non-existent code id, should be a no-op
-    mock.update_managed_vault_config(&sender, ManagedVaultUpdate::RemoveCodeId(2000)).unwrap();
+    mock.update_managed_vault_config(&sender, ManagedVaultConfigUpdate::RemoveCodeId(2000))
+        .unwrap();
     let config = mock.query_managed_vault_config();
     assert_eq!(config.code_ids.len(), 3);
     assert_eq!(config.code_ids[0], 102);
@@ -97,7 +100,7 @@ fn owner_or_risk_manager_can_modify_managed_vault_code_ids(
     assert_eq!(config.min_creation_fee_in_uusd, 0);
 
     // Remove code id
-    mock.update_managed_vault_config(&sender, ManagedVaultUpdate::RemoveCodeId(99)).unwrap();
+    mock.update_managed_vault_config(&sender, ManagedVaultConfigUpdate::RemoveCodeId(99)).unwrap();
     let config = mock.query_managed_vault_config();
     assert_eq!(config.code_ids.len(), 2);
     assert_eq!(config.code_ids[0], 102);
@@ -122,8 +125,11 @@ fn owner_or_risk_manager_can_update_min_creation_fee(owner_or_risk_manager: Owne
         OwnerOrRiskManager::RiskManager => mock.query_risk_manager(),
     };
 
-    mock.update_managed_vault_config(&sender, ManagedVaultUpdate::SetMinCreationFeeInUusd(50_123))
-        .unwrap();
+    mock.update_managed_vault_config(
+        &sender,
+        ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(50_123),
+    )
+    .unwrap();
     let config = mock.query_managed_vault_config();
     assert_eq!(config.min_creation_fee_in_uusd, 50_123);
     assert_eq!(config.code_ids.len(), 0);
