@@ -125,8 +125,8 @@ pub struct ConfigResponse {
 
 #[cw_serde]
 pub struct ManagedVaultConfigResponse {
-    /// Minimum fee creation in uusd for managed vaults
-    pub min_fee_creation_in_uusd: u128,
+    /// Minimum creation fee in uusd for managed vaults
+    pub min_creation_fee_in_uusd: u128,
     /// List of code ids for managed vaults
     pub code_ids: Vec<u32>,
 }
@@ -191,7 +191,7 @@ pub enum EmergencyUpdate {
 pub enum ManagedVaultUpdate {
     AddCodeId(u32),
     RemoveCodeId(u32),
-    SetMinFeeCreationInUusd(u128),
+    SetMinCreationFeeInUusd(u128),
 }
 
 #[cw_serde]

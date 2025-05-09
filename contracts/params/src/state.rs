@@ -14,8 +14,8 @@ pub const ASSET_PARAMS: Map<&str, AssetParams> = Map::new("asset_params");
 pub const VAULT_CONFIGS: Map<&Addr, VaultConfig> = Map::new("vault_configs");
 pub const PERP_PARAMS: Map<&str, PerpParams> = Map::new("perp_params");
 
-// Managed vault min fee creation in uusd
-pub const MANAGED_VAULT_MIN_FEE_CREATION_IN_UUSD: Item<u128> = Item::new("vault_min_fee");
+// Managed vault min creation fee in uusd
+pub const MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD: Item<u128> = Item::new("vault_min_creation_fee");
 
 #[cw_serde]
 pub struct ManagedVaultCodeIds {

@@ -15,7 +15,7 @@ use crate::{
     error::{ContractError, ContractResult},
     state::{
         ADDRESS_PROVIDER, ASSET_PARAMS, MANAGED_VAULT_CODE_IDS,
-        MANAGED_VAULT_MIN_FEE_CREATION_IN_UUSD, MAX_PERP_PARAMS, PERP_PARAMS, VAULT_CONFIGS,
+        MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD, MAX_PERP_PARAMS, PERP_PARAMS, VAULT_CONFIGS,
     },
 };
 
@@ -35,7 +35,7 @@ pub fn query_managed_vault_config(deps: Deps) -> StdResult<ManagedVaultConfigRes
             .may_load(deps.storage)?
             .map(|ids| ids.code_ids)
             .unwrap_or_default(),
-        min_fee_creation_in_uusd: MANAGED_VAULT_MIN_FEE_CREATION_IN_UUSD
+        min_creation_fee_in_uusd: MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD
             .may_load(deps.storage)?
             .unwrap_or_default(),
     })

@@ -18,7 +18,7 @@ use crate::{
     error::{ContractError, ContractResult},
     state::{
         ADDRESS_PROVIDER, ASSET_PARAMS, MANAGED_VAULT_CODE_IDS,
-        MANAGED_VAULT_MIN_FEE_CREATION_IN_UUSD, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, RISK_MANAGER,
+        MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, RISK_MANAGER,
         RISK_MANAGER_KEY, VAULT_CONFIGS,
     },
 };
@@ -282,11 +282,11 @@ pub fn update_managed_vault(
                     .add_attribute("code_id", code_id.to_string());
             }
         }
-        ManagedVaultUpdate::SetMinFeeCreationInUusd(min_fee_creation_in_uusd) => {
-            MANAGED_VAULT_MIN_FEE_CREATION_IN_UUSD.save(deps.storage, &min_fee_creation_in_uusd)?;
+        ManagedVaultUpdate::SetMinCreationFeeInUusd(min_creation_fee_in_uusd) => {
+            MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD.save(deps.storage, &min_creation_fee_in_uusd)?;
             response = response
-                .add_attribute("action_type", "set_min_fee_creation_in_uusd")
-                .add_attribute("min_fee_creation_in_uusd", min_fee_creation_in_uusd.to_string());
+                .add_attribute("action_type", "set_min_creation_fee_in_uusd")
+                .add_attribute("min_creation_fee_in_uusd", min_creation_fee_in_uusd.to_string());
         }
     }
 
