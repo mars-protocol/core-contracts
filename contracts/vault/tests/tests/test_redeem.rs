@@ -542,7 +542,7 @@ fn redeem_with_unrealised_pnl_perp_position() {
     assert_eq!(position.unrealized_pnl.pnl, Int128::from_str("9099999").unwrap());
 
     // unlock vault tokens
-    let user_vault_token_balance = mock.query_balance(&user, &vault_token).amount;
+    let user_vault_token_balance: Uint128 = mock.query_balance(&user, &vault_token).amount;
     let underlying_base_tokens =
         query_convert_to_assets(&mock, &managed_vault_addr, user_vault_token_balance);
 

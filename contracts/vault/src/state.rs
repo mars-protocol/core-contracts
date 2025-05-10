@@ -1,3 +1,4 @@
+use cosmwasm_std::{Addr, Int128, SignedDecimal, Uint128};
 use cw_storage_plus::{Item, Map};
 use mars_owner::Owner;
 
@@ -27,3 +28,18 @@ pub const UNLOCKS: Map<(&str, u64), UnlockState> = Map::new("unlocks");
 
 pub const PERFORMANCE_FEE_CONFIG: Item<PerformanceFeeConfig> = Item::new("performance_fee_config");
 pub const PERFORMANCE_FEE_STATE: Item<PerformanceFeeState> = Item::new("performance_fee_state");
+
+/// PnL tracking
+pub const VAULT_PNL: Item<Int128> = Item::new("vault_pnl");
+
+/// An index of the vault's PnL, used to track what portion of the vaults pnl a user has accumulated
+pub const VAULT_PNL_INDEX: Item<SignedDecimal> = Item::new("vault_pnl_index");
+
+/// The pnl index a user entered with
+pub const USER_ENTRY_PNL_INDEX: Map<&Addr, SignedDecimal> = Map::new("user_entry_pnl_index");
+
+/// The pnl a user has accumulated (not included by the entry pnl index)
+pub const USER_TRACKED_PNL: Map<&Addr, Int128> = Map::new("user_tracked_pnl");
+
+/// The last net worth of the vault, used to calculate the vault's pnl delta since last update
+pub const LAST_NET_WORTH: Item<Uint128> = Item::new("last_net_worth");

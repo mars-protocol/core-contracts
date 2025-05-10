@@ -6,5 +6,6 @@ mod test_binding;
 mod test_deposit;
 mod test_instantiate;
 mod test_performance_fee;
+mod test_pnl;
 mod test_redeem;
 mod test_unlock;
