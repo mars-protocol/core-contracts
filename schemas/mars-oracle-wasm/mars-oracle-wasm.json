@@ -520,6 +520,7 @@
             "additionalProperties": false
           },
           {
+            "description": "Astroport LP token (of a PCL pool) price quoted in uusd.  Uses concentrated pair type.",
             "type": "object",
             "required": [
               "pcl_liquidity_token"
@@ -542,6 +543,7 @@
             "additionalProperties": false
           },
           {
+            "description": "Astroport LP token (of a PCL pool with duality orderbook) price quoted in uusd.  Uses concentrated_duality_orderbook pair type.",
             "type": "object",
             "required": [
               "pcl_duality_orderbook_liquidity_token"
