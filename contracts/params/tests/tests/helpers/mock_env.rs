@@ -10,7 +10,8 @@ use mars_types::{
     oracle,
     params::{
         AssetParams, AssetParamsUpdate, ConfigResponse, EmergencyUpdate, ExecuteMsg,
-        InstantiateMsg, PerpParams, PerpParamsUpdate, QueryMsg, VaultConfig, VaultConfigUpdate,
+        InstantiateMsg, ManagedVaultConfigResponse, ManagedVaultConfigUpdate, PerpParams,
+        PerpParamsUpdate, QueryMsg, VaultConfig, VaultConfigUpdate,
     },
     perps::{self, Config},
 };
@@ -134,6 +135,19 @@ impl MockEnv {
                 address_provider,
                 max_perp_params,
             },
+            &[],
+        )
+    }
+
+    pub fn update_managed_vault_config(
+        &mut self,
+        sender: &Addr,
+        update: ManagedVaultConfigUpdate,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.params_contract.clone(),
+            &ExecuteMsg::UpdateManagedVaultConfig(update),
             &[],
         )
     }
@@ -315,6 +329,13 @@ impl MockEnv {
         self.app
             .wrap()
             .query_wasm_smart(self.params_contract.clone(), &QueryMsg::Config {})
+            .unwrap()
+    }
+
+    pub fn query_managed_vault_config(&self) -> ManagedVaultConfigResponse {
+        self.app
+            .wrap()
+            .query_wasm_smart(self.params_contract.clone(), &QueryMsg::ManagedVaultConfig {})
             .unwrap()
     }
 

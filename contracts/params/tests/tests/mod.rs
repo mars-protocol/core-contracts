@@ -11,6 +11,7 @@ mod test_query_all_vault_configs_v2;
 mod test_risk_manager;
 mod test_update_asset_params;
 mod test_update_config;
+mod test_update_managed_vault_config;
 mod test_update_perp_params;
 mod test_vault_validation;
 mod test_vaults;

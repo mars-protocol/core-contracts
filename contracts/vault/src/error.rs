@@ -88,6 +88,16 @@ pub enum ContractError {
     VaultBankrupt {
         vault_account_id: String,
     },
+
+    #[error("Minimum amount of {denom} required to create a vault is {min_value:?} uusd, got {actual_value:?} uusd")]
+    MinAmountRequired {
+        min_value: u128,
+        actual_value: u128,
+        denom: String,
+    },
+
+    #[error("Rewards collector not set in Credit Manager")]
+    RewardsCollectorNotSet {},
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;
