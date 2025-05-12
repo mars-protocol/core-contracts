@@ -132,6 +132,10 @@ pub enum WasmPriceSource<A> {
         /// Address of the Astroport pair
         pair_address: A,
     },
+    PclDualityOrderbookLiquidityToken {
+        /// Address of the Astroport pair
+        pair_address: A,
+    },
     SsLiquidityToken {
         /// Address of the Astroport pair
         pair_address: A,
@@ -208,6 +212,7 @@ impl fmt::Display for WasmPriceSourceChecked {
             },
             WasmPriceSource::XykLiquidityToken { pair_address } => format!("xyk_liquidity_token:{pair_address}"),
             WasmPriceSource::PclLiquidityToken { pair_address } => format!("pcl_liquidity_token:{pair_address}"),
+            WasmPriceSource::PclDualityOrderbookLiquidityToken { pair_address } => format!("pcl_duality_orderbook_liquidity_token:{pair_address}"),
             WasmPriceSource::SsLiquidityToken { pair_address } => format!("stable_swap_liquidity_token:{pair_address}"),
             WasmPriceSource::Slinky { base_symbol, denom_decimals, max_blocks_old } => {
                 format!("slinky:{base_symbol}:{denom_decimals}:{max_blocks_old}")
@@ -394,6 +399,21 @@ impl PriceSourceUnchecked<WasmPriceSourceChecked, Empty> for WasmPriceSourceUnch
                     pair_address,
                 })
             }
+            WasmPriceSource::PclDualityOrderbookLiquidityToken {
+                pair_address,
+            } => {
+                let pair_address = deps.api.addr_validate(&pair_address)?;
+                validate_astroport_lp_pool_for_type(
+                    deps,
+                    &pair_address,
+                    price_sources,
+                    PairType::Custom("concentrated_duality_orderbook".to_string()),
+                )?;
+
+                Ok(WasmPriceSourceChecked::PclDualityOrderbookLiquidityToken {
+                    pair_address,
+                })
+            }
             WasmPriceSource::SsLiquidityToken {
                 pair_address,
             } => {
@@ -514,6 +534,16 @@ impl PriceSourceChecked<Empty> for WasmPriceSourceChecked {
                 kind,
             ),
             WasmPriceSource::PclLiquidityToken {
+                pair_address,
+            } => query_pcl_liquidity_token_price(
+                deps,
+                env,
+                config,
+                price_sources,
+                pair_address,
+                kind,
+            ),
+            WasmPriceSource::PclDualityOrderbookLiquidityToken {
                 pair_address,
             } => query_pcl_liquidity_token_price(
                 deps,
@@ -673,7 +703,11 @@ fn query_astroport_twap_price(
 
             Decimal::from_ratio(price_delta, offer_simulation_amount.checked_mul(period.into())?)
         }
-        PairType::Custom(ref custom) if custom == "concentrated" => {
+        // We treat concentrated (Standard PCL pool) and concentrated_duality_orderbook (PCL applied to duality orderbook)
+        // pools as the pricing model is the same. 
+        PairType::Custom(ref custom)
+            if custom == "concentrated" || custom == "concentrated_duality_orderbook" =>
+        {
             // Get the number of decimals of offer and ask denoms
             let (offer_decimals, ask_decimals) = get_precisions(deps, &pair_info, denom)?;
 

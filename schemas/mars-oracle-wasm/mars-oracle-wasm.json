@@ -544,6 +544,28 @@
           {
             "type": "object",
             "required": [
+              "pcl_duality_orderbook_liquidity_token"
+            ],
+            "properties": {
+              "pcl_duality_orderbook_liquidity_token": {
+                "type": "object",
+                "required": [
+                  "pair_address"
+                ],
+                "properties": {
+                  "pair_address": {
+                    "description": "Address of the Astroport pair",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
               "ss_liquidity_token"
             ],
             "properties": {
