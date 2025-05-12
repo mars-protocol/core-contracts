@@ -225,6 +225,6 @@ pub fn default_perp_params(denom: &str) -> PerpParams {
         max_position_value: None,
         min_position_value: Uint128::zero(),
         max_funding_velocity: Decimal::from_str("3").unwrap(),
-        skew_scale: Uint128::new(1000000u128),
+        skew_scale: Uint128::new(100000000000000u128),
     }
 }

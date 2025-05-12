@@ -7,6 +7,7 @@ use cosmwasm_std::{
 use mars_types::{
     adapters::{account_nft::AccountNftBase, health::HealthContractBase, oracle::OracleBase},
     credit_manager::{self, Action, ActionAmount, ActionCoin, ConfigResponse, Positions, QueryMsg},
+    health::AccountValuation,
     oracle::ActionKind,
 };
 
@@ -383,18 +384,21 @@ pub fn total_base_tokens_in_account(deps: Deps) -> Result<Uint128, ContractError
     let base_token = BASE_TOKEN.load(deps.storage)?;
 
     let config: ConfigResponse = deps.querier.query_wasm_smart(cm_addr, &QueryMsg::Config {})?;
-
     let health = HealthContractBase::new(deps.api.addr_validate(&config.health_contract)?);
     let health_values =
         health.query_health_values(&deps.querier, &vault_acc_id, ActionKind::Default)?;
-    let net_value =
-        health_values.total_collateral_value.checked_sub(health_values.total_debt_value)?;
+    let net_value = health_values.net_value()?;
+
+    if net_value.is_negative() {
+        return Err(ContractError::VaultBankrupt {
+            vault_account_id: vault_acc_id,
+        });
+    }
 
     let oracle = OracleBase::new(deps.api.addr_validate(&config.oracle)?);
     let base_token_price =
         oracle.query_price(&deps.querier, &base_token, ActionKind::Default)?.price;
-
-    let base_token_in_account = net_value.checked_div_floor(base_token_price)?;
+    let base_token_in_account = net_value.unsigned_abs().checked_div_floor(base_token_price)?;
     Ok(base_token_in_account)
 }
 

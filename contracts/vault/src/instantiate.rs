@@ -71,9 +71,12 @@ pub fn init(
         .query_wasm_smart(credit_manager.as_ref(), &credit_manager::QueryMsg::Config {})?;
 
     validate_base_token_value(&deps, &config, &msg.base_token, sent_base_token_amt)?;
-    let rc_msg = prepare_rewards_collector_msg(&config, &msg.base_token, sent_base_token_amt)?;
-
-    Ok(vault_token.instantiate()?.add_message(rc_msg))
+    if !sent_base_token_amt.is_zero() {
+        let rc_msg = prepare_rewards_collector_msg(&config, &msg.base_token, sent_base_token_amt)?;
+        Ok(vault_token.instantiate()?.add_message(rc_msg))
+    } else {
+        Ok(vault_token.instantiate()?)
+    }
 }
 
 /// Validates the base token value to be greater than the minimum creation amount in uusd

@@ -1,22 +1,28 @@
-use cosmwasm_std::{coin, Addr, Decimal, Uint128};
+use std::str::FromStr;
+
+use cosmwasm_std::{coin, Addr, Decimal, Int128, Uint128};
 use cw_utils::PaymentError;
 use mars_mock_oracle::msg::CoinPrice;
-use mars_testing::multitest::helpers::{uosmo_info, CoinInfo};
+use mars_testing::multitest::helpers::{default_perp_params, uosmo_info, CoinInfo};
 use mars_types::{
     credit_manager::{Action, ActionAmount, ActionCoin},
     oracle::ActionKind,
-    params::{LiquidationBonus, ManagedVaultConfigUpdate},
+    params::{LiquidationBonus, ManagedVaultConfigUpdate, PerpParamsUpdate},
 };
 use mars_vault::error::ContractError;
 use test_case::test_case;
 
 use super::{
     helpers::{AccountToFund, MockEnv},
-    vault_helpers::{assert_vault_err, execute_deposit, execute_redeem, execute_unlock},
+    vault_helpers::{
+        assert_vault_err, execute_deposit, execute_redeem, execute_unlock, open_perp_position,
+    },
 };
 use crate::tests::{
     helpers::deploy_managed_vault,
-    vault_helpers::{query_convert_to_assets, query_convert_to_shares, query_vault_info},
+    vault_helpers::{
+        query_account_positions, query_convert_to_assets, query_convert_to_shares, query_vault_info,
+    },
 };
 
 #[test]
@@ -536,6 +542,236 @@ fn redeem_succeded(
     assert_eq!(pos_debt.u128(), expected_debt_amt);
 
     assert!(res.vaults.is_empty());
+}
+
+#[test]
+fn redeem_with_unrealised_pnl_perp_position() {
+    let uusdc_info = uusdc_info();
+    let uosmo_info = uosmo_info();
+    let btc_perp_denom = "perp/btc";
+
+    let fund_manager = Addr::unchecked("fund-manager");
+    let user = Addr::unchecked("user");
+    let user_funded_amt = Uint128::new(100_000_000_000);
+    let mut mock = MockEnv::new()
+        .set_params(&[uusdc_info.clone(), uosmo_info.clone()])
+        .fund_account(AccountToFund {
+            addr: fund_manager.clone(),
+            funds: vec![coin(1_000_000_000, "untrn")],
+        })
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![coin(user_funded_amt.u128(), "uusdc")],
+        })
+        .build()
+        .unwrap();
+
+    // add perp params
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params(btc_perp_denom),
+    });
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: btc_perp_denom.to_string(),
+        price: Decimal::from_str("100").unwrap(),
+    });
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: uusdc_info.denom.to_string(),
+        price: Decimal::from_str("1.000").unwrap(),
+    });
+
+    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &mock.rover, None);
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
+    let vault_info_res = query_vault_info(&mock, &managed_vault_addr);
+    let vault_token = vault_info_res.vault_token;
+
+    let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
+
+    // action 1: deposit
+    let deposit_amt = Uint128::new(100_000_000);
+    execute_deposit(
+        &mut mock,
+        &user,
+        &managed_vault_addr,
+        Uint128::zero(), // we don't care about the amount, we are using the funds
+        None,
+        &[coin(deposit_amt.u128(), uusdc_info.denom.clone())],
+    )
+    .unwrap();
+
+    // action 2: open perp position
+    open_perp_position(
+        &mut mock,
+        &fund_acc_id,
+        &fund_manager,
+        btc_perp_denom,
+        Int128::from_str("-1000000").unwrap(),
+    );
+
+    // action 3: reduce perp price, so we have positive unrealized pnl.
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: btc_perp_denom.to_string(),
+        price: Decimal::from_str("90").unwrap(),
+    });
+
+    // query position pnl of vault, verify that it's positive
+    let positions = query_account_positions(&mock, &mock.rover, &fund_acc_id);
+    assert_eq!(positions.perps.len(), 1);
+    let position = positions.perps.first().unwrap();
+    assert_eq!(position.unrealized_pnl.pnl, Int128::from_str("9099999").unwrap());
+
+    // unlock vault tokens
+    let user_vault_token_balance = mock.query_balance(&user, &vault_token).amount;
+    let underlying_base_tokens =
+        query_convert_to_assets(&mock, &managed_vault_addr, user_vault_token_balance);
+
+    // we are up 10% on our $100 position, however both opening fee and closing fee are taken out of the position.
+    // so:
+    // initial amount = 100_000_000
+    // opening fee = -1_000_000
+    // closing fee = -900_000
+    // unrealized_price_pnl = 9_999_999
+    // unrealized_pnl = 9_999_999 - 1_000_000 - 900_000 = 8_099_999
+    // so our base tokens should be 108099999
+    assert_eq!(underlying_base_tokens, Uint128::from(108099999u128));
+
+    let unlock_vault_tokens =
+        query_convert_to_shares(&mock, &managed_vault_addr, underlying_base_tokens);
+
+    assert_eq!(user_vault_token_balance, unlock_vault_tokens); // rounding issue when doing back and forth conversion
+
+    // Redeem 50%, receive 54049999 base tokens
+    let half_vault_tokens = user_vault_token_balance.checked_div(2u128.into()).unwrap();
+    let half_underlying_base_tokens = underlying_base_tokens.checked_div(2u128.into()).unwrap();
+    let user_balance_before_redeem = mock.query_balance(&user, &uusdc_info.denom).amount;
+    let vault_usdc_before_redeem = mock
+        .query_positions(&fund_acc_id)
+        .deposits
+        .iter()
+        .find(|d| d.denom == uusdc_info.denom)
+        .map(|d| d.amount)
+        .unwrap_or_default();
+    execute_unlock(&mut mock, &user, &managed_vault_addr, half_vault_tokens, &[]).unwrap();
+    // move time forward to pass cooldown period
+    mock.increment_by_time(vault_info_res.cooldown_period + 1);
+
+    execute_redeem(
+        &mut mock,
+        &user,
+        &managed_vault_addr,
+        Uint128::zero(), // we don't care about the amount, we are using the funds
+        None,
+        &[coin(half_vault_tokens.u128(), vault_token.clone())],
+    )
+    .unwrap();
+
+    let user_balance_after_redeem = mock.query_balance(&user, &uusdc_info.denom).amount;
+    assert_eq!(user_balance_after_redeem, user_balance_before_redeem + half_underlying_base_tokens);
+
+    let res = mock.query_positions(&fund_acc_id);
+    let pos_deposit = res
+        .deposits
+        .iter()
+        .find(|d| d.denom == uusdc_info.denom)
+        .map(|d| d.amount)
+        .unwrap_or_default();
+    assert_eq!(pos_deposit, vault_usdc_before_redeem - half_underlying_base_tokens);
+}
+
+#[test]
+fn redeem_from_bankrupt_vault() {
+    let uusdc_info = uusdc_info();
+    let uosmo_info = uosmo_info();
+
+    let fund_manager = Addr::unchecked("fund-manager");
+    let user = Addr::unchecked("user");
+    let user_funded_amt = Uint128::new(1_000_000_000);
+    let mut mock = MockEnv::new()
+        .set_params(&[uusdc_info.clone(), uosmo_info.clone()])
+        .fund_account(AccountToFund {
+            addr: fund_manager.clone(),
+            funds: vec![coin(1_000_000_000, "untrn")],
+        })
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![coin(user_funded_amt.u128(), "uusdc")],
+        })
+        .build()
+        .unwrap();
+
+    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &mock.rover, None);
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
+    let vault_info_res = query_vault_info(&mock, &managed_vault_addr);
+    let vault_token = vault_info_res.vault_token;
+
+    let account_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
+
+    let first_deposit_amt = Uint128::new(100_000_000);
+    execute_deposit(
+        &mut mock,
+        &user,
+        &managed_vault_addr,
+        Uint128::zero(), // we don't care about the amount, we are using the funds
+        None,
+        &[coin(first_deposit_amt.u128(), "uusdc")],
+    )
+    .unwrap();
+
+    // open perp position
+    let btc_perp_denom = "perp/btc";
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params(btc_perp_denom),
+    });
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: btc_perp_denom.to_string(),
+        price: Decimal::from_str("100").unwrap(),
+    });
+
+    open_perp_position(
+        &mut mock,
+        &account_id,
+        &fund_manager,
+        btc_perp_denom,
+        Int128::from_str("-3000000").unwrap(),
+    );
+
+    // change price to make vault bankrupt
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: btc_perp_denom.to_string(),
+        price: Decimal::from_str("140").unwrap(),
+    });
+
+    // unlock vault tokens
+    let user_vault_token_balance = mock.query_balance(&user, &vault_token).amount;
+
+    execute_unlock(&mut mock, &user, &managed_vault_addr, user_vault_token_balance, &[]).unwrap();
+
+    // move time forward to pass cooldown period
+    mock.increment_by_time(vault_info_res.cooldown_period + 1);
+
+    // assert we error when trying to redeem from bankrupt vault
+    assert_vault_err(
+        execute_redeem(
+            &mut mock,
+            &user,
+            &managed_vault_addr,
+            Uint128::zero(), // we don't care about the amount, we are using the funds
+            None,
+            &[coin(user_vault_token_balance.u128(), vault_token.clone())],
+        ),
+        ContractError::VaultBankrupt {
+            vault_account_id: account_id.to_string(),
+        },
+    );
 }
 
 pub fn uusdc_info() -> CoinInfo {

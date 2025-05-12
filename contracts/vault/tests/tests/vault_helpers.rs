@@ -1,7 +1,8 @@
 use anyhow::Result as AnyResult;
-use cosmwasm_std::{Addr, Coin, Uint128};
+use cosmwasm_std::{Addr, Coin, Int128, Uint128};
 use cw_multi_test::{AppResponse, Executor};
 use cw_paginate::PaginationResponse;
+use mars_types::credit_manager::{Action, Positions, QueryMsg as CreditManagerQueryMsg};
 use mars_vault::{
     msg::{
         ExecuteMsg, ExtensionExecuteMsg, ExtensionQueryMsg, QueryMsg, VaultInfoResponseExt,
@@ -99,6 +100,26 @@ pub fn execute_withdraw_performance_fee(
     )
 }
 
+pub fn open_perp_position(
+    mock: &mut MockEnv,
+    fund_acc_id: &str,
+    fund_manager: &Addr,
+    perp_denom: &str,
+    size: Int128,
+) {
+    mock.update_credit_account(
+        fund_acc_id,
+        fund_manager,
+        vec![Action::ExecutePerpOrder {
+            denom: perp_denom.to_string(),
+            order_size: size,
+            reduce_only: None,
+        }],
+        &[],
+    )
+    .unwrap();
+}
+
 pub fn query_vault_info(mock_env: &MockEnv, vault: &Addr) -> VaultInfoResponseExt {
     mock_env
         .app
@@ -187,6 +208,24 @@ pub fn query_performance_fee(mock_env: &MockEnv, vault: &Addr) -> PerformanceFee
         .query_wasm_smart(
             vault.to_string(),
             &QueryMsg::VaultExtension(ExtensionQueryMsg::PerformanceFeeState {}),
+        )
+        .unwrap()
+}
+
+pub fn query_account_positions(
+    mock_env: &MockEnv,
+    credit_manager: &Addr,
+    account_id: &str,
+) -> Positions {
+    mock_env
+        .app
+        .wrap()
+        .query_wasm_smart(
+            credit_manager.to_string(),
+            &CreditManagerQueryMsg::Positions {
+                account_id: account_id.to_string(),
+                action: None,
+            },
         )
         .unwrap()
 }

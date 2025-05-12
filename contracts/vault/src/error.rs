@@ -82,6 +82,13 @@ pub enum ContractError {
     #[error("Contract owner not set")]
     NoOwner {},
 
+    #[error(
+        "Vault with credit account id {vault_account_id:?} is bankrupt. Actions on this vault are not allowed."
+    )]
+    VaultBankrupt {
+        vault_account_id: String,
+    },
+
     #[error("Minimum amount of {denom} required to create a vault is {min_value:?} uusd, got {actual_value:?} uusd")]
     MinAmountRequired {
         min_value: u128,

@@ -37,7 +37,7 @@ use mars_types::{
         vault::{Vault, VaultPosition, VaultPositionValue as VPositionValue, VaultUnchecked},
         zapper::{Zapper, ZapperBase},
     },
-    address_provider::{self, MarsAddressType},
+    address_provider::{self, AddressResponseItem, MarsAddressType},
     credit_manager::{
         Account, Action, CallbackMsg, CoinBalanceResponseItem, ConfigResponse, ConfigUpdates,
         DebtShares, ExecuteMsg, InstantiateMsg, KeeperFeeConfig, Positions,
@@ -98,7 +98,7 @@ use crate::{
     multitest::modules::token_factory::{CustomApp, TokenFactory},
 };
 
-pub const DEFAULT_RED_BANK_COIN_BALANCE: Uint128 = Uint128::new(1_000_000);
+pub const DEFAULT_RED_BANK_COIN_BALANCE: Uint128 = Uint128::new(100_000_000);
 
 pub struct MockEnv {
     pub app: CustomApp,
@@ -108,6 +108,7 @@ pub struct MockEnv {
     pub incentives: Incentives,
     pub params: Params,
     pub perps: Perps,
+    pub address_provider: Addr,
 }
 
 pub struct MockEnvBuilder {
@@ -133,6 +134,7 @@ pub struct MockEnvBuilder {
     pub withdraw_enabled: Option<bool>,
     pub keeper_fee_config: Option<KeeperFeeConfig>,
     pub perps_liquidation_bonus_ratio: Option<Decimal>,
+    pub perps_protocol_fee_ratio: Option<Decimal>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -164,6 +166,7 @@ impl MockEnv {
             withdraw_enabled: None,
             keeper_fee_config: None,
             perps_liquidation_bonus_ratio: None,
+            perps_protocol_fee_ratio: None,
         }
     }
 
@@ -1169,12 +1172,27 @@ impl MockEnv {
             )
             .unwrap()
     }
+
+    pub fn query_address_provider(&self, address_type: MarsAddressType) -> Addr {
+        let res: AddressResponseItem = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                self.address_provider.to_string(),
+                &address_provider::QueryMsg::Address(address_type),
+            )
+            .unwrap();
+
+        Addr::unchecked(res.address)
+    }
 }
 
 impl MockEnvBuilder {
     pub fn build(mut self) -> AnyResult<MockEnv> {
         let rover = self.get_rover()?;
         self.set_emergency_owner(&rover);
+
+        let addr_provider = self.get_address_provider();
 
         let mars_oracle = self.get_oracle();
         let incentives =
@@ -1220,6 +1238,7 @@ impl MockEnvBuilder {
             incentives,
             params,
             perps,
+            address_provider: addr_provider,
         })
     }
 
@@ -1522,7 +1541,7 @@ impl MockEnvBuilder {
         let target_vault_collateralization_ratio = self.get_target_vault_collateralization_ratio();
         let deleverage_enabled = self.get_delegerage_enabled();
         let vault_withdraw_enabled = self.get_withdraw_enabled();
-
+        let perps_protocol_fee_ratio = self.get_perps_protocol_fee_ratio();
         let addr = self
             .app
             .instantiate_contract(
@@ -1533,7 +1552,7 @@ impl MockEnvBuilder {
                     base_denom: "uusdc".to_string(),
                     cooldown_period: 360,
                     max_positions: 4,
-                    protocol_fee_rate: Decimal::percent(0),
+                    protocol_fee_rate: perps_protocol_fee_ratio,
                     target_vault_collateralization_ratio,
                     deleverage_enabled,
                     vault_withdraw_enabled,
@@ -1884,6 +1903,10 @@ impl MockEnvBuilder {
         self.withdraw_enabled.unwrap_or(true)
     }
 
+    fn get_perps_protocol_fee_ratio(&self) -> Decimal {
+        self.perps_protocol_fee_ratio.unwrap_or_else(|| Decimal::percent(0))
+    }
+
     //--------------------------------------------------------------------------------------------------
     // Setter functions
     //--------------------------------------------------------------------------------------------------
@@ -1987,6 +2010,11 @@ impl MockEnvBuilder {
         self.deleverage_enabled = Some(enabled);
         self
     }
+
+    pub fn perps_protocol_fee_ratio(mut self, ratio: Decimal) -> Self {
+        self.perps_protocol_fee_ratio = Some(ratio);
+        self
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -2041,6 +2069,7 @@ pub fn deploy_managed_vault(
             fee_rate: Decimal::zero(),
             withdrawal_interval: 0,
         },
+        "uusdc",
         creation_fee,
     )
 }
@@ -2051,6 +2080,7 @@ pub fn deploy_managed_vault_with_performance_fee(
     credit_manager: &Addr,
     cooldown_period: u64,
     pf_config: PerformanceFeeConfig,
+    base_denom: &str,
     creation_fee: Option<Coin>,
 ) -> Addr {
     let mut funds = vec![];
@@ -2064,7 +2094,7 @@ pub fn deploy_managed_vault_with_performance_fee(
         contract_code_id,
         sender.clone(),
         &ManagedVaultInstantiateMsg {
-            base_token: "uusdc".to_string(),
+            base_token: base_denom.to_string(),
             vault_token_subdenom: "vault".to_string(),
             title: None,
             subtitle: None,
