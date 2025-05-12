@@ -128,10 +128,12 @@ pub enum WasmPriceSource<A> {
         /// Address of the Astroport pair
         pair_address: A,
     },
+    /// Astroport LP token (of a PCL pool) price quoted in uusd.  Uses concentrated pair type.
     PclLiquidityToken {
         /// Address of the Astroport pair
         pair_address: A,
     },
+    /// Astroport LP token (of a PCL pool with duality orderbook) price quoted in uusd.  Uses concentrated_duality_orderbook pair type.
     PclDualityOrderbookLiquidityToken {
         /// Address of the Astroport pair
         pair_address: A,
@@ -704,7 +706,7 @@ fn query_astroport_twap_price(
             Decimal::from_ratio(price_delta, offer_simulation_amount.checked_mul(period.into())?)
         }
         // We treat concentrated (Standard PCL pool) and concentrated_duality_orderbook (PCL applied to duality orderbook)
-        // pools as the pricing model is the same. 
+        // pools as the pricing model is the same.
         PairType::Custom(ref custom)
             if custom == "concentrated" || custom == "concentrated_duality_orderbook" =>
         {
