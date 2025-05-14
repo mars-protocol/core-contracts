@@ -82,6 +82,11 @@ export type WasmPriceSourceForString =
       }
     }
   | {
+      pcl_duality_orderbook_liquidity_token: {
+        pair_address: string
+      }
+    }
+  | {
       ss_liquidity_token: {
         pair_address: string
       }

@@ -63,6 +63,7 @@ impl AstroportLpPool {
             PairType::Custom(t) => match t.as_str() {
                 "concentrated" => Ok(()),
                 "astroport-pair-xyk-sale-tax" => Ok(()),
+                "concentrated_duality_orderbook" => Ok(()),
                 _ => Err(StdError::generic_err("Custom pair type is not supported")),
             },
             _ => Ok(()),
