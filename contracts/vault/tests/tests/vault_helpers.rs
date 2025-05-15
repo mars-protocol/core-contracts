@@ -7,7 +7,10 @@ use cw_paginate::PaginationResponse;
 use mars_testing::multitest::helpers::{
     deploy_managed_vault_with_performance_fee, AccountToFund, CoinInfo,
 };
-use mars_types::credit_manager::{Action, Positions, QueryMsg as CreditManagerQueryMsg};
+use mars_types::{
+    credit_manager::{Action, Positions, QueryMsg as CreditManagerQueryMsg},
+    params::ManagedVaultConfigUpdate,
+};
 use mars_vault::{
     msg::{
         ExecuteMsg, ExtensionExecuteMsg, ExtensionQueryMsg, QueryMsg, UserPnlResponse,
@@ -318,7 +321,11 @@ pub fn instantiate_vault(
             withdrawal_interval: 60,
         },
         base_denom,
+        None,
     );
+
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
