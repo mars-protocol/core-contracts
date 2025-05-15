@@ -90,11 +90,11 @@ pub fn deposit(
     let vault_tokens =
         calculate_vault_tokens(amount, total_base_tokens_without_fee, vault_token_supply)?;
 
-    // Update PNL tracking
+    // update PNL tracking
     let (vault_pnl_index, updated_vault_pnl) =
         pnl::update_vault_pnl_index(deps.storage, total_base_tokens, vault_token_supply)?;
 
-    // Record entry PNL for the user
+    // record entry PNL for the user
     let user_pnl =
         pnl::update_user_pnl(deps.storage, &vault_token_recipient, vault_tokens, vault_pnl_index)?;
 
@@ -243,7 +243,7 @@ pub fn redeem(
     let total_base_tokens = total_base_tokens_in_account(deps.as_ref())?;
     let vault_token_supply = vault_token.query_total_supply(deps.as_ref())?;
 
-    // Update PNL tracking before processing redemption
+    // update PNL tracking before processing redemption
     let (vault_pnl_index, updated_vault_pnl) =
         pnl::update_vault_pnl_index(deps.storage, total_base_tokens, vault_token_supply)?;
 
