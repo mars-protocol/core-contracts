@@ -79,18 +79,19 @@ pub fn query_current_vault_pnl_index(
         return Ok((SignedDecimal256::zero(), Int256::zero()));
     }
 
+    let vault_pnl_index = VAULT_PNL_INDEX.may_load(storage)?.unwrap_or_default();
+
     if vault_pnl_delta_raw.is_zero() {
-        return Ok((VAULT_PNL_INDEX.may_load(storage)?.unwrap_or_default(), Int256::zero()));
+        return Ok((vault_pnl_index, Int256::zero()));
     }
+
     let vault_pnl_delta_indexed = SignedDecimal256::from_ratio(
         vault_pnl_delta_raw.checked_mul(SCALING_FACTOR.into())?,
         vault_shares,
     );
+
     // update vault index
-    let new_vault_pnl_index = VAULT_PNL_INDEX
-        .may_load(storage)?
-        .unwrap_or_default()
-        .checked_add(vault_pnl_delta_indexed)?;
+    let new_vault_pnl_index = vault_pnl_index.checked_add(vault_pnl_delta_indexed)?;
     Ok((new_vault_pnl_index, vault_pnl_delta_raw))
 }
 
