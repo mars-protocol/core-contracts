@@ -6,7 +6,7 @@ use crate::{
     state::{LAST_NET_WORTH, USER_ENTRY_PNL_INDEX, USER_TRACKED_PNL, VAULT_PNL, VAULT_PNL_INDEX},
 };
 
-// scaling factor for pnl calculations, to prevent precision loss
+// Scaling factor for pnl calculations, to prevent precision loss
 const SCALING_FACTOR: u64 = 1_000_000;
 
 /// Updates the vault's profit and loss (PNL) index and total PNL based on the current net worth and total shares
@@ -118,14 +118,13 @@ fn query_vault_pnl_delta(
     // get vault pnl delta
     let last_net_worth = LAST_NET_WORTH.may_load(storage)?;
 
-    if last_net_worth.is_none() {
+    let Some(last_net_worth) = last_net_worth else {
         // first time updating pnl
         return Ok(Int256::zero());
-    }
+    };
 
-    let last_net_worth: Int256 = last_net_worth.unwrap().into();
     let net_worth_now: Int256 = net_worth_now.into();
-    let vault_pnl_delta: Int256 = net_worth_now.checked_sub(last_net_worth)?;
+    let vault_pnl_delta: Int256 = net_worth_now.checked_sub(last_net_worth.into())?;
 
     Ok(vault_pnl_delta)
 }

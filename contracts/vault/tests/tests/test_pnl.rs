@@ -19,7 +19,7 @@ use test_case::test_case;
 use super::vault_helpers::{execute_deposit, instantiate_vault, VaultSetup};
 use crate::tests::vault_helpers::{
     execute_redeem, execute_unlock, open_perp_position, query_user_pnl as query_user_pnl_mock,
-    query_vault_info, query_vault_pnl_mock,
+    query_vault_info, query_vault_pnl,
 };
 
 const MAX_U128: u128 = Int128::MAX.unsigned_abs().u128();
@@ -140,7 +140,7 @@ fn two_users_sequential_deposits() {
     assert_eq!(user2_pnl.pnl, SignedDecimal256::from_str("-99503").unwrap().to_string());
 
     // assert vault pnl
-    let vault_pnl = query_vault_pnl_mock(&mock, &managed_vault_addr);
+    let vault_pnl = query_vault_pnl(&mock, &managed_vault_addr);
     assert_eq!(vault_pnl.total_pnl, SignedDecimal256::from_str("800000").unwrap().to_string());
 }
 
@@ -262,13 +262,13 @@ fn single_user_flow_then_second_user() {
     )
     .unwrap();
 
-    // Query pnl
+    // query pnl
     let pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user);
 
     assert_eq!(pnl.pnl, SignedDecimal256::from_str("1000000").unwrap().to_string());
 
     // query vault pnl
-    let pnl = query_vault_pnl_mock(&mock, &managed_vault_addr);
+    let pnl = query_vault_pnl(&mock, &managed_vault_addr);
     assert_eq!(pnl.total_pnl, SignedDecimal256::from_str("1000000").unwrap().to_string());
 
     // make another user deposit
@@ -295,7 +295,7 @@ fn single_user_flow_then_second_user() {
     });
 
     // query vault pnl
-    let pnl = query_vault_pnl_mock(&mock, &managed_vault_addr);
+    let pnl = query_vault_pnl(&mock, &managed_vault_addr);
     assert_eq!(pnl.total_pnl, SignedDecimal256::from_str("500000").unwrap().to_string());
 
     // query user 2 pnl
@@ -307,14 +307,14 @@ fn single_user_flow_then_second_user() {
     assert_eq!(pnl.pnl, SignedDecimal256::from_str("776548").unwrap().to_string());
 
     // query vault pnl
-    let pnl = query_vault_pnl_mock(&mock, &managed_vault_addr);
+    let pnl = query_vault_pnl(&mock, &managed_vault_addr);
     assert_eq!(pnl.total_pnl, SignedDecimal256::from_str("500000").unwrap().to_string());
 
     // unlock user 2
     execute_unlock(&mut mock, &user2, &managed_vault_addr, ten_percent, &[]).unwrap();
 
     // query vault pnl
-    let pnl = query_vault_pnl_mock(&mock, &managed_vault_addr);
+    let pnl = query_vault_pnl(&mock, &managed_vault_addr);
     assert_eq!(pnl.total_pnl, SignedDecimal256::from_str("500000").unwrap().to_string());
 
     // query user 1 pnl
@@ -348,7 +348,7 @@ fn single_user_flow_then_second_user() {
     assert_eq!(pnl.pnl, SignedDecimal256::from_str("-276549").unwrap().to_string());
 
     // query vault pnl
-    let pnl = query_vault_pnl_mock(&mock, &managed_vault_addr);
+    let pnl = query_vault_pnl(&mock, &managed_vault_addr);
     assert_eq!(pnl.total_pnl, SignedDecimal256::from_str("500000").unwrap().to_string());
 }
 

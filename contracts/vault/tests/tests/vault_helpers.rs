@@ -230,7 +230,7 @@ pub fn query_user_pnl(mock_env: &MockEnv, vault: &Addr, user: &Addr) -> UserPnlR
         .unwrap()
 }
 
-pub fn query_vault_pnl_mock(mock_env: &MockEnv, vault: &Addr) -> VaultPnlResponse {
+pub fn query_vault_pnl(mock_env: &MockEnv, vault: &Addr) -> VaultPnlResponse {
     mock_env
         .app
         .wrap()
