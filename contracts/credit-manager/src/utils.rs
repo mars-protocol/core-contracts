@@ -1,8 +1,8 @@
 use std::{collections::HashSet, hash::Hash};
 
 use cosmwasm_std::{
-    ensure, to_json_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, QuerierWrapper,
-    StdResult, Storage, Uint128, WasmMsg,
+    ensure, to_json_binary, Addr, Coin, ContractInfoResponse, CosmosMsg, Decimal, Deps, DepsMut,
+    QuerierWrapper, QueryRequest, StdResult, Storage, Uint128, WasmMsg,
 };
 use mars_types::{
     credit_manager::{ActionCoin, CallbackMsg, ChangeExpected, ExecuteMsg},
@@ -246,4 +246,21 @@ pub fn get_amount_from_action_coin(
     } else {
         Ok(amount)
     }
+}
+
+pub fn assert_allowed_managed_vault_code_ids(
+    deps: &mut DepsMut<'_>,
+    vault: &Addr,
+) -> Result<(), ContractError> {
+    let res: ContractInfoResponse =
+        deps.querier.query(&QueryRequest::Wasm(cosmwasm_std::WasmQuery::ContractInfo {
+            contract_addr: vault.to_string(),
+        }))?;
+    let code_id = res.code_id;
+    let params = PARAMS.load(deps.storage)?;
+    let managed_vault_config = params.query_managed_vault_config(&deps.querier)?;
+    if !managed_vault_config.code_ids.contains(&code_id) {
+        return Err(ContractError::InvalidVaultCodeId {});
+    }
+    Ok(())
 }

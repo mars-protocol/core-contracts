@@ -147,7 +147,7 @@ pub fn deleverage(
 
     // Apply the new PnL amounts to the accumulators
     let mut msgs = vec![];
-    apply_pnl_and_fees(
+    let total_protocol_fee = apply_pnl_and_fees(
         &cfg,
         &rewards_collector_addr,
         &mut ms,
@@ -175,10 +175,19 @@ pub fn deleverage(
     let mut requested_amount_from_cm = Uint128::zero();
     let mut send_amount_from_perps = Uint128::zero();
     let funds = if !signed_uint_pnl.is_negative() {
+        // Send the PnL from the contract to the credit manager and protocol fee to the rewards collector
         send_amount_from_perps = signed_uint_pnl.unsigned_abs();
-        coins(signed_uint_pnl.unsigned_abs().u128(), cfg.base_denom.clone())
+
+        // Send the PnL from the contract to the credit manager without protocol fee
+        coins(
+            send_amount_from_perps.checked_sub(total_protocol_fee)?.u128(),
+            cfg.base_denom.clone(),
+        )
     } else {
-        requested_amount_from_cm = signed_uint_pnl.unsigned_abs();
+        // Send the PnL from the credit manager to the contract with protocol fee but protocol fee is not included in the requested amount
+        // because it is already deducted from the balance in the previous step (see: apply_pnl_and_fees)
+        requested_amount_from_cm =
+            signed_uint_pnl.unsigned_abs().checked_sub(total_protocol_fee)?;
         vec![]
     };
 

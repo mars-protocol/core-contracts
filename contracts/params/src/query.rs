@@ -4,13 +4,19 @@ use cw_storage_plus::Bound;
 use mars_interest_rate::get_underlying_liquidity_amount;
 use mars_types::{
     address_provider::{self, helpers::query_contract_addrs, MarsAddressType},
-    params::{AssetParams, ConfigResponse, PerpParams, TotalDepositResponse, VaultConfig},
+    params::{
+        AssetParams, ConfigResponse, ManagedVaultConfigResponse, PerpParams, TotalDepositResponse,
+        VaultConfig,
+    },
     red_bank::{self, Market, MarketV2Response},
 };
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::{ADDRESS_PROVIDER, ASSET_PARAMS, MAX_PERP_PARAMS, PERP_PARAMS, VAULT_CONFIGS},
+    state::{
+        ADDRESS_PROVIDER, ASSET_PARAMS, MANAGED_VAULT_CODE_IDS,
+        MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD, MAX_PERP_PARAMS, PERP_PARAMS, VAULT_CONFIGS,
+    },
 };
 
 pub const DEFAULT_LIMIT: u32 = 10;
@@ -20,6 +26,18 @@ pub fn query_config(deps: Deps) -> StdResult<ConfigResponse> {
     Ok(ConfigResponse {
         address_provider: ADDRESS_PROVIDER.load(deps.storage)?.to_string(),
         max_perp_params: MAX_PERP_PARAMS.load(deps.storage)?,
+    })
+}
+
+pub fn query_managed_vault_config(deps: Deps) -> StdResult<ManagedVaultConfigResponse> {
+    Ok(ManagedVaultConfigResponse {
+        code_ids: MANAGED_VAULT_CODE_IDS
+            .may_load(deps.storage)?
+            .map(|ids| ids.code_ids)
+            .unwrap_or_default(),
+        min_creation_fee_in_uusd: MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD
+            .may_load(deps.storage)?
+            .unwrap_or_default(),
     })
 }
 

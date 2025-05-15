@@ -155,6 +155,18 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "update_managed_vault_config"
+        ],
+        "properties": {
+          "update_managed_vault_config": {
+            "$ref": "#/definitions/ManagedVaultConfigUpdate"
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -478,6 +490,52 @@
           }
         },
         "additionalProperties": false
+      },
+      "ManagedVaultConfigUpdate": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "add_code_id"
+            ],
+            "properties": {
+              "add_code_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "remove_code_id"
+            ],
+            "properties": {
+              "remove_code_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "set_min_creation_fee_in_uusd"
+            ],
+            "properties": {
+              "set_min_creation_fee_in_uusd": {
+                "type": "integer",
+                "format": "uint128",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "OwnerUpdate": {
         "oneOf": [
@@ -899,6 +957,19 @@
         ],
         "properties": {
           "config": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "managed_vault_config"
+        ],
+        "properties": {
+          "managed_vault_config": {
             "type": "object",
             "additionalProperties": false
           }
@@ -2600,6 +2671,33 @@
           "description": "Maximum number of perps that can be created",
           "type": "integer",
           "format": "uint8",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "managed_vault_config": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ManagedVaultConfigResponse",
+      "type": "object",
+      "required": [
+        "code_ids",
+        "min_creation_fee_in_uusd"
+      ],
+      "properties": {
+        "code_ids": {
+          "description": "List of code ids for managed vaults",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "min_creation_fee_in_uusd": {
+          "description": "Minimum creation fee in uusd for managed vaults",
+          "type": "integer",
+          "format": "uint128",
           "minimum": 0.0
         }
       },

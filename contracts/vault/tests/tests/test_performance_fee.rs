@@ -6,7 +6,11 @@ use mars_mock_oracle::msg::CoinPrice;
 use mars_testing::multitest::helpers::{
     coin_info, default_perp_params, deploy_managed_vault_with_performance_fee, uatom_info, CoinInfo,
 };
-use mars_types::{credit_manager::Action, oracle::ActionKind, params::PerpParamsUpdate};
+use mars_types::{
+    credit_manager::Action,
+    oracle::ActionKind,
+    params::{ManagedVaultConfigUpdate, PerpParamsUpdate},
+};
 use mars_vault::{
     error::ContractError,
     performance_fee::{PerformanceFeeConfig, PerformanceFeeState},
@@ -31,7 +35,10 @@ fn deposit_if_credit_manager_account_not_binded() {
     let mut mock = MockEnv::new()
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -41,7 +48,16 @@ fn deposit_if_credit_manager_account_not_binded() {
         .unwrap();
     let credit_manager = mock.rover.clone();
 
-    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
+
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
 
     let res = execute_withdraw_performance_fee(&mut mock, &user, &managed_vault_addr, None);
     assert_vault_err(res, ContractError::VaultAccountNotFound {});
@@ -55,7 +71,10 @@ fn unauthorized_performance_fee_withdraw() {
     let mut mock = MockEnv::new()
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -65,7 +84,18 @@ fn unauthorized_performance_fee_withdraw() {
         .unwrap();
     let credit_manager = mock.rover.clone();
 
-    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
+
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     let vault_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
@@ -103,7 +133,10 @@ fn cannot_withdraw_zero_performance_fee() {
         .set_params(&[uusdc_info.clone(), uatom_info.clone()])
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc"),
+            ], // uusdc price is 0.25 uusd
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -112,6 +145,10 @@ fn cannot_withdraw_zero_performance_fee() {
         .build()
         .unwrap();
     let credit_manager = mock.rover.clone();
+
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
 
     let managed_vault_addr = deploy_managed_vault_with_performance_fee(
         &mut mock.app,
@@ -123,7 +160,10 @@ fn cannot_withdraw_zero_performance_fee() {
             withdrawal_interval: 60,
         },
         &uusdc_info.denom,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc")),
     );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
@@ -143,7 +183,10 @@ fn cannot_withdraw_if_withdrawal_interval_not_passed() {
         .set_params(&[uusdc_info.clone(), uatom_info.clone()])
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc"),
+            ], // uusdc price is 0.25 uusd
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -152,6 +195,10 @@ fn cannot_withdraw_if_withdrawal_interval_not_passed() {
         .build()
         .unwrap();
     let credit_manager = mock.rover.clone();
+
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
 
     let performance_fee_interval = 7200u64; // 2 hours
     let managed_vault_addr = deploy_managed_vault_with_performance_fee(
@@ -164,7 +211,10 @@ fn cannot_withdraw_if_withdrawal_interval_not_passed() {
             withdrawal_interval: performance_fee_interval,
         },
         &uusdc_info.denom,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD * 4, "uusdc")),
     );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
@@ -585,6 +635,7 @@ fn performance_fee_correctly_accumulated_with_perp_position() {
         }
     );
 }
+
 #[test]
 fn performance_fee_correctly_accumulated_when_base_denom_is_uatom() {
     let uusdc_info = coin_info("uusdc");
@@ -741,4 +792,58 @@ fn calculate_pnl(mock: &mut MockEnv, fund_acc_id: &str, new_atom_price: Decimal)
     }
 
     pnl
+}
+
+struct VaultSetup {
+    mock: MockEnv,
+    fund_manager: Addr,
+    managed_vault_addr: Addr,
+    fund_acc_id: String,
+}
+
+fn instantiate_vault(uusdc_info: &CoinInfo, uatom_info: &CoinInfo, base_denom: &str) -> VaultSetup {
+    let fund_manager = Addr::unchecked("fund-manager");
+    let user = Addr::unchecked("user");
+    let user_funded_amt = Uint128::new(100_000_000_000);
+    let mut mock = MockEnv::new()
+        .set_params(&[uusdc_info.clone(), uatom_info.clone()])
+        .fund_account(AccountToFund {
+            addr: fund_manager.clone(),
+            funds: vec![coin(1_000_000_000, "untrn")],
+        })
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![coin(user_funded_amt.u128(), uusdc_info.denom.clone())],
+        })
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![coin(user_funded_amt.u128(), uatom_info.denom.clone())],
+        })
+        .build()
+        .unwrap();
+    let credit_manager = mock.rover.clone();
+
+    let managed_vault_addr = deploy_managed_vault_with_performance_fee(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        1,
+        PerformanceFeeConfig {
+            fee_rate: Decimal::from_str("0.0000208").unwrap(),
+            withdrawal_interval: 60,
+        },
+        base_denom,
+        None,
+    );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
+
+    let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
+
+    VaultSetup {
+        mock,
+        fund_manager,
+        managed_vault_addr,
+        fund_acc_id,
+    }
 }
