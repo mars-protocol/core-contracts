@@ -353,7 +353,7 @@ fn single_user_flow_then_second_user() {
 }
 
 #[test]
-fn test_vault_pnl_index_calculation() {
+fn vault_pnl_index_calculation() {
     let mut storage = MockStorage::new();
 
     // test initial state
@@ -391,7 +391,7 @@ fn test_vault_pnl_index_calculation() {
 #[test_case(50000000000000, "1000", 50000000000, false; "very large profit")]
 #[test_case(8507059173023461586584365, "0.000000000000000058", 493, false; "large shares tiny delta")]
 #[test_case(MAX_U128, "1.0", 170141183460469231731687303715884, false; "overflow test - extremely large expected pnl")]
-fn test_user_pnl_scenarios(
+fn user_pnl_scenarios(
     user_shares: u128,
     vault_pnl_index: &str,
     expected_pnl: i128,
@@ -416,7 +416,7 @@ fn test_user_pnl_scenarios(
 }
 
 #[test]
-fn test_edge_cases() {
+fn edge_cases() {
     let storage = MockStorage::new();
 
     // test zero shares
@@ -446,7 +446,7 @@ fn test_edge_cases() {
 #[test_case(1000000000000, 100000000000000, 1100000000000, Int256::from_i128(100000000000), "1000", false; "very large profit scenario - $1M to $1.1M")]
 #[test_case(1701411834604, 1701411834604692317316873037, 1701411934604, Int256::from_i128(100000), "0.000000000000000058", false; "large shares tiny pnl delta")] // at this size we start to incurr rounding errors
 #[test_case(MAX_U128, 1, u128::MAX, Int256::from_str("170141183460469231731687303715884105728").unwrap(), "170141183460469231731687303715884105728000000", false; "overflow test - extremely large numbers")]
-fn test_vault_pnl_index_scenarios(
+fn vault_pnl_index_scenarios(
     initial_net_worth: u128,
     total_shares: u128,
     new_net_worth: u128,
