@@ -1,6 +1,8 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, testing::MockStorage, Addr, Decimal, Int128, SignedDecimal, Uint128};
+use cosmwasm_std::{
+    coin, testing::MockStorage, Addr, Decimal, Int128, Int256, SignedDecimal256, Uint128,
+};
 use mars_mock_oracle::msg::CoinPrice;
 use mars_testing::multitest::helpers::{coin_info, default_perp_params, uatom_info};
 use mars_types::{
@@ -8,7 +10,6 @@ use mars_types::{
     params::{PerpParams, PerpParamsUpdate},
 };
 use mars_vault::{
-    helpers::i128_from_u128,
     pnl::{query_current_vault_pnl_index, query_user_pnl},
     state::{LAST_NET_WORTH, USER_ENTRY_PNL_INDEX},
 };
@@ -21,7 +22,7 @@ use crate::tests::vault_helpers::{
     query_vault_info, query_vault_pnl_mock,
 };
 
-const MAX_INT128: u128 = Int128::MAX.unsigned_abs().u128();
+const MAX_U128: u128 = Int128::MAX.unsigned_abs().u128();
 
 #[test]
 fn two_users_sequential_deposits() {
@@ -102,7 +103,7 @@ fn two_users_sequential_deposits() {
 
     // assert user 1 pnl
     let user1_pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user1);
-    assert_eq!(user1_pnl.pnl, SignedDecimal::from_str("1000000").unwrap().to_string());
+    assert_eq!(user1_pnl.pnl, SignedDecimal256::from_str("1000000").unwrap().to_string());
 
     // user 2 deposits
     execute_deposit(
@@ -121,7 +122,7 @@ fn two_users_sequential_deposits() {
 
     // assert user 2 pnl
     let user2_pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user2);
-    assert_eq!(user2_pnl.pnl, SignedDecimal::from_str("0").unwrap().to_string());
+    assert_eq!(user2_pnl.pnl, SignedDecimal256::from_str("0").unwrap().to_string());
 
     // decrease price
     mock.price_change(CoinPrice {
@@ -132,15 +133,15 @@ fn two_users_sequential_deposits() {
 
     // assert user 1 pnl
     let user1_pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user1);
-    assert_eq!(user1_pnl.pnl, SignedDecimal::from_str("899502").unwrap().to_string());
+    assert_eq!(user1_pnl.pnl, SignedDecimal256::from_str("899502").unwrap().to_string());
 
     // assert user 2 pnl
     let user2_pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user2);
-    assert_eq!(user2_pnl.pnl, SignedDecimal::from_str("-99503").unwrap().to_string());
+    assert_eq!(user2_pnl.pnl, SignedDecimal256::from_str("-99503").unwrap().to_string());
 
     // assert vault pnl
     let vault_pnl = query_vault_pnl_mock(&mock, &managed_vault_addr);
-    assert_eq!(vault_pnl.total_pnl, SignedDecimal::from_str("800000").unwrap().to_string());
+    assert_eq!(vault_pnl.total_pnl, SignedDecimal256::from_str("800000").unwrap().to_string());
 }
 
 #[test]
@@ -218,7 +219,7 @@ fn single_user_flow_then_second_user() {
     // closing fee = 11_000_000 * 0.0 = 0
     // pnl = 11_000_000 - 10_000_000 = 1_000_000
     let pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user);
-    assert_eq!(pnl.pnl, SignedDecimal::from_str("1000000").unwrap().to_string());
+    assert_eq!(pnl.pnl, SignedDecimal256::from_str("1000000").unwrap().to_string());
 
     let ten_percent = user_vault_token_balance.checked_div(10u128.into()).unwrap();
     // unlock
@@ -226,7 +227,7 @@ fn single_user_flow_then_second_user() {
 
     // verify pnl is the same
     let pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user);
-    assert_eq!(pnl.pnl, SignedDecimal::from_str("1000000").unwrap().to_string()); // Not quite 790_000 due to rounding
+    assert_eq!(pnl.pnl, SignedDecimal256::from_str("1000000").unwrap().to_string()); // Not quite 790_000 due to rounding
 
     // move time forward to pass cooldown period
     mock.increment_by_time(vault_info_res.cooldown_period + 1);
@@ -242,7 +243,7 @@ fn single_user_flow_then_second_user() {
     .unwrap();
 
     let pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user);
-    assert_eq!(pnl.pnl, SignedDecimal::from_str("1000000").unwrap().to_string());
+    assert_eq!(pnl.pnl, SignedDecimal256::from_str("1000000").unwrap().to_string());
 
     // unlock
     execute_unlock(&mut mock, &user, &managed_vault_addr, ten_percent, &[]).unwrap();
@@ -264,11 +265,11 @@ fn single_user_flow_then_second_user() {
     // Query pnl
     let pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user);
 
-    assert_eq!(pnl.pnl, SignedDecimal::from_str("1000000").unwrap().to_string());
+    assert_eq!(pnl.pnl, SignedDecimal256::from_str("1000000").unwrap().to_string());
 
     // query vault pnl
     let pnl = query_vault_pnl_mock(&mock, &managed_vault_addr);
-    assert_eq!(pnl.total_pnl, SignedDecimal::from_str("1000000").unwrap().to_string());
+    assert_eq!(pnl.total_pnl, SignedDecimal256::from_str("1000000").unwrap().to_string());
 
     // make another user deposit
     let user2 = Addr::unchecked("user2");
@@ -284,7 +285,7 @@ fn single_user_flow_then_second_user() {
 
     // query pnl
     let pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user2);
-    assert_eq!(pnl.pnl, SignedDecimal::from_str("0").unwrap().to_string());
+    assert_eq!(pnl.pnl, SignedDecimal256::from_str("0").unwrap().to_string());
 
     // move price down
     mock.price_change(CoinPrice {
@@ -295,34 +296,34 @@ fn single_user_flow_then_second_user() {
 
     // query vault pnl
     let pnl = query_vault_pnl_mock(&mock, &managed_vault_addr);
-    assert_eq!(pnl.total_pnl, SignedDecimal::from_str("500000").unwrap().to_string());
+    assert_eq!(pnl.total_pnl, SignedDecimal256::from_str("500000").unwrap().to_string());
 
     // query user 2 pnl
     let pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user2);
-    assert_eq!(pnl.pnl, SignedDecimal::from_str("-276549").unwrap().to_string());
+    assert_eq!(pnl.pnl, SignedDecimal256::from_str("-276549").unwrap().to_string());
 
     // query user 1 pnl
     let pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user);
-    assert_eq!(pnl.pnl, SignedDecimal::from_str("776548").unwrap().to_string());
+    assert_eq!(pnl.pnl, SignedDecimal256::from_str("776548").unwrap().to_string());
 
     // query vault pnl
     let pnl = query_vault_pnl_mock(&mock, &managed_vault_addr);
-    assert_eq!(pnl.total_pnl, SignedDecimal::from_str("500000").unwrap().to_string());
+    assert_eq!(pnl.total_pnl, SignedDecimal256::from_str("500000").unwrap().to_string());
 
     // unlock user 2
     execute_unlock(&mut mock, &user2, &managed_vault_addr, ten_percent, &[]).unwrap();
 
     // query vault pnl
     let pnl = query_vault_pnl_mock(&mock, &managed_vault_addr);
-    assert_eq!(pnl.total_pnl, SignedDecimal::from_str("500000").unwrap().to_string());
+    assert_eq!(pnl.total_pnl, SignedDecimal256::from_str("500000").unwrap().to_string());
 
     // query user 1 pnl
     let pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user);
-    assert_eq!(pnl.pnl, SignedDecimal::from_str("776548").unwrap().to_string());
+    assert_eq!(pnl.pnl, SignedDecimal256::from_str("776548").unwrap().to_string());
 
     // query user 2 pnl
     let pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user2);
-    assert_eq!(pnl.pnl, SignedDecimal::from_str("-276549").unwrap().to_string());
+    assert_eq!(pnl.pnl, SignedDecimal256::from_str("-276549").unwrap().to_string());
 
     // move forward to pass cooldown period
     mock.increment_by_time(vault_info_res.cooldown_period + 1);
@@ -340,15 +341,15 @@ fn single_user_flow_then_second_user() {
 
     // query user 1 pnl
     let pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user);
-    assert_eq!(pnl.pnl, SignedDecimal::from_str("776548").unwrap().to_string());
+    assert_eq!(pnl.pnl, SignedDecimal256::from_str("776548").unwrap().to_string());
 
     // query user 2 pnl
     let pnl = query_user_pnl_mock(&mock, &managed_vault_addr, &user2);
-    assert_eq!(pnl.pnl, SignedDecimal::from_str("-276549").unwrap().to_string());
+    assert_eq!(pnl.pnl, SignedDecimal256::from_str("-276549").unwrap().to_string());
 
     // query vault pnl
     let pnl = query_vault_pnl_mock(&mock, &managed_vault_addr);
-    assert_eq!(pnl.total_pnl, SignedDecimal::from_str("500000").unwrap().to_string());
+    assert_eq!(pnl.total_pnl, SignedDecimal256::from_str("500000").unwrap().to_string());
 }
 
 #[test]
@@ -361,8 +362,8 @@ fn test_vault_pnl_index_calculation() {
 
     let (pnl_index, pnl_delta) =
         query_current_vault_pnl_index(&storage, net_worth, shares).unwrap();
-    assert_eq!(pnl_index, SignedDecimal::zero());
-    assert_eq!(pnl_delta, Int128::zero());
+    assert_eq!(pnl_index, SignedDecimal256::zero());
+    assert_eq!(pnl_delta, Int256::zero());
 
     // set initial state
     LAST_NET_WORTH.save(&mut storage, &net_worth).unwrap();
@@ -371,15 +372,15 @@ fn test_vault_pnl_index_calculation() {
     let new_net_worth = Uint128::new(1_100_000);
     let (pnl_index, pnl_delta) =
         query_current_vault_pnl_index(&storage, new_net_worth, shares).unwrap();
-    assert_eq!(pnl_delta, Int128::new(100_000));
-    assert_eq!(pnl_index, SignedDecimal::from_str("100000").unwrap());
+    assert_eq!(pnl_delta, Int256::from_str("100000").unwrap());
+    assert_eq!(pnl_index, SignedDecimal256::from_str("100000").unwrap());
 
     // test loss scenario
     let new_net_worth = Uint128::new(900_000);
     let (pnl_index, pnl_delta) =
         query_current_vault_pnl_index(&storage, new_net_worth, shares).unwrap();
-    assert_eq!(pnl_delta, Int128::new(-100_000));
-    assert_eq!(pnl_index, SignedDecimal::from_str("-100000").unwrap());
+    assert_eq!(pnl_delta, Int256::from_str("-100000").unwrap());
+    assert_eq!(pnl_index, SignedDecimal256::from_str("-100000").unwrap());
 }
 
 #[test_case(50000000000, "1.5", 75000, false; "basic profit calculation")]
@@ -389,7 +390,7 @@ fn test_vault_pnl_index_calculation() {
 #[test_case(5000000000000000, "-0.01", -50000000, false; "large shares tiny loss")]
 #[test_case(50000000000000, "1000", 50000000000, false; "very large profit")]
 #[test_case(8507059173023461586584365, "0.000000000000000058", 493, false; "large shares tiny delta")]
-#[test_case(MAX_INT128 / 2, "1.0", 0, true; "overflow test - extremely large index")]
+#[test_case(MAX_U128, "1.0", 170141183460469231731687303715884, false; "overflow test - extremely large expected pnl")]
 fn test_user_pnl_scenarios(
     user_shares: u128,
     vault_pnl_index: &str,
@@ -400,9 +401,9 @@ fn test_user_pnl_scenarios(
     let user = Addr::unchecked("user");
 
     // setup initial state
-    USER_ENTRY_PNL_INDEX.save(&mut storage, &user, &SignedDecimal::zero()).unwrap();
+    USER_ENTRY_PNL_INDEX.save(&mut storage, &user, &SignedDecimal256::zero()).unwrap();
 
-    let vault_pnl_index = SignedDecimal::from_str(vault_pnl_index).unwrap();
+    let vault_pnl_index = SignedDecimal256::from_str(vault_pnl_index).unwrap();
 
     let result = query_user_pnl(&storage, &user, Uint128::new(user_shares), vault_pnl_index);
 
@@ -410,7 +411,7 @@ fn test_user_pnl_scenarios(
         assert!(result.is_err(), "Expected an overflow error but got a successful result");
     } else {
         let user_pnl = result.unwrap();
-        assert_eq!(user_pnl, Int128::new(expected_pnl));
+        assert_eq!(user_pnl, Int256::from_i128(expected_pnl));
     }
 }
 
@@ -421,8 +422,8 @@ fn test_edge_cases() {
     // test zero shares
     let (pnl_index, pnl_delta) =
         query_current_vault_pnl_index(&storage, Uint128::new(1_000_000), Uint128::zero()).unwrap();
-    assert_eq!(pnl_index, SignedDecimal::zero());
-    assert_eq!(pnl_delta, Int128::zero());
+    assert_eq!(pnl_index, SignedDecimal256::zero());
+    assert_eq!(pnl_delta, Int256::zero());
 
     // test max values
     let max_uint = Uint128::MAX;
@@ -432,24 +433,24 @@ fn test_edge_cases() {
     // test overflow scenarios
     let user = Addr::unchecked("user");
     let result =
-        query_user_pnl(&storage, &user, max_uint, SignedDecimal::from_str("1000.0").unwrap());
+        query_user_pnl(&storage, &user, max_uint, SignedDecimal256::from_str("1000.0").unwrap());
     assert!(result.is_err());
 }
 
-#[test_case(1000000, 100000000, 1100000, 100000, "1000", false; "basic profit scenario - $1 to $1.1")]
-#[test_case(1000000, 100000000, 900000, -100000, "-1000", false; "basic loss scenario - $1 to $0.9")]
-#[test_case(1000000, 100000000, 1000000, 0, "0", false; "no change scenario - $1")]
-#[test_case(0, 100000000, 1000000, 1000000, "10000", false; "starting from zero to $1")]
-#[test_case(1000000000, 10000000000000000, 1100000000, 100000000, "0.01", false; "large profit scenario - $1000 to $1100")]
-#[test_case(1000000000, 10000000000000000, 900000000, -100000000, "-0.01", false; "large loss scenario - $1000 to $900")]
-#[test_case(1000000000000, 100000000000000, 1100000000000, 100000000000, "1000", false; "very large profit scenario - $1M to $1.1M")]
-#[test_case(1701411834604, 1701411834604692317316873037, 1701411934604, 100000, "0.000000000000000058", false; "large shares tiny pnl delta")] // at this size we start to incurr rounding errors
-#[test_case(MAX_INT128, 1, u128::MAX, 0, "", true; "overflow test - extremely large numbers")]
+#[test_case(1000000, 100000000, 1100000, Int256::from_i128(100000), "1000", false; "basic profit scenario - $1 to $1.1")]
+#[test_case(1000000, 100000000, 900000, Int256::from_i128(-100000), "-1000", false; "basic loss scenario - $1 to $0.9")]
+#[test_case(1000000, 100000000, 1000000, Int256::zero(), "0", false; "no change scenario - $1")]
+#[test_case(0, 100000000, 1000000, Int256::from_i128(1000000), "10000", false; "starting from zero to $1")]
+#[test_case(1000000000, 10000000000000000, 1100000000, Int256::from_i128(100000000), "0.01", false; "large profit scenario - $1000 to $1100")]
+#[test_case(1000000000, 10000000000000000, 900000000, Int256::from_i128(-100000000), "-0.01", false; "large loss scenario - $1000 to $900")]
+#[test_case(1000000000000, 100000000000000, 1100000000000, Int256::from_i128(100000000000), "1000", false; "very large profit scenario - $1M to $1.1M")]
+#[test_case(1701411834604, 1701411834604692317316873037, 1701411934604, Int256::from_i128(100000), "0.000000000000000058", false; "large shares tiny pnl delta")] // at this size we start to incurr rounding errors
+#[test_case(MAX_U128, 1, u128::MAX, Int256::from_str("170141183460469231731687303715884105728").unwrap(), "170141183460469231731687303715884105728000000", false; "overflow test - extremely large numbers")]
 fn test_vault_pnl_index_scenarios(
     initial_net_worth: u128,
     total_shares: u128,
     new_net_worth: u128,
-    expected_pnl_delta: i128,
+    expected_pnl_delta: Int256,
     expected_pnl_index: &str,
     expect_overflow: bool,
 ) {
@@ -467,8 +468,8 @@ fn test_vault_pnl_index_scenarios(
         assert!(result.is_err(), "Expected an overflow error but got a successful result");
     } else {
         let (pnl_index, pnl_delta) = result.unwrap();
-        assert_eq!(pnl_delta, Int128::new(expected_pnl_delta));
-        assert_eq!(pnl_index, SignedDecimal::from_str(expected_pnl_index).unwrap());
+        assert_eq!(pnl_delta, expected_pnl_delta);
+        assert_eq!(pnl_index, SignedDecimal256::from_str(expected_pnl_index).unwrap());
     }
 }
 
@@ -513,20 +514,20 @@ proptest! {
         if let Ok((pnl_index, pnl_delta)) = result {
             // property 1: pnl delta should match the difference between new and initial net worth
             let expected_delta = if new_net_worth >= initial_net_worth {
-                Int128::new((new_net_worth - initial_net_worth).try_into().unwrap_or(i128::MAX))
+                Int256::from_i128((new_net_worth - initial_net_worth).try_into().unwrap_or(i128::MAX))
             } else {
-                -Int128::new((initial_net_worth - new_net_worth).try_into().unwrap_or(i128::MAX))
+                -Int256::from_i128((initial_net_worth - new_net_worth).try_into().unwrap_or(i128::MAX))
             };
             prop_assert_eq!(pnl_delta, expected_delta);
 
             // property 2: if total_shares is 0, pnl index should be 0
             if total_shares == 0 {
-                prop_assert_eq!(pnl_index, SignedDecimal::zero());
+                prop_assert_eq!(pnl_index, SignedDecimal256::zero());
             } else {
 
                 // property 3: pnl index calculation should be accurate
                 // pnl index = pnl delta / total_shares
-                let expected_pnl_index = SignedDecimal::from_ratio(pnl_delta.checked_mul(Int128::from(1_000_000i128)).unwrap(), i128_from_u128(Uint128::new(total_shares)).unwrap());
+                let expected_pnl_index = SignedDecimal256::from_ratio(pnl_delta.checked_mul(Int256::from_i128(1_000_000i128)).unwrap(), Uint128::new(total_shares));
 
                 // we may have minor rounding differences, so check that they're close
                 let diff = if expected_pnl_index > pnl_index {
@@ -536,7 +537,7 @@ proptest! {
                 };
 
                 // allow for a small epsilon due to decimal precision
-                let epsilon = SignedDecimal::from_str("0.00000001").unwrap();
+                let epsilon = SignedDecimal256::from_str("0.00000001").unwrap();
                 prop_assert!(diff < epsilon, "pnl index calculation mismatch: expected {}, got {}", expected_pnl_index, pnl_index);
             }
         } else {
