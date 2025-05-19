@@ -47,14 +47,6 @@ pub fn query_pcl_lp_price<P: PriceSourceChecked<Empty>>(
     let coin0_decimals = query_token_precision(&deps.querier, &astroport_factory, &coin0.denom)?;
     let coin1_decimals = query_token_precision(&deps.querier, &astroport_factory, &coin1.denom)?;
 
-    let lp_price_from_tokens = compute_lp_price_from_tokens(
-        coin0.amount,
-        coin0_price,
-        coin1.amount,
-        coin1_price,
-        total_shares,
-    )?;
-
     let lp_price_from_formula = compute_pcl_lp_price(
         coin0_price,
         coin1_price,
@@ -63,6 +55,14 @@ pub fn query_pcl_lp_price<P: PriceSourceChecked<Empty>>(
         total_shares,
         price_scale,
         curve_invariant,
+    )?;
+
+    let lp_price_from_tokens = compute_lp_price_from_tokens(
+        coin0.amount,
+        coin0_price,
+        coin1.amount,
+        coin1_price,
+        total_shares,
     )?;
 
     assert_lp_prices_within_threshold(lp_price_from_tokens, lp_price_from_formula)?;
@@ -141,14 +141,6 @@ pub fn query_stable_swap_lp_price<P: PriceSourceChecked<Empty>>(
     let coin0_decimals = query_token_precision(&deps.querier, &astroport_factory, &coin0.denom)?;
     let coin1_decimals = query_token_precision(&deps.querier, &astroport_factory, &coin1.denom)?;
 
-    let lp_price_from_tokens = compute_lp_price_from_tokens(
-        coin0.amount,
-        coin0_price,
-        coin1.amount,
-        coin1_price,
-        total_shares,
-    )?;
-
     let lp_price_from_formula = compute_ss_lp_price(
         coin0_price,
         coin1_price,
@@ -156,6 +148,14 @@ pub fn query_stable_swap_lp_price<P: PriceSourceChecked<Empty>>(
         coin1_decimals,
         total_shares,
         curve_invariant,
+    )?;
+
+    let lp_price_from_tokens = compute_lp_price_from_tokens(
+        coin0.amount,
+        coin0_price,
+        coin1.amount,
+        coin1_price,
+        total_shares,
     )?;
 
     assert_lp_prices_within_threshold(lp_price_from_tokens, lp_price_from_formula)?;
