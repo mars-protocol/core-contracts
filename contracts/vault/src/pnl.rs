@@ -2,7 +2,6 @@ use cosmwasm_std::{Addr, Int256, SignedDecimal256, Storage, Uint128};
 
 use crate::{
     error::ContractError,
-    helpers::i128_from_u128,
     state::{LAST_NET_WORTH, USER_ENTRY_PNL_INDEX, USER_TRACKED_PNL, VAULT_PNL, VAULT_PNL_INDEX},
 };
 
@@ -198,11 +197,11 @@ pub fn query_user_pnl(
         vault_pnl_index.checked_sub(user_entry_pnl_index)?;
 
     // first convert user_shares to int128 to handle potential conversion errors
-    let user_shares_i128 = i128_from_u128(user_shares)?;
+    let user_shares_i256: Int256 = user_shares.into();
 
     // shares * ((current_pnl_index - user_entry_pnl_index) / scaling_factor)
     let untracked_user_pnl_delta: SignedDecimal256 = user_pnl_index_diff
-        .checked_mul(SignedDecimal256::checked_from_ratio(user_shares_i128, SCALING_FACTOR)?)?;
+        .checked_mul(SignedDecimal256::checked_from_ratio(user_shares_i256, SCALING_FACTOR)?)?;
 
     // add our untracked pnl delta to the user's pnl
     let mut user_pnl = USER_TRACKED_PNL.may_load(storage, user)?.unwrap_or(Int256::zero());
