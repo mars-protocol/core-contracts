@@ -91,15 +91,18 @@ pub fn deposit(
         calculate_vault_tokens(amount, total_base_tokens_without_fee, vault_token_supply)?;
 
     // update PNL tracking
-    let (vault_pnl_index, updated_vault_pnl) =
-        pnl::update_vault_pnl_index(deps.storage, total_base_tokens, vault_token_supply)?;
+    let (vault_pnl_index, updated_vault_pnl) = pnl::update_vault_pnl_index(
+        deps.storage,
+        total_base_tokens_without_fee,
+        vault_token_supply,
+    )?;
 
     // record entry PNL for the user
     let user_pnl =
         pnl::update_user_pnl(deps.storage, &vault_token_recipient, vault_tokens, vault_pnl_index)?;
 
     // update last net worth to include deposit amount
-    LAST_NET_WORTH.save(deps.storage, &total_base_tokens.checked_add(amount)?)?;
+    LAST_NET_WORTH.save(deps.storage, &total_base_tokens_without_fee.checked_add(amount)?)?;
 
     let coin_deposited = Coin {
         denom: base_token,
@@ -243,17 +246,6 @@ pub fn redeem(
     let total_base_tokens = total_base_tokens_in_account(deps.as_ref())?;
     let vault_token_supply = vault_token.query_total_supply(deps.as_ref())?;
 
-    // update PNL tracking before processing redemption
-    let (vault_pnl_index, updated_vault_pnl) =
-        pnl::update_vault_pnl_index(deps.storage, total_base_tokens, vault_token_supply)?;
-
-    let user_vault_tokens =
-        vault_token.query_balance(deps.as_ref(), &info.sender)?.checked_add(vault_tokens)?;
-
-    // update user's PNL record
-    let updated_user_pnl =
-        pnl::update_user_pnl(deps.storage, &info.sender, user_vault_tokens, vault_pnl_index)?;
-
     let mut performance_fee_state = PERFORMANCE_FEE_STATE.load(deps.storage)?;
     let performance_fee_config = PERFORMANCE_FEE_CONFIG.load(deps.storage)?;
     performance_fee_state.update_fee_and_pnl(
@@ -265,6 +257,20 @@ pub fn redeem(
     let total_base_tokens_without_fee =
         total_base_tokens.checked_sub(performance_fee_state.accumulated_fee)?;
 
+    // update PNL tracking before processing redemption
+    let (vault_pnl_index, updated_vault_pnl) = pnl::update_vault_pnl_index(
+        deps.storage,
+        total_base_tokens_without_fee,
+        vault_token_supply,
+    )?;
+
+    let user_vault_tokens =
+        vault_token.query_balance(deps.as_ref(), &info.sender)?.checked_add(vault_tokens)?;
+
+    // update user's PNL record
+    let updated_user_pnl =
+        pnl::update_user_pnl(deps.storage, &info.sender, user_vault_tokens, vault_pnl_index)?;
+
     // calculate base tokens based on the given amount of vault tokens
     let base_tokens_to_redeem =
         calculate_base_tokens(vault_tokens, total_base_tokens_without_fee, vault_token_supply)?;
@@ -275,7 +281,8 @@ pub fn redeem(
     PERFORMANCE_FEE_STATE.save(deps.storage, &performance_fee_state)?;
 
     // update last net worth to deduct redeemed amount
-    LAST_NET_WORTH.save(deps.storage, &total_base_tokens.checked_sub(base_tokens_to_redeem)?)?;
+    LAST_NET_WORTH
+        .save(deps.storage, &total_base_tokens_without_fee.checked_sub(base_tokens_to_redeem)?)?;
 
     let withdraw_from_cm = prepare_credit_manager_msg(
         deps.as_ref(),
