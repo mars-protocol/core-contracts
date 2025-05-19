@@ -10,6 +10,8 @@ use mars_types::oracle::{ActionKind, Config};
 
 use crate::{helpers::query_token_precision, state::ASTROPORT_FACTORY};
 
+/// The threshold for the difference between the lp price from the tokens and the lp price from the formula.
+/// This adds extra safety to the price calculation, to account for external factors on Astroport that may affect the price.
 const LP_PRICE_DIFF_PERCENT_THRESHOLD: Decimal = Decimal::percent(15);
 
 #[allow(clippy::too_many_arguments)]
@@ -65,7 +67,7 @@ pub fn query_pcl_lp_price<P: PriceSourceChecked<Empty>>(
         total_shares,
     )?;
 
-    assert_lp_prices_within_threshold(lp_price_from_tokens, lp_price_from_formula)?;
+    assert_lp_prices_within_threshold(lp_price_from_formula, lp_price_from_tokens)?;
 
     Ok(lp_price_from_formula)
 }
@@ -158,7 +160,7 @@ pub fn query_stable_swap_lp_price<P: PriceSourceChecked<Empty>>(
         total_shares,
     )?;
 
-    assert_lp_prices_within_threshold(lp_price_from_tokens, lp_price_from_formula)?;
+    assert_lp_prices_within_threshold(lp_price_from_formula, lp_price_from_tokens)?;
 
     Ok(lp_price_from_formula)
 }
@@ -228,10 +230,10 @@ fn compute_lp_price_from_tokens(
     Ok(lp_price)
 }
 
-/// Assert that the lp price from the tokens is within the threshold of the lp price from the formula.
+/// Assert that the lp price from the formula is within the threshold of the lp price from the tokens.
 fn assert_lp_prices_within_threshold(
-    lp_price_from_tokens: Decimal,
     lp_price_from_formula: Decimal,
+    lp_price_from_tokens: Decimal,
 ) -> ContractResult<()> {
     let lower_bound =
         lp_price_from_tokens.checked_mul(Decimal::one() - LP_PRICE_DIFF_PERCENT_THRESHOLD)?;
