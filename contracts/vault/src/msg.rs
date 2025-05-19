@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::{Decimal, Int256, Uint128};
 use cw_vault_standard::{VaultStandardExecuteMsg, VaultStandardQueryMsg};
 
 use crate::performance_fee::PerformanceFeeConfig;
@@ -146,7 +146,7 @@ pub struct VaultUnlock {
 #[cw_serde]
 pub struct UserPnlResponse {
     /// User's total PNL in base tokens
-    pub pnl: String,
+    pub pnl: Int256,
     /// The user's number of shares (vault tokens)
     pub shares: Uint128,
 }
@@ -155,7 +155,7 @@ pub struct UserPnlResponse {
 #[cw_serde]
 pub struct VaultPnlResponse {
     /// Vault's total PNL in base tokens
-    pub total_pnl: String,
+    pub total_pnl: Int256,
     /// The total number of vault tokens (shares)
     pub total_shares: Uint128,
 }

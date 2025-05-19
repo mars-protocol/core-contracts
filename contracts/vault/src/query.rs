@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Decimal, Deps, Order, Uint128};
+use cosmwasm_std::{Addr, Decimal, Deps, Int256, Order, Uint128};
 use cw_paginate::{paginate_map_query, PaginationResponse, DEFAULT_LIMIT, MAX_LIMIT};
 use cw_storage_plus::Bound;
 
@@ -127,7 +127,7 @@ pub fn query_user_pnl(deps: Deps, user_address: String) -> ContractResult<UserPn
     // if user has no shares, return zero PNL
     if user_shares.is_zero() {
         return Ok(crate::msg::UserPnlResponse {
-            pnl: "0".to_string(),
+            pnl: Int256::zero(),
             shares: Uint128::zero(),
         });
     }
@@ -138,7 +138,7 @@ pub fn query_user_pnl(deps: Deps, user_address: String) -> ContractResult<UserPn
     let user_pnl = pnl::query_user_pnl(deps.storage, &user_addr, user_shares, vault_pnl_index)?;
 
     Ok(crate::msg::UserPnlResponse {
-        pnl: user_pnl.to_string(),
+        pnl: user_pnl,
         shares: user_shares,
     })
 }
@@ -152,7 +152,7 @@ pub fn query_vault_pnl(deps: Deps) -> ContractResult<crate::msg::VaultPnlRespons
     // If there are no shares, return zero PNL
     if total_shares.is_zero() {
         return Ok(crate::msg::VaultPnlResponse {
-            total_pnl: "0".to_string(),
+            total_pnl: Int256::zero(),
             total_shares: Uint128::zero(),
         });
     }
@@ -161,7 +161,7 @@ pub fn query_vault_pnl(deps: Deps) -> ContractResult<crate::msg::VaultPnlRespons
     let vault_pnl = pnl::query_vault_pnl(deps.storage, total_base_tokens)?;
 
     Ok(crate::msg::VaultPnlResponse {
-        total_pnl: vault_pnl.to_string(),
+        total_pnl: vault_pnl,
         total_shares,
     })
 }
