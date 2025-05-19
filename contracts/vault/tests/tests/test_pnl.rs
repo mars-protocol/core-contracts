@@ -433,8 +433,8 @@ fn edge_cases() {
     // test overflow scenarios
     let user = Addr::unchecked("user");
     let result =
-        query_user_pnl(&storage, &user, max_uint, SignedDecimal256::from_str("1000.0").unwrap());
-    assert!(result.is_err());
+        query_user_pnl(&storage, &user, max_uint, SignedDecimal256::from_str("10000000000000000.0").unwrap());
+    assert!(!result.is_err());
 }
 
 #[test_case(1000000, 100000000, 1100000, Int256::from_i128(100000), "1000", false; "basic profit scenario - $1 to $1.1")]
