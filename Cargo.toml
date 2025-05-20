@@ -158,3 +158,8 @@ overflow-checks  = true
 opt-level        = 3
 panic            = "abort"
 rpath            = false
+
+[patch.crates-io]
+# Override tabled version for grcov compatibility
+# Version 0.19.0 requires Rust 1.82+ which is not yet supported by cosmwasm-optimizer
+tabled = "=0.18.0"
