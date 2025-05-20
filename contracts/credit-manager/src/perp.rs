@@ -195,8 +195,8 @@ pub fn close_all_perps(
 
 /// Prepare the necessary messages and funds to be sent to the perps contract based on the PnL.
 /// - If PnL is negative, we need to send funds to the perps contract, and
-/// decrement the internally tracked user coin balance. If no enough usdc in the user's account,
-/// we need to borrow from the Red Bank.
+///   decrement the internally tracked user coin balance. If no enough usdc in the user's account,
+///   we need to borrow from the Red Bank.
 /// - If PnL is positive, we need to increment the internally tracked user coin.
 /// - Otherwise, no action is needed.
 fn update_state_based_on_pnl(
