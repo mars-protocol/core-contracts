@@ -241,4 +241,7 @@ pub enum ContractError {
 
     #[error("Invalid vault code id. Allowed code ids configured in params")]
     InvalidVaultCodeId {},
+
+    #[error("Vault has admin. Vaults must not have an admin in order to be managed via the Credit Manager")]
+    VaultHasAdmin {},
 }
