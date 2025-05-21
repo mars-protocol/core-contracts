@@ -36,7 +36,10 @@ use crate::{
     trigger::{create_trigger_order, delete_trigger_order},
     unstake_astro_lp::unstake_lp,
     update_coin_balances::{update_coin_balance, update_coin_balance_after_vault_liquidation},
-    utils::{assert_allowed_managed_vault_code_ids, assert_is_authorized, assert_is_not_blacklisted, get_account_kind},
+    utils::{
+        assert_allowed_managed_vault_code_ids, assert_is_authorized, assert_is_not_blacklisted,
+        get_account_kind,
+    },
     vault::{
         enter_vault, exit_vault, exit_vault_unlocked, liquidate_vault, request_vault_unlock,
         update_vault_coin_balance,

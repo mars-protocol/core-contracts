@@ -141,7 +141,11 @@ fn owner_can_add_vault_to_blacklist() {
     let owner = mock.query_owner();
     let vault_addr = Addr::unchecked("vault_123");
 
-    mock.update_managed_vault_config(&owner, ManagedVaultConfigUpdate::AddVaultToBlacklist(vault_addr.to_string())).unwrap();
+    mock.update_managed_vault_config(
+        &owner,
+        ManagedVaultConfigUpdate::AddVaultToBlacklist(vault_addr.to_string()),
+    )
+    .unwrap();
     let config = mock.query_managed_vault_config();
     assert_eq!(config.blacklisted_vaults.len(), 1);
     assert_eq!(config.blacklisted_vaults[0], vault_addr);
@@ -153,12 +157,20 @@ fn owner_can_remove_vault_from_blacklist() {
     let owner = mock.query_owner();
     let vault_addr = Addr::unchecked("vault_123");
 
-    mock.update_managed_vault_config(&owner, ManagedVaultConfigUpdate::AddVaultToBlacklist(vault_addr.to_string())).unwrap();
+    mock.update_managed_vault_config(
+        &owner,
+        ManagedVaultConfigUpdate::AddVaultToBlacklist(vault_addr.to_string()),
+    )
+    .unwrap();
     let config = mock.query_managed_vault_config();
     assert_eq!(config.blacklisted_vaults.len(), 1);
     assert_eq!(config.blacklisted_vaults[0], vault_addr);
 
-    mock.update_managed_vault_config(&owner, ManagedVaultConfigUpdate::RemoveVaultFromBlacklist(vault_addr.to_string())).unwrap();
+    mock.update_managed_vault_config(
+        &owner,
+        ManagedVaultConfigUpdate::RemoveVaultFromBlacklist(vault_addr.to_string()),
+    )
+    .unwrap();
     let config = mock.query_managed_vault_config();
     assert_eq!(config.blacklisted_vaults.len(), 0);
 }

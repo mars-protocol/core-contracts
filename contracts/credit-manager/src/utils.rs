@@ -4,7 +4,6 @@ use cosmwasm_std::{
     ensure, to_json_binary, Addr, Coin, ContractInfoResponse, CosmosMsg, Decimal, Deps, DepsMut,
     QuerierWrapper, QueryRequest, StdResult, Storage, Uint128, WasmMsg,
 };
-
 use mars_types::{
     credit_manager::{ActionCoin, CallbackMsg, ChangeExpected, ExecuteMsg},
     health::AccountKind,
@@ -13,7 +12,8 @@ use mars_types::{
 use crate::{
     error::{ContractError, ContractResult},
     state::{
-        ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, MAX_SLIPPAGE, PARAMS, PERPS, RED_BANK, TOTAL_DEBT_SHARES
+        ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, MAX_SLIPPAGE, PARAMS, PERPS, RED_BANK,
+        TOTAL_DEBT_SHARES,
     },
     update_coin_balances::query_balance,
 };
@@ -60,14 +60,14 @@ pub fn assert_is_authorized(deps: &DepsMut, user: &Addr, account_id: &str) -> Co
 ///
 /// * `ContractError::BlacklistedVault` - If the vault address is found in the blacklist
 pub fn assert_is_not_blacklisted(deps: &DepsMut, vault: &Addr) -> ContractResult<()> {
-
-
     let params_addr = PARAMS.load(deps.storage)?;
     let config = params_addr.query_managed_vault_config(&deps.querier)?;
     let blacklisted_vaults = config.blacklisted_vaults;
 
     if blacklisted_vaults.contains(&vault.to_string()) {
-        return Err(ContractError::BlacklistedVault { vault: vault.to_string() });
+        return Err(ContractError::BlacklistedVault {
+            vault: vault.to_string(),
+        });
     }
     Ok(())
 }

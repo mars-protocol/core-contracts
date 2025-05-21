@@ -460,7 +460,6 @@ fn vault_bindings() {
     );
 }
 
-
 #[test]
 fn vault_cannot_be_used_after_being_blacklisted() {
     let coin_info = uosmo_info();
@@ -514,14 +513,13 @@ fn vault_cannot_be_used_after_being_blacklisted() {
             amount: Uint128::new(100),
         })],
         &[Coin::new(100, coin_info.denom.clone())],
-    ).unwrap();
-
-    
+    )
+    .unwrap();
 
     // Blacklist the vault
-    mock.update_managed_vault_config(
-        ManagedVaultConfigUpdate::AddVaultToBlacklist(managed_vault_addr.to_string()),
-    );
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddVaultToBlacklist(
+        managed_vault_addr.to_string(),
+    ));
 
     // try to trade on the vault (should fail)
     let res = mock.update_credit_account(
@@ -534,9 +532,11 @@ fn vault_cannot_be_used_after_being_blacklisted() {
         }],
         &[],
     );
-    
+
     assert_err(
         res,
-        ContractError::BlacklistedVault { vault: managed_vault_addr.to_string() },
+        ContractError::BlacklistedVault {
+            vault: managed_vault_addr.to_string(),
+        },
     );
 }
