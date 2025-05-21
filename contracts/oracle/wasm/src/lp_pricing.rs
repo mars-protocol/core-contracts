@@ -5,10 +5,14 @@ use std::{
 
 use cosmwasm_std::{Coin, Decimal, Decimal256, Deps, Empty, Env, Uint128};
 use cw_storage_plus::Map;
-use mars_oracle_base::{ContractResult, PriceSourceChecked};
+use mars_oracle_base::{ContractError, ContractResult, PriceSourceChecked};
 use mars_types::oracle::{ActionKind, Config};
 
 use crate::{helpers::query_token_precision, state::ASTROPORT_FACTORY};
+
+/// The threshold for the difference between the lp price from the tokens and the lp price from the formula.
+/// This adds extra safety to the price calculation, to account for external factors on Astroport that may affect the price.
+const LP_PRICE_DIFF_PERCENT_THRESHOLD: Decimal = Decimal::percent(15);
 
 #[allow(clippy::too_many_arguments)]
 pub fn query_pcl_lp_price<P: PriceSourceChecked<Empty>>(
@@ -45,7 +49,7 @@ pub fn query_pcl_lp_price<P: PriceSourceChecked<Empty>>(
     let coin0_decimals = query_token_precision(&deps.querier, &astroport_factory, &coin0.denom)?;
     let coin1_decimals = query_token_precision(&deps.querier, &astroport_factory, &coin1.denom)?;
 
-    compute_pcl_lp_price(
+    let lp_price_from_formula = compute_pcl_lp_price(
         coin0_price,
         coin1_price,
         coin0_decimals,
@@ -53,7 +57,19 @@ pub fn query_pcl_lp_price<P: PriceSourceChecked<Empty>>(
         total_shares,
         price_scale,
         curve_invariant,
-    )
+    )?;
+
+    let lp_price_from_tokens = compute_lp_price_from_tokens(
+        coin0.amount,
+        coin0_price,
+        coin1.amount,
+        coin1_price,
+        total_shares,
+    )?;
+
+    assert_lp_prices_within_threshold(lp_price_from_formula, lp_price_from_tokens)?;
+
+    Ok(lp_price_from_formula)
 }
 
 pub fn compute_pcl_lp_price(
@@ -127,14 +143,26 @@ pub fn query_stable_swap_lp_price<P: PriceSourceChecked<Empty>>(
     let coin0_decimals = query_token_precision(&deps.querier, &astroport_factory, &coin0.denom)?;
     let coin1_decimals = query_token_precision(&deps.querier, &astroport_factory, &coin1.denom)?;
 
-    compute_ss_lp_price(
+    let lp_price_from_formula = compute_ss_lp_price(
         coin0_price,
         coin1_price,
         coin0_decimals,
         coin1_decimals,
         total_shares,
         curve_invariant,
-    )
+    )?;
+
+    let lp_price_from_tokens = compute_lp_price_from_tokens(
+        coin0.amount,
+        coin0_price,
+        coin1.amount,
+        coin1_price,
+        total_shares,
+    )?;
+
+    assert_lp_prices_within_threshold(lp_price_from_formula, lp_price_from_tokens)?;
+
+    Ok(lp_price_from_formula)
 }
 
 pub fn compute_ss_lp_price(
@@ -184,4 +212,41 @@ pub fn compute_ss_lp_price(
     let lp_price = Decimal::try_from(lp_price_256)?;
 
     Ok(lp_price)
+}
+
+/// Compute the lp price from the amount of tokens and their prices.
+fn compute_lp_price_from_tokens(
+    coin0_amt: Uint128,
+    coin0_price: Decimal,
+    coin1_amt: Uint128,
+    coin1_price: Decimal,
+    shares_amt: Uint128,
+) -> ContractResult<Decimal> {
+    let coin0_value = coin0_amt.checked_mul_floor(coin0_price)?;
+    let coin1_value = coin1_amt.checked_mul_floor(coin1_price)?;
+    let total_value = coin0_value.checked_add(coin1_value)?;
+
+    let lp_price = Decimal::checked_from_ratio(total_value, shares_amt)?;
+    Ok(lp_price)
+}
+
+/// Assert that the lp price from the formula is within the threshold of the lp price from the tokens.
+fn assert_lp_prices_within_threshold(
+    lp_price_from_formula: Decimal,
+    lp_price_from_tokens: Decimal,
+) -> ContractResult<()> {
+    let lower_bound =
+        lp_price_from_tokens.checked_mul(Decimal::one() - LP_PRICE_DIFF_PERCENT_THRESHOLD)?;
+    let upper_bound =
+        lp_price_from_tokens.checked_mul(Decimal::one() + LP_PRICE_DIFF_PERCENT_THRESHOLD)?;
+
+    if lp_price_from_formula < lower_bound || lp_price_from_formula > upper_bound {
+        Err(ContractError::LpPriceDiffTooLarge {
+            lp_price_from_tokens,
+            lp_price_from_formula,
+            lp_price_diff_percent: LP_PRICE_DIFF_PERCENT_THRESHOLD,
+        })
+    } else {
+        Ok(())
+    }
 }

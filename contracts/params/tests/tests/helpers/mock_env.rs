@@ -26,6 +26,7 @@ pub struct MockEnv {
     pub address_provider_contract: Addr,
 }
 
+#[allow(dead_code)]
 pub struct MockEnvBuilder {
     pub app: BasicApp,
     pub deployer: Addr,

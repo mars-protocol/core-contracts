@@ -1,6 +1,7 @@
 use cosmwasm_std::{
     CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError,
-    ConversionOverflowError, DecimalRangeExceeded, DivideByZeroError, OverflowError, StdError,
+    ConversionOverflowError, Decimal, DecimalRangeExceeded, DivideByZeroError, OverflowError,
+    StdError,
 };
 use mars_owner::OwnerError;
 use mars_utils::error::ValidationError;
@@ -77,6 +78,13 @@ pub enum ContractError {
 
     #[error("Missing astroport pool params")]
     MissingAstroportPoolParams {},
+
+    #[error("LP price diff too large, lp_price_from_tokens: {lp_price_from_tokens}, lp_price_from_formula: {lp_price_from_formula}, lp_price_diff_percent: {lp_price_diff_percent}")]
+    LpPriceDiffTooLarge {
+        lp_price_from_tokens: Decimal,
+        lp_price_from_formula: Decimal,
+        lp_price_diff_percent: Decimal,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;
