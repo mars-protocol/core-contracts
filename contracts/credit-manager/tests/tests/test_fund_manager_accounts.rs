@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, coins, Addr, Coin, Uint128};
+use cosmwasm_std::{coin, coins, Addr, Coin, Int128, Uint128};
 use cw_multi_test::{BankSudo, SudoMsg};
 use cw_paginate::{Metadata, PaginationResponse};
 use mars_credit_manager::error::ContractError;
@@ -457,5 +457,86 @@ fn vault_bindings() {
                 has_more: true
             }
         }
+    );
+}
+
+
+#[test]
+fn vault_cannot_be_used_after_being_blacklisted() {
+    let coin_info = uosmo_info();
+
+    let random_addr = Addr::unchecked("random_addr");
+    let fund_manager_wallet = Addr::unchecked("fund_manager_wallet");
+    let funded_amt = Uint128::new(10000);
+    let mut mock = MockEnv::new()
+        .set_params(&[coin_info.clone()])
+        .fund_account(AccountToFund {
+            addr: random_addr.clone(),
+            funds: vec![coin(funded_amt.u128(), coin_info.denom.clone())],
+        })
+        .fund_account(AccountToFund {
+            addr: fund_manager_wallet.clone(),
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
+        })
+        .build()
+        .unwrap();
+
+    let credit_manager = mock.rover.clone();
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager_wallet,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
+
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
+
+    // Create a credit account
+    let account_id = mock.create_fund_manager_account(&fund_manager_wallet, &managed_vault_addr);
+
+    mock.app
+        .sudo(SudoMsg::Bank(BankSudo::Mint {
+            to_address: managed_vault_addr.to_string(),
+            amount: coins(funded_amt.u128(), coin_info.denom.clone()),
+        }))
+        .unwrap();
+
+    // deposit into the credit account
+    mock.update_credit_account(
+        &account_id,
+        &managed_vault_addr,
+        vec![Action::Deposit(Coin {
+            denom: coin_info.denom.clone(),
+            amount: Uint128::new(100),
+        })],
+        &[Coin::new(100, coin_info.denom.clone())],
+    ).unwrap();
+
+    
+
+    // Blacklist the vault
+    mock.update_managed_vault_config(
+        ManagedVaultConfigUpdate::AddVaultToBlacklist(managed_vault_addr.to_string()),
+    );
+
+    // try to trade on the vault (should fail)
+    let res = mock.update_credit_account(
+        &account_id,
+        &managed_vault_addr,
+        vec![Action::ExecutePerpOrder {
+            denom: coin_info.denom.clone(),
+            order_size: Int128::from(-100),
+            reduce_only: None,
+        }],
+        &[],
+    );
+    
+    assert_err(
+        res,
+        ContractError::BlacklistedVault { vault: managed_vault_addr.to_string() },
     );
 }

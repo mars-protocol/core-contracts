@@ -17,9 +17,7 @@ use mars_utils::helpers::option_string_to_addr;
 use crate::{
     error::{ContractError, ContractResult},
     state::{
-        ADDRESS_PROVIDER, ASSET_PARAMS, MANAGED_VAULT_CODE_IDS,
-        MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, RISK_MANAGER,
-        RISK_MANAGER_KEY, VAULT_CONFIGS,
+        ADDRESS_PROVIDER, ASSET_PARAMS, BLACKLISTED_VAULTS, MANAGED_VAULT_CODE_IDS, MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, RISK_MANAGER, RISK_MANAGER_KEY, VAULT_CONFIGS
     },
 };
 
@@ -287,6 +285,32 @@ pub fn update_managed_vault_config(
             response = response
                 .add_attribute("action_type", "set_min_creation_fee_in_uusd")
                 .add_attribute("min_creation_fee_in_uusd", min_creation_fee_in_uusd.to_string());
+        }
+        ManagedVaultConfigUpdate::AddVaultToBlacklist(vault_addr) => {
+            let mut blacklisted_vaults = BLACKLISTED_VAULTS.may_load(deps.storage)?.unwrap_or_default();
+            let addr = deps.api.addr_validate(&vault_addr)?;
+
+            if !blacklisted_vaults.vaults.contains(&addr) {
+                blacklisted_vaults.vaults.push(addr);
+                BLACKLISTED_VAULTS.save(deps.storage, &blacklisted_vaults)?;
+
+                response = response
+                    .add_attribute("action_type", "add_blacklisted_vault")
+                    .add_attribute("vault_addr", vault_addr);
+            }
+        }
+        ManagedVaultConfigUpdate::RemoveVaultFromBlacklist(vault_addr) => {
+            let mut blacklisted_vaults = BLACKLISTED_VAULTS.may_load(deps.storage)?.unwrap_or_default();
+            let addr = deps.api.addr_validate(&vault_addr)?;
+
+            if let Some(index) = blacklisted_vaults.vaults.iter().position(|v| v == &addr) {
+                blacklisted_vaults.vaults.remove(index);
+                BLACKLISTED_VAULTS.save(deps.storage, &blacklisted_vaults)?;
+
+                response = response
+                    .add_attribute("action_type", "remove_blacklisted_vault")
+                    .add_attribute("vault_addr", vault_addr);
+            }
         }
     }
 

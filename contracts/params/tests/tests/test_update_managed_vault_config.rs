@@ -134,3 +134,31 @@ fn owner_or_risk_manager_can_update_min_creation_fee(owner_or_risk_manager: Owne
     assert_eq!(config.min_creation_fee_in_uusd, 50_123);
     assert_eq!(config.code_ids.len(), 0);
 }
+
+#[test]
+fn owner_can_add_vault_to_blacklist() {
+    let mut mock = MockEnv::new().build().unwrap();
+    let owner = mock.query_owner();
+    let vault_addr = Addr::unchecked("vault_123");
+
+    mock.update_managed_vault_config(&owner, ManagedVaultConfigUpdate::AddVaultToBlacklist(vault_addr.to_string())).unwrap();
+    let config = mock.query_managed_vault_config();
+    assert_eq!(config.blacklisted_vaults.len(), 1);
+    assert_eq!(config.blacklisted_vaults[0], vault_addr);
+}
+
+#[test]
+fn owner_can_remove_vault_from_blacklist() {
+    let mut mock = MockEnv::new().build().unwrap();
+    let owner = mock.query_owner();
+    let vault_addr = Addr::unchecked("vault_123");
+
+    mock.update_managed_vault_config(&owner, ManagedVaultConfigUpdate::AddVaultToBlacklist(vault_addr.to_string())).unwrap();
+    let config = mock.query_managed_vault_config();
+    assert_eq!(config.blacklisted_vaults.len(), 1);
+    assert_eq!(config.blacklisted_vaults[0], vault_addr);
+
+    mock.update_managed_vault_config(&owner, ManagedVaultConfigUpdate::RemoveVaultFromBlacklist(vault_addr.to_string())).unwrap();
+    let config = mock.query_managed_vault_config();
+    assert_eq!(config.blacklisted_vaults.len(), 0);
+}

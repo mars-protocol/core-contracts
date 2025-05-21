@@ -23,5 +23,14 @@ pub struct ManagedVaultCodeIds {
     pub code_ids: Vec<u64>,
 }
 
+#[cw_serde]
+#[derive(Default)]
+pub struct BlacklistedVaults {
+    pub vaults: Vec<Addr>,
+}
+
 // Managed vault allowed code ids
 pub const MANAGED_VAULT_CODE_IDS: Item<ManagedVaultCodeIds> = Item::new("vault_code_ids");
+
+pub const BLACKLISTED_VAULTS: Item<BlacklistedVaults> = Item::new("blacklisted_vaults");
+
