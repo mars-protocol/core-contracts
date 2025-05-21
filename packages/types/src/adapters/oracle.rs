@@ -6,7 +6,7 @@ use cosmwasm_std::{
     Uint128,
 };
 
-use crate::oracle::{ActionKind, PriceResponse, QueryMsg};
+use crate::oracle::{ActionKind, PriceResponse, PriceSourceResponse, QueryMsg};
 
 #[cw_serde]
 pub struct OracleBase<T>(T);
@@ -48,6 +48,19 @@ impl Oracle {
             &QueryMsg::Price {
                 denom: denom.to_string(),
                 kind: Some(pricing),
+            },
+        )
+    }
+
+    pub fn query_price_source(
+        &self,
+        querier: &QuerierWrapper,
+        denom: &str,
+    ) -> StdResult<PriceSourceResponse<String>> {
+        querier.query_wasm_smart(
+            self.address().to_string(),
+            &QueryMsg::PriceSource {
+                denom: denom.to_string(),
             },
         )
     }
