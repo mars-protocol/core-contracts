@@ -17,6 +17,7 @@ use mars_types::{
 
 use super::MockEnvBuilder;
 
+#[allow(dead_code)]
 pub struct MockEnv {
     pub app: BasicApp,
     pub minter: Addr,
