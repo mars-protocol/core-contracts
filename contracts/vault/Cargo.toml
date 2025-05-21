@@ -38,4 +38,5 @@ anyhow           = { workspace = true }
 cw-multi-test    = { workspace = true, features = ["cosmwasm_1_1"] }
 mars-mock-oracle = { workspace = true }
 mars-testing     = { workspace = true }
+proptest         = { workspace = true }
 test-case        = { workspace = true }
