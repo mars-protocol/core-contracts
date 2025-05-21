@@ -76,8 +76,14 @@ fn assert_oracle_price_source(deps: Deps, denom: &str) -> ContractResult<()> {
     let address_provider = ADDRESS_PROVIDER.load(deps.storage)?;
     let oracle_addr = query_contract_addr(deps, &address_provider, MarsAddressType::Oracle)?;
     let oracle_addr_adapter = OracleBase::new(oracle_addr);
-    // It should fail if the denom is not found in the oracle
-    oracle_addr_adapter.query_price_source(&deps.querier, denom)?;
+
+    let has_price_source =
+        oracle_addr_adapter.has_price_source(&deps.querier, denom)?.has_price_source;
+    if !has_price_source {
+        return Err(ContractError::PriceSourceNotFound {
+            denom: denom.to_string(),
+        });
+    }
     Ok(())
 }
 

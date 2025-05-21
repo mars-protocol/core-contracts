@@ -7,8 +7,8 @@ use cosmwasm_std::{
 use cw_storage_plus::{Bound, Item, Map};
 use mars_owner::{Owner, OwnerInit::SetInitialOwner, OwnerUpdate};
 use mars_types::oracle::{
-    ActionKind, Config, ConfigResponse, ExecuteMsg, InstantiateMsg, PriceResponse,
-    PriceSourceResponse, QueryMsg,
+    ActionKind, Config, ConfigResponse, ExecuteMsg, HasPriceSourceResponse, InstantiateMsg,
+    PriceResponse, PriceSourceResponse, QueryMsg,
 };
 use mars_utils::helpers::validate_native_denom;
 
@@ -151,6 +151,9 @@ where
                 denoms,
                 kind.unwrap_or(ActionKind::Default),
             )?),
+            QueryMsg::HasPriceSource {
+                denom,
+            } => to_json_binary(&self.query_has_price_source(deps, denom)?),
         };
         res.map_err(Into::into)
     }
@@ -343,5 +346,17 @@ where
         }
 
         Ok(prices)
+    }
+
+    fn query_has_price_source(
+        &self,
+        deps: Deps<C>,
+        denom: String,
+    ) -> ContractResult<HasPriceSourceResponse> {
+        let price_source = self.price_sources.may_load(deps.storage, &denom)?;
+        Ok(HasPriceSourceResponse {
+            denom,
+            has_price_source: price_source.is_some(),
+        })
     }
 }

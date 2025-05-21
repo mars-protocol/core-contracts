@@ -18,6 +18,8 @@ fn only_owner_can_init_perp_params() {
     let mut mock =
         MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
 
+    mock.set_price_source_fixed("xyz", Decimal::one());
+
     let bad_guy = Addr::unchecked("doctor_otto_983");
     let mut res = mock.update_perp_params(
         &bad_guy,
@@ -55,6 +57,8 @@ fn only_owner_can_init_perp_params() {
 fn only_owner_and_risk_manager_can_update_perp_params() {
     let mut mock =
         MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    mock.set_price_source_fixed("xyz", Decimal::one());
 
     // Add perp param as owner
     mock.update_perp_params(
@@ -100,6 +104,8 @@ fn only_owner_and_risk_manager_can_update_perp_params() {
 fn only_owner_can_update_perp_params_liquidation_threshold() {
     let mut mock =
         MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    mock.set_price_source_fixed("xyz", Decimal::one());
 
     // Add perp param as owner
     let mut params = default_perp_params("xyz");
@@ -155,6 +161,9 @@ fn initializing_perp_params() {
     let denom0 = "atom".to_string();
     let denom1 = "osmo".to_string();
 
+    mock.set_price_source_fixed(&denom0, Decimal::one());
+    mock.set_price_source_fixed(&denom1, Decimal::one());
+
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -187,6 +196,8 @@ fn add_same_perp_multiple_times() {
     let owner = mock.query_owner();
     let denom0 = "atom".to_string();
 
+    mock.set_price_source_fixed(&denom0, Decimal::one());
+
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {
@@ -212,6 +223,8 @@ fn update_existing_perp_params() {
     let mut mock = MockEnv::new().build().unwrap();
     let owner = mock.query_owner();
     let denom0 = "atom".to_string();
+
+    mock.set_price_source_fixed(&denom0, Decimal::one());
 
     mock.update_perp_params(
         &owner,
@@ -286,6 +299,7 @@ fn pagination_query() {
     ];
 
     for denom in denoms.iter() {
+        mock.set_price_source_fixed(denom, Decimal::one());
         mock.update_perp_params(
             &owner,
             PerpParamsUpdate::AddOrUpdate {
@@ -335,6 +349,7 @@ fn pagination_query_v2() {
     denoms.sort();
 
     for denom in denoms.iter() {
+        mock.set_price_source_fixed(denom, Decimal::one());
         mock.update_perp_params(
             &owner,
             PerpParamsUpdate::AddOrUpdate {
@@ -376,6 +391,7 @@ fn max_perp_params_reached() {
     let owner = mock.query_owner();
 
     for i in 0..max_perp_params {
+        mock.set_price_source_fixed(&format!("denom{}", i), Decimal::one());
         mock.update_perp_params(
             &owner,
             PerpParamsUpdate::AddOrUpdate {
@@ -389,6 +405,7 @@ fn max_perp_params_reached() {
     assert_eq!(res.data.len(), max_perp_params as usize);
 
     // max_perp_params is already reached
+    mock.set_price_source_fixed("uatom", Decimal::one());
     let res = mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {

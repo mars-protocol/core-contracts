@@ -18,6 +18,8 @@ fn only_owner_can_init_asset_params() {
     let mut mock =
         MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
 
+    mock.set_price_source_fixed("xyz", Decimal::one());
+
     let bad_guy = Addr::unchecked("doctor_otto_983");
     let mut res = mock.update_asset_params(
         &bad_guy,
@@ -55,6 +57,8 @@ fn only_owner_can_init_asset_params() {
 fn only_owner_and_risk_manager_can_update_asset_params() {
     let mut mock =
         MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    mock.set_price_source_fixed("xyz", Decimal::one());
 
     // Add asset param as owner
     mock.update_asset_params(
@@ -100,6 +104,8 @@ fn only_owner_and_risk_manager_can_update_asset_params() {
 fn only_owner_can_update_asset_params_liquidation_threshold() {
     let mut mock =
         MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    mock.set_price_source_fixed("xyz", Decimal::one());
 
     // Add asset param as owner
     let mut params = default_asset_params("xyz");
@@ -157,6 +163,9 @@ fn initializing_asset_param() {
 
     let params = default_asset_params(&denom0);
 
+    mock.set_price_source_fixed(&denom0, Decimal::one());
+    mock.set_price_source_fixed(&denom1, Decimal::one());
+
     mock.update_asset_params(
         &owner,
         AssetParamsUpdate::AddOrUpdate {
@@ -192,6 +201,7 @@ fn add_same_denom_multiple_times() {
     let owner = mock.query_owner();
     let denom0 = "atom".to_string();
 
+    mock.set_price_source_fixed(&denom0, Decimal::one());
     mock.update_asset_params(
         &owner,
         AssetParamsUpdate::AddOrUpdate {
@@ -234,6 +244,8 @@ fn update_existing_asset_params() {
 
     let mut params = default_asset_params(&denom0);
 
+    mock.set_price_source_fixed(&denom0, Decimal::one());
+
     mock.update_asset_params(
         &owner,
         AssetParamsUpdate::AddOrUpdate {
@@ -274,6 +286,10 @@ fn removing_from_asset_params() {
     let denom0 = "atom".to_string();
     let denom1 = "osmo".to_string();
     let denom2 = "juno".to_string();
+
+    mock.set_price_source_fixed(&denom0, Decimal::one());
+    mock.set_price_source_fixed(&denom1, Decimal::one());
+    mock.set_price_source_fixed(&denom2, Decimal::one());
 
     mock.update_asset_params(
         &owner,
@@ -321,6 +337,7 @@ fn pagination_query() {
     ];
 
     for denom in denoms.iter() {
+        mock.set_price_source_fixed(denom, Decimal::one());
         mock.update_asset_params(
             &owner,
             AssetParamsUpdate::AddOrUpdate {
@@ -370,6 +387,7 @@ fn pagination_query_v2() {
     denoms.sort();
 
     for denom in denoms.iter() {
+        mock.set_price_source_fixed(denom, Decimal::one());
         mock.update_asset_params(
             &owner,
             AssetParamsUpdate::AddOrUpdate {

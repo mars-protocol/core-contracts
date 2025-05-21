@@ -135,6 +135,8 @@ fn emergency_disable_trading() {
 
     let owner = mock.owner.clone();
 
+    mock.set_price(&owner, "ueth", Decimal::one()).unwrap();
+
     mock.update_perp_params(
         &owner,
         PerpParamsUpdate::AddOrUpdate {

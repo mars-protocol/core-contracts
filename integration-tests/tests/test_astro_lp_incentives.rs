@@ -2,7 +2,7 @@ use astroport_v5::{
     asset::{Asset, AssetInfo},
     incentives::InputSchedule,
 };
-use cosmwasm_std::{coin, Addr, Coin, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Uint128};
 use mars_testing::{
     assert_eq_vec,
     integration::mock_env::{MockEnv, MockEnvBuilder},
@@ -18,12 +18,16 @@ fn can_be_first_staker() {
 
     // Contracts
     let params = mock_env.params.clone();
+    let oracle = mock_env.oracle.clone();
     let incentives = mock_env.incentives.clone();
     let credit_manager = mock_env.credit_manager.clone();
 
     // Params
     let lp_denom = "factory12345";
     let lp_coin = coin(1_000_000_000, lp_denom.to_string());
+
+    // Set oracle price source for lp token
+    oracle.set_price_source_fixed(&mut mock_env, lp_denom, Decimal::one());
 
     // Set asset params for lp token
     let (_, asset_params) = default_asset_params(lp_denom);
@@ -48,6 +52,7 @@ fn claim_rewards() {
 
     // Contracts
     let params = mock_env.params.clone();
+    let oracle = mock_env.oracle.clone();
     let astro_incentives = mock_env.astro_incentives.clone();
     let incentives = mock_env.incentives.clone();
     let credit_manager = mock_env.credit_manager.clone();
@@ -65,6 +70,9 @@ fn claim_rewards() {
         },
         amount: Uint128::new(10_000_000_000),
     };
+
+    // Set oracle price source for lp token
+    oracle.set_price_source_fixed(&mut mock_env, lp_denom, Decimal::one());
 
     // Set asset params for lp token
     let (_, asset_params) = default_asset_params(lp_denom);
@@ -111,6 +119,7 @@ fn claim_rewards_without_active_schedule() {
 
     // Contracts
     let params = mock_env.params.clone();
+    let oracle = mock_env.oracle.clone();
     let incentives = mock_env.incentives.clone();
     let credit_manager = mock_env.credit_manager.clone();
 
@@ -121,6 +130,9 @@ fn claim_rewards_without_active_schedule() {
         denom: lp_denom.to_string(),
         amount: Uint128::new(1_000_000_000),
     };
+
+    // Set oracle price source for lp token
+    oracle.set_price_source_fixed(&mut mock_env, lp_denom, Decimal::one());
 
     // Set asset params for lp token
     let (_, asset_params) = default_asset_params(lp_denom);
@@ -149,6 +161,7 @@ fn unstake_claims_rewards() {
 
     // Contracts
     let params = mock_env.params.clone();
+    let oracle = mock_env.oracle.clone();
     let astro_incentives = mock_env.astro_incentives.clone();
     let incentives = mock_env.incentives.clone();
     let credit_manager = mock_env.credit_manager.clone();
@@ -158,6 +171,9 @@ fn unstake_claims_rewards() {
     // Params
     let lp_denom = "factory12345";
     let reward_denom = "uusd";
+
+    // Set oracle price source for lp token
+    oracle.set_price_source_fixed(&mut mock_env, lp_denom, Decimal::one());
 
     let lp_coin = Coin {
         denom: lp_denom.to_string(),
@@ -221,6 +237,10 @@ fn unstake_all_positions_resets_state_correctly() {
     let helper = AstroIncentivesTestHelper::new(None, None, None, Some(lp_denom.to_string()));
 
     let mut mock_env = helper.mock;
+    let oracle = mock_env.oracle.clone();
+
+    // Set oracle price source for lp token
+    oracle.set_price_source_fixed(&mut mock_env, lp_denom, Decimal::one());
 
     // Contracts
     let incentives = mock_env.incentives.clone();

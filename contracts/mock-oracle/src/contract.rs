@@ -5,7 +5,7 @@ use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Binary, Decimal, Deps, DepsMut, Env, MessageInfo, Response, StdResult,
 };
-use mars_types::oracle::{ActionKind, PriceResponse};
+use mars_types::oracle::{ActionKind, HasPriceSourceResponse, PriceResponse};
 
 use crate::{
     msg::{CoinPrice, ExecuteMsg, InstantiateMsg, QueryMsg},
@@ -73,6 +73,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
             denoms,
             kind,
         } => to_json_binary(&query_prices_by_denoms(deps, denoms, kind)?),
+        QueryMsg::HasPriceSource {
+            denom,
+        } => to_json_binary(&query_has_price_source(deps, denom)?),
     }
 }
 
@@ -109,4 +112,12 @@ fn query_prices_by_denoms(
     }
 
     Ok(prices)
+}
+
+fn query_has_price_source(deps: Deps, denom: String) -> StdResult<HasPriceSourceResponse> {
+    let price_source = DEFAULT_COIN_PRICE.may_load(deps.storage, denom.clone())?;
+    Ok(HasPriceSourceResponse {
+        denom,
+        has_price_source: price_source.is_some(),
+    })
 }

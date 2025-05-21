@@ -36,6 +36,10 @@ fn accounting() {
     )
     .unwrap();
 
+    // set entry prices
+    mock.set_price(&owner, "uosmo", Decimal::from_str("1.25").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("10.5").unwrap()).unwrap();
+
     // init denoms
     mock.update_perp_params(
         &owner,
@@ -59,10 +63,6 @@ fn accounting() {
             },
         },
     );
-
-    // set entry prices
-    mock.set_price(&owner, "uosmo", Decimal::from_str("1.25").unwrap()).unwrap();
-    mock.set_price(&owner, "uatom", Decimal::from_str("10.5").unwrap()).unwrap();
 
     // check accounting in the beginning
     let osmo_accounting = mock.query_market_accounting("uosmo").accounting;
@@ -519,6 +519,9 @@ fn accounting_works_if_more_markets_than_paginated_max_limit() {
     // create more markets than paginated max limit
     let max = MAX_LIMIT + 10u32;
     for i in 0..max {
+        // set entry prices
+        mock.set_price(&owner, &format!("asset{}", i), Decimal::from_str("1.25").unwrap()).unwrap();
+
         // init denoms
         mock.update_perp_params(
             &owner,
@@ -526,9 +529,6 @@ fn accounting_works_if_more_markets_than_paginated_max_limit() {
                 params: default_perp_params(&format!("asset{}", i)),
             },
         );
-
-        // set entry prices
-        mock.set_price(&owner, &format!("asset{}", i), Decimal::from_str("1.25").unwrap()).unwrap();
 
         // open few positions for account
         let size = Int128::from_str("1000000").unwrap();
