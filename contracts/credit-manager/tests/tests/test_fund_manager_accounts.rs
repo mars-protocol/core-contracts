@@ -504,7 +504,7 @@ fn vault_cannot_be_used_after_being_blacklisted() {
         }))
         .unwrap();
 
-    // deposit into the credit account
+    // Deposit into the credit account
     mock.update_credit_account(
         &account_id,
         &managed_vault_addr,
@@ -521,7 +521,7 @@ fn vault_cannot_be_used_after_being_blacklisted() {
         managed_vault_addr.to_string(),
     ));
 
-    // try to trade on the vault (should fail)
+    // Try to trade on the vault (should fail)
     let res = mock.update_credit_account(
         &account_id,
         &managed_vault_addr,
