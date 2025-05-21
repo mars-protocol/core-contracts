@@ -135,42 +135,42 @@ fn owner_or_risk_manager_can_update_min_creation_fee(owner_or_risk_manager: Owne
     assert_eq!(config.code_ids.len(), 0);
 }
 
-#[test]
-fn owner_can_add_vault_to_blacklist() {
-    let mut mock = MockEnv::new().build().unwrap();
-    let owner = mock.query_owner();
+#[test_case(
+    OwnerOrRiskManager::Owner;
+    "owner can manage vault blacklist"
+)]
+#[test_case(
+    OwnerOrRiskManager::RiskManager;
+    "risk manager can manage vault blacklist"
+)]
+fn owner_or_risk_manager_can_manage_vault_blacklist(role: OwnerOrRiskManager) {
+    let mut mock =
+        MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
     let vault_addr = Addr::unchecked("vault_123");
 
+    let sender = match role {
+        OwnerOrRiskManager::Owner => mock.query_owner(),
+        OwnerOrRiskManager::RiskManager => mock.query_risk_manager(),
+    };
+
+    // Add to blacklist
     mock.update_managed_vault_config(
-        &owner,
+        &sender,
         ManagedVaultConfigUpdate::AddVaultToBlacklist(vault_addr.to_string()),
     )
     .unwrap();
-    let config = mock.query_managed_vault_config();
-    assert_eq!(config.blacklisted_vaults.len(), 1);
-    assert_eq!(config.blacklisted_vaults[0], vault_addr);
-}
 
-#[test]
-fn owner_can_remove_vault_from_blacklist() {
-    let mut mock = MockEnv::new().build().unwrap();
-    let owner = mock.query_owner();
-    let vault_addr = Addr::unchecked("vault_123");
-
-    mock.update_managed_vault_config(
-        &owner,
-        ManagedVaultConfigUpdate::AddVaultToBlacklist(vault_addr.to_string()),
-    )
-    .unwrap();
     let config = mock.query_managed_vault_config();
     assert_eq!(config.blacklisted_vaults.len(), 1);
     assert_eq!(config.blacklisted_vaults[0], vault_addr);
 
+    // Remove from blacklist
     mock.update_managed_vault_config(
-        &owner,
+        &sender,
         ManagedVaultConfigUpdate::RemoveVaultFromBlacklist(vault_addr.to_string()),
     )
     .unwrap();
+
     let config = mock.query_managed_vault_config();
     assert_eq!(config.blacklisted_vaults.len(), 0);
 }
