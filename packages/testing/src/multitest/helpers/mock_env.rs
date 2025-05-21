@@ -2109,3 +2109,40 @@ pub fn deploy_managed_vault_with_performance_fee(
     )
     .unwrap()
 }
+
+pub fn deploy_vault_with_admin(
+    app: &mut CustomApp,
+    sender: &Addr,
+    credit_manager: &Addr,
+    creation_fee: Option<Coin>,
+    base_denom: &str,
+) -> Addr {
+    let mut funds = vec![];
+    funds.push(coin(10_000_000, "untrn")); // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
+    if let Some(creation_fee) = creation_fee {
+        funds.push(creation_fee);
+    }
+
+    let contract_code_id = app.store_code(mock_managed_vault_contract());
+    app.instantiate_contract(
+        contract_code_id,
+        sender.clone(),
+        &ManagedVaultInstantiateMsg {
+            base_token: base_denom.to_string(),
+            vault_token_subdenom: "vault".to_string(),
+            title: None,
+            subtitle: None,
+            description: None,
+            credit_manager: credit_manager.to_string(),
+            cooldown_period: 86400,
+            performance_fee_config: PerformanceFeeConfig {
+                fee_rate: Decimal::zero(),
+                withdrawal_interval: 86400,
+            },
+        },
+        &funds,
+        "mock-managed-vault",
+        Some(sender.to_string()),
+    )
+    .unwrap()
+}
