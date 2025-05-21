@@ -23,8 +23,8 @@ use super::{
 use crate::tests::{
     helpers::deploy_managed_vault,
     vault_helpers::{
-        execute_deposit, execute_redeem, execute_unlock, open_perp_position,
-        query_account_positions, query_performance_fee, query_vault_info,
+        execute_deposit, execute_redeem, execute_unlock, instantiate_vault, open_perp_position,
+        query_account_positions, query_performance_fee, query_vault_info, VaultSetup,
     },
 };
 
@@ -792,58 +792,4 @@ fn calculate_pnl(mock: &mut MockEnv, fund_acc_id: &str, new_atom_price: Decimal)
     }
 
     pnl
-}
-
-struct VaultSetup {
-    mock: MockEnv,
-    fund_manager: Addr,
-    managed_vault_addr: Addr,
-    fund_acc_id: String,
-}
-
-fn instantiate_vault(uusdc_info: &CoinInfo, uatom_info: &CoinInfo, base_denom: &str) -> VaultSetup {
-    let fund_manager = Addr::unchecked("fund-manager");
-    let user = Addr::unchecked("user");
-    let user_funded_amt = Uint128::new(100_000_000_000);
-    let mut mock = MockEnv::new()
-        .set_params(&[uusdc_info.clone(), uatom_info.clone()])
-        .fund_account(AccountToFund {
-            addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
-        })
-        .fund_account(AccountToFund {
-            addr: user.clone(),
-            funds: vec![coin(user_funded_amt.u128(), uusdc_info.denom.clone())],
-        })
-        .fund_account(AccountToFund {
-            addr: user.clone(),
-            funds: vec![coin(user_funded_amt.u128(), uatom_info.denom.clone())],
-        })
-        .build()
-        .unwrap();
-    let credit_manager = mock.rover.clone();
-
-    let managed_vault_addr = deploy_managed_vault_with_performance_fee(
-        &mut mock.app,
-        &fund_manager,
-        &credit_manager,
-        1,
-        PerformanceFeeConfig {
-            fee_rate: Decimal::from_str("0.0000208").unwrap(),
-            withdrawal_interval: 60,
-        },
-        base_denom,
-        None,
-    );
-    let code_id = mock.query_code_id(&managed_vault_addr);
-    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
-
-    let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
-
-    VaultSetup {
-        mock,
-        fund_manager,
-        managed_vault_addr,
-        fund_acc_id,
-    }
 }

@@ -2,6 +2,7 @@ use cosmwasm_std::{coin, coins, Addr, Coin, Int128, Uint128};
 use cw_multi_test::{BankSudo, SudoMsg};
 use cw_paginate::{Metadata, PaginationResponse};
 use mars_credit_manager::error::ContractError;
+use mars_testing::multitest::helpers::deploy_vault_with_admin;
 use mars_types::{
     credit_manager::{Action, ActionAmount, ActionCoin, VaultBinding},
     params::ManagedVaultConfigUpdate,
@@ -539,4 +540,34 @@ fn vault_cannot_be_used_after_being_blacklisted() {
             vault: managed_vault_addr.to_string(),
         },
     );
+}
+
+#[test]
+fn vault_with_admin_rejects_binding() {
+    let fund_manager_wallet = Addr::unchecked("fund_manager_wallet");
+    let mut mock = MockEnv::new()
+        .fund_account(AccountToFund {
+            addr: fund_manager_wallet.clone(),
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
+        })
+        .build()
+        .unwrap();
+
+    let credit_manager = mock.rover.clone();
+    let vault_addr = deploy_vault_with_admin(
+        &mut mock.app,
+        &fund_manager_wallet,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+        "uusdc",
+    );
+
+    let code_id = mock.query_code_id(&vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
+
+    let res = mock.create_fund_manager_account_with_error(&fund_manager_wallet, &vault_addr);
+    assert_err(res, ContractError::VaultHasAdmin {});
 }

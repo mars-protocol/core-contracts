@@ -246,4 +246,6 @@ pub enum ContractError {
     BlacklistedVault {
         vault: String,
     },
+    #[error("Vault has an admin; vaults cannot be managed with an admin set.")]
+    VaultHasAdmin {},
 }

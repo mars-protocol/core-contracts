@@ -297,3 +297,33 @@ pub fn assert_allowed_managed_vault_code_ids(
     }
     Ok(())
 }
+
+/// Asserts that a vault contract has no admin set.
+///
+/// This function performs a safety check to ensure that the specified vault contract
+/// does not have an admin address set. This is a critical security measure because:
+/// - Vaults with admins could potentially be migrated to new code IDs
+/// - Migration could introduce security vulnerabilities or malicious code
+/// - Admin privileges could be used to modify vault behavior unexpectedly
+///
+/// # Arguments
+///
+/// * `deps` - A mutable reference to the dependencies, which includes storage and querier
+/// * `vault` - The address of the vault contract to check
+///
+/// # Returns
+///
+/// * `ContractResult<()>` - Returns `Ok(())` if the vault has no admin, or an error if:
+///   - The vault has an admin set
+///   - The contract info query fails
+///
+/// # Errors
+///
+/// * `ContractError::VaultHasAdmin` - If the vault has an admin address set
+pub fn assert_vault_has_no_admin(deps: &mut DepsMut<'_>, vault: &Addr) -> ContractResult<()> {
+    let vault_info = deps.querier.query_wasm_contract_info(vault)?;
+    if vault_info.admin.is_some() {
+        return Err(ContractError::VaultHasAdmin {});
+    }
+    Ok(())
+}
