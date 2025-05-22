@@ -21,7 +21,7 @@ fn wrong_contract_name() {
     let err = migrate(
         deps.as_mut(),
         mock_env(),
-        MigrateMsg {
+        MigrateMsg::V2_2_0 {
             close_factor: Decimal::one(),
         },
     )
@@ -44,7 +44,7 @@ fn wrong_contract_version() {
     let err = migrate(
         deps.as_mut(),
         mock_env(),
-        MigrateMsg {
+        MigrateMsg::V2_2_0 {
             close_factor: Decimal::one(),
         },
     )
@@ -84,7 +84,7 @@ fn successful_migration() {
     let res = migrate(
         deps.as_mut(),
         mock_env(),
-        MigrateMsg {
+        MigrateMsg::V2_2_0 {
             close_factor: Decimal::from_str("0.9").unwrap(),
         },
     )

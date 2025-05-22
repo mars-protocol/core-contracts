@@ -5,6 +5,7 @@ mod test_asset_validation;
 mod test_deposit_cap;
 mod test_emergency_powers;
 mod test_migration_v2;
+mod test_migration_v2_2_3;
 mod test_owner;
 mod test_perp_validation;
 mod test_query_all_vault_configs_v2;
