@@ -425,3 +425,25 @@ fn pagination_query_v2() {
     assert_eq!(combined.len(), 6);
     assert_eq!(&denoms, combined.as_slice());
 }
+
+#[test]
+fn can_not_update_asset_param_if_price_source_is_not_set() {
+    let mut mock = MockEnv::new().build().unwrap();
+    let owner = mock.query_owner();
+    let denom0 = "atom".to_string();
+
+    let params = default_asset_params(&denom0);
+
+    let res = mock.update_asset_params(
+        &owner,
+        AssetParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    );
+    assert_err(
+        res,
+        ContractError::PriceSourceNotFound {
+            denom: denom0.clone(),
+        },
+    );
+}

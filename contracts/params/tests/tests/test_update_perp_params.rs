@@ -419,3 +419,23 @@ fn max_perp_params_reached() {
         },
     );
 }
+
+#[test]
+fn can_not_update_perp_params_if_price_source_is_not_set() {
+    let mut mock = MockEnv::new().build().unwrap();
+    let owner = mock.query_owner();
+    let denom0 = "atom".to_string();
+
+    let res = mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: default_perp_params(&denom0),
+        },
+    );
+    assert_err(
+        res,
+        ContractError::PriceSourceNotFound {
+            denom: denom0.clone(),
+        },
+    );
+}
