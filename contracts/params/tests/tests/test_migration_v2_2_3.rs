@@ -11,7 +11,7 @@ use mars_types::params::MigrateMsg;
 #[test]
 fn wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.2.2").unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.2.0").unwrap();
 
     let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_3 {}).unwrap_err();
 
@@ -34,7 +34,7 @@ fn wrong_contract_version() {
     assert_eq!(
         err,
         ContractError::Version(VersionError::WrongVersion {
-            expected: "2.2.2".to_string(),
+            expected: "2.2.0".to_string(),
             found: "4.1.0".to_string()
         })
     );
@@ -43,7 +43,7 @@ fn wrong_contract_version() {
 #[test]
 fn successful_migration() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "2.2.2").unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "2.2.0").unwrap();
 
     // Set up the owner (required for the migration)
     let owner = "owner";
@@ -77,7 +77,7 @@ fn successful_migration() {
         res.attributes,
         vec![
             attr("action", "migrate"),
-            attr("from_version", "2.2.2"),
+            attr("from_version", "2.2.0"),
             attr("to_version", env!("CARGO_PKG_VERSION")),
         ]
     );
