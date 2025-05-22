@@ -32,7 +32,7 @@ fn wrong_contract_version() {
     assert_eq!(
         err,
         ContractError::Version(VersionError::WrongVersion {
-            expected: CONTRACT_VERSION.to_string(),
+            expected: "2.2.0".to_string(),
             found: "2.1.0".to_string()
         })
     );
@@ -41,7 +41,7 @@ fn wrong_contract_version() {
 #[test]
 fn successful_migration() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "2.2.3").unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "2.2.0").unwrap();
 
     // Set up the owner (required for the migration)
     let owner = "owner";
