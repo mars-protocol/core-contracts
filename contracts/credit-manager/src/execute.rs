@@ -37,8 +37,8 @@ use crate::{
     unstake_astro_lp::unstake_lp,
     update_coin_balances::{update_coin_balance, update_coin_balance_after_vault_liquidation},
     utils::{
-        assert_allowed_managed_vault_code_ids, assert_is_authorized, assert_vault_has_no_admin,
-        get_account_kind,
+        assert_allowed_managed_vault_code_ids, assert_is_authorized, assert_is_not_blacklisted,
+        assert_vault_has_no_admin, get_account_kind,
     },
     vault::{
         enter_vault, exit_vault, exit_vault_unlocked, liquidate_vault, request_vault_unlock,
@@ -526,12 +526,16 @@ fn validate_account(
                         .to_string(),
                 });
             }
+
+            assert_is_not_blacklisted(deps, &deps.api.addr_validate(&vault_addr)?)?;
         }
         // Fund manager vault can interact with the account managed by the fund manager wallet.
         // This vault can use the account without any restrictions.
         AccountKind::FundManager {
-            ..
-        } => {}
+            vault_addr,
+        } => {
+            assert_is_not_blacklisted(deps, &deps.api.addr_validate(&vault_addr)?)?;
+        }
         AccountKind::Default | AccountKind::HighLeveredStrategy => {
             if enforce_ownership {
                 assert_is_authorized(deps, &info.sender, acc_id)?;

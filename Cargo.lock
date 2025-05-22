@@ -2784,6 +2784,7 @@ dependencies = [
  "mars-types",
  "mars-utils",
  "osmosis-std 0.22.0",
+ "proptest",
  "test-case",
  "thiserror",
 ]
