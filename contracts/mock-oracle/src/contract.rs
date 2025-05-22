@@ -115,9 +115,11 @@ fn query_prices_by_denoms(
 }
 
 fn query_has_price_source(deps: Deps, denom: String) -> StdResult<HasPriceSourceResponse> {
-    let price_source = DEFAULT_COIN_PRICE.may_load(deps.storage, denom.clone())?;
+    let default_price_source = DEFAULT_COIN_PRICE.may_load(deps.storage, denom.clone())?;
+    let liquidation_price_source = LIQUIDATION_COIN_PRICE.may_load(deps.storage, denom.clone())?;
+    let has_price_source = default_price_source.is_some() || liquidation_price_source.is_some();
     Ok(HasPriceSourceResponse {
         denom,
-        has_price_source: price_source.is_some(),
+        has_price_source,
     })
 }

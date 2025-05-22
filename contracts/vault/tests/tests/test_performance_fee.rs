@@ -512,11 +512,6 @@ fn performance_fee_correctly_accumulated_with_perp_position() {
         fund_acc_id,
     } = instantiate_vault(&uusdc_info, &uatom_info, &base_denom);
 
-    // add perp params
-    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
-        params: default_perp_params(btc_perp_denom),
-    });
-
     // set usdc price to 1 USD
     mock.price_change(CoinPrice {
         pricing: ActionKind::Default,
@@ -528,6 +523,11 @@ fn performance_fee_correctly_accumulated_with_perp_position() {
         pricing: ActionKind::Default,
         denom: btc_perp_denom.to_string(),
         price: Decimal::from_str("10").unwrap(),
+    });
+
+    // add perp params
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params(btc_perp_denom),
     });
 
     // perform deposit
@@ -651,10 +651,6 @@ fn performance_fee_correctly_accumulated_when_base_denom_is_uatom() {
         fund_acc_id,
     } = instantiate_vault(&uusdc_info, &uatom_info, &base_denom);
 
-    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
-        params: default_perp_params(atom_perp_denom),
-    });
-
     // Set usdc price to 1 USD
     mock.price_change(CoinPrice {
         pricing: ActionKind::Default,
@@ -674,6 +670,10 @@ fn performance_fee_correctly_accumulated_when_base_denom_is_uatom() {
         pricing: ActionKind::Default,
         denom: atom_perp_denom.to_string(),
         price: Decimal::from_str("10").unwrap(),
+    });
+
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params(atom_perp_denom),
     });
 
     // Step 1 - Perform deposit

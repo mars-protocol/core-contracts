@@ -237,10 +237,6 @@ fn unstake_all_positions_resets_state_correctly() {
     let helper = AstroIncentivesTestHelper::new(None, None, None, Some(lp_denom.to_string()));
 
     let mut mock_env = helper.mock;
-    let oracle = mock_env.oracle.clone();
-
-    // Set oracle price source for lp token
-    oracle.set_price_source_fixed(&mut mock_env, lp_denom, Decimal::one());
 
     // Contracts
     let incentives = mock_env.incentives.clone();
@@ -322,6 +318,10 @@ impl AstroIncentivesTestHelper {
 
         let credit_manager = mock_env.credit_manager.clone();
         let params = mock_env.params.clone();
+        let oracle = mock_env.oracle.clone();
+
+        // Set oracle price source for lp token
+        oracle.set_price_source_fixed(&mut mock_env, &lp_denom, Decimal::one());
 
         // Set asset params for lp token
         let (_, asset_params) = default_asset_params(lp_denom.as_str());

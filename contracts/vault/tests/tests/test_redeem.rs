@@ -566,11 +566,6 @@ fn redeem_with_unrealised_pnl_perp_position() {
         .build()
         .unwrap();
 
-    // add perp params
-    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
-        params: default_perp_params(btc_perp_denom),
-    });
-
     mock.price_change(CoinPrice {
         pricing: ActionKind::Default,
         denom: btc_perp_denom.to_string(),
@@ -581,6 +576,11 @@ fn redeem_with_unrealised_pnl_perp_position() {
         pricing: ActionKind::Default,
         denom: uusdc_info.denom.to_string(),
         price: Decimal::from_str("1.000").unwrap(),
+    });
+
+    // add perp params
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params(btc_perp_denom),
     });
 
     let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &mock.rover, None);
@@ -725,14 +725,15 @@ fn redeem_from_bankrupt_vault() {
 
     // open perp position
     let btc_perp_denom = "perp/btc";
-    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
-        params: default_perp_params(btc_perp_denom),
-    });
 
     mock.price_change(CoinPrice {
         pricing: ActionKind::Default,
         denom: btc_perp_denom.to_string(),
         price: Decimal::from_str("100").unwrap(),
+    });
+
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: default_perp_params(btc_perp_denom),
     });
 
     open_perp_position(

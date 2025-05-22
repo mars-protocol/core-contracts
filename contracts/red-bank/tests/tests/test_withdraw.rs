@@ -842,6 +842,10 @@ fn withdraw_for_credit_manager_works_during_liquidation() {
     let provider = Addr::unchecked("provider"); // provides collateral to be borrowed by others
     let account_id = "111".to_string();
 
+    // setup oracle
+    oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::one());
+    oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::from_ratio(2u128, 1u128));
+
     // setup red-bank
     let (market_params, asset_params) = osmo_asset_params();
     red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
@@ -849,10 +853,6 @@ fn withdraw_for_credit_manager_works_during_liquidation() {
     let (market_params, asset_params) = usdc_asset_params();
     red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
     params.init_params(&mut mock_env, asset_params);
-
-    // setup oracle
-    oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::one());
-    oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::from_ratio(2u128, 1u128));
 
     // fund accounts
     mock_env.fund_accounts(&[&provider, &credit_manager], funded_amt, &["uosmo", "uusdc"]);
@@ -945,6 +945,10 @@ fn withdraw_if_oracle_circuit_breakers_activated() {
     let provider = Addr::unchecked("provider"); // provides collateral to be borrowed by others
     let user = Addr::unchecked("user");
 
+    // setup oracle
+    oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::one());
+    oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::from_ratio(2u128, 1u128));
+
     // setup red-bank
     let (market_params, asset_params) = osmo_asset_params();
     red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
@@ -952,10 +956,6 @@ fn withdraw_if_oracle_circuit_breakers_activated() {
     let (market_params, asset_params) = usdc_asset_params();
     red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
     params.init_params(&mut mock_env, asset_params);
-
-    // setup oracle
-    oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::one());
-    oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::from_ratio(2u128, 1u128));
 
     // fund accounts
     mock_env.fund_accounts(&[&provider, &user], funded_amt, &["uosmo", "uusdc"]);
