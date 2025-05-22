@@ -44,16 +44,6 @@ fn two_users_sequential_deposits() {
     let vault_info_res = query_vault_info(&mock, &managed_vault_addr);
     let vault_token = vault_info_res.vault_token;
 
-    // add perp params
-    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
-        params: PerpParams {
-            max_funding_velocity: Decimal::from_str("0.00").unwrap(),
-            closing_fee_rate: Decimal::from_str("0.0").unwrap(),
-            opening_fee_rate: Decimal::from_str("0.0").unwrap(),
-            ..default_perp_params(btc_perp_denom)
-        },
-    });
-
     // set usdc price to 1 USD
     mock.price_change(CoinPrice {
         pricing: ActionKind::Default,
@@ -65,6 +55,16 @@ fn two_users_sequential_deposits() {
         pricing: ActionKind::Default,
         denom: btc_perp_denom.to_string(),
         price: Decimal::from_str("10").unwrap(),
+    });
+
+    // add perp params
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: PerpParams {
+            max_funding_velocity: Decimal::from_str("0.00").unwrap(),
+            closing_fee_rate: Decimal::from_str("0.0").unwrap(),
+            opening_fee_rate: Decimal::from_str("0.0").unwrap(),
+            ..default_perp_params(btc_perp_denom)
+        },
     });
 
     // deposit into vault
@@ -161,16 +161,6 @@ fn single_user_flow_then_second_user() {
     let vault_info_res = query_vault_info(&mock, &managed_vault_addr);
     let vault_token = vault_info_res.vault_token;
 
-    // add perp params
-    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
-        params: PerpParams {
-            max_funding_velocity: Decimal::from_str("0.00").unwrap(),
-            closing_fee_rate: Decimal::from_str("0.0").unwrap(),
-            opening_fee_rate: Decimal::from_str("0.0").unwrap(),
-            ..default_perp_params(btc_perp_denom)
-        },
-    });
-
     // set usdc price to 1 USD
     mock.price_change(CoinPrice {
         pricing: ActionKind::Default,
@@ -182,6 +172,16 @@ fn single_user_flow_then_second_user() {
         pricing: ActionKind::Default,
         denom: btc_perp_denom.to_string(),
         price: Decimal::from_str("10").unwrap(),
+    });
+
+    // add perp params
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: PerpParams {
+            max_funding_velocity: Decimal::from_str("0.00").unwrap(),
+            closing_fee_rate: Decimal::from_str("0.0").unwrap(),
+            opening_fee_rate: Decimal::from_str("0.0").unwrap(),
+            ..default_perp_params(btc_perp_denom)
+        },
     });
 
     // deposit into vault
