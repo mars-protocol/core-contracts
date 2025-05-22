@@ -135,6 +135,12 @@ export type ManagedVaultConfigUpdate =
   | {
       set_min_creation_fee_in_uusd: number
     }
+  | {
+      add_vault_to_blacklist: string
+    }
+  | {
+      remove_vault_from_blacklist: string
+    }
 export interface AssetParamsBaseForString {
   close_factor: Decimal
   credit_manager: CmSettingsForString
@@ -344,6 +350,7 @@ export interface ConfigResponse {
   max_perp_params: number
 }
 export interface ManagedVaultConfigResponse {
+  blacklisted_vaults: string[]
   code_ids: number[]
   min_creation_fee_in_uusd: number
 }

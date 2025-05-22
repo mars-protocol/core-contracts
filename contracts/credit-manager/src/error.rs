@@ -242,6 +242,10 @@ pub enum ContractError {
     #[error("Invalid vault code id. Allowed code ids configured in params")]
     InvalidVaultCodeId {},
 
+    #[error("Vault {vault:?} is blacklisted. No actions can be performed on this vault")]
+    BlacklistedVault {
+        vault: String,
+    },
     #[error("Vault has an admin; vaults cannot be managed with an admin set.")]
     VaultHasAdmin {},
 }

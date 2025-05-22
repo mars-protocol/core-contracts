@@ -534,6 +534,30 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "add_vault_to_blacklist"
+            ],
+            "properties": {
+              "add_vault_to_blacklist": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "remove_vault_from_blacklist"
+            ],
+            "properties": {
+              "remove_vault_from_blacklist": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -2681,10 +2705,18 @@
       "title": "ManagedVaultConfigResponse",
       "type": "object",
       "required": [
+        "blacklisted_vaults",
         "code_ids",
         "min_creation_fee_in_uusd"
       ],
       "properties": {
+        "blacklisted_vaults": {
+          "description": "List of blacklisted vaults",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "code_ids": {
           "description": "List of code ids for managed vaults",
           "type": "array",
