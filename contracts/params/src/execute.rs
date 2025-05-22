@@ -72,6 +72,19 @@ pub fn update_config(
     Ok(res)
 }
 
+/// Asserts that the price source is set for the given denom.
+/// Returns an error if the price source is not set.
+/// Helps to prevent updating params without setting the price source first.
+///
+/// # Arguments
+///
+/// * `deps` - The dependencies of the contract.
+/// * `denom` - The denom to check the price source for.
+///
+/// # Returns
+///
+/// * `()` - If the price source is set.
+/// * `ContractError::PriceSourceNotFound` - If the price source is not set.
 fn assert_oracle_price_source(deps: Deps, denom: &str) -> ContractResult<()> {
     let address_provider = ADDRESS_PROVIDER.load(deps.storage)?;
     let oracle_addr = query_contract_addr(deps, &address_provider, MarsAddressType::Oracle)?;
