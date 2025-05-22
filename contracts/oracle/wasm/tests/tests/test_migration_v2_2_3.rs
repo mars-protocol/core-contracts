@@ -49,7 +49,7 @@ fn successful_migration() {
     assert_eq!(res.messages, vec![]);
     assert_eq!(res.events, vec![] as Vec<Event>);
     assert!(res.data.is_none());
-    
+
     // Verify the version was updated
     let version = cw2::get_contract_version(deps.as_ref().storage).unwrap();
     assert_eq!(

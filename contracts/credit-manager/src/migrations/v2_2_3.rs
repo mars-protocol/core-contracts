@@ -10,18 +10,10 @@ const FROM_VERSION: &str = "2.2.0";
 
 pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
     // Make sure we're migrating the correct contract and from the correct version
-    assert_contract_version(
-        deps.storage,
-        &format!("crates.io:{CONTRACT_NAME}"),
-        CONTRACT_VERSION,
-    )?;
+    assert_contract_version(deps.storage, &format!("crates.io:{CONTRACT_NAME}"), CONTRACT_VERSION)?;
 
     // Update contract version
-    set_contract_version(
-        deps.storage,
-        format!("crates.io:{CONTRACT_NAME}"),
-        CONTRACT_VERSION,
-    )?;
+    set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), CONTRACT_VERSION)?;
 
     Ok(Response::new()
         .add_attribute("action", "migrate")

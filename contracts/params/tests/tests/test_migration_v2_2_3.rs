@@ -13,12 +13,7 @@ fn wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.2.2").unwrap();
 
-    let err = migrate(
-        deps.as_mut(),
-        mock_env(),
-        MigrateMsg::V2_2_3 {},
-    )
-    .unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_3 {}).unwrap_err();
 
     assert_eq!(
         err,
@@ -32,15 +27,9 @@ fn wrong_contract_name() {
 #[test]
 fn wrong_contract_version() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "4.1.0")
-        .unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "4.1.0").unwrap();
 
-    let err = migrate(
-        deps.as_mut(),
-        mock_env(),
-        MigrateMsg::V2_2_3 {},
-    )
-    .unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_3 {}).unwrap_err();
 
     assert_eq!(
         err,
@@ -54,8 +43,7 @@ fn wrong_contract_version() {
 #[test]
 fn successful_migration() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "2.2.2")
-        .unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "2.2.2").unwrap();
 
     // Set up the owner (required for the migration)
     let owner = "owner";
@@ -81,12 +69,7 @@ fn successful_migration() {
         )
         .unwrap();
 
-    let res = migrate(
-        deps.as_mut(),
-        mock_env(),
-        MigrateMsg::V2_2_3 {},
-    )
-    .unwrap();
+    let res = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_3 {}).unwrap();
 
     // Verify the response
     assert_eq!(res.messages, vec![]);

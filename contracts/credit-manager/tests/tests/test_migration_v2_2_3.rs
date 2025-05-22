@@ -1,10 +1,6 @@
 use cosmwasm_std::{attr, testing::mock_env, Empty};
 use cw2::{ContractVersion, VersionError};
-use mars_credit_manager::{
-    contract::migrate,
-    error::ContractError,
-    state::OWNER,
-};
+use mars_credit_manager::{contract::migrate, error::ContractError, state::OWNER};
 use mars_testing::mock_dependencies;
 
 const CONTRACT_NAME: &str = "crates.io:mars-credit-manager";
