@@ -862,6 +862,28 @@
           }
         },
         "additionalProperties": false
+      },
+      {
+        "description": "Check if a coin has a price source.",
+        "type": "object",
+        "required": [
+          "has_price_source"
+        ],
+        "properties": {
+          "has_price_source": {
+            "type": "object",
+            "required": [
+              "denom"
+            ],
+            "properties": {
+              "denom": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     ],
     "definitions": {
@@ -903,6 +925,24 @@
             "string",
             "null"
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "has_price_source": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "HasPriceSourceResponse",
+      "type": "object",
+      "required": [
+        "denom",
+        "has_price_source"
+      ],
+      "properties": {
+        "denom": {
+          "type": "string"
+        },
+        "has_price_source": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false
