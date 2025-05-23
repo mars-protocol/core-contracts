@@ -242,10 +242,6 @@ fn deposit_with_perp_position_unrealized_pnl() {
 
     let btc_perp_denom = "perp/btc";
     let uusdc_info = uusdc_info();
-    let perp_params = default_perp_params(btc_perp_denom);
-    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
-        params: perp_params,
-    });
 
     mock.price_change(CoinPrice {
         pricing: ActionKind::Default,
@@ -258,6 +254,11 @@ fn deposit_with_perp_position_unrealized_pnl() {
         pricing: ActionKind::Default,
         denom: uusdc_info.denom.to_string(),
         price: Decimal::from_str("1.000").unwrap(),
+    });
+
+    let perp_params = default_perp_params(btc_perp_denom);
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: perp_params,
     });
 
     let managed_vault_addr =
@@ -400,15 +401,16 @@ fn deposit_into_bankrupt_vault() {
     .unwrap();
 
     let btc_perp_denom = "perp/btc";
-    let perp_params = default_perp_params(btc_perp_denom);
-    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
-        params: perp_params,
-    });
 
     mock.price_change(CoinPrice {
         pricing: ActionKind::Default,
         denom: btc_perp_denom.to_string(),
         price: Decimal::from_str("100").unwrap(),
+    });
+
+    let perp_params = default_perp_params(btc_perp_denom);
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: perp_params,
     });
 
     // open perp position @ 100 price

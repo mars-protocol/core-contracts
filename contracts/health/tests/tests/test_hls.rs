@@ -49,11 +49,11 @@ fn hls_account_kind_passed_along() {
         params: default_asset_params(debt_token),
     });
 
+    mock.set_price(vault_base_token, Decimal::one(), ActionKind::Default);
+
     mock.update_asset_params(AddOrUpdate {
         params: default_asset_params(vault_base_token),
     });
-
-    mock.set_price(vault_base_token, Decimal::one(), ActionKind::Default);
 
     let vault_config = mock.query_vault_config(&vault.into());
 

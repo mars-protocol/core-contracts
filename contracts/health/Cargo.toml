@@ -32,6 +32,7 @@ anyhow                   = { workspace = true }
 cw-multi-test            = { workspace = true }
 cw-utils                 = { workspace = true }
 cw-vault-standard        = { workspace = true }
+mars-address-provider    = { workspace = true }
 mars-mock-credit-manager = { workspace = true }
 mars-mock-oracle         = { workspace = true }
 mars-mock-vault          = { workspace = true }

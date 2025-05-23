@@ -2588,6 +2588,7 @@ dependencies = [
  "cw-utils 1.0.3",
  "cw-vault-standard",
  "cw2 1.1.2",
+ "mars-address-provider",
  "mars-mock-credit-manager",
  "mars-mock-oracle",
  "mars-mock-vault",

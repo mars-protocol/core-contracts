@@ -5,7 +5,8 @@ use cosmwasm_std::{
 use cw_storage_plus::Item;
 use mars_owner::OwnerInit::SetInitialOwner;
 use mars_types::{
-    address_provider::{self, MarsAddressType},
+    adapters::oracle::OracleBase,
+    address_provider::{self, helpers::query_contract_addr, MarsAddressType},
     params::{
         AssetParams, AssetParamsUpdate, ManagedVaultConfigUpdate, PerpParams, PerpParamsUpdate,
         VaultConfigUpdate,
@@ -71,6 +72,34 @@ pub fn update_config(
     Ok(res)
 }
 
+/// Asserts that the price source is set for the given denom.
+/// Returns an error if the price source is not set.
+/// Helps to prevent updating params without setting the price source first.
+///
+/// # Arguments
+///
+/// * `deps` - The dependencies of the contract.
+/// * `denom` - The denom to check the price source for.
+///
+/// # Returns
+///
+/// * `()` - If the price source is set.
+/// * `ContractError::PriceSourceNotFound` - If the price source is not set.
+fn assert_oracle_price_source(deps: Deps, denom: &str) -> ContractResult<()> {
+    let address_provider = ADDRESS_PROVIDER.load(deps.storage)?;
+    let oracle_addr = query_contract_addr(deps, &address_provider, MarsAddressType::Oracle)?;
+    let oracle_addr_adapter = OracleBase::new(oracle_addr);
+
+    let has_price_source =
+        oracle_addr_adapter.has_price_source(&deps.querier, denom)?.has_price_source;
+    if !has_price_source {
+        return Err(ContractError::PriceSourceNotFound {
+            denom: denom.to_string(),
+        });
+    }
+    Ok(())
+}
+
 pub fn update_asset_params(
     deps: DepsMut,
     info: MessageInfo,
@@ -85,6 +114,8 @@ pub fn update_asset_params(
             params: unchecked,
         } => {
             let params = unchecked.check(deps.api)?;
+
+            assert_oracle_price_source(deps.as_ref(), &params.denom)?;
 
             // Risk manager cannot change the liquidation threshold
             permission.validate_asset_liquidation_threshold_unchanged(&params)?;
@@ -137,6 +168,8 @@ pub fn update_perp_params(
             params,
         } => {
             let checked = params.check()?;
+
+            assert_oracle_price_source(deps.as_ref(), &checked.denom)?;
 
             // Risk manager cannot change the liquidation threshold
             permission.validate_perps_liquidation_threshold_unchanged(&checked)?;

@@ -39,4 +39,9 @@ pub enum ContractError {
     MaxPerpParamsReached {
         max: u8,
     },
+
+    #[error("Price source not found for denom: {denom}")]
+    PriceSourceNotFound {
+        denom: String,
+    },
 }
