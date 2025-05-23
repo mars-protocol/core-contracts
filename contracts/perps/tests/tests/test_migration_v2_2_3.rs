@@ -16,7 +16,7 @@ fn wrong_contract_name() {
     assert_eq!(
         err,
         ContractError::Version(VersionError::WrongContract {
-            expected: CONTRACT_NAME.to_string(),
+            expected: format!("crates.io:{CONTRACT_NAME}"),
             found: "contract_xyz".to_string()
         })
     );
@@ -25,7 +25,8 @@ fn wrong_contract_name() {
 #[test]
 fn wrong_contract_version() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "1.0.0").unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, format!("crates.io:{CONTRACT_NAME}"), "1.0.0")
+        .unwrap();
 
     let err = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap_err();
 
@@ -41,7 +42,8 @@ fn wrong_contract_version() {
 #[test]
 fn successful_migration_from_2_2_1() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "2.2.1").unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, format!("crates.io:{CONTRACT_NAME}"), "2.2.1")
+        .unwrap();
 
     let res = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap();
 
