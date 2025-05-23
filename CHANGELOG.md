@@ -4,11 +4,6 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased (post v2.2.2-perps)
 
-### Managed Vault Blacklist (Credit Manager)
-- Added support for blacklisting managed vaults. Blacklisted vaults cannot be used for any actions.
-- Added new error: `BlacklistedVault`.
-- Enforced blacklist checks in Credit Manager execution logic.
-
 ### Added
 - Support for blacklisting managed vaults in the Credit Manager
 - New `BlacklistedVault` error type in the Credit Manager
