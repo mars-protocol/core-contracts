@@ -199,6 +199,9 @@ pub enum ManagedVaultConfigUpdate {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {
-    pub close_factor: Decimal,
+pub enum MigrateMsg {
+    V2_2_0 {
+        close_factor: Decimal,
+    },
+    V2_2_3 {},
 }
