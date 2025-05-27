@@ -5,7 +5,8 @@ use neutron_sdk::bindings::msg::NeutronMsg;
 
 use crate::{config::DualityConfig, route::DualityRoute};
 
-pub type SwapBase<'a> = mars_swapper_base::SwapBase<'a, Empty, NeutronMsg, DualityRoute, DualityConfig>;
+pub type SwapBase<'a> =
+    mars_swapper_base::SwapBase<'a, Empty, NeutronMsg, DualityRoute, DualityConfig>;
 
 #[entry_point]
 pub fn instantiate(
@@ -22,7 +23,7 @@ pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
-    msg: ExecuteMsg<DualityRoute, Empty>,
+    msg: ExecuteMsg<DualityRoute, DualityConfig>,
 ) -> ContractResult<Response<NeutronMsg>> {
     SwapBase::default().execute(deps, env, info, msg)
 }

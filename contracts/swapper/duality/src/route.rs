@@ -7,14 +7,14 @@ use neutron_sdk::{
     proto_types::neutron::dex::{
         QueryEstimateMultiHopSwapRequest, QueryEstimatePlaceLimitOrderRequest,
     },
-    stargate::dex::
-        types::{
-            EstimateMultiHopSwapRequest, EstimateMultiHopSwapResponse,
-            EstimatePlaceLimitOrderRequest, EstimatePlaceLimitOrderResponse, LimitOrderType,
-            MultiHopSwapRequest, PlaceLimitOrderRequest,
-        },
+    stargate::dex::types::{
+        EstimateMultiHopSwapRequest, EstimateMultiHopSwapResponse, EstimatePlaceLimitOrderRequest,
+        EstimatePlaceLimitOrderResponse, LimitOrderType, MultiHopSwapRequest,
+        PlaceLimitOrderRequest,
+    },
 };
 use prost::Message;
+
 use crate::{config::DualityConfig, helpers::hashset};
 
 const ESTIMATE_MULTI_HOP_SWAP_QUERY_PATH: &str = "/neutron.dex.Query/EstimateMultiHopSwap";
@@ -68,28 +68,37 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
             });
         }
 
-        // for each denom:
-        // - the denom must not have been seen before
-        let mut prev_denom_out = denom_in.to_string();
-        let mut seen_denoms = hashset(&[prev_denom_out.clone()]);
+        // ensure the first denom in the route is the input denom
+        if swap_denoms.first() != Some(&denom_in.to_string()) {
+            return Err(ContractError::InvalidRoute {
+                reason: format!(
+                    "the route's first denom {} does not match the input denom {}",
+                    swap_denoms.first().unwrap_or(&"none".to_string()),
+                    denom_in
+                ),
+            });
+        }
+
+        // ensure the last denom in the route is the output denom
+        if swap_denoms.last() != Some(&denom_out.to_string()) {
+            return Err(ContractError::InvalidRoute {
+                reason: format!(
+                    "the route's last denom {} does not match the output denom {}",
+                    swap_denoms.last().unwrap_or(&"none".to_string()),
+                    denom_out
+                ),
+            });
+        }
+
+        // check for loops - each denom should only appear once in the route
+        let mut seen_denoms = hashset(&[]);
         for denom in swap_denoms.iter() {
             if seen_denoms.contains(denom) {
                 return Err(ContractError::InvalidRoute {
                     reason: format!("route contains a loop: denom {} seen twice", denom),
                 });
             }
-
-            prev_denom_out = denom.to_string();
             seen_denoms.insert(denom.to_string());
-        }
-
-        // the route's final output denom must match the desired output denom
-        if prev_denom_out != denom_out {
-            return Err(ContractError::InvalidRoute {
-                reason: format!(
-                    "the route's output denom {prev_denom_out} does not match the desired output {denom_out}",
-                ),
-            });
         }
 
         Ok(())
@@ -120,23 +129,23 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
                 receiver: env.contract.address.to_string(),
                 routes: vec![swap_denoms.clone()],
                 amount_in: coin_in.amount.to_string(),
-                    exit_limit_price: limit_sell_price.to_string(),
-                    pick_best_route: true,
-                })
+                exit_limit_price: limit_sell_price.to_string(),
+                pick_best_route: true,
+            })
         } else {
             neutron_sdk::stargate::dex::msg::msg_place_limit_order(PlaceLimitOrderRequest {
-                    order_type: LimitOrderType::FillOrKill,
-                    sender: env.contract.address.to_string(),
-                    receiver: env.contract.address.to_string(),
-                    token_in: coin_in.denom.to_string(),
-                    token_out: self.to.to_string(),
-                    // tick_index_in_to_out is depreciated in favor of limit_sell_price
-                    tick_index_in_to_out: 0,
-                    amount_in: coin_in.amount.to_string(),
-                    expiration_time: None,
-                    max_amount_out: None,
-                    limit_sell_price: limit_sell_price.to_string(),
-                })
+                order_type: LimitOrderType::FillOrKill,
+                sender: env.contract.address.to_string(),
+                receiver: env.contract.address.to_string(),
+                token_in: coin_in.denom.to_string(),
+                token_out: self.to.to_string(),
+                // tick_index_in_to_out is depreciated in favor of limit_sell_price
+                tick_index_in_to_out: 0,
+                amount_in: coin_in.amount.to_string(),
+                expiration_time: None,
+                max_amount_out: None,
+                limit_sell_price: limit_sell_price.to_string(),
+            })
         };
 
         Ok(swap_msg)
