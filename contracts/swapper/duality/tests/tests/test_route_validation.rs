@@ -2,34 +2,10 @@ use cosmwasm_std::Empty;
 use mars_swapper_base::{ContractError, Route};
 use mars_swapper_duality::{DualityConfig, DualityRoute};
 use mars_testing::MarsMockQuerier;
-use mars_types::swapper::{DualityRoute as SwapperDualityRoute, SwapperRoute};
+use mars_types::swapper::{NeutronRoute as SwapperDualityRoute, SwapperRoute};
 use neutron_sdk::bindings::msg::NeutronMsg;
 use test_case::test_case;
-
-// helper function to create a simple direct route
-fn create_direct_route(from: &str, to: &str) -> DualityRoute {
-    DualityRoute {
-        from: from.to_string(),
-        to: to.to_string(),
-        swap_denoms: vec![from.to_string(), to.to_string()],
-    }
-}
-
-// helper function to create a multi-hop route
-fn create_multi_hop_route(from: &str, via: &[&str], to: &str) -> DualityRoute {
-    let mut swap_denoms = vec![];
-    swap_denoms.push(from.to_string());
-    for denom in via {
-        swap_denoms.push(denom.to_string());
-    }
-    swap_denoms.push(to.to_string());
-
-    DualityRoute {
-        from: from.to_string(),
-        to: to.to_string(),
-        swap_denoms,
-    }
-}
+use crate::tests::helpers::{create_direct_route, create_multi_hop_route};
 
 // define error patterns to check for
 enum ExpectedValidationResult {

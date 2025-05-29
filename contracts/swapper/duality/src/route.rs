@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Coin, CosmosMsg, Empty, Env, QuerierWrapper, QueryRequest, Uint128};
+use cosmwasm_std::{Coin, CosmosMsg, Decimal, Empty, Env, QuerierWrapper, QueryRequest, Uint128};
 use mars_swapper_base::{ContractError, ContractResult, Route};
 use mars_types::swapper::{EstimateExactInSwapResponse, SwapperRoute};
 use neutron_sdk::{
@@ -120,7 +120,8 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
         }
 
         // our limit sell price is the worst price we are willing to accept.
-        let limit_sell_price = coin_in.amount.checked_div(min_receive)?;
+        let limit_sell_price = Decimal::from_ratio(min_receive, coin_in.amount);
+
 
         // if we have more than two denoms, we need to do a multi-hop swap
         let swap_msg: CosmosMsg<NeutronMsg> = if swap_denoms.len() > 2 {
@@ -157,57 +158,6 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
         env: &Env,
         coin_in: &Coin,
     ) -> ContractResult<EstimateExactInSwapResponse> {
-        let swap_denoms = &self.swap_denoms;
-
-        if swap_denoms.len() < 2 {
-            return Err(ContractError::InvalidRoute {
-                reason: "the route must contain at least two denoms".to_string(),
-            });
-        }
-
-        // if we have more than two denoms, we need to do a multi-hop swap
-        let amount_out = if swap_denoms.len() > 2 {
-            let path = ESTIMATE_MULTI_HOP_SWAP_QUERY_PATH;
-            let query_data = QueryEstimateMultiHopSwapRequest::from(EstimateMultiHopSwapRequest {
-                creator: env.contract.address.to_string(),
-                receiver: env.contract.address.to_string(),
-                routes: vec![swap_denoms.clone()],
-                amount_in: coin_in.amount.to_string(),
-                // TODO is this an issue?
-                exit_limit_price: "0".to_string(),
-                pick_best_route: true,
-            });
-
-            let res: EstimateMultiHopSwapResponse = querier.query(&QueryRequest::Stargate {
-                path: path.to_string(),
-                data: query_data.encode_to_vec().into(),
-            })?;
-            res.coin_out.amount
-        } else {
-            let path = ESTIMATE_PLACE_LIMIT_ORDER_QUERY_PATH;
-            let query_data =
-                QueryEstimatePlaceLimitOrderRequest::from(EstimatePlaceLimitOrderRequest {
-                    order_type: LimitOrderType::FillOrKill,
-                    creator: env.contract.address.to_string(),
-                    receiver: env.contract.address.to_string(),
-                    token_in: coin_in.denom.to_string(),
-                    token_out: self.to.to_string(),
-                    tick_index_in_to_out: 0,
-                    amount_in: coin_in.amount.to_string(),
-                    expiration_time: None,
-                    max_amount_out: None,
-                });
-
-            let res: EstimatePlaceLimitOrderResponse = querier.query(&QueryRequest::Stargate {
-                path: path.to_string(),
-                data: query_data.encode_to_vec().into(),
-            })?;
-
-            res.swap_out_coin.amount
-        };
-
-        Ok(EstimateExactInSwapResponse {
-            amount: amount_out,
-        })
+        unimplemented!("Duality does not yet support estimate_exact_in_swap")
     }
 }

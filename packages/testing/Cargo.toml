@@ -51,11 +51,13 @@ mars-red-bank                  = { workspace = true }
 mars-rewards-collector-osmosis = { workspace = true }
 mars-rover-health              = { workspace = true }
 mars-swapper-astroport         = { workspace = true }
+mars-swapper-duality           = { workspace = true }
 mars-swapper-mock              = { workspace = true }
 mars-types                     = { workspace = true }
 mars-vault                     = { workspace = true }
 mars-zapper-mock               = { workspace = true }
 neutron-sdk                    = { workspace = true }
+neutron-test-tube              = { workspace = true }
 prost                          = { workspace = true }
 pyth-sdk-cw                    = { workspace = true }
 regex                          = { workspace = true }
