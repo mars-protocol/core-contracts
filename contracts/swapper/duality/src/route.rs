@@ -1,24 +1,13 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Coin, CosmosMsg, Decimal, Empty, Env, QuerierWrapper, QueryRequest, Uint128};
+use cosmwasm_std::{Coin, CosmosMsg, Decimal, Empty, Env, QuerierWrapper, Uint128};
 use mars_swapper_base::{ContractError, ContractResult, Route};
 use mars_types::swapper::{EstimateExactInSwapResponse, SwapperRoute};
 use neutron_sdk::{
     bindings::msg::NeutronMsg,
-    proto_types::neutron::dex::{
-        QueryEstimateMultiHopSwapRequest, QueryEstimatePlaceLimitOrderRequest,
-    },
-    stargate::dex::types::{
-        EstimateMultiHopSwapRequest, EstimateMultiHopSwapResponse, EstimatePlaceLimitOrderRequest,
-        EstimatePlaceLimitOrderResponse, LimitOrderType, MultiHopSwapRequest,
-        PlaceLimitOrderRequest,
-    },
+    stargate::dex::types::{LimitOrderType, MultiHopSwapRequest, PlaceLimitOrderRequest},
 };
-use prost::Message;
 
 use crate::{config::DualityConfig, helpers::hashset};
-
-const ESTIMATE_MULTI_HOP_SWAP_QUERY_PATH: &str = "/neutron.dex.Query/EstimateMultiHopSwap";
-const ESTIMATE_PLACE_LIMIT_ORDER_QUERY_PATH: &str = "/neutron.dex.Query/EstimatePlaceLimitOrder";
 
 #[cw_serde]
 pub struct DualityRoute {
@@ -122,7 +111,6 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
         // our limit sell price is the worst price we are willing to accept.
         let limit_sell_price = Decimal::from_ratio(min_receive, coin_in.amount);
 
-
         // if we have more than two denoms, we need to do a multi-hop swap
         let swap_msg: CosmosMsg<NeutronMsg> = if swap_denoms.len() > 2 {
             neutron_sdk::stargate::dex::msg::msg_multi_hop_swap(MultiHopSwapRequest {
@@ -154,9 +142,9 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
 
     fn estimate_exact_in_swap(
         &self,
-        querier: &QuerierWrapper,
-        env: &Env,
-        coin_in: &Coin,
+        _: &QuerierWrapper,
+        _: &Env,
+        _: &Coin,
     ) -> ContractResult<EstimateExactInSwapResponse> {
         unimplemented!("Duality does not yet support estimate_exact_in_swap")
     }

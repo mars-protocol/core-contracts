@@ -1,251 +1,115 @@
 use cosmwasm_std::{coin, Uint128};
+use mars_testing::duality_swapper::DualitySwapperTester;
+use neutron_test_tube::{Account, NeutronTestApp};
+use test_case::test_case;
 
-use crate::tests::duality_swapper::DualitySwapperTester;
-
-
-#[test]
-fn test_basic_direct_swap() {
+// Base test function that will be parameterized with test_case
+fn test_swap_integration(
+    denom_in: &str,
+    denom_out: &str,
+    amount_in: u128,
+    expected_amount_out: u128, // Expected amount to receive based on price
+    use_route: bool,
+    use_multihop: bool,
+    intermediate_denom: Option<&str>,
+) {
     // Create the DualitySwapperTester that sets up the environment and deploys the contract
-    let tester = DualitySwapperTester::new();
-    
-    // Define the denoms for the test
-    let denom_in = "untrn";
-    let denom_out = "uusdc";
-    
-    // Create a direct route for the swap
-    let route = tester.create_direct_route(denom_in, denom_out);
-    
-    // Prepare swap parameters
-    let coin_in = coin(1_000_000, denom_in);
+    let app = NeutronTestApp::default();
+    let tester = DualitySwapperTester::new(&app);
 
-    // Add liquidity to the pool (1:1 ratio with no fees)
+    let user_balance_before = tester.get_balance(&tester.user.address(), denom_out);
+
+    // Prepare swap parameters
+    let coin_in = coin(amount_in, denom_in);
+
+    // Create appropriate route based on test parameters
+    let route = if use_route {
+        if use_multihop && intermediate_denom.is_some() {
+            // Multi-hop route through intermediate token
+            Some(tester.create_multi_hop_route(denom_in, intermediate_denom.unwrap(), denom_out))
+        } else {
+            // Direct route
+            Some(tester.create_direct_route(denom_in, denom_out))
+        }
+    } else {
+        None // No route specified, let the contract figure it out
+    };
+
+    // Set route in state
+    if use_route {
+        tester.set_route(route.clone().unwrap(), denom_in, denom_out);
+    }
+
+    // Add liquidity to pools with 1:1 ratio for simplicity
+    // For the direct route
+    let base_liquidity = 1_000_000_000u128;
     tester.add_liquidity(
-        denom_in, 
-        denom_out, 
-        Uint128::new(1_000_000_000), 
-        Uint128::new(1_000_000_000)
+        denom_in,
+        denom_out,
+        Uint128::new(base_liquidity),
+        Uint128::new(base_liquidity), // 1:1 ratio
     );
-    
-    // Check liquidity was added correctly (optional)
-    tester.query_deposits(&tester.admin);
-    
+
+    // If using multi-hop, also add liquidity to intermediate pools
+    if use_multihop && intermediate_denom.is_some() {
+        let intermediate = intermediate_denom.unwrap();
+        // Add liquidity for both hops with 1:1 ratios
+        tester.add_liquidity(
+            denom_in,
+            intermediate,
+            Uint128::new(base_liquidity),
+            Uint128::new(base_liquidity),
+        );
+
+        tester.add_liquidity(
+            intermediate,
+            denom_out,
+            Uint128::new(base_liquidity),
+            Uint128::new(base_liquidity),
+        );
+    }
+
     // Execute the swap
     let result = tester.execute_swap(
         coin_in.clone(),
         denom_out,
-        coin_in.amount, // Minimum amount to receive (1:1 expected)
-        Some(route),
+        Uint128::new(expected_amount_out), // Minimum amount to receive based on expected output
+        route,
         &tester.user,
     );
 
-    // Verify swap succeeded
-    assert!(result.is_ok(), "Swap failed - but it should succeed");
-    
+    println!("result: {:#?}", result);
+
+    let result = result.unwrap();
+
     // Verify user balance changed correctly
     let user_balance = tester.get_balance(&tester.user.address(), denom_out);
-    assert!(
-        user_balance > Uint128::zero(),
-        "User should have received tokens"
+    assert_eq!(
+        user_balance,
+        user_balance_before + Uint128::new(expected_amount_out),
+        "User should have received the expected amount of tokens"
     );
-    
-    println!("User received {} {}", user_balance, denom_out);
 }
 
-
-// #[test]
-// fn test_multi_hop_swap() {
-//     // Set up the test environment
-//     let (app, admin, user) = neutron_dex_helpers::setup_test_environment();
-//     let dex = neutron_dex_helpers::init_dex(&app);
-//     // Create the test pools
-//     let denom_in = "untrn";
-//     let denom_intermediate = "uusdc";
-//     let denom_out = "uatom";
-    
-//     // Pool 1: untrn <-> uusdc
-//     let pool1_id = neutron_dex_helpers::create_dex_pool(
-//         &dex,
-//         &admin,
-//         denom_in,
-//         denom_intermediate,
-//         Uint128::new(6_000_000),  // 6 million untrn
-//         Uint128::new(1_500_000),  // 1.5 million uusdc
-//     );
-    
-//     // Pool 2: uusdc <-> uatom
-//     let pool2_id = neutron_dex_helpers::create_dex_pool(
-//         &dex,
-//         &admin,
-//         denom_intermediate,
-//         denom_out,
-//         Uint128::new(1_500_000),  // 1.5 million uusdc
-//         Uint128::new(750_000),    // 750k uatom
-//     );
-    
-//     // Create and set the multi-hop route
-//     let route = DualityRoute {
-//         from: denom_in.to_string(),
-//         to: denom_out.to_string(),
-//         swap_denoms: vec![
-//             denom_in.to_string(), 
-//             denom_intermediate.to_string(), 
-//             denom_out.to_string()
-//         ],
-//     };
-    
-//     // Prepare swap parameters
-//     let coin_in = coin(1_000_000, denom_in);
-    
-//     // Get estimation
-//     let estimation = robot.query_estimate_exact_in_swap(
-//         &coin_in,
-//         denom_out,
-//         None,  // Use saved route
-//     );
-    
-//     assert!(
-//         estimation.amount > Uint128::zero(),
-//         "Estimation should return a positive amount"
-//     );
-    
-//     // Calculate minimum receive with 5% slippage tolerance
-//     let min_receive = estimation.amount * (Decimal::one() - Decimal::percent(5));
-    
-//     // Perform the swap
-//     let result = robot.swap_res(
-//         coin_in.clone(),
-//         denom_out,
-//         min_receive,
-//         &user,
-//         None,  // Use saved route
-//     );
-    
-//     assert!(result.is_ok(), "Swap should succeed");
-    
-//     // Verify user balance changed correctly
-//     let user_balance = app.get_balance(user.address().as_str(), denom_out).unwrap();
-//     assert!(
-//         user_balance >= min_receive,
-//         "User should have received at least the minimum amount"
-//     );
-// }
-
-// #[test]
-// fn test_swap_with_explicit_route() {
-//     // Set up the test environment
-//     let (app, admin, user) = neutron_dex_helpers::setup_test_environment();
-    
-//     // Create a new robot with the test app
-//     let robot = DualitySwapperRobot::new_with_local(&app, &admin);
-    
-//     // Create the test pool
-//     let denom_in = "untrn";
-//     let denom_out = "uusdc";
-//     let pool_id = neutron_dex_helpers::create_dex_pool(
-//         &app,
-//         &admin,
-//         denom_in,
-//         denom_out,
-//         Uint128::new(6_000_000),  // 6 million untrn
-//         Uint128::new(1_500_000),  // 1.5 million uusdc
-//     );
-    
-//     // Create some TWAP records
-//     neutron_dex_helpers::create_twap_records(
-//         &app,
-//         &admin,
-//         pool_id,
-//         coin(10u128, denom_in),
-//         denom_out,
-//     );
-    
-//     // Create the route (but don't save it to contract)
-//     let route = DualityRoute {
-//         from: denom_in.to_string(),
-//         to: denom_out.to_string(),
-//         swap_denoms: vec![denom_in.to_string(), denom_out.to_string()],
-//     };
-    
-//     // Prepare swap parameters
-//     let coin_in = coin(1_000_000, denom_in);
-    
-//     // Get estimation with explicit route
-//     let route_for_swap = SwapperRoute::Duality(route.clone().into());
-//     let estimation = robot.query_estimate_exact_in_swap(
-//         &coin_in,
-//         denom_out,
-//         Some(route_for_swap.clone()),
-//     );
-    
-//     assert!(
-//         estimation.amount > Uint128::zero(),
-//         "Estimation should return a positive amount"
-//     );
-    
-//     // Calculate minimum receive with 5% slippage tolerance
-//     let min_receive = estimation.amount * (Decimal::one() - Decimal::percent(5));
-    
-//     // Perform the swap with explicit route
-//     let result = robot.swap_res(
-//         coin_in.clone(),
-//         denom_out,
-//         min_receive,
-//         &user,
-//         Some(route_for_swap),
-//     );
-    
-//     assert!(result.is_ok(), "Swap should succeed");
-    
-//     // Verify user balance changed correctly
-//     let user_balance = app.get_balance(user.address().as_str(), denom_out).unwrap();
-//     assert!(
-//         user_balance >= min_receive,
-//         "User should have received at least the minimum amount"
-//     );
-// }
-
-
-// #[test]
-// fn test_swap_slippage_too_high() {
-//     // Set up the test environment
-//     let (app, admin, user) = neutron_dex_helpers::setup_test_environment();
-    
-//     // Create a new robot with the test app
-//     let robot = DualitySwapperRobot::new_with_local(&app, &admin);
-    
-//     // Create the test pool
-//     let denom_in = "untrn";
-//     let denom_out = "uusdc";
-//     let pool_id = neutron_dex_helpers::create_dex_pool(
-//         &app,
-//         &admin,
-//         denom_in,
-//         denom_out,
-//         Uint128::new(6_000_000),  // 6 million untrn
-//         Uint128::new(1_500_000),  // 1.5 million uusdc
-//     );
-    
-//     // Prepare swap parameters
-//     let coin_in = coin(1_000_000, denom_in);
-    
-//     // Get estimation
-//     let estimation = robot.query_estimate_exact_in_swap(
-//         &coin_in,
-//         denom_out,
-//         None,
-//     );
-    
-//     // Set an unrealistically high min_receive (more than expected output)
-//     let min_receive = estimation.amount + Uint128::new(1_000_000);
-    
-//     // Perform the swap - should fail due to slippage
-//     let result = robot.swap_res(
-//         coin_in.clone(),
-//         denom_out,
-//         min_receive,
-//         &user,
-//         None,
-//     );
-    
-//     assert!(result.is_err(), "Swap should fail due to slippage protection");
-// }
+#[test_case("untrn", "uusdc", 1_000_000, 1_000_000, true, false, None; "direct swap with explicit route")]
+#[test_case("untrn", "uusdc", 500_000, 500_000, false, false, None; "direct swap without route")]
+#[test_case("untrn", "uusdc", 750_000, 750_000, true, true, Some("uatom"); "multi-hop swap through uatom")]
+fn test_basic_swaps(
+    denom_in: &str,
+    denom_out: &str,
+    amount_in: u128,
+    expected_amount_out: u128,
+    use_route: bool,
+    use_multihop: bool,
+    intermediate_denom: Option<&str>,
+) {
+    test_swap_integration(
+        denom_in,
+        denom_out,
+        amount_in,
+        expected_amount_out,
+        use_route,
+        use_multihop,
+        intermediate_denom,
+    );
+}

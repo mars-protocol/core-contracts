@@ -24,6 +24,7 @@ anyhow                         = { workspace = true }
 astroport                      = { workspace = true, optional = true }
 astroport-v5                   = { workspace = true }
 cosmwasm-std                   = { workspace = true }
+cosmwasm-std-2                 = { workspace = true }
 cosmwasm-schema                = { workspace = true }
 cw721                          = { workspace = true }
 cw721-base                     = { workspace = true }

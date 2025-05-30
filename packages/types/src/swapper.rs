@@ -5,7 +5,7 @@ use mars_owner::OwnerUpdate;
 #[cw_serde]
 pub enum SwapperRoute {
     Astro(AstroRoute),
-    Duality(NeutronRoute),
+    Duality(DualitySwap),
     Osmo(OsmoRoute),
 }
 
@@ -39,7 +39,7 @@ pub struct OsmoSwap {
 }
 
 #[cw_serde]
-pub struct NeutronRoute {
+pub struct DualitySwap {
     /// Entry denom, in other words the asset we are selling
     pub from: String,
     /// Exit denom, in other words the asset we are buying

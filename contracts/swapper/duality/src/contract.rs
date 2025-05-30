@@ -2,6 +2,7 @@ use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Empty, Env, MessageInfo, 
 use mars_swapper_base::ContractResult;
 use mars_types::swapper::{ExecuteMsg, InstantiateMsg, QueryMsg};
 use neutron_sdk::bindings::msg::NeutronMsg;
+
 use crate::{config::DualityConfig, route::DualityRoute};
 
 pub type SwapBase<'a> =
