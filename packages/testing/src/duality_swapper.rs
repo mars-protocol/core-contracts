@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, from_json, to_json_binary, Coin, Decimal, Uint128};
+use cosmwasm_std::{Coin, Decimal, Uint128};
 use cosmwasm_std_2::Coin as Coin2;
 use mars_types::swapper::{
     EstimateExactInSwapResponse, ExecuteMsg, InstantiateMsg, QueryMsg, SwapperRoute,
@@ -10,9 +10,9 @@ use neutron_test_tube::{
         cosmos::bank::v1beta1::QueryBalanceRequest,
         cosmwasm::wasm::v1::MsgExecuteContractResponse,
         neutron::dex::{
-            DepositOptions, MsgDeposit, MsgDepositResponse, QueryAllUserDepositsRequest,
+            DepositOptions, MsgDeposit, MsgDepositResponse,
         },
-    }, Account, Bank, Dex, ExecuteResponse, Module, NeutronTestApp, RunnerError, RunnerExecuteResult, SigningAccount, Wasm
+    }, Account, Bank, Dex, ExecuteResponse, Module, NeutronTestApp, RunnerExecuteResult, SigningAccount, Wasm
 };
 
 // Constants
@@ -94,7 +94,7 @@ impl<'a> DualitySwapperTester<'a> {
 
         println!("Price ratio: {}", price_ratio);
 
-        let res = self
+        self
             .dex
             .deposit(
                 MsgDeposit {
@@ -113,9 +113,7 @@ impl<'a> DualitySwapperTester<'a> {
                 },
                 &self.admin,
             )
-            .unwrap();
-
-        res
+            .unwrap()
     }
 
     /// Query for swap estimation from the swapper contract
