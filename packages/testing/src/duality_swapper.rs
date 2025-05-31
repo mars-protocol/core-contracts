@@ -191,12 +191,12 @@ impl<'a> DualitySwapperTester<'a> {
         })
     }
 
-    pub fn set_route(&self, route: SwapperRoute, denom_in: &str, denom_out: &str) {
+    pub fn set_route(&self, route: SwapperRoute, denom_in: &str, denom_out: &str) -> RunnerExecuteResult<MsgExecuteContractResponse> {
         let execute_msg: ExecuteMsg<SwapperRoute, Coin> = ExecuteMsg::SetRoute { 
             denom_in: denom_in.to_string(), 
             denom_out: denom_out.to_string(), 
             route 
         };
-        self.wasm.execute(&self.contract_addr, &execute_msg, &[], &self.admin).unwrap();
+        self.wasm.execute(&self.contract_addr, &execute_msg, &[], &self.admin)
     }
 }

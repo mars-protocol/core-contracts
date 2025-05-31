@@ -37,7 +37,8 @@ fn test_swap_integration(
 
     // Set route in state
     if use_route {
-        tester.set_route(route.clone().unwrap(), denom_in, denom_out);
+        let res = tester.set_route(route.clone().unwrap(), denom_in, denom_out);
+        assert!(res.is_ok(), "Route should pass validation");
     }
 
     // Add liquidity to pools with 1:1 ratio for simplicity
