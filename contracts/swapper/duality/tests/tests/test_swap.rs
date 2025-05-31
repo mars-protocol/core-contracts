@@ -1,159 +1,115 @@
-// use cosmwasm_std::{coin, Coin, Empty, QuerierWrapper, Uint128};
-// use mars_swapper_base::Route;
-// use mars_swapper_duality::{DualityConfig, DualityRoute};
-// use mars_testing::MarsMockQuerier;
-// use mars_types::swapper::EstimateExactInSwapResponse;
-// use neutron_sdk::bindings::msg::NeutronMsg;
-// use test_case::test_case;
+use cosmwasm_std::{coin, Uint128};
+use mars_testing::duality_swapper::DualitySwapperTester;
+use neutron_test_tube::{Account, NeutronTestApp};
+use test_case::test_case;
 
-// use crate::tests::helpers::{create_direct_route, create_multi_hop_route, mock_env};
+// Base test function that will be parameterized with test_case
+fn test_swap_integration(
+    denom_in: &str,
+    denom_out: &str,
+    amount_in: u128,
+    expected_amount_out: u128, // Expected amount to receive based on price
+    use_route: bool,
+    use_multihop: bool,
+    intermediate_denom: Option<&str>,
+) {
+    // Create the DualitySwapperTester that sets up the environment and deploys the contract
+    let app = NeutronTestApp::default();
+    let tester = DualitySwapperTester::new(&app);
 
-// // Test cases for direct swap estimation
-// #[test_case(
-//     "basic_direct_swap",
-//     || create_direct_route("untrn", "uusdc"),
-//     coin("1000000", "untrn"),
-//     Uint128::new(900000)
-//     ; "basic direct swap estimation"
-// )]
-// #[test_case(
-//     "small_amount_swap",
-//     || create_direct_route("untrn", "uusdc"),
-//     coin("100", "untrn"),
-//     Uint128::new(90)
-//     ; "swap with small amount"
-// )]
-// #[test_case(
-//     "large_amount_swap",
-//     || create_direct_route("untrn", "uusdc"),
-//     coin("1000000000000", "untrn"),
-//     Uint128::new(900000000000)
-//     ; "swap with large amount"
-// )]
-// #[test_case(
-//     "different_decimal_places",
-//     || create_direct_route("uatom", "usdc"),
-//     coin("1000000", "uatom"), // 6 decimal places
-//     Uint128::new(2000000)     // 6 decimal places (with 2:1 exchange rate)
-//     ; "tokens with different decimal places"
-// )]
-// fn test_direct_swap_estimation(
-//     _test_name: &str,
-//     route_factory: impl FnOnce() -> DualityRoute,
-//     coin_in: Coin,
-//     expected_amount_out: Uint128,
-// ) {
-//     // create the route using the provided factory function
-//     let route = route_factory();
+    let user_balance_before = tester.get_balance(&tester.user.address(), denom_out);
 
-//     // set up mock environment
-//     let env = mock_env();
+    // Prepare swap parameters
+    let coin_in = coin(amount_in, denom_in);
 
-//     // TODO: Set up the mock querier with appropriate responses for EstimatePlaceLimitOrder
-//     let querier = MarsMockQuerier::new(cosmwasm_std::testing::MockQuerier::new(&[]));
-//     let querier_wrapper = cosmwasm_std::QuerierWrapper::new(&querier);
+    // Create appropriate route based on test parameters
+    let route = if use_route {
+        if use_multihop && intermediate_denom.is_some() {
+            // Multi-hop route through intermediate token
+            Some(tester.create_multi_hop_route(denom_in, intermediate_denom.unwrap(), denom_out))
+        } else {
+            // Direct route
+            Some(tester.create_direct_route(denom_in, denom_out))
+        }
+    } else {
+        None // No route specified, let the contract figure it out
+    };
 
-//     // perform the estimation
-//     let result = route.estimate_exact_in_swap(&querier_wrapper, &env, &coin_in);
+    // Set route in state
+    if use_route {
+        tester.set_route(route.clone().unwrap(), denom_in, denom_out);
+    }
 
-//     // verify the result
-//     assert!(result.is_ok(), "Estimation should succeed");
-//     let response = result.unwrap();
-//     assert_eq!(
-//         response.amount,
-//         expected_amount_out,
-//         "Expected output amount {} but got {}",
-//         expected_amount_out,
-//         response.amount
-//     );
-// }
+    // Add liquidity to pools with 1:1 ratio for simplicity
+    // For the direct route
+    let base_liquidity = 1_000_000_000u128;
+    tester.add_liquidity(
+        denom_in,
+        denom_out,
+        Uint128::new(base_liquidity),
+        Uint128::new(base_liquidity), // 1:1 ratio
+    );
 
-// // Test cases for multi-hop swap estimation
-// #[test_case(
-//     "basic_multi_hop_swap",
-//     || create_multi_hop_route("untrn", &["uusdc"], "uatom"),
-//     coin("1000000", "untrn"),
-//     Uint128::new(800000)
-//     ; "basic multi-hop swap estimation"
-// )]
-// #[test_case(
-//     "long_path_multi_hop",
-//     || create_multi_hop_route("untrn", &["uusdc", "uluna", "uosmo"], "uatom"),
-//     coin("1000000", "untrn"),
-//     Uint128::new(700000)
-//     ; "multi-hop with long path (more hops = more slippage)"
-// )]
-// fn test_multi_hop_swap_estimation(
-//     _test_name: &str,
-//     route_factory: impl FnOnce() -> DualityRoute,
-//     coin_in: Coin,
-//     expected_amount_out: Uint128,
-// ) {
-//     // create the route using the provided factory function
-//     let route = route_factory();
+    // If using multi-hop, also add liquidity to intermediate pools
+    if use_multihop && intermediate_denom.is_some() {
+        let intermediate = intermediate_denom.unwrap();
+        // Add liquidity for both hops with 1:1 ratios
+        tester.add_liquidity(
+            denom_in,
+            intermediate,
+            Uint128::new(base_liquidity),
+            Uint128::new(base_liquidity),
+        );
 
-//     // set up mock environment
-//     let env = mock_env();
+        tester.add_liquidity(
+            intermediate,
+            denom_out,
+            Uint128::new(base_liquidity),
+            Uint128::new(base_liquidity),
+        );
+    }
 
-//     // TODO: Set up the mock querier with appropriate responses for EstimateMultiHopSwap
-//     let querier = MarsMockQuerier::new(cosmwasm_std::testing::MockQuerier::new(&[]));
-//     let querier_wrapper = cosmwasm_std::QuerierWrapper::new(&querier);
+    // Execute the swap
+    let result = tester.execute_swap(
+        coin_in.clone(),
+        denom_out,
+        Uint128::new(expected_amount_out), // Minimum amount to receive based on expected output
+        route,
+        &tester.user,
+    );
 
-//     // perform the estimation
-//     let result = route.estimate_exact_in_swap(&querier_wrapper, &env, &coin_in);
+    println!("result: {:#?}", result);
 
-//     // verify the result
-//     assert!(result.is_ok(), "Estimation should succeed");
-//     let response = result.unwrap();
-//     assert_eq!(
-//         response.amount,
-//         expected_amount_out,
-//         "Expected output amount {} but got {}",
-//         expected_amount_out,
-//         response.amount
-//     );
-// }
+    let _result = result.unwrap();
 
-// #[test]
-// fn test_estimation_with_invalid_route() {
-//     // test with route having too few denoms
-//     let invalid_route = DualityRoute {
-//         from: "untrn".to_string(),
-//         to: "uusdc".to_string(),
-//         swap_denoms: vec![],
-//     };
+    // Verify user balance changed correctly
+    let user_balance = tester.get_balance(&tester.user.address(), denom_out);
+    assert_eq!(
+        user_balance,
+        user_balance_before + Uint128::new(expected_amount_out),
+        "User should have received the expected amount of tokens"
+    );
+}
 
-//     let env = mock_env();
-//     let querier = MarsMockQuerier::new(cosmwasm_std::testing::MockQuerier::new(&[]));
-//     let querier_wrapper = cosmwasm_std::QuerierWrapper::new(&querier);
-
-//     let result = invalid_route.estimate_exact_in_swap(
-//         &querier_wrapper,
-//         &env,
-//         &coin("1000000", "untrn")
-//     );
-
-//     assert!(result.is_err(), "Estimation with invalid route should fail");
-//     // TODO: Check specific error message
-// }
-
-// #[test]
-// fn test_neutron_query_errors() {
-//     // create a valid route
-//     let route = create_direct_route("untrn", "uusdc");
-
-//     let env = mock_env();
-
-//     // TODO: Set up mock querier to return errors for neutron queries
-//     let querier = MarsMockQuerier::new(cosmwasm_std::testing::MockQuerier::new(&[]));
-//     let querier_wrapper = cosmwasm_std::QuerierWrapper::new(&querier);
-
-//     let result = route.estimate_exact_in_swap(
-//         &querier_wrapper,
-//         &env,
-//         &coin("1000000", "untrn")
-//     );
-
-//     // TODO: Verify error is properly propagated to the caller once mocks are set up
-//     // For now, it will likely succeed with a zero amount or fail in an unexpected way
-// }
+#[test_case("untrn", "uusdc", 1_000_000, 1_000_000, true, false, None; "direct swap with explicit route")]
+#[test_case("untrn", "uusdc", 500_000, 500_000, false, false, None; "direct swap without route")]
+#[test_case("untrn", "uusdc", 750_000, 750_000, true, true, Some("uatom"); "multi-hop swap through uatom")]
+fn test_basic_swaps(
+    denom_in: &str,
+    denom_out: &str,
+    amount_in: u128,
+    expected_amount_out: u128,
+    use_route: bool,
+    use_multihop: bool,
+    intermediate_denom: Option<&str>,
+) {
+    test_swap_integration(
+        denom_in,
+        denom_out,
+        amount_in,
+        expected_amount_out,
+        use_route,
+        use_multihop,
+        intermediate_denom,
+    );
+}
