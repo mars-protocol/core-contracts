@@ -291,6 +291,8 @@ pub fn extract_action_names<T: std::fmt::Debug>(actions: &[T]) -> String {
         })
         .collect::<Vec<String>>()
         .join(", ")
+}
+
 pub fn assert_allowed_managed_vault_code_ids(
     deps: &mut DepsMut<'_>,
     vault: &Addr,

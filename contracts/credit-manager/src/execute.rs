@@ -38,7 +38,7 @@ use crate::{
     update_coin_balances::{update_coin_balance, update_coin_balance_after_vault_liquidation},
     utils::{
         assert_allowed_managed_vault_code_ids, assert_is_authorized, assert_is_not_blacklisted,
-        assert_vault_has_no_admin, get_account_kind, extract_action_names,
+        assert_vault_has_no_admin, extract_action_names, get_account_kind,
     },
     vault::{
         enter_vault, exit_vault, exit_vault_unlocked, liquidate_vault, request_vault_unlock,
