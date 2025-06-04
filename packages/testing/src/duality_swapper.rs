@@ -2,15 +2,16 @@ use std::str::FromStr;
 
 use cosmwasm_std::{Coin, Decimal, Uint128};
 use cosmwasm_std_2::Coin as Coin2;
+
 use mars_types::swapper::{
-    EstimateExactInSwapResponse, ExecuteMsg, InstantiateMsg, QueryMsg, SwapperRoute,
+    DualityRoute, EstimateExactInSwapResponse, ExecuteMsg, InstantiateMsg, QueryMsg, SwapperRoute,
 };
 use neutron_test_tube::{
     neutron_std::types::{
         cosmos::bank::v1beta1::QueryBalanceRequest,
         cosmwasm::wasm::v1::MsgExecuteContractResponse,
         neutron::dex::{
-            DepositOptions, MsgDeposit, MsgDepositResponse,
+            DepositOptions, MsgDeposit, MsgDepositResponse, QueryGetPoolReservesRequest, QueryGetPoolReservesResponse,
         },
     }, Account, Bank, Dex, ExecuteResponse, Module, NeutronTestApp, RunnerExecuteResult, SigningAccount, Wasm
 };
@@ -34,9 +35,11 @@ impl<'a> DualitySwapperTester<'a> {
     pub fn new(app: &'a NeutronTestApp) -> Self {
         // Initialize admin and user accounts with funds
         let initial_balance = vec![
-            Coin2::new(1_000_000_000_000u128, "untrn"),
-            Coin2::new(1_000_000_000_000u128, "uusdc"),
-            Coin2::new(1_000_000_000_000u128, "uatom"),
+            Coin2::new(Uint128::MAX.u128()/10, "untrn"),
+            Coin2::new(Uint128::MAX.u128()/10, "uusdc"),
+            Coin2::new(Uint128::MAX.u128()/10, "uatom"),
+            Coin2::new(Uint128::MAX.u128()/10, "ujuno"),
+            Coin2::new(Uint128::MAX.u128()/10, "uosmo"),
         ];
 
         let admin = app.init_account(initial_balance.as_slice()).unwrap();
@@ -79,6 +82,20 @@ impl<'a> DualitySwapperTester<'a> {
         }
     }
 
+    /// Convert a price ratio to the nearest tick index.
+    /// The Duality DEX defines price at tick *i* as `p(i) = 1.0001^i`.
+    /// Therefore `i = ln(price) / ln(1.0001)`.
+    pub fn price_to_tick(price: Decimal) -> i64 {
+        // Convert `Decimal` → `f64` so we can use the standard library’s `ln`.
+        // Safe because tests only need ~15 decimals of precision.
+        let price_f64: f64 = price.to_string().parse().expect("invalid decimal");
+        let ln_price = price_f64.ln();
+        let ln_base = 1.0001_f64.ln();
+        // Round to the nearest whole-number tick.
+        (ln_price / ln_base).round() as i64
+    }
+
+    // TODO support settting price via ticks
     /// Add liquidity to a pool with the specified tokens and amounts
     pub fn add_liquidity(
         &self,
@@ -90,8 +107,11 @@ impl<'a> DualitySwapperTester<'a> {
         println!("Adding liquidity: {} {}, {} {}", amount1, denom1, amount2, denom2);
 
         // Calculate the price based on the ratio of amount2 to amount1
-        let price_ratio = Decimal::from_ratio(amount2, amount1);
+        let price_ratio = Decimal::from_ratio(amount1, amount2);
 
+        let tick_index = Self::price_to_tick(price_ratio);
+
+        println!("Tick index: {}", tick_index);
         println!("Price ratio: {}", price_ratio);
 
         self
@@ -102,9 +122,9 @@ impl<'a> DualitySwapperTester<'a> {
                     receiver: self.admin.address().clone(),
                     token_a: denom1.to_string(),
                     token_b: denom2.to_string(),
-                    amounts_a: vec![amount1.to_string()],
+                    amounts_a: vec!["0".to_string()],
                     amounts_b: vec![amount2.to_string()],
-                    tick_indexes_a_to_b: vec![0],
+                    tick_indexes_a_to_b: vec![tick_index],
                     fees: vec![0],
                     options: vec![DepositOptions {
                         disable_autoswap: false,
@@ -113,6 +133,19 @@ impl<'a> DualitySwapperTester<'a> {
                 },
                 &self.admin,
             )
+            .unwrap()
+            
+    }
+
+    /// Get the liquidity for a specific pair at a specific tick
+    pub fn get_liquidity(&self, pair_id: String, token_in: String, tick_index: i64, fee: u64) -> QueryGetPoolReservesResponse {
+        self.dex
+            .pool_reserves(&QueryGetPoolReservesRequest {
+                pair_id,
+                token_in,
+                tick_index,
+                fee,
+            })
             .unwrap()
     }
 
@@ -146,9 +179,9 @@ impl<'a> DualitySwapperTester<'a> {
         // Create a coin using Coin from cw-std-2 for compatibility with the test-tube
         let coin_in2 = Coin2::new(coin_in.amount.u128(), coin_in.denom.clone());
 
-        let execute_msg: ExecuteMsg<SwapperRoute, Coin> = ExecuteMsg::SwapExactIn {
-            coin_in,
-            denom_out,
+        let execute_msg: ExecuteMsg<DualityRoute, Coin> = ExecuteMsg::SwapExactIn {
+        coin_in,
+        denom_out,
             min_receive,
             route,
         };
@@ -174,25 +207,25 @@ impl<'a> DualitySwapperTester<'a> {
     }
 
     /// Create a SwapperRoute for a direct swap (two tokens)
-    pub fn create_direct_route(&self, from: &str, to: &str) -> SwapperRoute {
-        SwapperRoute::Duality(mars_types::swapper::DualitySwap {
+    pub fn create_direct_route(&self, from: &str, to: &str) -> DualityRoute {
+        DualityRoute {
             from: from.to_string(),
             to: to.to_string(),
             swap_denoms: vec![from.to_string(), to.to_string()],
-        })
+        }
     }
 
     /// Create a SwapperRoute for a multi-hop swap (three or more tokens)
-    pub fn create_multi_hop_route(&self, from: &str, intermediate: &str, to: &str) -> SwapperRoute {
-        SwapperRoute::Duality(mars_types::swapper::DualitySwap {
+    pub fn create_multi_hop_route(&self, from: &str, intermediate: &str, to: &str) -> DualityRoute {
+        DualityRoute {
             from: from.to_string(),
             to: to.to_string(),
             swap_denoms: vec![from.to_string(), intermediate.to_string(), to.to_string()],
-        })
+        }
     }
 
-    pub fn set_route(&self, route: SwapperRoute, denom_in: &str, denom_out: &str) -> RunnerExecuteResult<MsgExecuteContractResponse> {
-        let execute_msg: ExecuteMsg<SwapperRoute, Coin> = ExecuteMsg::SetRoute { 
+    pub fn set_route(&self, route: DualityRoute, denom_in: &str, denom_out: &str) -> RunnerExecuteResult<MsgExecuteContractResponse> {
+        let execute_msg: ExecuteMsg<DualityRoute, Coin> = ExecuteMsg::SetRoute { 
             denom_in: denom_in.to_string(), 
             denom_out: denom_out.to_string(), 
             route 
