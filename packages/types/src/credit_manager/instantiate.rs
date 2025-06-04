@@ -57,6 +57,7 @@ pub struct ConfigUpdates {
     pub max_unlocking_positions: Option<Uint128>,
     pub max_slippage: Option<Decimal>,
     pub swapper: Option<SwapperUnchecked>,
+    pub duality_swapper: Option<SwapperUnchecked>,
     pub zapper: Option<ZapperUnchecked>,
     pub health_contract: Option<HealthContractUnchecked>,
     pub params: Option<ParamsUnchecked>,
