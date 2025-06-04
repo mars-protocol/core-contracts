@@ -128,6 +128,9 @@ fn verify_accounting_with_input_actions() {
 
         perp_denoms.push(perp.perps_params.denom.clone());
 
+        // Set the initial price for the perpetual market.
+        mock.set_price(&owner, &perp.perps_params.denom, perp.initial_price).unwrap();
+
         // Add or update the perpetual market parameters.
         mock.update_perp_params(
             &owner,
@@ -135,9 +138,6 @@ fn verify_accounting_with_input_actions() {
                 params: perp.perps_params.clone(),
             },
         );
-
-        // Set the initial price for the perpetual market.
-        mock.set_price(&owner, &perp.perps_params.denom, perp.initial_price).unwrap();
     }
 
     let mut snapshots = vec![];

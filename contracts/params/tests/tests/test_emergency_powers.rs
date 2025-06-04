@@ -1,4 +1,4 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Decimal};
 use mars_owner::OwnerError;
 use mars_params::error::ContractError::Owner;
 use mars_testing::multitest::helpers::default_perp_params;
@@ -52,6 +52,8 @@ fn disabling_borrowing() {
     let mut params = default_asset_params(&denom);
     params.red_bank.borrow_enabled = true;
 
+    mock.set_price_source_fixed(&denom, Decimal::one());
+
     mock.update_asset_params(
         &mock.query_owner(),
         AssetParamsUpdate::AddOrUpdate {
@@ -82,6 +84,8 @@ fn disallow_coin() {
     let mut params = default_asset_params(&denom);
     params.credit_manager.whitelisted = true;
 
+    mock.set_price_source_fixed(&denom, Decimal::one());
+
     mock.update_asset_params(
         &mock.query_owner(),
         AssetParamsUpdate::AddOrUpdate {
@@ -110,6 +114,8 @@ fn disabled_withdraw_cm() {
     let denom = "atom".to_string();
 
     let params = default_asset_params(&denom);
+
+    mock.set_price_source_fixed(&denom, Decimal::one());
 
     mock.update_asset_params(
         &mock.query_owner(),
@@ -141,6 +147,8 @@ fn disabled_withdraw_rb() {
     let denom = "atom".to_string();
 
     let params = default_asset_params(&denom);
+
+    mock.set_price_source_fixed(&denom, Decimal::one());
 
     mock.update_asset_params(
         &mock.query_owner(),
@@ -226,6 +234,8 @@ fn disabled_perp_trading() {
     let denom = "atom".to_string();
 
     let params = default_perp_params(&denom);
+
+    mock.set_price_source_fixed(&denom, Decimal::one());
 
     mock.update_perp_params(
         &mock.query_owner(),

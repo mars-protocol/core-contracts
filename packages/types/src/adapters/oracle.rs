@@ -6,7 +6,7 @@ use cosmwasm_std::{
     Uint128,
 };
 
-use crate::oracle::{ActionKind, PriceResponse, QueryMsg};
+use crate::oracle::{ActionKind, HasPriceSourceResponse, PriceResponse, QueryMsg};
 
 #[cw_serde]
 pub struct OracleBase<T>(T);
@@ -48,6 +48,21 @@ impl Oracle {
             &QueryMsg::Price {
                 denom: denom.to_string(),
                 kind: Some(pricing),
+            },
+        )
+    }
+
+    /// Query the price source for a given denom without any specific type.
+    /// This is useful to check if price source is set for a given denom.
+    pub fn has_price_source(
+        &self,
+        querier: &QuerierWrapper,
+        denom: &str,
+    ) -> StdResult<HasPriceSourceResponse> {
+        querier.query_wasm_smart(
+            self.address().to_string(),
+            &QueryMsg::HasPriceSource {
+                denom: denom.to_string(),
             },
         )
     }

@@ -1,11 +1,12 @@
-use cosmwasm_std::{Addr, Decimal, Deps, Order, Uint128};
+use cosmwasm_std::{Addr, Decimal, Deps, Int256, Order, Uint128};
 use cw_paginate::{paginate_map_query, PaginationResponse, DEFAULT_LIMIT, MAX_LIMIT};
 use cw_storage_plus::Bound;
 
 use crate::{
     error::ContractResult,
     execute::total_base_tokens_in_account,
-    msg::{VaultInfoResponseExt, VaultUnlock},
+    msg::{UserPnlResponse, VaultInfoResponseExt, VaultUnlock},
+    pnl,
     state::{
         BASE_TOKEN, COOLDOWN_PERIOD, CREDIT_MANAGER, DESCRIPTION, PERFORMANCE_FEE_CONFIG, SUBTITLE,
         TITLE, UNLOCKS, VAULT_ACC_ID, VAULT_TOKEN,
@@ -110,4 +111,57 @@ pub fn convert_to_base_tokens(deps: Deps, amount: Uint128) -> ContractResult<Uin
     let vault_token_supply = VAULT_TOKEN.load(deps.storage)?.query_total_supply(deps)?;
     let total_base_tokens = total_base_tokens_in_account(deps)?;
     Ok(calculate_base_tokens(amount, total_base_tokens, vault_token_supply)?)
+}
+
+/// Query the PNL for a specific user
+pub fn query_user_pnl(deps: Deps, user_address: String) -> ContractResult<UserPnlResponse> {
+    let user_addr = deps.api.addr_validate(&user_address)?;
+
+    let net_worth_now = total_base_tokens_in_account(deps)?;
+
+    // get user's vault token balance
+    let vault_token = VAULT_TOKEN.load(deps.storage)?;
+    let vault_token_supply = vault_token.query_total_supply(deps)?;
+    let user_shares = vault_token.query_balance(deps, &user_addr)?;
+
+    // if user has no shares, return zero PNL
+    if user_shares.is_zero() {
+        return Ok(crate::msg::UserPnlResponse {
+            pnl: Int256::zero(),
+            shares: Uint128::zero(),
+        });
+    }
+
+    // calculate user's PNL
+    let (vault_pnl_index, _) =
+        pnl::query_current_vault_pnl_index(deps.storage, net_worth_now, vault_token_supply)?;
+    let user_pnl = pnl::query_user_pnl(deps.storage, &user_addr, user_shares, vault_pnl_index)?;
+
+    Ok(crate::msg::UserPnlResponse {
+        pnl: user_pnl,
+        shares: user_shares,
+    })
+}
+
+/// Query the total PNL for the vault
+pub fn query_vault_pnl(deps: Deps) -> ContractResult<crate::msg::VaultPnlResponse> {
+    let total_base_tokens = total_base_tokens_in_account(deps)?;
+    let vault_token = VAULT_TOKEN.load(deps.storage)?;
+    let total_shares = vault_token.query_total_supply(deps)?;
+
+    // If there are no shares, return zero PNL
+    if total_shares.is_zero() {
+        return Ok(crate::msg::VaultPnlResponse {
+            total_pnl: Int256::zero(),
+            total_shares: Uint128::zero(),
+        });
+    }
+
+    // Calculate total vault PNL
+    let vault_pnl = pnl::query_vault_pnl(deps.storage, total_base_tokens)?;
+
+    Ok(crate::msg::VaultPnlResponse {
+        total_pnl: vault_pnl,
+        total_shares,
+    })
 }

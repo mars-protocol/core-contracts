@@ -1,16 +1,15 @@
 use std::{collections::HashMap, str::FromStr};
 
-use cosmwasm_std::{attr, testing::mock_env, Addr, Decimal, Event, Order, StdResult, Uint128};
+use cosmwasm_std::{attr, Addr, Decimal, Event, Order, StdResult, Uint128};
 use cw2::{ContractVersion, VersionError};
 use mars_params::{
-    contract::migrate,
     error::ContractError,
-    migrations::v2_2_0::v2_1_0_state,
+    migrations::{self, v2_2_0::v2_1_0_state},
     state::{ASSET_PARAMS, OWNER, RISK_MANAGER},
 };
 use mars_testing::mock_dependencies;
 use mars_types::params::{
-    AssetParams, CmSettings, HlsAssetType, HlsParams, LiquidationBonus, MigrateMsg, RedBankSettings,
+    AssetParams, CmSettings, HlsAssetType, HlsParams, LiquidationBonus, RedBankSettings,
 };
 
 #[test]
@@ -18,14 +17,7 @@ fn wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.1.0").unwrap();
 
-    let err = migrate(
-        deps.as_mut(),
-        mock_env(),
-        MigrateMsg {
-            close_factor: Decimal::one(),
-        },
-    )
-    .unwrap_err();
+    let err = migrations::v2_2_0::migrate(deps.as_mut(), Decimal::one()).unwrap_err();
 
     assert_eq!(
         err,
@@ -41,14 +33,7 @@ fn wrong_contract_version() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "2.0.0").unwrap();
 
-    let err = migrate(
-        deps.as_mut(),
-        mock_env(),
-        MigrateMsg {
-            close_factor: Decimal::one(),
-        },
-    )
-    .unwrap_err();
+    let err = migrations::v2_2_0::migrate(deps.as_mut(), Decimal::one()).unwrap_err();
 
     assert_eq!(
         err,
@@ -81,26 +66,20 @@ fn successful_migration() {
     v2_1_0_state::ASSET_PARAMS.save(deps.as_mut().storage, "asset_2", &asset_2()).unwrap();
     v2_1_0_state::ASSET_PARAMS.save(deps.as_mut().storage, "asset_1", &asset_1()).unwrap();
 
-    let res = migrate(
-        deps.as_mut(),
-        mock_env(),
-        MigrateMsg {
-            close_factor: Decimal::from_str("0.9").unwrap(),
-        },
-    )
-    .unwrap();
+    let res =
+        migrations::v2_2_0::migrate(deps.as_mut(), Decimal::from_str("0.9").unwrap()).unwrap();
 
     assert_eq!(res.messages, vec![]);
     assert_eq!(res.events, vec![] as Vec<Event>);
     assert!(res.data.is_none());
     assert_eq!(
         res.attributes,
-        vec![attr("action", "migrate"), attr("from_version", "2.1.0"), attr("to_version", "2.2.0")]
+        vec![attr("action", "migrate"), attr("from_version", "2.1.0"), attr("to_version", "2.2.3")]
     );
 
     let new_contract_version = ContractVersion {
         contract: "crates.io:mars-params".to_string(),
-        version: "2.2.0".to_string(),
+        version: "2.2.3".to_string(),
     };
     assert_eq!(cw2::get_contract_version(deps.as_ref().storage).unwrap(), new_contract_version);
 

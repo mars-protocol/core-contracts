@@ -16,14 +16,15 @@ use crate::{
     },
     error::{ContractError, ContractResult},
     execute::{
-        reset_risk_manager, update_asset_params, update_config, update_perp_params,
-        update_vault_config,
+        reset_risk_manager, update_asset_params, update_config, update_managed_vault_config,
+        update_perp_params, update_vault_config,
     },
     migrations,
     query::{
         query_all_asset_params, query_all_asset_params_v2, query_all_perp_params,
         query_all_perp_params_v2, query_all_total_deposits_v2, query_all_vault_configs,
-        query_all_vault_configs_v2, query_config, query_total_deposit, query_vault_config,
+        query_all_vault_configs_v2, query_config, query_managed_vault_config, query_total_deposit,
+        query_vault_config,
     },
     state::{ADDRESS_PROVIDER, ASSET_PARAMS, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, RISK_MANAGER},
 };
@@ -111,6 +112,9 @@ pub fn execute(
                 }
             },
         },
+        ExecuteMsg::UpdateManagedVaultConfig(managed_vault_config_update) => {
+            update_managed_vault_config(deps, info, managed_vault_config_update)
+        }
     }
 }
 
@@ -120,6 +124,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::Owner {} => to_json_binary(&OWNER.query(deps.storage)?),
         QueryMsg::RiskManager {} => to_json_binary(&RISK_MANAGER.query(deps.storage)?),
         QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
+        QueryMsg::ManagedVaultConfig {} => to_json_binary(&query_managed_vault_config(deps)?),
         QueryMsg::AssetParams {
             denom,
         } => to_json_binary(&ASSET_PARAMS.may_load(deps.storage, &denom)?),
@@ -166,5 +171,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    migrations::v2_2_0::migrate(deps, msg)
+    match msg {
+        MigrateMsg::V2_2_0 {
+            close_factor,
+        } => migrations::v2_2_0::migrate(deps, close_factor),
+        MigrateMsg::V2_2_3 {} => migrations::v2_2_3::migrate(deps),
+    }
 }

@@ -1,4 +1,4 @@
-use cosmwasm_std::{coin, Addr, Uint128};
+use cosmwasm_std::{coin, Addr, Decimal, Uint128};
 use mars_testing::integration::{
     helpers::{osmo_asset_params, usdc_asset_params},
     mock_env::MockEnvBuilder,
@@ -12,6 +12,7 @@ fn should_return_total_deposits() {
 
     let red_bank = mock_env.red_bank.clone();
     let params = mock_env.params.clone();
+    let oracle = mock_env.oracle.clone();
 
     let funded_amount = Uint128::new(10_000_000_000);
     let rb_osmo_amount = Uint128::new(2_345_678_900);
@@ -24,9 +25,11 @@ fn should_return_total_deposits() {
     let uusdc_denom = "uusdc";
 
     let (market_params, asset_params) = osmo_asset_params();
+    oracle.set_price_source_fixed(&mut mock_env, &asset_params.denom, Decimal::one());
     red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
     params.init_params(&mut mock_env, asset_params);
     let (market_params, asset_params) = usdc_asset_params();
+    oracle.set_price_source_fixed(&mut mock_env, &asset_params.denom, Decimal::one());
     red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
     params.init_params(&mut mock_env, asset_params);
 

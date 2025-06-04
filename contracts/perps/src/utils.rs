@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use cosmwasm_std::{
-    Addr, Attribute, Decimal, Deps, Int128, Order, SignedDecimal, StdResult, Uint128,
-};
+use cosmwasm_std::{Addr, Attribute, Decimal, Deps, Int128, Order, SignedDecimal, Uint128};
 use mars_types::{
     adapters::{
         oracle::{Oracle, OracleBase},
@@ -16,6 +14,7 @@ use mars_types::{
 
 use crate::{
     error::{ContractError, ContractResult},
+    market::MarketStateExt,
     state::MARKET_STATES,
 };
 
@@ -58,21 +57,38 @@ pub fn create_user_id_key(
     Ok(user_id_key)
 }
 
+/// Get all markets with non-zero OI and their prices. Add the base denom price to the list if it's not already there.
 pub fn get_markets_and_base_denom_prices(
     deps: &Deps,
     oracle: &Oracle,
     base_denom: &str,
     action: ActionKind,
-) -> StdResult<HashMap<String, Decimal>> {
-    let mut denoms = MARKET_STATES
-        .keys(deps.storage, None, None, Order::Ascending)
-        .collect::<StdResult<Vec<_>>>()?;
+) -> ContractResult<HashMap<String, Decimal>> {
+    let denoms: ContractResult<Vec<_>> = MARKET_STATES
+        .range(deps.storage, None, None, Order::Ascending)
+        .map(|result| {
+            let (denom, market_state) = result?;
+            let size = market_state.total_size()?;
+
+            if !size.is_zero() {
+                Ok(Some(denom))
+            } else {
+                Ok(None)
+            }
+        })
+        .filter_map(|result: ContractResult<Option<String>>| match result {
+            Ok(Some(denom)) => Some(Ok(denom)),
+            Ok(None) => None,
+            Err(e) => Some(Err(e)),
+        })
+        .collect();
+    let mut denoms = denoms?;
 
     if !denoms.contains(&base_denom.to_string()) {
         denoms.push(base_denom.to_string())
     }
 
-    oracle.query_prices_by_denoms(&deps.querier, denoms, action)
+    Ok(oracle.query_prices_by_denoms(&deps.querier, denoms, action)?)
 }
 
 pub fn get_oracle_adapter(address: &Addr) -> OracleBase<Addr> {

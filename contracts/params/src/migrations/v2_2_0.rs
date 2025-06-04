@@ -2,7 +2,7 @@ use cosmwasm_std::{Addr, Decimal, DepsMut, Order, Response, StdResult};
 use cw2::{assert_contract_version, set_contract_version};
 use mars_owner::OwnerInit::SetInitialOwner;
 use mars_types::params::{
-    AssetParams, CmSettings, HlsAssetType, HlsParams, LiquidationBonus, MigrateMsg, RedBankSettings,
+    AssetParams, CmSettings, HlsAssetType, HlsParams, LiquidationBonus, RedBankSettings,
 };
 
 use crate::{
@@ -77,7 +77,7 @@ pub mod v2_1_0_state {
     pub const ASSET_PARAMS: Map<&str, AssetParams> = Map::new("asset_params");
 }
 
-pub fn migrate(deps: DepsMut, msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, close_factor: Decimal) -> Result<Response, ContractError> {
     // Make sure we're migrating the correct contract and from the correct version.
     assert_contract_version(deps.storage, &format!("crates.io:{CONTRACT_NAME}"), FROM_VERSION)?;
 
@@ -103,7 +103,7 @@ pub fn migrate(deps: DepsMut, msg: MigrateMsg) -> Result<Response, ContractError
         ASSET_PARAMS.save(
             deps.storage,
             &denom,
-            &from_v2_1_0_to_v2_2_0_asset_param(asset_param, msg.close_factor),
+            &from_v2_1_0_to_v2_2_0_asset_param(asset_param, close_factor),
         )?;
     }
 

@@ -1,6 +1,7 @@
 use cosmwasm_std::{
-    CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError, Decimal,
-    DecimalRangeExceeded, DivideByZeroError, OverflowError, StdError,
+    CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError,
+    ConversionOverflowError, Decimal, DecimalRangeExceeded, DivideByZeroError, DivisionError,
+    OverflowError, SignedDecimalRangeExceeded, StdError,
 };
 use cw_utils::PaymentError;
 use mars_owner::OwnerError;
@@ -73,6 +74,9 @@ pub enum ContractError {
     #[error("Zero performance fee")]
     ZeroPerformanceFee {},
 
+    #[error("Zero shares")]
+    ZeroShares {},
+
     #[error("Withdrawal interval not passed")]
     WithdrawalIntervalNotPassed {},
 
@@ -82,12 +86,30 @@ pub enum ContractError {
     #[error("Contract owner not set")]
     NoOwner {},
 
+    #[error(transparent)]
+    DivisionError(#[from] DivisionError),
+
+    #[error(transparent)]
+    ConversionOverflowError(#[from] ConversionOverflowError),
+
+    #[error(transparent)]
+    SignedDecimalRangeExceeded(#[from] SignedDecimalRangeExceeded),
     #[error(
         "Vault with credit account id {vault_account_id:?} is bankrupt. Actions on this vault are not allowed."
     )]
     VaultBankrupt {
         vault_account_id: String,
     },
+
+    #[error("Minimum amount of {denom} required to create a vault is {min_value:?} uusd, got {actual_value:?} uusd")]
+    MinAmountRequired {
+        min_value: u128,
+        actual_value: u128,
+        denom: String,
+    },
+
+    #[error("Rewards collector not set in Credit Manager")]
+    RewardsCollectorNotSet {},
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

@@ -29,6 +29,7 @@ pub enum ExecuteMsg {
     UpdateVaultConfig(VaultConfigUpdate),
     UpdatePerpParams(PerpParamsUpdate),
     EmergencyUpdate(EmergencyUpdate),
+    UpdateManagedVaultConfig(ManagedVaultConfigUpdate),
 }
 
 #[cw_serde]
@@ -42,6 +43,9 @@ pub enum QueryMsg {
 
     #[returns(super::msg::ConfigResponse)]
     Config {},
+
+    #[returns(super::msg::ManagedVaultConfigResponse)]
+    ManagedVaultConfig {},
 
     #[returns(Option<super::asset::AssetParams>)]
     AssetParams {
@@ -120,6 +124,16 @@ pub struct ConfigResponse {
 }
 
 #[cw_serde]
+pub struct ManagedVaultConfigResponse {
+    /// Minimum creation fee in uusd for managed vaults
+    pub min_creation_fee_in_uusd: u128,
+    /// List of code ids for managed vaults
+    pub code_ids: Vec<u64>,
+    /// List of blacklisted vaults
+    pub blacklisted_vaults: Vec<String>,
+}
+
+#[cw_serde]
 pub struct TotalDepositResponse {
     pub denom: String,
     pub cap: Uint128,
@@ -176,6 +190,18 @@ pub enum EmergencyUpdate {
 }
 
 #[cw_serde]
-pub struct MigrateMsg {
-    pub close_factor: Decimal,
+pub enum ManagedVaultConfigUpdate {
+    AddCodeId(u64),
+    RemoveCodeId(u64),
+    SetMinCreationFeeInUusd(u128),
+    AddVaultToBlacklist(String),
+    RemoveVaultFromBlacklist(String),
+}
+
+#[cw_serde]
+pub enum MigrateMsg {
+    V2_2_0 {
+        close_factor: Decimal,
+    },
+    V2_2_3 {},
 }

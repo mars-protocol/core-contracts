@@ -1391,6 +1391,20 @@ fn setup_redbank(wasm: &Wasm<OsmosisTestApp>, signer: &SigningAccount) -> (Strin
 
     let (market_params, asset_params) = default_asset_params("uosmo");
 
+    // Set price source for uosmo to 1 to satisfy params setup
+    wasm.execute(
+        &oracle_addr,
+        &ExecuteMsg::<_, Empty>::SetPriceSource {
+            denom: "uosmo".to_string(),
+            price_source: OsmosisPriceSourceUnchecked::Fixed {
+                price: Decimal::one(),
+            },
+        },
+        &[],
+        signer,
+    )
+    .unwrap();
+
     wasm.execute(
         &red_bank_addr,
         &ExecuteRedBank::InitAsset {
@@ -1412,6 +1426,20 @@ fn setup_redbank(wasm: &Wasm<OsmosisTestApp>, signer: &SigningAccount) -> (Strin
     .unwrap();
 
     let (market_params, asset_params) = default_asset_params("uatom");
+
+    // Set price source for uatom to 1 to satisfy params setup
+    wasm.execute(
+        &oracle_addr,
+        &ExecuteMsg::<_, Empty>::SetPriceSource {
+            denom: "uatom".to_string(),
+            price_source: OsmosisPriceSourceUnchecked::Fixed {
+                price: Decimal::one(),
+            },
+        },
+        &[],
+        signer,
+    )
+    .unwrap();
 
     wasm.execute(
         &red_bank_addr,
