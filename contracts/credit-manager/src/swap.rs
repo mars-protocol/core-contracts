@@ -6,7 +6,7 @@ use mars_types::{
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::{COIN_BALANCES, SWAPPER},
+    state::{COIN_BALANCES, DUALITY_SWAPPER, SWAPPER},
     utils::{assert_withdraw_enabled, decrement_coin_balance, update_balance_msg},
 };
 
@@ -47,7 +47,12 @@ pub fn swap_exact_in(
         ChangeExpected::Increase,
     )?;
 
-    let swapper = SWAPPER.load(deps.storage)?;
+    // Set the swapper as either Astroport or duality
+    let swapper = match route {
+        Some(SwapperRoute::Astro(_)) | Some(SwapperRoute::Osmo(_)) => SWAPPER.load(deps.storage)?,
+        Some(SwapperRoute::Duality(_)) => DUALITY_SWAPPER.load(deps.storage)?,
+        None => SWAPPER.load(deps.storage)? // Default to standard swapper
+    };
 
     Ok(Response::new()
         .add_message(swapper.swap_exact_in_msg(&coin_in_to_trade, denom_out, min_receive, route)?)
