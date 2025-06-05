@@ -257,4 +257,3 @@ For full terms and conditions, see the [LICENSE](./LICENSE) file.
 [58]: https://neutron.celat.one/neutron-1/contracts/neutron1g3catxyv0fk8zzsra2mjc0v4s69a7xygdjt85t54l7ym3gv0un4q2xhaf6
 [59]: https://github.com/mars-protocol/core-contracts/releases/tag/v2.2.1-perps
 [60]: https://github.com/mars-protocol/core-contracts/releases/tag/v2.2.3-perps
-
