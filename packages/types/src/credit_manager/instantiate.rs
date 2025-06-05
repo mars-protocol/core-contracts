@@ -25,6 +25,8 @@ pub struct InstantiateMsg {
     pub max_slippage: Decimal,
     /// Helper contract for making swaps
     pub swapper: SwapperUnchecked,
+    /// Helper contract for making swaps
+    pub duality_swapper: SwapperUnchecked,
     /// Helper contract for adding/removing liquidity
     pub zapper: ZapperUnchecked,
     /// Helper contract for calculating health factor
