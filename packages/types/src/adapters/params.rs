@@ -4,7 +4,10 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Api, QuerierWrapper, StdResult};
 use cw_paginate::{PaginationResponse, MAX_LIMIT};
 
-use crate::params::{AssetParams, PerpParams, QueryMsg, TotalDepositResponse, VaultConfig};
+use crate::params::{
+    AssetParams, ManagedVaultConfigResponse, PerpParams, QueryMsg, TotalDepositResponse,
+    VaultConfig,
+};
 
 #[cw_serde]
 pub struct ParamsBase<T>(T);
@@ -125,5 +128,12 @@ impl Params {
             has_more = response.metadata.has_more;
         }
         Ok(all_perp_params)
+    }
+
+    pub fn query_managed_vault_config(
+        &self,
+        querier: &QuerierWrapper,
+    ) -> StdResult<ManagedVaultConfigResponse> {
+        querier.query_wasm_smart(self.address().to_string(), &QueryMsg::ManagedVaultConfig {})
     }
 }

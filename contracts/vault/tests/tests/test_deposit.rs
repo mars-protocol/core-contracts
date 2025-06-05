@@ -4,7 +4,10 @@ use cosmwasm_std::{coin, Addr, Decimal, Int128, Uint128};
 use cw_utils::PaymentError;
 use mars_mock_oracle::msg::CoinPrice;
 use mars_testing::multitest::helpers::default_perp_params;
-use mars_types::{oracle::ActionKind, params::PerpParamsUpdate};
+use mars_types::{
+    oracle::ActionKind,
+    params::{ManagedVaultConfigUpdate, PerpParamsUpdate},
+};
 use mars_vault::{error::ContractError, vault_token::calculate_vault_tokens};
 
 use super::{
@@ -28,7 +31,10 @@ fn deposit_invalid_funds() {
     let mut mock = MockEnv::new()
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -38,7 +44,18 @@ fn deposit_invalid_funds() {
         .unwrap();
     let credit_manager = mock.rover.clone();
 
-    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
+
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
@@ -80,7 +97,10 @@ fn deposit_if_credit_manager_account_not_binded() {
     let mut mock = MockEnv::new()
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -90,7 +110,16 @@ fn deposit_if_credit_manager_account_not_binded() {
         .unwrap();
     let credit_manager = mock.rover.clone();
 
-    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
+
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
 
     let deposited_amt = Uint128::new(123_000_000);
     let res = execute_deposit(
@@ -113,7 +142,10 @@ fn deposit_succeded() {
         .set_params(&[uusdc_info()])
         .fund_account(AccountToFund {
             addr: fund_manager.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
         })
         .fund_account(AccountToFund {
             addr: user.clone(),
@@ -123,7 +155,18 @@ fn deposit_succeded() {
         .unwrap();
     let credit_manager = mock.rover.clone();
 
-    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(
+        mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD,
+    ));
+
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
     let vault_info_res = query_vault_info(&mock, &managed_vault_addr);
     let vault_token = vault_info_res.vault_token;
 
@@ -199,10 +242,6 @@ fn deposit_with_perp_position_unrealized_pnl() {
 
     let btc_perp_denom = "perp/btc";
     let uusdc_info = uusdc_info();
-    let perp_params = default_perp_params(btc_perp_denom);
-    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
-        params: perp_params,
-    });
 
     mock.price_change(CoinPrice {
         pricing: ActionKind::Default,
@@ -217,7 +256,15 @@ fn deposit_with_perp_position_unrealized_pnl() {
         price: Decimal::from_str("1.000").unwrap(),
     });
 
-    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
+    let perp_params = default_perp_params(btc_perp_denom);
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: perp_params,
+    });
+
+    let managed_vault_addr =
+        deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager, None);
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
     let vault_info_res = query_vault_info(&mock, &managed_vault_addr);
     let vault_token = vault_info_res.vault_token;
 
@@ -335,7 +382,10 @@ fn deposit_into_bankrupt_vault() {
         .unwrap();
     let credit_manager = mock.rover.clone();
 
-    let managed_vault_addr = deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager);
+    let managed_vault_addr =
+        deploy_managed_vault(&mut mock.app, &fund_manager, &credit_manager, None);
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     let account_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
 
@@ -351,15 +401,16 @@ fn deposit_into_bankrupt_vault() {
     .unwrap();
 
     let btc_perp_denom = "perp/btc";
-    let perp_params = default_perp_params(btc_perp_denom);
-    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
-        params: perp_params,
-    });
 
     mock.price_change(CoinPrice {
         pricing: ActionKind::Default,
         denom: btc_perp_denom.to_string(),
         price: Decimal::from_str("100").unwrap(),
+    });
+
+    let perp_params = default_perp_params(btc_perp_denom);
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: perp_params,
     });
 
     // open perp position @ 100 price

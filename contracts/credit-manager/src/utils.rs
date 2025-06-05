@@ -1,8 +1,8 @@
 use std::{collections::HashSet, hash::Hash};
 
 use cosmwasm_std::{
-    ensure, to_json_binary, Addr, Coin, CosmosMsg, Decimal, Deps, DepsMut, QuerierWrapper,
-    StdResult, Storage, Uint128, WasmMsg,
+    ensure, to_json_binary, Addr, Coin, ContractInfoResponse, CosmosMsg, Decimal, Deps, DepsMut,
+    QuerierWrapper, QueryRequest, StdResult, Storage, Uint128, WasmMsg,
 };
 use mars_types::{
     credit_manager::{ActionCoin, CallbackMsg, ChangeExpected, ExecuteMsg},
@@ -35,6 +35,39 @@ pub fn assert_is_authorized(deps: &DepsMut, user: &Addr, account_id: &str) -> Co
                 account_id: account_id.to_string(),
             });
         }
+    }
+    Ok(())
+}
+
+/// Asserts that a vault contract is not in the blacklist.
+///
+/// This function performs a safety check to ensure that the specified vault contract
+/// is not in the blacklist of vaults. Blacklisted vaults are considered unsafe or
+/// deprecated and should not be interacted with.
+///
+/// # Arguments
+///
+/// * `deps` - A mutable reference to the dependencies, which includes storage and querier
+/// * `vault` - The address of the vault contract to check
+///
+/// # Returns
+///
+/// * `ContractResult<()>` - Returns `Ok(())` if the vault is not blacklisted, or an error if:
+///   - The vault is found in the blacklist
+///   - The blacklist query fails
+///
+/// # Errors
+///
+/// * `ContractError::BlacklistedVault` - If the vault address is found in the blacklist
+pub fn assert_is_not_blacklisted(deps: &DepsMut, vault: &Addr) -> ContractResult<()> {
+    let params_addr = PARAMS.load(deps.storage)?;
+    let config = params_addr.query_managed_vault_config(&deps.querier)?;
+    let blacklisted_vaults = config.blacklisted_vaults;
+
+    if blacklisted_vaults.contains(&vault.to_string()) {
+        return Err(ContractError::BlacklistedVault {
+            vault: vault.to_string(),
+        });
     }
     Ok(())
 }
@@ -258,4 +291,51 @@ pub fn extract_action_names<T: std::fmt::Debug>(actions: &[T]) -> String {
         })
         .collect::<Vec<String>>()
         .join(", ")
+}
+
+pub fn assert_allowed_managed_vault_code_ids(
+    deps: &mut DepsMut<'_>,
+    vault: &Addr,
+) -> Result<(), ContractError> {
+    let res: ContractInfoResponse =
+        deps.querier.query(&QueryRequest::Wasm(cosmwasm_std::WasmQuery::ContractInfo {
+            contract_addr: vault.to_string(),
+        }))?;
+    let code_id = res.code_id;
+    let params = PARAMS.load(deps.storage)?;
+    let managed_vault_config = params.query_managed_vault_config(&deps.querier)?;
+    if !managed_vault_config.code_ids.contains(&code_id) {
+        return Err(ContractError::InvalidVaultCodeId {});
+    }
+    Ok(())
+}
+
+/// Asserts that a vault contract has no admin set.
+///
+/// This function performs a safety check to ensure that the specified vault contract
+/// does not have an admin address set. This is a critical security measure because:
+/// - Vaults with admins could potentially be migrated to new code IDs
+/// - Migration could introduce security vulnerabilities or malicious code
+/// - Admin privileges could be used to modify vault behavior unexpectedly
+///
+/// # Arguments
+///
+/// * `deps` - A mutable reference to the dependencies, which includes storage and querier
+/// * `vault` - The address of the vault contract to check
+///
+/// # Returns
+///
+/// * `ContractResult<()>` - Returns `Ok(())` if the vault has no admin, or an error if:
+///   - The vault has an admin set
+///   - The contract info query fails
+///
+/// # Errors
+///
+/// * `ContractError::VaultHasAdmin` - If the vault has an admin address set
+pub fn assert_vault_has_no_admin(deps: &mut DepsMut<'_>, vault: &Addr) -> ContractResult<()> {
+    let vault_info = deps.querier.query_wasm_contract_info(vault)?;
+    if vault_info.admin.is_some() {
+        return Err(ContractError::VaultHasAdmin {});
+    }
+    Ok(())
 }

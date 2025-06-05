@@ -45,6 +45,7 @@ impl MockEnv {
             vault_contract: None,
             oracle: None,
             params: None,
+            address_provider: None,
         }
     }
 

@@ -4,6 +4,7 @@ mod test_accounting;
 mod test_instantiate;
 mod test_managing_markets;
 mod test_migration_v2;
+mod test_migration_v2_2_3;
 mod test_position;
 mod test_protocol_fees;
 mod test_query;

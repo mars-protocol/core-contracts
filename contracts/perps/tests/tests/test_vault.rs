@@ -480,6 +480,10 @@ fn unlock_and_withdraw_if_zero_withdrawal_balance() {
     // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
 
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+
     // init denoms
     mock.update_perp_params(
         &owner,
@@ -491,10 +495,6 @@ fn unlock_and_withdraw_if_zero_withdrawal_balance() {
             },
         },
     );
-
-    // set prices
-    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
-    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
 
     // deposit uusdc to vault
     mock.deposit_to_vault(&credit_manager, Some(user), None, &[coin(1000u128, "uusdc")]).unwrap();
@@ -552,6 +552,10 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
     // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
 
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+
     // init denoms
     mock.update_perp_params(
         &owner,
@@ -563,10 +567,6 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
             },
         },
     );
-
-    // set prices
-    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
-    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
 
     // deposit uusdc to vault
     mock.deposit_to_vault(&credit_manager, Some(depositor_1), None, &[coin(1000u128, "uusdc")])
@@ -858,6 +858,10 @@ fn withdraw_profits_for_depositors() {
     // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
 
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+
     // init denoms
     mock.update_perp_params(
         &owner,
@@ -869,10 +873,6 @@ fn withdraw_profits_for_depositors() {
             },
         },
     );
-
-    // set prices
-    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
-    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
 
     // deposit uusdc to vault
     let depositor_1_amt = Uint128::new(1000u128);
@@ -999,6 +999,10 @@ fn cannot_withdraw_if_cr_decreases_below_threshold() {
     // credit manager is calling the perps contract, so we need to fund it (funds will be used for closing losing position)
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000u128, &["uatom", "uusdc"]);
 
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
+
     // init denoms
     mock.update_perp_params(
         &owner,
@@ -1010,10 +1014,6 @@ fn cannot_withdraw_if_cr_decreases_below_threshold() {
             },
         },
     );
-
-    // set prices
-    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
-    mock.set_price(&owner, "uatom", Decimal::from_str("10").unwrap()).unwrap();
 
     // deposit uusdc to vault
     let depositor_1_amt = Uint128::new(1000u128);

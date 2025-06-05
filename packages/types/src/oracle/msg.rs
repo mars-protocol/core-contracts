@@ -97,6 +97,12 @@ pub enum QueryMsg {
         denoms: Vec<String>,
         kind: Option<ActionKind>,
     },
+
+    /// Check if a coin has a price source.
+    #[returns(HasPriceSourceResponse)]
+    HasPriceSource {
+        denom: String,
+    },
 }
 
 #[cw_serde]
@@ -113,6 +119,12 @@ pub struct ConfigResponse {
 pub struct PriceSourceResponse<T> {
     pub denom: String,
     pub price_source: T,
+}
+
+#[cw_serde]
+pub struct HasPriceSourceResponse {
+    pub denom: String,
+    pub has_price_source: bool,
 }
 
 #[cw_serde]
