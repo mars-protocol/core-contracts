@@ -36,6 +36,7 @@ const astroportIncentives = 'neutron173fd8wpfzyqnfnpwq2zhtgdstujrjz2wkprkjfr6gqg
 // note the following three addresses are all 'mars' bech32 prefix
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
 const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
+const revShareAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
 
 // Pyth configuration
 const pythAddr = 'neutron1m2emc93m9gpwgsrsf2vylv9xvgqh654630v7dfrhrkmr5slly53spg85wv'
@@ -429,6 +430,7 @@ export const neutronDevnetConfig: DeploymentConfig = {
   safetyFundAddr: safetyFundAddr,
   protocolAdminAddr: protocolAdminAddr,
   feeCollectorAddr: feeCollectorAddr,
+  revShareAddr: revShareAddr,
   chain: {
     baseDenom: 'untrn',
     defaultGasPrice: 0.02,

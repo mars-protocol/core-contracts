@@ -9,7 +9,8 @@ const protocolAdminAddr = 'neutron1ltzuv25ltw9mkwuvvmt7e54a6ene283hfj7l0c'
 
 const marsNeutronChannelId = 'channel-16'
 const chainId = 'neutron-1'
-const rpcEndpoint = 'https://rpc-lb.neutron.org'
+const rpcEndpoint =
+  'https://neutron.rpc.p2p.world:443/qgrnU6PsQZA8F9S5Fb8Fn3tV3kXmMBl2M9bcc9jWLjQy8p'
 
 // Astroport configuration https://github.com/astroport-fi/astroport-changelog/blob/main/neutron/neutron-1/core_mainnet.json
 const astroportFactory = 'neutron1hptk0k5kng7hjy35vmh009qd5m6l33609nypgf2yc6nqnewduqasxplt4e'
@@ -21,6 +22,7 @@ const astroportMarsUsdcPair = 'neutron165m0r6rkhqxs30wch00t7mkykxxvgve9yyu254wkn
 // note the following three addresses are all 'mars' bech32 prefix
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
 const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
+const revShareAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
 
 // Pyth configuration
 const pythAddr = 'neutron1m2emc93m9gpwgsrsf2vylv9xvgqh654630v7dfrhrkmr5slly53spg85wv'
@@ -210,6 +212,7 @@ export const neutronMainnetConfig: DeploymentConfig = {
   safetyFundAddr: safetyFundAddr,
   protocolAdminAddr: protocolAdminAddr,
   feeCollectorAddr: feeCollectorAddr,
+  revShareAddr: revShareAddr,
   chain: {
     baseDenom: 'untrn',
     defaultGasPrice: 0.02,
@@ -277,7 +280,9 @@ export const neutronMainnetConfig: DeploymentConfig = {
     targetCollaterizationRatio: '1.2',
     deleverageEnabled: true,
     vaultWithdrawEnabled: true,
-    denoms: [atomPerpDenom],
+    denoms: [
+      atomPerpDenom,
+    ],
   },
   maxPerpParams: 20,
   perpsLiquidationBonusRatio: '0.6',

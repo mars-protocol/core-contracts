@@ -48,6 +48,7 @@ export interface DeploymentConfig {
   safetyFundAddr: string
   protocolAdminAddr: string
   feeCollectorAddr: string
+  revShareAddr: string
   chain: {
     prefix: string
     id: string

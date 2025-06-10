@@ -1,5 +1,5 @@
-import { taskRunner } from '../base/index-mirror-mainnet.js'
-import { neutronMainnetConfig } from './mainnet-config'
+import { taskRunner } from '../base/index-mainnet-mirror.js'
+import { neutronMainnetConfig } from './mainnet-mirror-config'
 
 void (async function () {
   await taskRunner({

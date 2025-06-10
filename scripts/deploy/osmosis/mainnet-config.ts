@@ -23,6 +23,7 @@ const protocolAdminAddr = 'osmo14w4x949nwcrqgfe53pxs3k7x53p0gvlrq34l5n'
 // note the following addresses are all 'mars' bech32 prefix
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
 const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
+const revShareAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
 
 // ----------------------------------- Markets -----------------------------------
 
@@ -1036,6 +1037,7 @@ export const osmosisMainnetConfig: DeploymentConfig = {
   safetyFundAddr: safetyFundAddr,
   protocolAdminAddr: protocolAdminAddr,
   feeCollectorAddr: feeCollectorAddr,
+  revShareAddr: revShareAddr,
   keeperFeeConfig: {
     min_fee: { amount: '1000000', denom: nobleUSDC },
   },

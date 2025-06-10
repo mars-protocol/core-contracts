@@ -32,6 +32,7 @@ const astroportIncentives = 'neutron1slxs8heecwyw0n6zmj7unj3nenrfhk2zpagfz2lt87d
 // note the following three addresses are all 'mars' bech32 prefix
 const safetyFundAddr = 'mars1s4hgh56can3e33e0zqpnjxh0t5wdf7u3pze575'
 const feeCollectorAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
+const revShareAddr = 'mars17xpfvakm2amg962yls6f84z3kell8c5ldy6e7x'
 
 // Oracle configurations
 export const ntrnOracle: OracleConfig = {
@@ -614,6 +615,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
   safetyFundAddr: safetyFundAddr,
   protocolAdminAddr: protocolAdminAddr,
   feeCollectorAddr: feeCollectorAddr,
+  revShareAddr: revShareAddr,
   keeperFeeConfig: {
     min_fee: { amount: '1000000', denom: nobleUsdcDenom },
   },
