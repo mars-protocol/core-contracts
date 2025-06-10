@@ -7,8 +7,7 @@ const marsDenom = 'factory/neutron1ndu2wvkrxtane8se2tr48gv7nsm46y5gcqjhux/MARS'
 const protocolAdminAddr = 'neutron1pup4hxx879r2wreylmmtxlqz8va3kk2wcgd7w2'
 
 const chainId = 'neutron-1'
-const rpcEndpoint =
-  'https://rpc-lb.neutron.org'
+const rpcEndpoint = 'https://rpc-lb.neutron.org'
 
 // Astroport configuration https://github.com/astroport-fi/astroport-changelog/blob/main/neutron/neutron-1/core_mainnet.json
 const astroportFactory = 'neutron1hptk0k5kng7hjy35vmh009qd5m6l33609nypgf2yc6nqnewduqasxplt4e'

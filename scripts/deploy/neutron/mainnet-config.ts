@@ -280,9 +280,7 @@ export const neutronMainnetConfig: DeploymentConfig = {
     targetCollaterizationRatio: '1.2',
     deleverageEnabled: true,
     vaultWithdrawEnabled: true,
-    denoms: [
-      atomPerpDenom,
-    ],
+    denoms: [atomPerpDenom],
   },
   maxPerpParams: 20,
   perpsLiquidationBonusRatio: '0.6',

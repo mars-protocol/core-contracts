@@ -33,8 +33,8 @@ import {
   QueryMsg as ParamsQueryMsg,
   PaginationResponseForPerpParams,
   PaginationResponseForAssetParamsBaseForAddr,
-  AssetParamsBaseForAddr,
   PerpParams,
+  AssetParamsBaseForString,
 } from '../../types/generated/mars-params/MarsParams.types'
 import { ExecuteMsg as ParamsExecuteMsg } from '../../types/generated/mars-params/MarsParams.types'
 import {
@@ -128,7 +128,7 @@ export class Deployer {
       this.deployerAddr,
       codeId,
       msg,
-      `mars-${kebabCase(name)}`,
+      `mars-mirror-${kebabCase(name)}`,
       'auto',
       { admin: this.config.multisigAddr ? this.config.multisigAddr : this.deployerAddr },
     )
@@ -1099,20 +1099,22 @@ export class Deployer {
     assert.equal(addressProviderConfig.proposed_new_owner, this.config.multisigAddr)
   }
 
-  async queryOraclePriceSources(oracleAddr: string): Promise<Map<string, PriceSourceResponseForString>> {
+  async queryOraclePriceSources(
+    oracleAddr: string,
+  ): Promise<Map<string, PriceSourceResponseForString>> {
     printYellow('Querying oracle price sources:')
     const priceSourcesMap = new Map<string, PriceSourceResponseForString>()
     let startAfter: string | undefined = undefined
     const limit = 10
 
     while (true) {
-      const msg: WasmOracleQueryMsg = { 
-        price_sources: { 
+      const msg: WasmOracleQueryMsg = {
+        price_sources: {
           limit,
-          start_after: startAfter 
-        } 
+          start_after: startAfter,
+        },
       }
-      
+
       const priceSources = (await this.cwClient.queryContractSmart(
         oracleAddr,
         msg,
@@ -1124,7 +1126,7 @@ export class Deployer {
 
       for (const priceSource of priceSources) {
         priceSourcesMap.set(priceSource.denom, priceSource)
-        printYellow(`${priceSource.denom} -> ${JSON.stringify(priceSource.price_source)}`)
+        // printYellow(`${priceSource.denom} -> ${JSON.stringify(priceSource.price_source)}`)
       }
 
       if (priceSources.length < limit) {
@@ -1137,20 +1139,20 @@ export class Deployer {
     return priceSourcesMap
   }
 
-  async queryAssetParams(paramsAddr: string): Promise<Map<string, AssetParamsBaseForAddr>> {
+  async queryAssetParams(paramsAddr: string): Promise<Map<string, AssetParamsBaseForString>> {
     printYellow('Querying asset params:')
-    const assetParamsMap = new Map<string, AssetParamsBaseForAddr>()
+    const assetParamsMap = new Map<string, AssetParamsBaseForString>()
     let startAfter: string | undefined = undefined
     const limit = 10
 
     while (true) {
-      const msg: ParamsQueryMsg = { 
-        all_asset_params_v2: { 
+      const msg: ParamsQueryMsg = {
+        all_asset_params_v2: {
           limit,
-          start_after: startAfter 
-        } 
+          start_after: startAfter,
+        },
       }
-      
+
       const response = (await this.cwClient.queryContractSmart(
         paramsAddr,
         msg,
@@ -1162,7 +1164,7 @@ export class Deployer {
 
       for (const assetParam of response.data) {
         assetParamsMap.set(assetParam.denom, assetParam)
-        printYellow(`${assetParam.denom} -> ${JSON.stringify(assetParam)}`)
+        // printYellow(`${assetParam.denom} -> ${JSON.stringify(assetParam)}`)
       }
 
       if (response.data.length < limit) {
@@ -1182,13 +1184,13 @@ export class Deployer {
     const limit = 10
 
     while (true) {
-      const msg: ParamsQueryMsg = { 
-        all_perp_params_v2: { 
+      const msg: ParamsQueryMsg = {
+        all_perp_params_v2: {
           limit,
-          start_after: startAfter 
-        } 
+          start_after: startAfter,
+        },
       }
-      
+
       const response = (await this.cwClient.queryContractSmart(
         paramsAddr,
         msg,
@@ -1200,7 +1202,7 @@ export class Deployer {
 
       for (const perpParam of response.data) {
         perpParamsMap.set(perpParam.denom, perpParam)
-        printYellow(`${perpParam.denom} -> ${JSON.stringify(perpParam)}`)
+        // printYellow(`${perpParam.denom} -> ${JSON.stringify(perpParam)}`)
       }
 
       if (response.data.length < limit) {
@@ -1220,13 +1222,13 @@ export class Deployer {
     const limit = 10
 
     while (true) {
-      const msg: RedBankQueryMsg = { 
-        markets_v2: { 
+      const msg: RedBankQueryMsg = {
+        markets_v2: {
           limit,
-          start_after: startAfter 
-        } 
+          start_after: startAfter,
+        },
       }
-      
+
       const response = (await this.cwClient.queryContractSmart(
         redBankAddr,
         msg,
@@ -1238,7 +1240,7 @@ export class Deployer {
 
       for (const market of response.data) {
         marketsMap.set(market.denom, market)
-        printYellow(`${market.denom} -> ${JSON.stringify(market)}`)
+        // printYellow(`${market.denom} -> ${JSON.stringify(market)}`)
       }
 
       if (response.data.length < limit) {
@@ -1249,5 +1251,81 @@ export class Deployer {
     }
 
     return marketsMap
+  }
+
+  async updateAssetParamsV2(assetParams: AssetParamsBaseForString) {
+    if (this.storage.actions.assetsSet.includes(assetParams.denom)) {
+      printBlue(`${assetParams.denom} already updated in Params contract`)
+      return
+    }
+    printBlue(`Updating ${assetParams.denom}...`)
+
+    const msg: ParamsExecuteMsg = {
+      update_asset_params: {
+        add_or_update: {
+          params: assetParams,
+        },
+      },
+    }
+
+    await this.cwClient.execute(this.deployerAddr, this.storage.addresses['params']!, msg, 'auto')
+
+    printYellow(`${assetParams.denom} updated.`)
+
+    this.storage.actions.assetsSet.push(assetParams.denom)
+  }
+
+  async initializePerpDenomV2(perpParams: PerpParams) {
+    if (this.storage.actions.perpsSet.includes(perpParams.denom)) {
+      printBlue(`${perpParams.denom} already initialized in perps and params contracts`)
+      return
+    }
+    printBlue(`Initializing perp ${perpParams.denom}...`)
+
+    const paramsMsg: ParamsExecuteMsg = {
+      update_perp_params: {
+        add_or_update: {
+          params: perpParams,
+        },
+      },
+    }
+    await this.cwClient.execute(
+      this.deployerAddr,
+      this.storage.addresses['params']!,
+      paramsMsg,
+      'auto',
+    )
+    printYellow(`${perpParams.denom} initialized in params contract`)
+
+    this.storage.actions.perpsSet.push(perpParams.denom)
+  }
+
+  async initializeMarketV2(assetParams: MarketV2Response) {
+    if (this.storage.actions.redBankMarketsSet.includes(assetParams.denom)) {
+      printBlue(`${assetParams.denom} already initialized in red-bank contract`)
+      return
+    }
+    printBlue(`Initializing ${assetParams.denom}...`)
+
+    const msg: RedBankExecuteMsg = {
+      init_asset: {
+        denom: assetParams.denom,
+        params: {
+          reserve_factor: assetParams.reserve_factor,
+          interest_rate_model: {
+            optimal_utilization_rate: assetParams.interest_rate_model.optimal_utilization_rate,
+            base: assetParams.interest_rate_model.base,
+            slope_1: assetParams.interest_rate_model.slope_1,
+            slope_2: assetParams.interest_rate_model.slope_2,
+          },
+        },
+      },
+    }
+
+    await this.cwClient.execute(this.deployerAddr, this.storage.addresses['redBank']!, msg, 'auto')
+
+    printYellow(`${assetParams.denom} initialized`)
+
+    this.storage.actions.redBankMarketsSet.push(assetParams.denom)
   }
 }
