@@ -1,4 +1,4 @@
-import { DeploymentConfig, AssetConfig, OracleConfig } from '../../types/config'
+import { DeploymentConfig, AssetConfig, OracleConfig, PerpDenom } from '../../types/config'
 
 const nobleUsdcDenom = 'ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81'
 const axlUsdcDenom = 'ibc/F082B65C88E4B6D5EF1DB243CDA1D331D002759E938A0F5CD3FFDC5D53B3E349'
@@ -9,12 +9,12 @@ const protocolAdminAddr = 'neutron1ltzuv25ltw9mkwuvvmt7e54a6ene283hfj7l0c'
 
 const marsNeutronChannelId = 'channel-16'
 const chainId = 'neutron-1'
-const rpcEndpoint =
-  'https://neutron.rpc.p2p.world:443/qgrnU6PsQZA8F9S5Fb8Fn3tV3kXmMBl2M9bcc9jWLjQy8p'
+const rpcEndpoint = 'https://rpc-lb.neutron.org'
 
-// Astroport configuration
+// Astroport configuration https://github.com/astroport-fi/astroport-changelog/blob/main/neutron/neutron-1/core_mainnet.json
 const astroportFactory = 'neutron1hptk0k5kng7hjy35vmh009qd5m6l33609nypgf2yc6nqnewduqasxplt4e'
-const astroportRouter = 'neutron1eeyntmsq448c68ez06jsy6h2mtjke5tpuplnwtjfwcdznqmw72kswnlmm0'
+const astroportRouter = 'neutron1rwj6mfxzzrwskur73v326xwuff52vygqk73lr7azkehnfzz5f5wskwekf4'
+const astroportIncentives = 'neutron173fd8wpfzyqnfnpwq2zhtgdstujrjz2wkprkjfr6gqg4gknctjyq6m3tch'
 const astroportNtrnAtomPair = 'neutron1e22zh5p8meddxjclevuhjmfj69jxfsa8uu3jvht72rv9d8lkhves6t8veq'
 const astroportMarsUsdcPair = 'neutron165m0r6rkhqxs30wch00t7mkykxxvgve9yyu254wknwhhjn34rmqsh6vfcj'
 
@@ -187,10 +187,24 @@ export const axlUSDCAsset: AssetConfig = {
   close_factor: '0.9',
 }
 
+// Perps configurations
+export const atomPerpDenom: PerpDenom = {
+  denom: atomDenom,
+  maxFundingVelocity: '36',
+  skewScale: '7227323000000',
+  maxNetOiValue: '45591000000',
+  maxLongOiValue: '490402700000',
+  maxShortOiValue: '490402700000',
+  closingFeeRate: '0.00075',
+  openingFeeRate: '0.00075',
+  minPositionValue: '500000000',
+  liquidationThreshold: '0.86',
+  maxLoanToValue: '0.85',
+}
+
 export const neutronMainnetConfig: DeploymentConfig = {
   mainnet: true,
   deployerMnemonic: 'TO BE INSERTED AT TIME OF DEPLOYMENT',
-  multisigAddr: protocolAdminAddr,
   marsDenom: marsDenom,
   atomDenom: atomDenom,
   safetyFundAddr: safetyFundAddr,
@@ -198,7 +212,7 @@ export const neutronMainnetConfig: DeploymentConfig = {
   feeCollectorAddr: feeCollectorAddr,
   chain: {
     baseDenom: 'untrn',
-    defaultGasPrice: 0.01,
+    defaultGasPrice: 0.02,
     id: chainId,
     prefix: 'neutron',
     rpcEndpoint: rpcEndpoint,
@@ -220,11 +234,11 @@ export const neutronMainnetConfig: DeploymentConfig = {
     safetyFundFeeShare: '0.45',
     revenueShare: '0.1',
     revenueShareConfig: {
-      target_denom: axlUsdcDenom,
+      target_denom: nobleUsdcDenom,
       transfer_type: 'bank',
     },
     safetyFundConfig: {
-      target_denom: axlUsdcDenom,
+      target_denom: nobleUsdcDenom,
       transfer_type: 'bank',
     },
     feeCollectorConfig: {
@@ -244,11 +258,27 @@ export const neutronMainnetConfig: DeploymentConfig = {
   maxValueForBurn: '10000',
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',
-  zapperContractName: 'mars_zapper_osmosis',
+  zapperContractName: 'mars_zapper_astroport',
   runTests: false,
   assets: [ntrnAsset, atomAsset, axlUSDCAsset],
   vaults: [],
   oracleConfigs: [usdOracle, axlUSDCOracle, marsOracle, atomOracle, ntrnOracle],
+  astroportConfig: {
+    factory: astroportFactory,
+    router: astroportRouter,
+    incentives: astroportIncentives,
+  },
+  perps: {
+    baseDenom: nobleUsdcDenom,
+    cooldownPeriod: 300, // 5 min
+    maxPositions: 4,
+    maxUnlocks: 5,
+    protocolFeeRate: '0.1',
+    targetCollaterizationRatio: '1.2',
+    deleverageEnabled: true,
+    vaultWithdrawEnabled: true,
+    denoms: [atomPerpDenom],
+  },
   maxPerpParams: 20,
   perpsLiquidationBonusRatio: '0.6',
 }

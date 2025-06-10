@@ -28,12 +28,18 @@ import {
   AstroportConfig as SwapperAstroportConfig,
 } from '../../types/generated/mars-swapper-astroport/MarsSwapperAstroport.types'
 import { InstantiateMsg as OsmosisSwapperInstantiateMsg } from '../../types/generated/mars-swapper-osmosis/MarsSwapperOsmosis.types'
-import { InstantiateMsg as ParamsInstantiateMsg } from '../../types/generated/mars-params/MarsParams.types'
+import {
+  InstantiateMsg as ParamsInstantiateMsg,
+  QueryMsg as ParamsQueryMsg,
+  PaginationResponseForPerpParams,
+  PaginationResponseForAssetParamsBaseForAddr,
+} from '../../types/generated/mars-params/MarsParams.types'
 import { ExecuteMsg as ParamsExecuteMsg } from '../../types/generated/mars-params/MarsParams.types'
 import {
   InstantiateMsg as RedBankInstantiateMsg,
   ExecuteMsg as RedBankExecuteMsg,
   QueryMsg as RedBankQueryMsg,
+  PaginationResponseForMarketV2Response,
 } from '../../types/generated/mars-red-bank/MarsRedBank.types'
 import { InstantiateMsg as PerpsInstantiateMsg } from '../../types/generated/mars-perps/MarsPerps.types'
 import {
@@ -45,6 +51,8 @@ import { InstantiateMsg as RewardsInstantiateMsg } from '../../types/generated/m
 import {
   WasmOracleCustomInitParams,
   InstantiateMsg as WasmOracleInstantiateMsg,
+  QueryMsg as WasmOracleQueryMsg,
+  ArrayOfPriceSourceResponseForString,
 } from '../../types/generated/mars-oracle-wasm/MarsOracleWasm.types'
 import { InstantiateMsg as OsmosisOracleInstantiateMsg } from '../../types/generated/mars-oracle-osmosis/MarsOracleOsmosis.types'
 import { ExecuteMsg as WasmOracleExecuteMsg } from '../../types/generated/mars-oracle-wasm/MarsOracleWasm.types'
@@ -1081,5 +1089,53 @@ export class Deployer {
     )) as { proposed_new_owner: string }
 
     assert.equal(addressProviderConfig.proposed_new_owner, this.config.multisigAddr)
+  }
+
+  async queryOraclePriceSources(oracleAddr: string) {
+    printYellow('Querying oracle price sources:')
+    const msg: WasmOracleQueryMsg = { price_sources: {} }
+    const priceSources = (await this.cwClient.queryContractSmart(
+      oracleAddr,
+      msg,
+    )) as ArrayOfPriceSourceResponseForString
+    priceSources.forEach((priceSource) => {
+      printYellow(`${priceSource.denom} -> ${priceSource.price_source}`)
+    })
+  }
+
+  async queryAssetParams(paramsAddr: string) {
+    printYellow('Querying asset params:')
+    const msg: ParamsQueryMsg = { all_asset_params_v2: {} }
+    const assetParams = (await this.cwClient.queryContractSmart(
+      paramsAddr,
+      msg,
+    )) as PaginationResponseForAssetParamsBaseForAddr
+    assetParams.data.forEach((assetParam) => {
+      printYellow(`${assetParam.denom} -> ${assetParam.close_factor}`)
+    })
+  }
+
+  async queryPerpParams(paramsAddr: string) {
+    printYellow('Querying perp params:')
+    const msg: ParamsQueryMsg = { all_perp_params_v2: {} }
+    const perpParams = (await this.cwClient.queryContractSmart(
+      paramsAddr,
+      msg,
+    )) as PaginationResponseForPerpParams
+    perpParams.data.forEach((perpParam) => {
+      printYellow(`${perpParam.denom} -> ${perpParam.liquidation_threshold}`)
+    })
+  }
+
+  async queryRedBankMarkets(redBankAddr: string) {
+    printYellow('Querying red bank markets:')
+    const msg: RedBankQueryMsg = { markets_v2: {} }
+    const markets = (await this.cwClient.queryContractSmart(
+      redBankAddr,
+      msg,
+    )) as PaginationResponseForMarketV2Response
+    markets.data.forEach((market) => {
+      printYellow(`${market.denom} -> ${market.liquidity_rate}`)
+    })
   }
 }
