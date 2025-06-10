@@ -157,14 +157,20 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
         console.log(`Found excluded price source for denom: ${denom}`)
       }
     }
+    excludedDenoms.add('uusd')
 
     // Filter oraclePriceSources
     const filteredOraclePriceSources = new Map<string, WasmPriceSourceForString>()
     for (const [denom, priceSource] of oraclePriceSources.entries()) {
       if (!excludedDenoms.has(denom)) {
-        filteredOraclePriceSources.set(denom, priceSource as unknown as WasmPriceSourceForString)
+        filteredOraclePriceSources.set(
+          denom,
+          priceSource.price_source as unknown as WasmPriceSourceForString,
+        )
       }
     }
+
+    await deployer.setOracle({ denom: 'usd', price_source: { fixed: { price: '1000000' } } })
 
     // setup
     for (const [denom, priceSource] of filteredOraclePriceSources.entries()) {
