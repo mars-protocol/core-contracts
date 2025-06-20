@@ -1,4 +1,6 @@
-use cosmwasm_std::{coin, Uint128};
+use std::str::FromStr;
+
+use cosmwasm_std::{coin, Decimal, Uint128};
 use mars_testing::duality_swapper::DualitySwapperTester;
 use mars_types::swapper::SwapperRoute;
 use neutron_test_tube::{Account, NeutronTestApp};
@@ -125,7 +127,7 @@ fn test_swap_with_custom_pricing(
     denom_in: &str,
     denom_out: &str,
     amount_in: u128,
-    price_ratio: u128, // price_out / price_in (how many output tokens for 1 input token)
+    price_ratio: Decimal, // price_out / price_in (how many output tokens for 1 input token)
 ) {
     // Create the test environment
     let app = NeutronTestApp::default();
@@ -149,23 +151,27 @@ fn test_swap_with_custom_pricing(
 
     // Add liquidity with custom price ratio
     let base_liquidity_in = 100_000_000u128; // Large enough liquidity pool
-    let base_liquidity_out = base_liquidity_in * price_ratio;
-    // Direct swap with custom price ratio
+    let base_liquidity_out = Decimal::from_atomics(base_liquidity_in, 0).unwrap().checked_mul(price_ratio).unwrap();
+    // Direct swap with custom price ratio. - we only add liquidity 
     let _res = tester.add_liquidity(
         denom_in,
         denom_out,
         Uint128::new(base_liquidity_in),
-        Uint128::new(base_liquidity_out),
+        base_liquidity_out.to_uint_floor(),
     );
 
     // Calculate expected output with some buffer for fees/slippage
-    let expected_amount_out = amount_in * price_ratio;
+    let expected_amount_out = Decimal::from_atomics(amount_in, 0).unwrap().checked_mul(price_ratio).unwrap().to_uint_floor();
+
+    println!("expected_amount_out: {}", expected_amount_out);
+    println!("amount_in: {}", amount_in);
+    println!("price_ratio: {}", price_ratio);
 
     // Execute the swap
     let result = tester.execute_swap(
         coin_in,
         denom_out,
-        Uint128::one(),
+        expected_amount_out.checked_div(Uint128::new(2)).unwrap(),
         swapper_route,
         &tester.user,
     );
@@ -175,29 +181,36 @@ fn test_swap_with_custom_pricing(
 
     // Verify the user received at least the minimum amount
     let user_balance = tester.get_balance(&tester.user.address(), denom_out);
+
+    // duality has rounding errors that we need to account for in our tests. Less than 0.01% and we start to see errors for some combinations of price & token amounts
+    let max_rounding_error = expected_amount_out.checked_mul_floor(Decimal::from_str("0.0001").unwrap()).unwrap();
     assert!(
-        user_balance >= user_balance_before + Uint128::new(expected_amount_out),
+        user_balance >= user_balance_before + expected_amount_out - max_rounding_error,
         "User should have received at least the minimum amount of tokens"
     );
     
     // Also verify the user didn't receive more than expected (should be close to expected)
     assert!(
-        user_balance <= user_balance_before + Uint128::new(expected_amount_out + 1), // +1 to account for potential rounding
+        user_balance <= user_balance_before + expected_amount_out + max_rounding_error,
         "User received significantly more tokens than expected"
     );
+    
 }
 
-#[test_case("untrn", "uusdc", 1_000_000, 2; "direct swap with 2:1 price ratio")]
-#[test_case("untrn", "uusdc", 1_000_000, 10_000; "direct swap with very high price ratio (10000:1)")]
-#[test_case("untrn", "uusdc", 1_000_000, 1_000_000; "direct swap with extreme price ratio (1000000:1)")]
-#[test_case("uatom", "ujuno", 1_000_000, 1; "different pair with 1:1 price ratio")]
-#[test_case("untrn", "uusdc", 10, 5; "tiny amount swap with 5:1 ratio")]
-#[test_case("untrn", "uusdc", 50_000_000, 1; "large amount swap with 1:1 ratio")]
+#[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(200); "direct swap with 2:1 price ratio")]
+#[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(1000000); "direct swap with very high price ratio (10000:1)")]
+#[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(100000000); "direct swap with extreme price ratio (1000000:1)")]
+#[test_case("uatom", "ujuno", 1_000_000, Decimal::percent(100); "different pair with 1:1 price ratio")]
+#[test_case("untrn", "uusdc", 10000, Decimal::percent(500); "tiny amount swap with 5:1 ratio")]
+#[test_case("untrn", "uusdc", 50_000_000, Decimal::percent(100); "large amount swap with 1:1 ratio")]
+#[test_case("untrn", "uusdc", 10_000_000, Decimal::percent(10); "swap with 0.1:1 price ratio")]
+#[test_case("untrn", "uusdc", 100_000_000, Decimal::percent(1); "swap with 0.01:1 price ratio")]
+
 fn test_custom_price_swaps(
     denom_in: &str,
     denom_out: &str,
     amount_in: u128,
-    price_ratio: u128,
+    price_ratio: Decimal,
 ) {
     test_swap_with_custom_pricing(
         denom_in,

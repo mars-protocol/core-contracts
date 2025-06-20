@@ -35,11 +35,11 @@ impl<'a> DualitySwapperTester<'a> {
     pub fn new(app: &'a NeutronTestApp) -> Self {
         // Initialize admin and user accounts with funds
         let initial_balance = vec![
-            Coin2::new(Uint128::MAX.u128()/10, "untrn"),
-            Coin2::new(Uint128::MAX.u128()/10, "uusdc"),
-            Coin2::new(Uint128::MAX.u128()/10, "uatom"),
-            Coin2::new(Uint128::MAX.u128()/10, "ujuno"),
-            Coin2::new(Uint128::MAX.u128()/10, "uosmo"),
+            Coin2::new(100_000_000_000_000u128, "untrn"),
+            Coin2::new(100_000_000_000_000u128, "uusdc"),
+            Coin2::new(100_000_000_000_000u128, "uatom"),
+            Coin2::new(100_000_000_000_000u128, "ujuno"),
+            Coin2::new(100_000_000_000_000u128, "uosmo"),
         ];
 
         let admin = app.init_account(initial_balance.as_slice()).unwrap();
@@ -111,9 +111,6 @@ impl<'a> DualitySwapperTester<'a> {
 
         let tick_index = Self::price_to_tick(price_ratio);
 
-        println!("Tick index: {}", tick_index);
-        println!("Price ratio: {}", price_ratio);
-
         self
             .dex
             .deposit(
@@ -122,7 +119,7 @@ impl<'a> DualitySwapperTester<'a> {
                     receiver: self.admin.address().clone(),
                     token_a: denom1.to_string(),
                     token_b: denom2.to_string(),
-                    amounts_a: vec!["0".to_string()],
+                    amounts_a: vec![amount1.to_string()],
                     amounts_b: vec![amount2.to_string()],
                     tick_indexes_a_to_b: vec![tick_index],
                     fees: vec![0],
