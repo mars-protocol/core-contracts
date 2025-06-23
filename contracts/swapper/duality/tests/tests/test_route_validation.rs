@@ -1,8 +1,6 @@
-use cosmwasm_std::{Empty, Uint128};
-
-use mars_swapper_duality::DualityRoute as DualityRouteImpl;
+use cosmwasm_std::{Decimal, Empty, Uint128};
 use mars_swapper_base::{ContractError, Route};
-use mars_swapper_duality::{DualityConfig};
+use mars_swapper_duality::{DualityConfig, DualityRoute as DualityRouteImpl};
 use mars_testing::{duality_swapper::DualitySwapperTester, MarsMockQuerier};
 use mars_types::swapper::{DualityRoute, SwapperRoute};
 use neutron_sdk::bindings::msg::NeutronMsg;
@@ -24,7 +22,7 @@ enum ExpectedValidationResult {
         from: "untrn".to_string(),
         to: "usdc".to_string(),
         swap_denoms: vec!["untrn".to_string(), "usdc".to_string()],
-    }), 
+    }),
     "untrn", "usdc", 
     ExpectedValidationResult::Success
     ; "valid direct route"
@@ -87,8 +85,8 @@ fn test_route_validation(
     let querier = MarsMockQuerier::new(cosmwasm_std::testing::MockQuerier::new(&[]));
     let querier_wrapper = cosmwasm_std::QuerierWrapper::new(&querier);
 
-
-    let duality_route = <DualityRouteImpl as Route<NeutronMsg, Empty, DualityConfig>>::from(route, None).unwrap();
+    let duality_route =
+        <DualityRouteImpl as Route<NeutronMsg, Empty, DualityConfig>>::from(route, None).unwrap();
 
     // validate the route
     let result = duality_route.validate(&querier_wrapper, denom_in, denom_out);
@@ -131,7 +129,8 @@ fn test_route_from_swapper_route() {
         swap_denoms: vec![intermediate.to_string(), denom_out.to_string()],
     });
 
-    let result = <DualityRouteImpl as Route<NeutronMsg, Empty, DualityConfig>>::from(swapper_route, None);
+    let result =
+        <DualityRouteImpl as Route<NeutronMsg, Empty, DualityConfig>>::from(swapper_route, None);
     assert!(result.is_ok(), "Conversion from SwapperRoute should succeed");
 
     let route = result.unwrap();
@@ -173,28 +172,36 @@ fn test_set_direct_route() {
     // Create the test environment
     let app = NeutronTestApp::default();
     let tester = DualitySwapperTester::new(&app);
-    
+
     // Create a direct route
     let denom_in = "untrn";
-    let denom_out = "usdc";
+    let denom_out = "uusdc";
     let direct_route = tester.create_direct_route(denom_in, denom_out);
-    
+
     // Execute set route
-    tester.set_route(direct_route.clone(), denom_in, denom_out);
-    
+    let result = tester.set_route(direct_route.clone(), denom_in, denom_out);
+    assert!(result.is_ok(), "Route should pass validation");
+
     // Verify by executing a swap with the route
     let coin_in = cosmwasm_std::coin(1000, denom_in);
-    let min_receive = Uint128::from(1u128);
-    
+    let min_receive = Uint128::from(1000u128);
+
+    let base_liquidity = 1_000_000_000u128;
+
     // Add liquidity to the pool
-    tester.add_liquidity(denom_in, denom_out, Uint128::from(1000000u128), Uint128::from(1000000u128));
-    
+    tester.add_liquidity(
+        denom_in,
+        denom_out,
+        Uint128::from(base_liquidity),
+        Uint128::from(base_liquidity),
+    );
+
     // Execute a swap using the route (this will only work if route was set correctly)
     let swap_res = tester.execute_swap(coin_in, denom_out, min_receive, None, &tester.admin);
-    
+
     // Verify swap was successful
     assert!(swap_res.is_ok(), "Swap should succeed if route was properly set");
-    
+
     // Check user has received the output token
     let balance_after = tester.get_balance(&tester.admin.address(), denom_out);
     assert!(balance_after > Uint128::zero(), "Should have received some tokens from the swap");
@@ -205,36 +212,59 @@ fn test_set_multi_hop_route() {
     // Create the test environment
     let app = NeutronTestApp::default();
     let tester = DualitySwapperTester::new(&app);
-    
+
     // Create a multi-hop route
     let denom_in = "untrn";
     let intermediate = "uusdc";
     let denom_out = "uatom";
-    
-    let multi_hop_route = tester.create_multi_hop_route(denom_in, intermediate, denom_out);
-    
-    // Set the route
-    tester.set_route(multi_hop_route.clone(), denom_in, denom_out);
-    
+
+    let base_liquidity = 1_000_000_000u128;
+
     // Add liquidity to pools for both hops
-    tester.add_liquidity(denom_in, intermediate, Uint128::from(1000000u128), Uint128::from(1000000u128));
-    tester.add_liquidity(intermediate, denom_out, Uint128::from(1000000u128), Uint128::from(1000000u128));
-    
+    tester.add_liquidity(
+        denom_in,
+        intermediate,
+        Uint128::from(base_liquidity),
+        Uint128::from(base_liquidity),
+    );
+    tester.add_liquidity(
+        intermediate,
+        denom_out,
+        Uint128::from(base_liquidity),
+        Uint128::from(base_liquidity),
+    );
+
+    let multi_hop_route = tester.create_multi_hop_route(denom_in, intermediate, denom_out);
+
+    // Test that the multihop serialisation works
+    tester.multihop_swap(
+        multi_hop_route.swap_denoms.clone(),
+        cosmwasm_std::coin(1000, denom_in),
+        Decimal::one(),
+    );
+
+    // Set the route
+    let result = tester.set_route(multi_hop_route.clone(), denom_in, denom_out);
+    assert!(result.is_ok(), "Route should pass validation");
+
     // Verify by executing a swap with the route
     let coin_in = cosmwasm_std::coin(1000, denom_in);
     let min_receive = Uint128::from(1u128);
-    
+
     // Execute swap - this should work if the multi-hop route was set correctly
     let swap_res = tester.execute_swap(coin_in, denom_out, min_receive, None, &tester.admin);
-    
+
     println!("swap_res: {:#?}", swap_res);
 
     // Verify swap was successful
     assert!(swap_res.is_ok(), "Multi-hop swap should succeed if route was properly set");
-    
+
     // Check user has received the output token
     let balance_after = tester.get_balance(&tester.admin.address(), denom_out);
-    assert!(balance_after > Uint128::zero(), "Should have received some tokens from the multi-hop swap");
+    assert!(
+        balance_after > Uint128::zero(),
+        "Should have received some tokens from the multi-hop swap"
+    );
 }
 
 #[test]
@@ -242,11 +272,11 @@ fn test_set_invalid_route() {
     // Create the test environment
     let app = NeutronTestApp::default();
     let tester = DualitySwapperTester::new(&app);
-    
+
     // Create an invalid route with a loop
     let denom_in = "untrn";
     let denom_out = "uatom";
-    
+
     // Create an invalid DualitySwap with a loop (manually, as the tester won't create invalid routes)
     let invalid_route = DualityRoute {
         from: denom_in.to_string(),
@@ -255,10 +285,10 @@ fn test_set_invalid_route() {
     };
 
     let result = tester.set_route(invalid_route, denom_in, denom_out);
-    
+
     // Check that the operation panicked
     assert!(result.is_err(), "Setting an invalid route should fail");
-    
+
     // We can't check the exact error message because the unwrap() in tester.set_route() discards it,
     // but we've verified that it does fail as expected.
 }
@@ -268,40 +298,36 @@ fn test_routes_query() {
     // Create the test environment
     let app = NeutronTestApp::default();
     let tester = DualitySwapperTester::new(&app);
-    
+
     // Define route configurations
-    let route_configs = [
-        ("untrn", "uusdc"),
-        ("untrn", "uatom"),
-        ("uusdc", "uatom"),
-    ];
-    
+    let route_configs = [("untrn", "uusdc"), ("untrn", "uatom"), ("uusdc", "uatom")];
+
     // Set all routes using tester methods
     for (in_denom, out_denom) in route_configs.iter() {
         let route = if *out_denom == "uatom" && *in_denom == "untrn" {
             // Multi-hop route for untrn->uatom via uusdc
-            tester.create_multi_hop_route(*in_denom, "uusdc", *out_denom)
+            tester.create_multi_hop_route(in_denom, "uusdc", out_denom)
         } else {
             // Direct route for others
-            tester.create_direct_route(*in_denom, *out_denom)
+            tester.create_direct_route(in_denom, out_denom)
         };
 
         let res = tester.set_route(route, in_denom, out_denom);
         assert!(res.is_ok(), "Setting route should succeed");
     }
-    
+
     // Verify by adding liquidity and executing swaps for each route
     // This ensures all routes were set correctly
-    
+
     // Add liquidity to all pairs
     tester.add_liquidity("untrn", "uusdc", Uint128::from(1000000u128), Uint128::from(1000000u128));
     tester.add_liquidity("uatom", "uusdc", Uint128::from(1000000u128), Uint128::from(1000000u128));
-    
+
     // Test each route with a swap
     for (in_denom, out_denom) in route_configs.iter() {
         let coin_in = cosmwasm_std::coin(1000, *in_denom);
         let min_receive = Uint128::from(1u128);
-        
+
         println!("Executing swap from {} to {}", in_denom, out_denom);
 
         // Get the existing liquidity
@@ -310,10 +336,15 @@ fn test_routes_query() {
 
         // Execute swap - this should work if the route was set correctly
         let swap_res = tester.execute_swap(coin_in, *out_denom, min_receive, None, &tester.admin);
-        
+
         println!("swap_res: {:#?}", swap_res);
         // Verify swap was successful
-        assert!(swap_res.is_ok(), "Swap from {} to {} should succeed if route was properly set", in_denom, out_denom);
+        assert!(
+            swap_res.is_ok(),
+            "Swap from {} to {} should succeed if route was properly set",
+            in_denom,
+            out_denom
+        );
     }
 }
 
@@ -322,22 +353,22 @@ fn test_unauthorized_set_route() {
     // Create the test environment
     let app = NeutronTestApp::default();
     let tester = DualitySwapperTester::new(&app);
-    
+
     // Create a direct route
     let denom_in = "untrn";
     let denom_out = "usdc";
     let direct_route = tester.create_direct_route(denom_in, denom_out);
-    
+
     // Attempt to set the route as non-admin (user) - should fail
     let result = tester.execute_swap(
         cosmwasm_std::coin(1000, denom_in),
         denom_out,
         Uint128::from(1u128),
-        Some(SwapperRoute::Duality(direct_route)),  // Providing an explicit route that hasn't been saved by admin
-        &tester.user,         // Using the non-admin user 
+        Some(SwapperRoute::Duality(direct_route)), // Providing an explicit route that hasn't been saved by admin
+        &tester.user,                              // Using the non-admin user
     );
-    
-    // User can execute swaps, but cannot set routes. The swap would fail if it tried to 
+
+    // User can execute swaps, but cannot set routes. The swap would fail if it tried to
     // set the route as a side effect, which verifies our authorization is working.
     assert!(result.is_ok(), "User should be able to execute swaps with explicit routes");
 }

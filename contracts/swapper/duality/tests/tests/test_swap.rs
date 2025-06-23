@@ -27,9 +27,14 @@ fn test_swap_integration(
 
     // Create appropriate route based on test parameters
     let route = if use_route {
-        if use_multihop && intermediate_denom.is_some() {
-            // Multi-hop route through intermediate token
-            Some(tester.create_multi_hop_route(denom_in, intermediate_denom.unwrap(), denom_out))
+        if use_multihop {
+            if let Some(intermediate) = intermediate_denom {
+                // Multi-hop route through intermediate token
+                Some(tester.create_multi_hop_route(denom_in, intermediate, denom_out))
+            } else {
+                // Direct route
+                Some(tester.create_direct_route(denom_in, denom_out))
+            }
         } else {
             // Direct route
             Some(tester.create_direct_route(denom_in, denom_out))
@@ -138,7 +143,7 @@ fn test_swap_with_custom_pricing(
 
     // Prepare swap parameters
     let coin_in = coin(amount_in, denom_in);
-    
+
     // Create a direct route for the swap
     let route = tester.create_direct_route(denom_in, denom_out);
 
@@ -151,8 +156,9 @@ fn test_swap_with_custom_pricing(
 
     // Add liquidity with custom price ratio
     let base_liquidity_in = 100_000_000u128; // Large enough liquidity pool
-    let base_liquidity_out = Decimal::from_atomics(base_liquidity_in, 0).unwrap().checked_mul(price_ratio).unwrap();
-    // Direct swap with custom price ratio. - we only add liquidity 
+    let base_liquidity_out =
+        Decimal::from_atomics(base_liquidity_in, 0).unwrap().checked_mul(price_ratio).unwrap();
+    // Direct swap with custom price ratio. - we only add liquidity
     let _res = tester.add_liquidity(
         denom_in,
         denom_out,
@@ -161,11 +167,11 @@ fn test_swap_with_custom_pricing(
     );
 
     // Calculate expected output with some buffer for fees/slippage
-    let expected_amount_out = Decimal::from_atomics(amount_in, 0).unwrap().checked_mul(price_ratio).unwrap().to_uint_floor();
-
-    println!("expected_amount_out: {}", expected_amount_out);
-    println!("amount_in: {}", amount_in);
-    println!("price_ratio: {}", price_ratio);
+    let expected_amount_out = Decimal::from_atomics(amount_in, 0)
+        .unwrap()
+        .checked_mul(price_ratio)
+        .unwrap()
+        .to_uint_floor();
 
     // Execute the swap
     let result = tester.execute_swap(
@@ -183,18 +189,18 @@ fn test_swap_with_custom_pricing(
     let user_balance = tester.get_balance(&tester.user.address(), denom_out);
 
     // duality has rounding errors that we need to account for in our tests. Less than 0.01% and we start to see errors for some combinations of price & token amounts
-    let max_rounding_error = expected_amount_out.checked_mul_floor(Decimal::from_str("0.0001").unwrap()).unwrap();
+    let max_rounding_error =
+        expected_amount_out.checked_mul_floor(Decimal::from_str("0.0001").unwrap()).unwrap();
     assert!(
         user_balance >= user_balance_before + expected_amount_out - max_rounding_error,
         "User should have received at least the minimum amount of tokens"
     );
-    
+
     // Also verify the user didn't receive more than expected (should be close to expected)
     assert!(
         user_balance <= user_balance_before + expected_amount_out + max_rounding_error,
         "User received significantly more tokens than expected"
     );
-    
 }
 
 #[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(200); "direct swap with 2:1 price ratio")]
@@ -206,16 +212,6 @@ fn test_swap_with_custom_pricing(
 #[test_case("untrn", "uusdc", 10_000_000, Decimal::percent(10); "swap with 0.1:1 price ratio")]
 #[test_case("untrn", "uusdc", 100_000_000, Decimal::percent(1); "swap with 0.01:1 price ratio")]
 
-fn test_custom_price_swaps(
-    denom_in: &str,
-    denom_out: &str,
-    amount_in: u128,
-    price_ratio: Decimal,
-) {
-    test_swap_with_custom_pricing(
-        denom_in,
-        denom_out,
-        amount_in,
-        price_ratio,
-        );
+fn test_custom_price_swaps(denom_in: &str, denom_out: &str, amount_in: u128, price_ratio: Decimal) {
+    test_swap_with_custom_pricing(denom_in, denom_out, amount_in, price_ratio);
 }

@@ -2,7 +2,6 @@ use std::str::FromStr;
 
 use cosmwasm_std::{Coin, Decimal, Uint128};
 use cosmwasm_std_2::Coin as Coin2;
-
 use mars_types::swapper::{
     DualityRoute, EstimateExactInSwapResponse, ExecuteMsg, InstantiateMsg, QueryMsg, SwapperRoute,
 };
@@ -11,9 +10,12 @@ use neutron_test_tube::{
         cosmos::bank::v1beta1::QueryBalanceRequest,
         cosmwasm::wasm::v1::MsgExecuteContractResponse,
         neutron::dex::{
-            DepositOptions, MsgDeposit, MsgDepositResponse, QueryGetPoolReservesRequest, QueryGetPoolReservesResponse,
+            DepositOptions, MsgDeposit, MsgDepositResponse, MsgMultiHopSwap, MultiHopRoute,
+            QueryGetPoolReservesRequest, QueryGetPoolReservesResponse,
         },
-    }, Account, Bank, Dex, ExecuteResponse, Module, NeutronTestApp, RunnerExecuteResult, SigningAccount, Wasm
+    },
+    Account, Bank, Dex, ExecuteResponse, Module, NeutronTestApp, RunnerExecuteResult,
+    SigningAccount, Wasm,
 };
 
 // Constants
@@ -63,10 +65,10 @@ impl<'a> DualitySwapperTester<'a> {
                 &InstantiateMsg {
                     owner: admin.address(),
                 },
-                None,                         
-                Some("Mars Duality Swapper"), 
-                &[],                         
-                &admin,                      
+                None,
+                Some("Mars Duality Swapper"),
+                &[],
+                &admin,
             )
             .unwrap()
             .data
@@ -95,7 +97,6 @@ impl<'a> DualitySwapperTester<'a> {
         (ln_price / ln_base).round() as i64
     }
 
-    // TODO support settting price via ticks
     /// Add liquidity to a pool with the specified tokens and amounts
     pub fn add_liquidity(
         &self,
@@ -111,8 +112,7 @@ impl<'a> DualitySwapperTester<'a> {
 
         let tick_index = Self::price_to_tick(price_ratio);
 
-        self
-            .dex
+        self.dex
             .deposit(
                 MsgDeposit {
                     creator: self.admin.address().clone(),
@@ -131,11 +131,16 @@ impl<'a> DualitySwapperTester<'a> {
                 &self.admin,
             )
             .unwrap()
-            
     }
 
     /// Get the liquidity for a specific pair at a specific tick
-    pub fn get_liquidity(&self, pair_id: String, token_in: String, tick_index: i64, fee: u64) -> QueryGetPoolReservesResponse {
+    pub fn get_liquidity(
+        &self,
+        pair_id: String,
+        token_in: String,
+        tick_index: i64,
+        fee: u64,
+    ) -> QueryGetPoolReservesResponse {
         self.dex
             .pool_reserves(&QueryGetPoolReservesRequest {
                 pair_id,
@@ -177,8 +182,8 @@ impl<'a> DualitySwapperTester<'a> {
         let coin_in2 = Coin2::new(coin_in.amount.u128(), coin_in.denom.clone());
 
         let execute_msg: ExecuteMsg<DualityRoute, Coin> = ExecuteMsg::SwapExactIn {
-        coin_in,
-        denom_out,
+            coin_in,
+            denom_out,
             min_receive,
             route,
         };
@@ -221,11 +226,39 @@ impl<'a> DualitySwapperTester<'a> {
         }
     }
 
-    pub fn set_route(&self, route: DualityRoute, denom_in: &str, denom_out: &str) -> RunnerExecuteResult<MsgExecuteContractResponse> {
-        let execute_msg: ExecuteMsg<DualityRoute, Coin> = ExecuteMsg::SetRoute { 
-            denom_in: denom_in.to_string(), 
-            denom_out: denom_out.to_string(), 
-            route 
+    pub fn multihop_swap(
+        &self,
+        swap_denoms: Vec<String>,
+        coin_in: Coin,
+        limit_sell_price: Decimal,
+    ) {
+        println!("swap_denoms: {:?}", swap_denoms);
+
+        let execute_msg = MsgMultiHopSwap {
+            creator: self.admin.address().to_string(),
+            receiver: self.admin.address().to_string(),
+            routes: vec![MultiHopRoute {
+                hops: swap_denoms.clone(),
+            }],
+            amount_in: coin_in.amount.to_string(),
+            exit_limit_price: limit_sell_price.to_string(),
+            pick_best_route: false,
+        };
+
+        let res = self.dex.multi_hop_swap(execute_msg, &self.admin);
+        res.unwrap();
+    }
+
+    pub fn set_route(
+        &self,
+        route: DualityRoute,
+        denom_in: &str,
+        denom_out: &str,
+    ) -> RunnerExecuteResult<MsgExecuteContractResponse> {
+        let execute_msg: ExecuteMsg<DualityRoute, Coin> = ExecuteMsg::SetRoute {
+            denom_in: denom_in.to_string(),
+            denom_out: denom_out.to_string(),
+            route,
         };
         self.wasm.execute(&self.contract_addr, &execute_msg, &[], &self.admin)
     }
