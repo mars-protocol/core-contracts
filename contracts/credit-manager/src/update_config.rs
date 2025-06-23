@@ -66,7 +66,9 @@ pub fn update_config(
 
     if let Some(unchecked) = updates.duality_swapper {
         DUALITY_SWAPPER.save(deps.storage, &unchecked.check(deps.api)?)?;
-        response = response.add_attribute("key", "duality_swapper").add_attribute("value", unchecked.address());
+        response = response
+            .add_attribute("key", "duality_swapper")
+            .add_attribute("value", unchecked.address());
     }
 
     if let Some(unchecked) = updates.zapper {
