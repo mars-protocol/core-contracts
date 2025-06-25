@@ -79,6 +79,10 @@ export interface DeploymentConfig {
     name: string
     routes: SwapRoute[]
   }
+  dualitySwapper?: {
+    name: string
+    routes: SwapRoute[]
+  }
   maxValueForBurn: string
   maxUnlockingPositions: string
   maxSlippage: string
