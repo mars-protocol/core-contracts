@@ -22,6 +22,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
       'rewardsCollector',
       `mars_rewards_collector_${config.rewardsCollector.name}.wasm`,
     )
+    await deployer.upload('dualitySwapper', `mars_swapper_${config.dualitySwapper?.name}.wasm`)
     await deployer.upload('swapper', `mars_swapper_${config.swapper.name}.wasm`)
     await deployer.upload('params', `mars_params.wasm`)
 

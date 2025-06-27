@@ -63,6 +63,7 @@ import {
 } from '../../types/generated/mars-credit-manager/MarsCreditManager.client'
 import { kebabCase } from 'lodash'
 import { MarsRoverHealthClient } from '../../types/generated/mars-rover-health/MarsRoverHealth.client'
+import { USDCAsset } from '../osmosis/testnet-config'
 
 type SwapperInstantiateMsg = AstroportSwapperInstantiateMsg | OsmosisSwapperInstantiateMsg
 type OracleInstantiateMsg = WasmOracleInstantiateMsg | OsmosisOracleInstantiateMsg
@@ -702,6 +703,44 @@ export class Deployer {
     }
 
     printYellow(`${this.config.chain.id} :: Duality Swapper Routes have been set`)
+  }
+
+  async setDualitySwapperLP() {
+    if (this.storage.actions.dualityLpProvided) {
+      printBlue('LP already provided for Duality Swapper')
+      return
+    }
+    
+    printBlue('Providing liquidity for Duality Swapper...')
+   // Replace the CosmWasm execution with a Stargate message
+    const msgDeposit = {
+      typeUrl: "/neutron.dex.MsgDeposit",
+      value: {
+        creator: this.deployerAddr,
+        receiver: this.deployerAddr,
+        tokenA: "untrn",
+        tokenB: USDCAsset.denom,
+        amountsA: ["1000000000"],
+        amountsB: ["1000000000"],
+        tickIndexesAToB: [0],
+        fees: [0],
+        options: [{
+          disableAutoswap: false,
+          failTxOnBel: true
+        }]
+      }
+    };
+
+    // Send the Stargate message
+    const response = await this.cwClient.signAndBroadcast(
+      this.deployerAddr,
+      [msgDeposit],
+      "auto"
+    );
+
+    // Mark action as complete
+    this.storage.actions.dualityLpProvided = true
+    printYellow(`Liquidity provided for Duality Swapper: ${response.transactionHash}`)
   }
 
   async updateAddressProvider() {

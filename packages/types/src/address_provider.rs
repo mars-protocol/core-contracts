@@ -35,6 +35,8 @@ pub enum MarsAddressType {
     SafetyFund,
     /// The swapper contract on the chain
     Swapper,
+    /// The duality swapper contract on the chain
+    DualitySwapper,
     /// Astroport incentives contract
     AstroportIncentives,
     /// Perps contract
@@ -56,6 +58,7 @@ impl fmt::Display for MarsAddressType {
             MarsAddressType::RewardsCollector => "rewards_collector",
             MarsAddressType::SafetyFund => "safety_fund",
             MarsAddressType::Swapper => "swapper",
+            MarsAddressType::DualitySwapper => "duality_swapper",
             MarsAddressType::AstroportIncentives => "astroport_incentives",
             MarsAddressType::Perps => "perps",
             MarsAddressType::RevenueShare => "revenue_share",
@@ -79,6 +82,7 @@ impl FromStr for MarsAddressType {
             "rewards_collector" => Ok(MarsAddressType::RewardsCollector),
             "safety_fund" => Ok(MarsAddressType::SafetyFund),
             "swapper" => Ok(MarsAddressType::Swapper),
+            "duality_swapper" => Ok(MarsAddressType::DualitySwapper),
             "astroport_incentives" => Ok(MarsAddressType::AstroportIncentives),
             "perps" => Ok(MarsAddressType::Perps),
             "revenue_share" => Ok(MarsAddressType::RevenueShare),

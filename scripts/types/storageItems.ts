@@ -46,6 +46,7 @@ export interface StorageItems {
     oraclePricesSet: string[]
     routesSet: string[]
     dualityRoutesSet: string[]
+    dualityLpProvided?: boolean
     healthContractConfigUpdate?: boolean
     creditManagerContractConfigUpdate?: boolean
   }
