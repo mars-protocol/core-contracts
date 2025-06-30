@@ -1,11 +1,20 @@
+use std::str::FromStr;
+
 use anyhow::Result as AnyResult;
-use cosmwasm_std::{Addr, Coin, Uint128};
+use cosmwasm_std::{coin, Addr, Coin, Decimal, Int128, Uint128};
 use cw_multi_test::{AppResponse, Executor};
 use cw_paginate::PaginationResponse;
+use mars_testing::multitest::helpers::{
+    deploy_managed_vault_with_performance_fee, AccountToFund, CoinInfo,
+};
+use mars_types::{
+    credit_manager::{Action, Positions, QueryMsg as CreditManagerQueryMsg},
+    params::ManagedVaultConfigUpdate,
+};
 use mars_vault::{
     msg::{
-        ExecuteMsg, ExtensionExecuteMsg, ExtensionQueryMsg, QueryMsg, VaultInfoResponseExt,
-        VaultUnlock,
+        ExecuteMsg, ExtensionExecuteMsg, ExtensionQueryMsg, QueryMsg, UserPnlResponse,
+        VaultInfoResponseExt, VaultPnlResponse, VaultUnlock,
     },
     performance_fee::{PerformanceFeeConfig, PerformanceFeeState},
 };
@@ -97,6 +106,26 @@ pub fn execute_withdraw_performance_fee(
         }),
         &[],
     )
+}
+
+pub fn open_perp_position(
+    mock: &mut MockEnv,
+    fund_acc_id: &str,
+    fund_manager: &Addr,
+    perp_denom: &str,
+    size: Int128,
+) {
+    mock.update_credit_account(
+        fund_acc_id,
+        fund_manager,
+        vec![Action::ExecutePerpOrder {
+            denom: perp_denom.to_string(),
+            order_size: size,
+            reduce_only: None,
+        }],
+        &[],
+    )
+    .unwrap();
 }
 
 pub fn query_vault_info(mock_env: &MockEnv, vault: &Addr) -> VaultInfoResponseExt {
@@ -191,6 +220,48 @@ pub fn query_performance_fee(mock_env: &MockEnv, vault: &Addr) -> PerformanceFee
         .unwrap()
 }
 
+pub fn query_user_pnl(mock_env: &MockEnv, vault: &Addr, user: &Addr) -> UserPnlResponse {
+    mock_env
+        .app
+        .wrap()
+        .query_wasm_smart(
+            vault.to_string(),
+            &QueryMsg::VaultExtension(ExtensionQueryMsg::UserPnl {
+                user_address: user.to_string(),
+            }),
+        )
+        .unwrap()
+}
+
+pub fn query_vault_pnl(mock_env: &MockEnv, vault: &Addr) -> VaultPnlResponse {
+    mock_env
+        .app
+        .wrap()
+        .query_wasm_smart(
+            vault.to_string(),
+            &QueryMsg::VaultExtension(ExtensionQueryMsg::VaultPnl {}),
+        )
+        .unwrap()
+}
+
+pub fn query_account_positions(
+    mock_env: &MockEnv,
+    credit_manager: &Addr,
+    account_id: &str,
+) -> Positions {
+    mock_env
+        .app
+        .wrap()
+        .query_wasm_smart(
+            credit_manager.to_string(),
+            &CreditManagerQueryMsg::Positions {
+                account_id: account_id.to_string(),
+                action: None,
+            },
+        )
+        .unwrap()
+}
+
 pub fn assert_vault_err(res: AnyResult<AppResponse>, err: mars_vault::error::ContractError) {
     match res {
         Ok(_) => panic!("Result was not an error"),
@@ -198,5 +269,70 @@ pub fn assert_vault_err(res: AnyResult<AppResponse>, err: mars_vault::error::Con
             let contract_err: mars_vault::error::ContractError = generic_err.downcast().unwrap();
             assert_eq!(contract_err, err);
         }
+    }
+}
+
+pub struct VaultSetup {
+    pub mock: MockEnv,
+    pub fund_manager: Addr,
+    pub managed_vault_addr: Addr,
+    pub fund_acc_id: String,
+}
+
+pub fn instantiate_vault(
+    uusdc_info: &CoinInfo,
+    uatom_info: &CoinInfo,
+    base_denom: &str,
+) -> VaultSetup {
+    let fund_manager = Addr::unchecked("fund-manager");
+    let user = Addr::unchecked("user");
+    let user_funded_amt = Uint128::new(100_000_000_000);
+    let user2 = Addr::unchecked("user2");
+    let user2_funded_amt = Uint128::new(100_000_000_000);
+    let mut mock = MockEnv::new()
+        .set_params(&[uusdc_info.clone(), uatom_info.clone()])
+        .fund_account(AccountToFund {
+            addr: fund_manager.clone(),
+            funds: vec![coin(1_000_000_000, "untrn")],
+        })
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![coin(user_funded_amt.u128(), uusdc_info.denom.clone())],
+        })
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![coin(user_funded_amt.u128(), uatom_info.denom.clone())],
+        })
+        .fund_account(AccountToFund {
+            addr: user2.clone(),
+            funds: vec![coin(user2_funded_amt.u128(), uusdc_info.denom.clone())],
+        })
+        .build()
+        .unwrap();
+    let credit_manager = mock.rover.clone();
+
+    let managed_vault_addr = deploy_managed_vault_with_performance_fee(
+        &mut mock.app,
+        &fund_manager,
+        &credit_manager,
+        1,
+        PerformanceFeeConfig {
+            fee_rate: Decimal::from_str("0.0000208").unwrap(),
+            withdrawal_interval: 60,
+        },
+        base_denom,
+        None,
+    );
+
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
+
+    let fund_acc_id = mock.create_fund_manager_account(&fund_manager, &managed_vault_addr);
+
+    VaultSetup {
+        mock,
+        fund_manager,
+        managed_vault_addr,
+        fund_acc_id,
     }
 }

@@ -2,8 +2,8 @@ use std::default::Default;
 
 use anyhow::Result as AnyResult;
 use cosmwasm_std::{
-    coin, coins, testing::MockApi, Addr, Coin, Decimal, Empty, Int128, StdError, StdResult,
-    Timestamp, Uint128,
+    coin, coins, testing::MockApi, Addr, Coin, ContractInfoResponse, Decimal, Empty, Int128,
+    StdError, StdResult, Timestamp, Uint128,
 };
 use cw721::TokensResponse;
 use cw721_base::{Action::TransferOwnership, Ownership};
@@ -37,7 +37,7 @@ use mars_types::{
         vault::{Vault, VaultPosition, VaultPositionValue as VPositionValue, VaultUnchecked},
         zapper::{Zapper, ZapperBase},
     },
-    address_provider::{self, MarsAddressType},
+    address_provider::{self, AddressResponseItem, MarsAddressType},
     credit_manager::{
         Account, Action, CallbackMsg, CoinBalanceResponseItem, ConfigResponse, ConfigUpdates,
         DebtShares, ExecuteMsg, InstantiateMsg, KeeperFeeConfig, Positions,
@@ -59,9 +59,12 @@ use mars_types::{
     params::{
         AssetParams,
         AssetParamsUpdate::{self, AddOrUpdate},
-        ExecuteMsg::{UpdateAssetParams, UpdatePerpParams, UpdateVaultConfig},
-        InstantiateMsg as ParamsInstantiateMsg, PerpParamsUpdate, QueryMsg as ParamsQueryMsg,
-        VaultConfig, VaultConfigUnchecked, VaultConfigUpdate,
+        ExecuteMsg::{
+            UpdateAssetParams, UpdateManagedVaultConfig, UpdatePerpParams, UpdateVaultConfig,
+        },
+        InstantiateMsg as ParamsInstantiateMsg, ManagedVaultConfigResponse,
+        ManagedVaultConfigUpdate, PerpParamsUpdate, QueryMsg as ParamsQueryMsg, VaultConfig,
+        VaultConfigUnchecked, VaultConfigUpdate,
     },
     perps::{
         self, Config, InstantiateMsg as PerpsInstantiateMsg, PnL, PositionResponse, TradingFee,
@@ -71,7 +74,7 @@ use mars_types::{
         QueryMsg::{UserCollateral, UserDebt},
         UserCollateralResponse, UserDebtResponse,
     },
-    rewards_collector,
+    rewards_collector::{self, RewardConfig, TransferType},
     swapper::{
         EstimateExactInSwapResponse, InstantiateMsg as SwapperInstantiateMsg,
         QueryMsg::EstimateExactInSwap, SwapperRoute,
@@ -94,7 +97,7 @@ use crate::{
     multitest::modules::token_factory::{CustomApp, TokenFactory},
 };
 
-pub const DEFAULT_RED_BANK_COIN_BALANCE: Uint128 = Uint128::new(1_000_000);
+pub const DEFAULT_RED_BANK_COIN_BALANCE: Uint128 = Uint128::new(100_000_000);
 
 pub struct MockEnv {
     pub app: CustomApp,
@@ -104,6 +107,7 @@ pub struct MockEnv {
     pub incentives: Incentives,
     pub params: Params,
     pub perps: Perps,
+    pub address_provider: Addr,
 }
 
 pub struct MockEnvBuilder {
@@ -130,6 +134,7 @@ pub struct MockEnvBuilder {
     pub withdraw_enabled: Option<bool>,
     pub keeper_fee_config: Option<KeeperFeeConfig>,
     pub perps_liquidation_bonus_ratio: Option<Decimal>,
+    pub perps_protocol_fee_ratio: Option<Decimal>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -162,6 +167,7 @@ impl MockEnv {
             withdraw_enabled: None,
             keeper_fee_config: None,
             perps_liquidation_bonus_ratio: None,
+            perps_protocol_fee_ratio: None,
         }
     }
 
@@ -198,6 +204,11 @@ impl MockEnv {
                 amount: funds,
             }))
             .unwrap();
+    }
+
+    pub fn query_code_id(&self, addr: &Addr) -> u64 {
+        let res: ContractInfoResponse = self.app.wrap().query_wasm_contract_info(addr).unwrap();
+        res.code_id
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -355,6 +366,18 @@ impl MockEnv {
             .unwrap();
     }
 
+    pub fn update_managed_vault_config(&mut self, update: ManagedVaultConfigUpdate) {
+        let config = self.query_config();
+        self.app
+            .execute_contract(
+                Addr::unchecked(config.ownership.owner.unwrap()),
+                Addr::unchecked(config.params),
+                &UpdateManagedVaultConfig(update),
+                &[],
+            )
+            .unwrap();
+    }
+
     pub fn update_nft_config(
         &mut self,
         sender: &Addr,
@@ -388,6 +411,10 @@ impl MockEnv {
         self._create_credit_account(sender, AccountKind::Default)
     }
 
+    pub fn create_usdc_account(&mut self, sender: &Addr) -> AnyResult<String> {
+        self._create_credit_account(sender, AccountKind::UsdcMargin)
+    }
+
     pub fn create_hls_account(&mut self, sender: &Addr) -> String {
         self._create_credit_account(sender, AccountKind::HighLeveredStrategy).unwrap()
     }
@@ -410,6 +437,21 @@ impl MockEnv {
             &[],
         )?;
         Ok(self.get_account_id(res))
+    }
+
+    pub fn create_fund_manager_account_with_error(
+        &mut self,
+        sender: &Addr,
+        vault: &Addr,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.rover.clone(),
+            &ExecuteMsg::CreateCreditAccount(AccountKind::FundManager {
+                vault_addr: vault.to_string(),
+            }),
+            &[],
+        )
     }
 
     pub fn get_account_id(&mut self, res: AppResponse) -> String {
@@ -745,6 +787,13 @@ impl MockEnv {
                     denom: denom.to_string(),
                 },
             )
+            .unwrap()
+    }
+
+    pub fn query_managed_vault_config(&self) -> ManagedVaultConfigResponse {
+        self.app
+            .wrap()
+            .query_wasm_smart(self.params.address(), &ParamsQueryMsg::ManagedVaultConfig {})
             .unwrap()
     }
 
@@ -1128,12 +1177,27 @@ impl MockEnv {
             )
             .unwrap()
     }
+
+    pub fn query_address_provider(&self, address_type: MarsAddressType) -> Addr {
+        let res: AddressResponseItem = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                self.address_provider.to_string(),
+                &address_provider::QueryMsg::Address(address_type),
+            )
+            .unwrap();
+
+        Addr::unchecked(res.address)
+    }
 }
 
 impl MockEnvBuilder {
     pub fn build(mut self) -> AnyResult<MockEnv> {
         let rover = self.get_rover()?;
         self.set_emergency_owner(&rover);
+
+        let addr_provider = self.get_address_provider();
 
         let mars_oracle = self.get_oracle();
         let incentives =
@@ -1179,6 +1243,7 @@ impl MockEnvBuilder {
             incentives,
             params,
             perps,
+            address_provider: addr_provider,
         })
     }
 
@@ -1466,7 +1531,7 @@ impl MockEnvBuilder {
         let target_vault_collateralization_ratio = self.get_target_vault_collateralization_ratio();
         let deleverage_enabled = self.get_delegerage_enabled();
         let vault_withdraw_enabled = self.get_withdraw_enabled();
-
+        let perps_protocol_fee_ratio = self.get_perps_protocol_fee_ratio();
         let addr = self
             .app
             .instantiate_contract(
@@ -1477,7 +1542,7 @@ impl MockEnvBuilder {
                     base_denom: "uusdc".to_string(),
                     cooldown_period: 360,
                     max_positions: 4,
-                    protocol_fee_rate: Decimal::percent(0),
+                    protocol_fee_rate: perps_protocol_fee_ratio,
                     target_vault_collateralization_ratio,
                     deleverage_enabled,
                     vault_withdraw_enabled,
@@ -1685,12 +1750,22 @@ impl MockEnvBuilder {
                     owner: owner.clone().to_string(),
                     address_provider: address_provider.to_string(),
                     safety_tax_rate: Default::default(),
-                    safety_fund_denom: "safety-fund-denom".to_string(),
-                    fee_collector_denom: "fee-collector-denom".to_string(),
+                    revenue_share_tax_rate: Default::default(),
+                    safety_fund_config: RewardConfig {
+                        target_denom: "uusdc".to_string(),
+                        transfer_type: TransferType::Bank,
+                    },
+                    revenue_share_config: RewardConfig {
+                        target_denom: "uusdc".to_string(),
+                        transfer_type: TransferType::Bank,
+                    },
+                    fee_collector_config: RewardConfig {
+                        target_denom: "umars".to_string(),
+                        transfer_type: TransferType::Bank,
+                    },
                     channel_id: "".to_string(),
                     timeout_seconds: 1,
                     slippage_tolerance: Default::default(),
-                    neutron_ibc_config: None,
                 },
                 &[],
                 "mock-rewards-collector",
@@ -1822,6 +1897,10 @@ impl MockEnvBuilder {
         self.withdraw_enabled.unwrap_or(true)
     }
 
+    fn get_perps_protocol_fee_ratio(&self) -> Decimal {
+        self.perps_protocol_fee_ratio.unwrap_or_else(|| Decimal::percent(0))
+    }
+
     //--------------------------------------------------------------------------------------------------
     // Setter functions
     //--------------------------------------------------------------------------------------------------
@@ -1930,6 +2009,11 @@ impl MockEnvBuilder {
         self.deleverage_enabled = Some(enabled);
         self
     }
+
+    pub fn perps_protocol_fee_ratio(mut self, ratio: Decimal) -> Self {
+        self.perps_protocol_fee_ratio = Some(ratio);
+        self
+    }
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -1968,7 +2052,12 @@ fn propose_new_nft_minter(
     app.execute_contract(old_minter.clone(), nft_contract, &proposal_msg, &[]).unwrap();
 }
 
-pub fn deploy_managed_vault(app: &mut CustomApp, sender: &Addr, credit_manager: &Addr) -> Addr {
+pub fn deploy_managed_vault(
+    app: &mut CustomApp,
+    sender: &Addr,
+    credit_manager: &Addr,
+    creation_fee: Option<Coin>,
+) -> Addr {
     deploy_managed_vault_with_performance_fee(
         app,
         sender,
@@ -1978,6 +2067,8 @@ pub fn deploy_managed_vault(app: &mut CustomApp, sender: &Addr, credit_manager: 
             fee_rate: Decimal::zero(),
             withdrawal_interval: 0,
         },
+        "uusdc",
+        creation_fee,
     )
 }
 
@@ -1987,13 +2078,21 @@ pub fn deploy_managed_vault_with_performance_fee(
     credit_manager: &Addr,
     cooldown_period: u64,
     pf_config: PerformanceFeeConfig,
+    base_denom: &str,
+    creation_fee: Option<Coin>,
 ) -> Addr {
+    let mut funds = vec![];
+    funds.push(coin(10_000_000, "untrn")); // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
+    if let Some(creation_fee) = creation_fee {
+        funds.push(creation_fee);
+    }
+
     let contract_code_id = app.store_code(mock_managed_vault_contract());
     app.instantiate_contract(
         contract_code_id,
         sender.clone(),
         &ManagedVaultInstantiateMsg {
-            base_token: "uusdc".to_string(),
+            base_token: base_denom.to_string(),
             vault_token_subdenom: "vault".to_string(),
             title: None,
             subtitle: None,
@@ -2002,9 +2101,46 @@ pub fn deploy_managed_vault_with_performance_fee(
             cooldown_period,
             performance_fee_config: pf_config,
         },
-        &[coin(10_000_000, "untrn")], // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
+        &funds,
         "mock-managed-vault",
         None,
+    )
+    .unwrap()
+}
+
+pub fn deploy_vault_with_admin(
+    app: &mut CustomApp,
+    sender: &Addr,
+    credit_manager: &Addr,
+    creation_fee: Option<Coin>,
+    base_denom: &str,
+) -> Addr {
+    let mut funds = vec![];
+    funds.push(coin(10_000_000, "untrn")); // Token Factory fee for minting new denom. Configured in the Token Factory module in `mars-testing` package.
+    if let Some(creation_fee) = creation_fee {
+        funds.push(creation_fee);
+    }
+
+    let contract_code_id = app.store_code(mock_managed_vault_contract());
+    app.instantiate_contract(
+        contract_code_id,
+        sender.clone(),
+        &ManagedVaultInstantiateMsg {
+            base_token: base_denom.to_string(),
+            vault_token_subdenom: "vault".to_string(),
+            title: None,
+            subtitle: None,
+            description: None,
+            credit_manager: credit_manager.to_string(),
+            cooldown_period: 86400,
+            performance_fee_config: PerformanceFeeConfig {
+                fee_rate: Decimal::zero(),
+                withdrawal_interval: 86400,
+            },
+        },
+        &funds,
+        "mock-managed-vault",
+        Some(sender.to_string()),
     )
     .unwrap()
 }

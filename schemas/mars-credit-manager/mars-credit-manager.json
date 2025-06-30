@@ -1,6 +1,6 @@
 {
   "contract_name": "mars-credit-manager",
-  "contract_version": "2.2.0",
+  "contract_version": "2.2.3",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -404,6 +404,7 @@
             "type": "string",
             "enum": [
               "default",
+              "usdc_margin",
               "high_levered_strategy"
             ]
           },
@@ -3830,6 +3831,7 @@
           "type": "string",
           "enum": [
             "default",
+            "usdc_margin",
             "high_levered_strategy"
           ]
         },
@@ -3887,6 +3889,7 @@
               "type": "string",
               "enum": [
                 "default",
+                "usdc_margin",
                 "high_levered_strategy"
               ]
             },
@@ -6865,6 +6868,7 @@
               "type": "string",
               "enum": [
                 "default",
+                "usdc_margin",
                 "high_levered_strategy"
               ]
             },

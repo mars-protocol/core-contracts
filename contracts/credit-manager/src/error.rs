@@ -35,6 +35,12 @@ pub enum ContractError {
         maximum: String,
     },
 
+    #[error("Illegal deposit of {denom:?}. Expected: {expected_denom:?}")]
+    IllegalDepositDenom {
+        denom: String,
+        expected_denom: String,
+    },
+
     #[error("{0}")]
     Owner(#[from] OwnerError),
 
@@ -185,6 +191,12 @@ pub enum ContractError {
         action: String,
     },
 
+    #[error("{user:?} is not allowed to {action:?}")]
+    IllegalAction {
+        user: String,
+        action: String,
+    },
+
     #[error("There is more time left on the lock period")]
     UnlockNotReady,
 
@@ -276,4 +288,13 @@ pub enum ContractError {
     NoPerpPosition {
         denom: String,
     },
+    #[error("Invalid vault code id. Allowed code ids configured in params")]
+    InvalidVaultCodeId {},
+
+    #[error("Vault {vault:?} is blacklisted. No actions can be performed on this vault")]
+    BlacklistedVault {
+        vault: String,
+    },
+    #[error("Vault has an admin; vaults cannot be managed with an admin set.")]
+    VaultHasAdmin {},
 }

@@ -1,5 +1,6 @@
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{coins, BankMsg, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
 use mars_owner::OwnerInit;
+use mars_types::{credit_manager, oracle, params};
 use mars_utils::helpers::validate_native_denom;
 
 use crate::{
@@ -19,6 +20,9 @@ pub fn init(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> ContractResult<Response> {
+    let sent_base_token_amt =
+        info.funds.iter().find(|c| c.denom == msg.base_token).map(|c| c.amount).unwrap_or_default();
+
     // initialize contract ownership info
     OWNER.initialize(
         deps.storage,
@@ -62,5 +66,63 @@ pub fn init(
     validate_native_denom(&msg.base_token)?;
     BASE_TOKEN.save(deps.storage, &msg.base_token)?;
 
-    Ok(vault_token.instantiate()?)
+    let config: credit_manager::ConfigResponse = deps
+        .querier
+        .query_wasm_smart(credit_manager.as_ref(), &credit_manager::QueryMsg::Config {})?;
+
+    validate_base_token_value(&deps, &config, &msg.base_token, sent_base_token_amt)?;
+    if !sent_base_token_amt.is_zero() {
+        let rc_msg = prepare_rewards_collector_msg(&config, &msg.base_token, sent_base_token_amt)?;
+        Ok(vault_token.instantiate()?.add_message(rc_msg))
+    } else {
+        Ok(vault_token.instantiate()?)
+    }
+}
+
+/// Validates the base token value to be greater than the minimum creation amount in uusd
+fn validate_base_token_value(
+    deps: &DepsMut,
+    config: &credit_manager::ConfigResponse,
+    base_token: &str,
+    sent_base_token_amt: Uint128,
+) -> ContractResult<()> {
+    let managed_vault_config: params::ManagedVaultConfigResponse = deps
+        .querier
+        .query_wasm_smart(config.params.clone(), &params::QueryMsg::ManagedVaultConfig {})?;
+
+    let price: oracle::PriceResponse = deps.querier.query_wasm_smart(
+        config.oracle.clone(),
+        &oracle::QueryMsg::Price {
+            denom: base_token.to_string(),
+            kind: None,
+        },
+    )?;
+    let sent_base_token_value = sent_base_token_amt.checked_mul_floor(price.price)?;
+    if sent_base_token_value < Uint128::from(managed_vault_config.min_creation_fee_in_uusd) {
+        return Err(ContractError::MinAmountRequired {
+            min_value: managed_vault_config.min_creation_fee_in_uusd,
+            actual_value: sent_base_token_value.u128(),
+            denom: base_token.to_string(),
+        });
+    }
+    Ok(())
+}
+
+/// Prepares a message to send the base token to the rewards collector
+fn prepare_rewards_collector_msg(
+    config: &credit_manager::ConfigResponse,
+    base_token: &str,
+    sent_base_token_amt: Uint128,
+) -> ContractResult<CosmosMsg> {
+    // It should never happen, but we check for it anyway
+    let Some(rewards_collector) = &config.rewards_collector else {
+        // Return an error that rewards collector is not set
+        return Err(ContractError::RewardsCollectorNotSet {});
+    };
+
+    let msg = CosmosMsg::Bank(BankMsg::Send {
+        to_address: rewards_collector.address.clone(),
+        amount: coins(sent_base_token_amt.u128(), base_token),
+    });
+    Ok(msg)
 }

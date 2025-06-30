@@ -581,6 +581,10 @@ fn same_asset_for_debt_and_collateral_with_refund() {
     let liquidatee = Addr::unchecked("liquidatee");
     let liquidator = Addr::unchecked("liquidator");
 
+    // setup oracle
+    oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::from_ratio(15u128, 10u128));
+    oracle.set_price_source_fixed(&mut mock_env, "uatom", Decimal::from_ratio(10u128, 1u128));
+
     // setup red-bank
     let asset_params = default_asset_params_with(
         "uosmo",
@@ -596,10 +600,6 @@ fn same_asset_for_debt_and_collateral_with_refund() {
         Decimal::percent(80),
     );
     params.init_params(&mut mock_env, asset_params);
-
-    // setup oracle
-    oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::from_ratio(15u128, 10u128));
-    oracle.set_price_source_fixed(&mut mock_env, "uatom", Decimal::from_ratio(10u128, 1u128));
 
     // fund accounts
     mock_env.fund_accounts(&[&provider, &liquidatee, &liquidator], funded_amt, &["uosmo", "uatom"]);
@@ -1076,6 +1076,14 @@ fn setup_env_with_usdc_cf(mock_env: &mut MockEnv, usdc_cf: Decimal) -> (u128, Ad
     let liquidatee = Addr::unchecked("liquidatee");
     let liquidator = Addr::unchecked("liquidator");
 
+    // setup oracle
+    let oracle = mock_env.oracle.clone();
+    oracle.set_price_source_fixed(mock_env, "uosmo", Decimal::from_ratio(22u128, 10u128));
+    oracle.set_price_source_fixed(mock_env, "ujake", Decimal::one());
+    oracle.set_price_source_fixed(mock_env, "uatom", Decimal::from_ratio(82u128, 10u128));
+    oracle.set_price_source_fixed(mock_env, "uusdc", Decimal::one());
+    oracle.set_price_source_fixed(mock_env, "untrn", Decimal::from_ratio(55u128, 10u128));
+
     // setup red-bank
     let red_bank = mock_env.red_bank.clone();
     let params = mock_env.params.clone();
@@ -1110,14 +1118,6 @@ fn setup_env_with_usdc_cf(mock_env: &mut MockEnv, usdc_cf: Decimal) -> (u128, Ad
         Decimal::percent(80),
     );
     params.init_params(mock_env, asset_params);
-
-    // setup oracle
-    let oracle = mock_env.oracle.clone();
-    oracle.set_price_source_fixed(mock_env, "uosmo", Decimal::from_ratio(22u128, 10u128));
-    oracle.set_price_source_fixed(mock_env, "ujake", Decimal::one());
-    oracle.set_price_source_fixed(mock_env, "uatom", Decimal::from_ratio(82u128, 10u128));
-    oracle.set_price_source_fixed(mock_env, "uusdc", Decimal::one());
-    oracle.set_price_source_fixed(mock_env, "untrn", Decimal::from_ratio(55u128, 10u128));
 
     // fund accounts
     mock_env.fund_accounts(

@@ -185,7 +185,7 @@ cargo make test
 | mars-incentives           | [`neutron1aszpdh35zsaz0yj80mz7f5dtl9zq5jfl8hgm094y0j0vsychfekqxhzd39`][25] | [`v2.2.0`][57] |
 | mars-oracle               | [`neutron1dwp6m7pdrz6rnhdyrx5ha0acsduydqcpzkylvfgspsz60pj2agxqaqrr7g`][26] | [`v2.2.0`][57] |
 | mars-params               | [`neutron1x4rgd7ry23v2n49y7xdzje0743c5tgrnqrqsvwyya2h6m48tz4jqqex06x`][55] | [`v2.2.0`][57] |
-| mars-perps                | [`neutron1g3catxyv0fk8zzsra2mjc0v4s69a7xygdjt85t54l7ym3gv0un4q2xhaf6`][58] | [`v2.2.0`][57] |
+| mars-perps                | [`neutron1g3catxyv0fk8zzsra2mjc0v4s69a7xygdjt85t54l7ym3gv0un4q2xhaf6`][58] | [`v2.2.1`][59] |
 | mars-red-bank             | [`neutron1n97wnm7q6d2hrcna3rqlnyqw2we6k0l8uqvmyqq6gsml92epdu7quugyph`][27] | [`v2.2.0`][57] |
 | mars-rewards-collector    | [`neutron1h4l6rvylzcuxwdw3gzkkdzfjdxf4mv2ypfdgvnvag0dtz6x07gps6fl2vm`][28] | [`v2.2.0`][57] |
 | mars-swapper              | [`neutron1udr9fc3kd743dezrj38v2ac74pxxr6qsx4xt4nfpcfczgw52rvyqyjp5au`][29] | [`v2.2.0`][57] |
@@ -255,3 +255,4 @@ For full terms and conditions, see the [LICENSE](./LICENSE) file.
 [56]: https://neutron.celat.one/neutron-1/contracts/neutron1dr0ckm3u2ztjuscmgqjr85lwyduphxkgl3tc02ac8zp54r05t5dqp5tgyq
 [57]: https://github.com/mars-protocol/core-contracts/releases/tag/v2.2.0-perps
 [58]: https://neutron.celat.one/neutron-1/contracts/neutron1g3catxyv0fk8zzsra2mjc0v4s69a7xygdjt85t54l7ym3gv0un4q2xhaf6
+[59]: https://github.com/mars-protocol/core-contracts/releases/tag/v2.2.1-perps

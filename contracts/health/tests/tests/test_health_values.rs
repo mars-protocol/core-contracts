@@ -150,9 +150,9 @@ fn adds_vault_base_denoms_to_oracle_and_red_bank() {
         },
     };
 
-    mock.update_asset_params(update);
-
     mock.set_price(vault_base_token, Decimal::one(), ActionKind::Default);
+
+    mock.update_asset_params(update);
 
     let health = mock.query_health_values(account_id, ActionKind::Default).unwrap();
     assert_eq!(health.total_debt_value, Uint128::zero());
@@ -340,9 +340,9 @@ fn vault_whitelist_affects_max_ltv() {
         },
     };
 
-    mock.update_asset_params(update);
-
     mock.set_price(vault_base_token, Decimal::one(), ActionKind::Default);
+
+    mock.update_asset_params(update);
 
     let mut vault_config = mock.query_vault_config(&vault.into());
 

@@ -5,8 +5,12 @@ use cosmwasm_std::{
 use cw_storage_plus::Item;
 use mars_owner::OwnerInit::SetInitialOwner;
 use mars_types::{
-    address_provider::{self, MarsAddressType},
-    params::{AssetParams, AssetParamsUpdate, PerpParams, PerpParamsUpdate, VaultConfigUpdate},
+    adapters::oracle::OracleBase,
+    address_provider::{self, helpers::query_contract_addr, MarsAddressType},
+    params::{
+        AssetParams, AssetParamsUpdate, ManagedVaultConfigUpdate, PerpParams, PerpParamsUpdate,
+        VaultConfigUpdate,
+    },
     perps::ExecuteMsg,
     red_bank::{ExecuteMsg as RedBankExecuteMsg, MarketParams, MarketParamsUpdate},
 };
@@ -15,7 +19,8 @@ use mars_utils::helpers::option_string_to_addr;
 use crate::{
     error::{ContractError, ContractResult},
     state::{
-        ADDRESS_PROVIDER, ASSET_PARAMS, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, RISK_MANAGER,
+        ADDRESS_PROVIDER, ASSET_PARAMS, BLACKLISTED_VAULTS, MANAGED_VAULT_CODE_IDS,
+        MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, RISK_MANAGER,
         RISK_MANAGER_KEY, VAULT_CONFIGS,
     },
 };
@@ -68,6 +73,34 @@ pub fn update_config(
     Ok(res)
 }
 
+/// Asserts that the price source is set for the given denom.
+/// Returns an error if the price source is not set.
+/// Helps to prevent updating params without setting the price source first.
+///
+/// # Arguments
+///
+/// * `deps` - The dependencies of the contract.
+/// * `denom` - The denom to check the price source for.
+///
+/// # Returns
+///
+/// * `()` - If the price source is set.
+/// * `ContractError::PriceSourceNotFound` - If the price source is not set.
+fn assert_oracle_price_source(deps: Deps, denom: &str) -> ContractResult<()> {
+    let address_provider = ADDRESS_PROVIDER.load(deps.storage)?;
+    let oracle_addr = query_contract_addr(deps, &address_provider, MarsAddressType::Oracle)?;
+    let oracle_addr_adapter = OracleBase::new(oracle_addr);
+
+    let has_price_source =
+        oracle_addr_adapter.has_price_source(&deps.querier, denom)?.has_price_source;
+    if !has_price_source {
+        return Err(ContractError::PriceSourceNotFound {
+            denom: denom.to_string(),
+        });
+    }
+    Ok(())
+}
+
 pub fn update_asset_params(
     deps: DepsMut,
     info: MessageInfo,
@@ -82,6 +115,8 @@ pub fn update_asset_params(
             params: unchecked,
         } => {
             let params = unchecked.check(deps.api)?;
+
+            assert_oracle_price_source(deps.as_ref(), &params.denom)?;
 
             // Risk manager cannot change the liquidation threshold
             permission.validate_asset_liquidation_threshold_unchanged(&params)?;
@@ -158,6 +193,8 @@ pub fn update_perp_params(
             params,
         } => {
             let checked = params.check()?;
+
+            assert_oracle_price_source(deps.as_ref(), &checked.denom)?;
 
             // Risk manager cannot change the liquidation threshold
             permission.validate_perps_liquidation_threshold_unchanged(&checked)?;
@@ -293,4 +330,77 @@ impl<'a> Permission<'a> {
         }
         Ok(())
     }
+}
+
+pub fn update_managed_vault_config(
+    deps: DepsMut,
+    info: MessageInfo,
+    update: ManagedVaultConfigUpdate,
+) -> ContractResult<Response> {
+    let _permission = Permission::new(deps.as_ref(), &info.sender)?;
+
+    let mut response = Response::new().add_attribute("action", "update_managed_vault_config");
+
+    match update {
+        ManagedVaultConfigUpdate::AddCodeId(code_id) => {
+            let mut code_ids = MANAGED_VAULT_CODE_IDS.may_load(deps.storage)?.unwrap_or_default();
+
+            if !code_ids.code_ids.contains(&code_id) {
+                code_ids.code_ids.push(code_id);
+                MANAGED_VAULT_CODE_IDS.save(deps.storage, &code_ids)?;
+
+                response = response
+                    .add_attribute("action_type", "add_code_id")
+                    .add_attribute("code_id", code_id.to_string());
+            }
+        }
+        ManagedVaultConfigUpdate::RemoveCodeId(code_id) => {
+            let mut code_ids = MANAGED_VAULT_CODE_IDS.may_load(deps.storage)?.unwrap_or_default();
+
+            if let Some(index) = code_ids.code_ids.iter().position(|id| *id == code_id) {
+                code_ids.code_ids.remove(index);
+                MANAGED_VAULT_CODE_IDS.save(deps.storage, &code_ids)?;
+
+                response = response
+                    .add_attribute("action_type", "remove_code_id")
+                    .add_attribute("code_id", code_id.to_string());
+            }
+        }
+        ManagedVaultConfigUpdate::SetMinCreationFeeInUusd(min_creation_fee_in_uusd) => {
+            MANAGED_VAULT_MIN_CREATION_FEE_IN_UUSD.save(deps.storage, &min_creation_fee_in_uusd)?;
+            response = response
+                .add_attribute("action_type", "set_min_creation_fee_in_uusd")
+                .add_attribute("min_creation_fee_in_uusd", min_creation_fee_in_uusd.to_string());
+        }
+        ManagedVaultConfigUpdate::AddVaultToBlacklist(vault_addr) => {
+            let mut blacklisted_vaults =
+                BLACKLISTED_VAULTS.may_load(deps.storage)?.unwrap_or_default();
+            let addr = deps.api.addr_validate(&vault_addr)?;
+
+            if !blacklisted_vaults.vaults.contains(&addr) {
+                blacklisted_vaults.vaults.push(addr);
+                BLACKLISTED_VAULTS.save(deps.storage, &blacklisted_vaults)?;
+
+                response = response
+                    .add_attribute("action_type", "add_blacklisted_vault")
+                    .add_attribute("vault_addr", vault_addr);
+            }
+        }
+        ManagedVaultConfigUpdate::RemoveVaultFromBlacklist(vault_addr) => {
+            let mut blacklisted_vaults =
+                BLACKLISTED_VAULTS.may_load(deps.storage)?.unwrap_or_default();
+            let addr = deps.api.addr_validate(&vault_addr)?;
+
+            if let Some(index) = blacklisted_vaults.vaults.iter().position(|v| v == addr) {
+                blacklisted_vaults.vaults.remove(index);
+                BLACKLISTED_VAULTS.save(deps.storage, &blacklisted_vaults)?;
+
+                response = response
+                    .add_attribute("action_type", "remove_blacklisted_vault")
+                    .add_attribute("vault_addr", vault_addr);
+            }
+        }
+    }
+
+    Ok(response)
 }

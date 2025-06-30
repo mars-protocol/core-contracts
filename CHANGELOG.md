@@ -2,6 +2,40 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased (post v2.2.2-perps)
+
+### Added
+- Support for blacklisting managed vaults in the Credit Manager
+- New `BlacklistedVault` error type in the Credit Manager
+- New test case `vault_cannot_be_used_after_being_blacklisted` to verify blacklist functionality
+- Vault fee improvements
+- Fix protocol fee in deleverage
+
+#### Managed Vault Configuration
+- Added new structs:
+  - `ManagedVaultCodeIds`: Manages allowed code IDs for managed vaults
+  - `BlacklistedVaults`: Tracks blacklisted vault addresses
+
+#### Vault Configuration Updates
+- Added `ManagedVaultConfigUpdate` enum for managing vault configurations:
+  - `AddCodeId(u64)`: Add a new allowed code ID for managed vaults
+  - `RemoveCodeId(u64)`: Remove an allowed code ID for managed vaults
+  - `SetMinCreationFeeInUusd(u128)`: Set the minimum creation fee in micro USDC
+  - `AddVaultToBlacklist(String)`: Add a vault address to the blacklist
+  - `RemoveVaultFromBlacklist(String)`: Remove a vault address from the blacklist
+
+### Other Notable Changes
+- Add PnL Query.
+- Prevent binding of vaults that have an admin.
+- Filter out perps with 0 OI (Open Interest).
+- Extra LP pricing safety.
+- Support for Astroport concentrated duality pools.
+
+#### Contributors
+- See commit log for detailed contributor information.
+
+---
+
 ## v2.2.0 - Neutron Perps release
 
 ### Perps Integration

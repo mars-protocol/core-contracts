@@ -22,7 +22,7 @@ use mars_types::{
         PnlAmounts, PositionFeesResponse, PositionResponse, PositionsByAccountResponse, TradingFee,
         VaultPositionResponse, VaultResponse,
     },
-    rewards_collector,
+    rewards_collector::{self, RewardConfig, TransferType},
 };
 
 use super::{
@@ -711,12 +711,22 @@ impl MockEnvBuilder {
                     owner: self.deployer.clone().to_string(),
                     address_provider: address_provider.to_string(),
                     safety_tax_rate: Default::default(),
-                    safety_fund_denom: "safety-fund-denom".to_string(),
-                    fee_collector_denom: "fee-collector-denom".to_string(),
+                    revenue_share_tax_rate: Default::default(),
+                    safety_fund_config: RewardConfig {
+                        target_denom: "uusdc".to_string(),
+                        transfer_type: TransferType::Bank,
+                    },
+                    revenue_share_config: RewardConfig {
+                        target_denom: "uusdc".to_string(),
+                        transfer_type: TransferType::Bank,
+                    },
+                    fee_collector_config: RewardConfig {
+                        target_denom: "umars".to_string(),
+                        transfer_type: TransferType::Ibc,
+                    },
                     channel_id: "".to_string(),
                     timeout_seconds: 1,
                     slippage_tolerance: Default::default(),
-                    neutron_ibc_config: None,
                 },
                 &[],
                 "mock-rewards-collector",

@@ -326,6 +326,80 @@ pub enum Action {
     RefundAllCoinBalances {},
 }
 
+impl Action {
+    pub fn is_allowed_for_usdc_margin(&self) -> bool {
+        match self {
+            // Allowed actions
+            Action::Deposit(..) => true,
+            Action::Withdraw(..) => true,
+            Action::DepositToPerpVault {
+                ..
+            } => true,
+            Action::WithdrawToWallet {
+                ..
+            } => true,
+            Action::UnlockFromPerpVault {
+                ..
+            } => true,
+            Action::WithdrawFromPerpVault {
+                ..
+            } => true,
+            Action::CreateTriggerOrder {
+                ..
+            } => true,
+            Action::DeleteTriggerOrder {
+                ..
+            } => true,
+            Action::ExecutePerpOrder {
+                ..
+            } => true,
+            Action::RefundAllCoinBalances {} => true,
+
+            // Forbidden actions
+            Action::Borrow(..) => false,
+            Action::Lend(..) => false,
+            Action::Reclaim(..) => false,
+            Action::ClaimRewards {} => false,
+            Action::EnterVault {
+                ..
+            } => false,
+            Action::ExitVault {
+                ..
+            } => false,
+            Action::RequestVaultUnlock {
+                ..
+            } => false,
+            Action::ExitVaultUnlocked {
+                ..
+            } => false,
+            Action::ProvideLiquidity {
+                ..
+            } => false,
+            Action::WithdrawLiquidity {
+                ..
+            } => false,
+            Action::StakeAstroLp {
+                ..
+            } => false,
+            Action::UnstakeAstroLp {
+                ..
+            } => false,
+            Action::ClaimAstroLpRewards {
+                ..
+            } => false,
+            Action::Liquidate {
+                ..
+            } => false,
+            Action::SwapExactIn {
+                ..
+            } => false,
+            Action::Repay {
+                ..
+            } => false,
+        }
+    }
+}
+
 /// Internal actions made by the contract with pre-validated inputs
 #[cw_serde]
 pub enum CallbackMsg {

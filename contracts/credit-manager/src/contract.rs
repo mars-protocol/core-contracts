@@ -177,11 +177,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    match msg {
-        MigrateMsg::V2_1_0ToV2_2_0 {} => migrations::v2_2_0::migrate(deps),
-        MigrateMsg::V2_2_0ToV2_2_1 {
-            max_trigger_orders,
-        } => migrations::v2_2_1::migrate(deps, max_trigger_orders),
-    }
+pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
+    migrations::v2_2_3::migrate(deps)
 }

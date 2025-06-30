@@ -5,6 +5,7 @@ pub mod execute;
 pub mod instantiate;
 pub mod msg;
 pub mod performance_fee;
+pub mod pnl;
 pub mod query;
 pub mod state;
 pub mod token_factory;

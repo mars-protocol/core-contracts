@@ -15,7 +15,8 @@ use mars_types::{
         AccountKind, BorrowTarget, Health,
         HealthError::{
             DenomNotPresent, MissingAmount, MissingAssetParams, MissingHLSParams,
-            MissingPerpParams, MissingPrice, MissingVaultConfig, MissingVaultValues,
+            MissingPerpParams, MissingPrice, MissingUSDCMarginParams, MissingVaultConfig,
+            MissingVaultValues,
         },
         HealthResult, LiquidationPriceKind, SwapKind,
     },
@@ -154,6 +155,7 @@ impl HealthComputer {
                     AccountKind::FundManager {
                         ..
                     } => params.max_loan_to_value,
+                    AccountKind::UsdcMargin => params.max_loan_to_value,
                     AccountKind::HighLeveredStrategy => {
                         params
                             .credit_manager
@@ -401,6 +403,7 @@ impl HealthComputer {
             AccountKind::FundManager {
                 ..
             } => params.max_loan_to_value,
+            AccountKind::UsdcMargin => params.max_loan_to_value,
             AccountKind::HighLeveredStrategy => {
                 params
                     .credit_manager
@@ -483,6 +486,7 @@ impl HealthComputer {
                         AccountKind::FundManager {
                             ..
                         } => *max_loan_to_value,
+                        AccountKind::UsdcMargin => *max_loan_to_value,
                         AccountKind::HighLeveredStrategy => {
                             hls.as_ref()
                                 .ok_or(MissingHLSParams(addr.to_string()))?
@@ -578,7 +582,12 @@ impl HealthComputer {
         let opening_fee_rate = perp_params.opening_fee_rate;
         let skew_scale = perp_params.skew_scale;
         let ltv_base_denom = self.get_coin_max_ltv(base_denom)?;
-        let ltv_p = perp_params.max_loan_to_value;
+        let ltv_p = match self.kind {
+            AccountKind::UsdcMargin => perp_params
+                .max_loan_to_value_usdc
+                .ok_or(MissingUSDCMarginParams(self.kind.to_string()))?,
+            _ => perp_params.max_loan_to_value,
+        };
 
         // The max position change amount afforded by the open interest caps, in the given direction
         let max_oi_change_amount = calculate_remaining_oi_amount(
@@ -1028,13 +1037,10 @@ impl HealthComputer {
                 max_ltv_adjusted_collateral.checked_add(max_ltv_adjusted)?;
 
             let checked_liquidation_threshold = match self.kind {
-                AccountKind::Default => *liquidation_threshold,
-                AccountKind::FundManager {
-                    ..
-                } => *liquidation_threshold,
                 AccountKind::HighLeveredStrategy => {
                     hls.as_ref().ok_or(MissingHLSParams(c.denom.clone()))?.liquidation_threshold
                 }
+                _ => *liquidation_threshold,
             };
             let liq_adjusted = coin_value.checked_mul_floor(checked_liquidation_threshold)?;
             liq_ltv_adjusted_collateral = liq_ltv_adjusted_collateral.checked_add(liq_adjusted)?;
@@ -1085,6 +1091,7 @@ impl HealthComputer {
                     return Ok(None);
                 }
             }
+            AccountKind::UsdcMargin => {}
             AccountKind::Default => {}
             AccountKind::FundManager {
                 ..
@@ -1131,6 +1138,7 @@ impl HealthComputer {
             let checked_vault_max_ltv = if *whitelisted && base_params.credit_manager.whitelisted {
                 match self.kind {
                     AccountKind::Default => *max_loan_to_value,
+                    AccountKind::UsdcMargin => *max_loan_to_value,
                     AccountKind::FundManager {
                         ..
                     } => *max_loan_to_value,
@@ -1150,6 +1158,7 @@ impl HealthComputer {
 
             let checked_liquidation_threshold = match self.kind {
                 AccountKind::Default => *liquidation_threshold,
+                AccountKind::UsdcMargin => *liquidation_threshold,
                 AccountKind::FundManager {
                     ..
                 } => *liquidation_threshold,
@@ -1220,7 +1229,16 @@ impl HealthComputer {
             return Ok(Decimal::zero());
         }
 
-        Ok(params.max_loan_to_value)
+        match self.kind {
+            AccountKind::Default => Ok(params.max_loan_to_value),
+            AccountKind::UsdcMargin => Ok(params
+                .max_loan_to_value_usdc
+                .ok_or(MissingUSDCMarginParams(self.kind.to_string()))?),
+            AccountKind::FundManager {
+                ..
+            } => Ok(params.max_loan_to_value),
+            _ => Ok(params.max_loan_to_value),
+        }
     }
 
     fn get_perp_liq_ltv(&self, denom: &str) -> HealthResult<Decimal> {
@@ -1231,7 +1249,16 @@ impl HealthComputer {
             return Ok(Decimal::zero());
         }
 
-        Ok(params.liquidation_threshold)
+        match self.kind {
+            AccountKind::Default => Ok(params.liquidation_threshold),
+            AccountKind::UsdcMargin => Ok(params
+                .liquidation_threshold_usdc
+                .ok_or(MissingUSDCMarginParams(self.kind.to_string()))?),
+            AccountKind::FundManager {
+                ..
+            } => Ok(params.liquidation_threshold),
+            _ => Ok(params.liquidation_threshold),
+        }
     }
 
     fn get_coin_max_ltv(&self, denom: &str) -> HealthResult<Decimal> {
@@ -1246,6 +1273,7 @@ impl HealthComputer {
 
                 match self.kind {
                     AccountKind::Default => Ok(params.max_loan_to_value),
+                    AccountKind::UsdcMargin => Ok(params.max_loan_to_value),
                     AccountKind::FundManager {
                         ..
                     } => Ok(params.max_loan_to_value),
@@ -1276,6 +1304,7 @@ impl HealthComputer {
 
                 match self.kind {
                     AccountKind::Default => Ok(params.liquidation_threshold),
+                    AccountKind::UsdcMargin => Ok(params.liquidation_threshold),
                     AccountKind::FundManager {
                         ..
                     } => Ok(params.liquidation_threshold),

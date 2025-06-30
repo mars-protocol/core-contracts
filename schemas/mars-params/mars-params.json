@@ -1,6 +1,6 @@
 {
   "contract_name": "mars-params",
-  "contract_version": "2.2.1",
+  "contract_version": "2.2.3",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -152,6 +152,18 @@
         "properties": {
           "emergency_update": {
             "$ref": "#/definitions/EmergencyUpdate"
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "update_managed_vault_config"
+        ],
+        "properties": {
+          "update_managed_vault_config": {
+            "$ref": "#/definitions/ManagedVaultConfigUpdate"
           }
         },
         "additionalProperties": false
@@ -531,6 +543,76 @@
         },
         "additionalProperties": false
       },
+      "ManagedVaultConfigUpdate": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "add_code_id"
+            ],
+            "properties": {
+              "add_code_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "remove_code_id"
+            ],
+            "properties": {
+              "remove_code_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "set_min_creation_fee_in_uusd"
+            ],
+            "properties": {
+              "set_min_creation_fee_in_uusd": {
+                "type": "integer",
+                "format": "uint128",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "add_vault_to_blacklist"
+            ],
+            "properties": {
+              "add_vault_to_blacklist": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "remove_vault_from_blacklist"
+            ],
+            "properties": {
+              "remove_vault_from_blacklist": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "OwnerUpdate": {
         "oneOf": [
           {
@@ -648,19 +730,36 @@
               }
             ]
           },
-          "max_funding_velocity": {
-            "description": "Determines the maximum rate at which funding can be adjusted",
-            "allOf": [
+          "liquidation_threshold_usdc": {
+            "description": "LTV at which a position becomes liquidatable for USDC margin accounts.",
+            "anyOf": [
               {
                 "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
               }
             ]
+          },
+          "max_funding_velocity": {
+            "$ref": "#/definitions/Decimal"
           },
           "max_loan_to_value": {
             "description": "Max loan to position value for the position.",
             "allOf": [
               {
                 "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "max_loan_to_value_usdc": {
+            "description": "Max loan to position value for the position for USDC margin accounts.",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -951,6 +1050,19 @@
         ],
         "properties": {
           "config": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
+          "managed_vault_config"
+        ],
+        "properties": {
+          "managed_vault_config": {
             "type": "object",
             "additionalProperties": false
           }
@@ -1888,19 +2000,36 @@
                 }
               ]
             },
-            "max_funding_velocity": {
-              "description": "Determines the maximum rate at which funding can be adjusted",
-              "allOf": [
+            "liquidation_threshold_usdc": {
+              "description": "LTV at which a position becomes liquidatable for USDC margin accounts.",
+              "anyOf": [
                 {
                   "$ref": "#/definitions/Decimal"
+                },
+                {
+                  "type": "null"
                 }
               ]
+            },
+            "max_funding_velocity": {
+              "$ref": "#/definitions/Decimal"
             },
             "max_loan_to_value": {
               "description": "Max loan to position value for the position.",
               "allOf": [
                 {
                   "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "max_loan_to_value_usdc": {
+              "description": "Max loan to position value for the position for USDC margin accounts.",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                },
+                {
+                  "type": "null"
                 }
               ]
             },
@@ -2050,19 +2179,36 @@
                 }
               ]
             },
-            "max_funding_velocity": {
-              "description": "Determines the maximum rate at which funding can be adjusted",
-              "allOf": [
+            "liquidation_threshold_usdc": {
+              "description": "LTV at which a position becomes liquidatable for USDC margin accounts.",
+              "anyOf": [
                 {
                   "$ref": "#/definitions/Decimal"
+                },
+                {
+                  "type": "null"
                 }
               ]
+            },
+            "max_funding_velocity": {
+              "$ref": "#/definitions/Decimal"
             },
             "max_loan_to_value": {
               "description": "Max loan to position value for the position.",
               "allOf": [
                 {
                   "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "max_loan_to_value_usdc": {
+              "description": "Max loan to position value for the position for USDC margin accounts.",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                },
+                {
+                  "type": "null"
                 }
               ]
             },
@@ -2813,6 +2959,41 @@
       },
       "additionalProperties": false
     },
+    "managed_vault_config": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ManagedVaultConfigResponse",
+      "type": "object",
+      "required": [
+        "blacklisted_vaults",
+        "code_ids",
+        "min_creation_fee_in_uusd"
+      ],
+      "properties": {
+        "blacklisted_vaults": {
+          "description": "List of blacklisted vaults",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "code_ids": {
+          "description": "List of code ids for managed vaults",
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0.0
+          }
+        },
+        "min_creation_fee_in_uusd": {
+          "description": "Minimum creation fee in uusd for managed vaults",
+          "type": "integer",
+          "format": "uint128",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
     "owner": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "OwnerResponse",
@@ -2893,19 +3074,36 @@
             }
           ]
         },
-        "max_funding_velocity": {
-          "description": "Determines the maximum rate at which funding can be adjusted",
-          "allOf": [
+        "liquidation_threshold_usdc": {
+          "description": "LTV at which a position becomes liquidatable for USDC margin accounts.",
+          "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
+            },
+            {
+              "type": "null"
             }
           ]
+        },
+        "max_funding_velocity": {
+          "$ref": "#/definitions/Decimal"
         },
         "max_loan_to_value": {
           "description": "Max loan to position value for the position.",
           "allOf": [
             {
               "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "max_loan_to_value_usdc": {
+          "description": "Max loan to position value for the position for USDC margin accounts.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            },
+            {
+              "type": "null"
             }
           ]
         },

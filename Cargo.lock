@@ -2148,7 +2148,7 @@ dependencies = [
 
 [[package]]
 name = "mars-address-provider"
-version = "2.2.1"
+version = "2.2.2"
 dependencies = [
  "bech32 0.11.0",
  "cosmwasm-schema",
@@ -2164,7 +2164,7 @@ dependencies = [
 
 [[package]]
 name = "mars-credit-manager"
-version = "2.2.0"
+version = "2.2.3"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -2403,7 +2403,7 @@ dependencies = [
 
 [[package]]
 name = "mars-oracle-wasm"
-version = "2.2.0"
+version = "2.2.3"
 dependencies = [
  "astroport 2.9.0",
  "astroport 5.2.0",
@@ -2449,7 +2449,7 @@ dependencies = [
 
 [[package]]
 name = "mars-params"
-version = "2.2.1"
+version = "2.2.3"
 dependencies = [
  "anyhow",
  "astroport 5.2.0",
@@ -2476,7 +2476,7 @@ dependencies = [
 
 [[package]]
 name = "mars-perps"
-version = "2.2.0"
+version = "2.2.3"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -2552,9 +2552,11 @@ dependencies = [
 
 [[package]]
 name = "mars-rewards-collector-neutron"
-version = "2.2.0"
+version = "2.2.2"
 dependencies = [
+ "cosmwasm-schema",
  "cosmwasm-std",
+ "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "mars-rewards-collector-base",
  "mars-testing",
@@ -2564,7 +2566,7 @@ dependencies = [
 
 [[package]]
 name = "mars-rewards-collector-osmosis"
-version = "2.2.0"
+version = "2.1.1"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -2578,6 +2580,7 @@ dependencies = [
  "mars-utils",
  "osmosis-std 0.22.0",
  "serde",
+ "test-case",
 ]
 
 [[package]]
@@ -2789,13 +2792,14 @@ dependencies = [
  "mars-types",
  "mars-utils",
  "osmosis-std 0.22.0",
+ "proptest",
  "test-case",
  "thiserror",
 ]
 
 [[package]]
 name = "mars-zapper-astroport"
-version = "2.2.0"
+version = "2.2.3"
 dependencies = [
  "anyhow",
  "apollo-cw-asset",

@@ -616,7 +616,7 @@ pub fn apply_pnl_and_fees(
     unrealized_pnl: &PnlAmounts,
     attrs: &mut Vec<Attribute>,
     msgs: &mut Vec<CosmosMsg>,
-) -> ContractResult<()> {
+) -> ContractResult<Uint128> {
     // Update realized pnl with total fees
     realized_pnl.add(unrealized_pnl)?;
 
@@ -646,7 +646,7 @@ pub fn apply_pnl_and_fees(
     // closing_fee = -4
     // price_pnl = 10
     // funding = -1
-    // pnl = opening_fee + closing_fee + funding + price_pnl = -3
+    // pnl = opening_fee + closing_fee + funding + price_pnl = -2 + (-4) + (-1) + 10 = 3
     //
     // protocol_fee_rate = 50%
     //
@@ -657,17 +657,17 @@ pub fn apply_pnl_and_fees(
     // protocol_opening_fee = 1
     // protocol_closing_fee = 2
     // total_protocol_fee = 3
-    // pnl_without_protocol = -6
+    // pnl_without_protocol = -1 + (-2) + (-1) + 10 = 6
     //
-    // pnl - protocol_opening_fee - protocol_closing_fee = -3 - 1 - 2 = -6 which is equal to pnl_without_protocol
+    // pnl + protocol_opening_fee + protocol_closing_fee = 3 + 1 + 2 = 6 which is equal to pnl_without_protocol
 
     let pnl_without_protocol_fee = PnlAmounts {
         opening_fee: unrealized_pnl.opening_fee.checked_add(protocol_opening_fee.try_into()?)?,
         closing_fee: unrealized_pnl.closing_fee.checked_add(protocol_closing_fee.try_into()?)?,
         pnl: unrealized_pnl
             .pnl
-            .checked_sub(protocol_opening_fee.try_into()?)?
-            .checked_sub(protocol_closing_fee.try_into()?)?,
+            .checked_add(protocol_opening_fee.try_into()?)?
+            .checked_add(protocol_closing_fee.try_into()?)?,
         ..unrealized_pnl.clone()
     };
 
@@ -681,7 +681,7 @@ pub fn apply_pnl_and_fees(
     attrs.push(Attribute::new("protocol_opening_fee", protocol_opening_fee.to_string()));
     attrs.push(Attribute::new("protocol_closing_fee", protocol_closing_fee.to_string()));
 
-    Ok(())
+    Ok(total_protocol_fee)
 }
 
 /// Applies payments to the credit manager if necessary based on the PnL and paid amount.

@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response,
 };
 use mars_owner::OwnerInit;
 use mars_types::{
@@ -12,6 +12,7 @@ use crate::{
     error::{ContractError, ContractResult},
     initialize::initialize,
     market_management::update_market,
+    migrations,
     position_management::{close_all_positions, execute_order},
     query::{
         query_config, query_market, query_market_accounting, query_market_state, query_markets,
@@ -185,4 +186,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         } => to_json_binary(&query_market_state(deps.storage, denom)?),
     }
     .map_err(Into::into)
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
+    migrations::v2_2_3::migrate(deps)
 }

@@ -105,6 +105,9 @@ impl MockEnvBuilder {
                 None,
             )
             .unwrap();
+
+        self.set_address(MarsAddressType::Oracle, addr.clone());
+
         self.oracle = Some(addr);
     }
 
@@ -276,7 +279,7 @@ impl MockEnvBuilder {
         let contract_code_id = self.app.store_code(mock_params_contract());
         let owner = self.deployer.clone();
 
-        let address_provider_addr = self.get_address_provider();
+        let address_provider = self.get_address_provider();
 
         let addr = self
             .app
@@ -286,7 +289,7 @@ impl MockEnvBuilder {
                 &ParamsInstantiateMsg {
                     owner: owner.to_string(),
                     risk_manager: None,
-                    address_provider: address_provider_addr.to_string(),
+                    address_provider: address_provider.to_string(),
                     max_perp_params: 40,
                 },
                 &[],
@@ -357,5 +360,49 @@ impl MockEnvBuilder {
             )
             .unwrap();
         self.health_contract = Some(addr);
+    }
+
+    fn set_address(&mut self, address_type: MarsAddressType, address: Addr) {
+        let address_provider_addr = self.get_address_provider();
+
+        self.app
+            .execute_contract(
+                self.deployer.clone(),
+                address_provider_addr,
+                &address_provider::ExecuteMsg::SetAddress {
+                    address_type,
+                    address: address.into(),
+                },
+                &[],
+            )
+            .unwrap();
+    }
+
+    fn get_address_provider(&mut self) -> Addr {
+        if self.address_provider.is_none() {
+            let addr = self.deploy_address_provider();
+
+            self.address_provider = Some(addr);
+        }
+        self.address_provider.clone().unwrap()
+    }
+
+    fn deploy_address_provider(&mut self) -> Addr {
+        let contract = mock_address_provider_contract();
+        let code_id = self.app.store_code(contract);
+
+        self.app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &address_provider::InstantiateMsg {
+                    owner: self.deployer.clone().to_string(),
+                    prefix: "".to_string(),
+                },
+                &[],
+                "mock-address-provider",
+                None,
+            )
+            .unwrap()
     }
 }

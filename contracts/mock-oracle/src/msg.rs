@@ -42,4 +42,9 @@ pub enum QueryMsg {
         denoms: Vec<String>,
         kind: Option<ActionKind>,
     },
+
+    #[returns(mars_types::oracle::HasPriceSourceResponse)]
+    HasPriceSource {
+        denom: String,
+    },
 }

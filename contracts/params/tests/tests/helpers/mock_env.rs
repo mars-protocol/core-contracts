@@ -4,17 +4,19 @@ use anyhow::Result as AnyResult;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use cw_multi_test::{App, AppResponse, BasicApp, Executor};
 use cw_paginate::PaginationResponse;
+use mars_oracle_osmosis::OsmosisPriceSourceUnchecked;
 use mars_owner::{OwnerResponse, OwnerUpdate};
 use mars_types::{
     address_provider::{self, AddressResponseItem, MarsAddressType},
     incentives, oracle,
     params::{
         AssetParams, AssetParamsUpdate, ConfigResponse, EmergencyUpdate, ExecuteMsg,
-        InstantiateMsg, PerpParams, PerpParamsUpdate, QueryMsg, VaultConfig, VaultConfigUpdate,
+        InstantiateMsg, ManagedVaultConfigResponse, ManagedVaultConfigUpdate, PerpParams,
+        PerpParamsUpdate, QueryMsg, VaultConfig, VaultConfigUpdate,
     },
     perps::{self, Config},
     red_bank::{self, Market},
-    rewards_collector,
+    rewards_collector::{self, RewardConfig, TransferType},
 };
 
 use super::contracts::{
@@ -25,11 +27,14 @@ use super::contracts::{
 
 pub struct MockEnv {
     pub app: BasicApp,
+    pub deployer: Addr,
     pub params_contract: Addr,
     pub address_provider_contract: Addr,
     pub red_bank_contract: Addr,
+    pub oracle: Addr,
 }
 
+#[allow(dead_code)]
 pub struct MockEnvBuilder {
     pub app: BasicApp,
     pub deployer: Addr,
@@ -143,6 +148,19 @@ impl MockEnv {
         )
     }
 
+    pub fn update_managed_vault_config(
+        &mut self,
+        sender: &Addr,
+        update: ManagedVaultConfigUpdate,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.params_contract.clone(),
+            &ExecuteMsg::UpdateManagedVaultConfig(update),
+            &[],
+        )
+    }
+
     pub fn emergency_update(
         &mut self,
         sender: &Addr,
@@ -154,6 +172,22 @@ impl MockEnv {
             &ExecuteMsg::EmergencyUpdate(update),
             &[],
         )
+    }
+
+    pub fn set_price_source_fixed(&mut self, denom: &str, price: Decimal) {
+        self.app
+            .execute_contract(
+                self.deployer.clone(),
+                self.oracle.clone(),
+                &oracle::ExecuteMsg::<_, Empty>::SetPriceSource {
+                    denom: denom.to_string(),
+                    price_source: OsmosisPriceSourceUnchecked::Fixed {
+                        price,
+                    },
+                },
+                &[],
+            )
+            .unwrap();
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -323,6 +357,13 @@ impl MockEnv {
             .unwrap()
     }
 
+    pub fn query_managed_vault_config(&self) -> ManagedVaultConfigResponse {
+        self.app
+            .wrap()
+            .query_wasm_smart(self.params_contract.clone(), &QueryMsg::ManagedVaultConfig {})
+            .unwrap()
+    }
+
     pub fn query_perp_config(&self) -> Config<Addr> {
         let perps_address: AddressResponseItem = self
             .app
@@ -360,7 +401,7 @@ impl MockEnvBuilder {
     pub fn build_with_risk_manager(&mut self, risk_manager: Option<String>) -> AnyResult<MockEnv> {
         let address_provider_contract = self.get_address_provider();
         self.deploy_perps(address_provider_contract.as_str());
-        self.deploy_oracle();
+        let oracle_contract = self.deploy_oracle();
         let red_bank_contract = self.deploy_red_bank(address_provider_contract.as_str());
         self.deploy_incentives(&address_provider_contract);
         self.deploy_rewards_collector_osmosis(&address_provider_contract);
@@ -389,9 +430,11 @@ impl MockEnvBuilder {
 
         Ok(MockEnv {
             app: take(&mut self.app),
+            deployer: self.deployer.clone(),
             params_contract,
             address_provider_contract,
             red_bank_contract,
+            oracle: oracle_contract,
         })
     }
 
@@ -530,12 +573,22 @@ impl MockEnvBuilder {
                     owner: self.deployer.to_string(),
                     address_provider: address_provider_addr.to_string(),
                     safety_tax_rate: Decimal::percent(50),
-                    safety_fund_denom: "uusdc".to_string(),
-                    fee_collector_denom: "umars".to_string(),
+                    revenue_share_tax_rate: Decimal::percent(50),
+                    safety_fund_config: RewardConfig {
+                        target_denom: "uusdc".to_string(),
+                        transfer_type: TransferType::Bank,
+                    },
+                    revenue_share_config: RewardConfig {
+                        target_denom: "uusdc".to_string(),
+                        transfer_type: TransferType::Bank,
+                    },
+                    fee_collector_config: RewardConfig {
+                        target_denom: "uusdc".to_string(),
+                        transfer_type: TransferType::Bank,
+                    },
                     channel_id: "0".to_string(),
                     timeout_seconds: 900,
                     slippage_tolerance: Decimal::percent(10),
-                    neutron_ibc_config: None,
                 },
                 &[],
                 "rewards-collector",

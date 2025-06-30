@@ -39,6 +39,9 @@ export type ExecuteMsg =
   | {
       emergency_update: EmergencyUpdate
     }
+  | {
+      update_managed_vault_config: ManagedVaultConfigUpdate
+    }
 export type OwnerUpdate =
   | {
       propose_new_owner: {
@@ -122,6 +125,22 @@ export type PerpsEmergencyUpdate =
   | {
       disable_counterparty_vault_withdraw: []
     }
+export type ManagedVaultConfigUpdate =
+  | {
+      add_code_id: number
+    }
+  | {
+      remove_code_id: number
+    }
+  | {
+      set_min_creation_fee_in_uusd: number
+    }
+  | {
+      add_vault_to_blacklist: string
+    }
+  | {
+      remove_vault_from_blacklist: string
+    }
 export interface AssetParamsBaseForString {
   close_factor: Decimal
   credit_manager: CmSettingsForString
@@ -180,8 +199,10 @@ export interface PerpParams {
   denom: string
   enabled: boolean
   liquidation_threshold: Decimal
+  liquidation_threshold_usdc?: Decimal | null
   max_funding_velocity: Decimal
   max_loan_to_value: Decimal
+  max_loan_to_value_usdc?: Decimal | null
   max_long_oi_value: Uint128
   max_net_oi_value: Uint128
   max_position_value?: Uint128 | null
@@ -199,6 +220,9 @@ export type QueryMsg =
     }
   | {
       config: {}
+    }
+  | {
+      managed_vault_config: {}
     }
   | {
       asset_params: {
@@ -336,6 +360,11 @@ export type NullableAssetParamsBaseForAddr = AssetParamsBaseForAddr | null
 export interface ConfigResponse {
   address_provider: string
   max_perp_params: number
+}
+export interface ManagedVaultConfigResponse {
+  blacklisted_vaults: string[]
+  code_ids: number[]
+  min_creation_fee_in_uusd: number
 }
 export interface OwnerResponse {
   abolished: boolean
