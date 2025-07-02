@@ -47,11 +47,10 @@ pub fn swap_exact_in(
         ChangeExpected::Increase,
     )?;
 
-    // Set the swapper as either Astroport, Osmosis, or Duality
+    // If this is a duality specific route, use the duality swapper, otherwise use the default swapper
     let swapper = match route {
-        Some(SwapperRoute::Astro(_)) | Some(SwapperRoute::Osmo(_)) => SWAPPER.load(deps.storage)?,
         Some(SwapperRoute::Duality(_)) => DUALITY_SWAPPER.load(deps.storage)?,
-        None => SWAPPER.load(deps.storage)?, // Default to standard swapper
+        _ => SWAPPER.load(deps.storage)?, 
     };
 
     Ok(Response::new()
