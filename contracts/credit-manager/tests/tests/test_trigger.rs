@@ -4,6 +4,7 @@ use anyhow::Error;
 use cosmwasm_std::{Addr, Coin, Decimal, Int128, OverflowError, OverflowOperation, Uint128};
 use cw_multi_test::AppResponse;
 use mars_credit_manager::error::ContractError;
+use mars_mock_oracle::msg::CoinPrice;
 use mars_testing::multitest::helpers::AccountToFund;
 use mars_types::{
     credit_manager::{
@@ -16,6 +17,7 @@ use mars_types::{
         CreateTriggerOrderType, ExecutePerpOrderType, LiquidateRequest, TriggerOrder,
         TriggerOrderResponse,
     },
+    oracle::ActionKind,
     params::PerpParamsUpdate,
 };
 use test_case::test_case;
@@ -172,6 +174,12 @@ fn close_perp_position_action_whitelisted_in_trigger_orders() {
         })
         .build()
         .unwrap();
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: "perp1".to_string(),
+        price: Decimal::from_str("100").unwrap(),
+    });
 
     mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
         params: default_perp_params("perp1"),

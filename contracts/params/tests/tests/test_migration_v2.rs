@@ -4,12 +4,16 @@ use cosmwasm_std::{attr, Addr, Decimal, Event, Order, StdResult, Uint128};
 use cw2::{ContractVersion, VersionError};
 use mars_params::{
     error::ContractError,
-    migrations::{self, v2_2_0::v2_1_0_state},
-    state::{ASSET_PARAMS, OWNER, RISK_MANAGER},
+    migrations::{self, v2_3_0::v2_2_0_state},
+    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, RISK_MANAGER},
 };
 use mars_testing::mock_dependencies;
-use mars_types::params::{
-    AssetParams, CmSettings, HlsAssetType, HlsParams, LiquidationBonus, RedBankSettings,
+use mars_types::{
+    params::{
+        AssetParams, CmSettings, HlsAssetType, HlsParams, LiquidationBonus, MigrateMsg,
+        RedBankSettings,
+    },
+    red_bank::{InterestRateModel, Market},
 };
 
 #[test]
@@ -17,7 +21,9 @@ fn wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.2.0").unwrap();
 
-    let err = migrations::v2_2_0::migrate(deps.as_mut(), Decimal::one()).unwrap_err();
+    let err =
+        migrations::v2_3_0::migrate(deps.as_mut(), Decimal::one(), InterestRateModel::default())
+            .unwrap_err();
 
     assert_eq!(
         err,
@@ -33,7 +39,9 @@ fn wrong_contract_version() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "2.0.0").unwrap();
 
-    let err = migrations::v2_2_0::migrate(deps.as_mut(), Decimal::one()).unwrap_err();
+    let err =
+        migrations::v2_3_0::migrate(deps.as_mut(), Decimal::one(), InterestRateModel::default())
+            .unwrap_err();
 
     assert_eq!(
         err,
@@ -70,15 +78,25 @@ fn successful_migration() {
     // Add a market to the querier so we can later verify the migration has set the market params correctly
     deps.querier.set_redbank_market(market_2());
 
+    let (reserve_factor, interest_rate_model) = if let MigrateMsg::V2_3_0 {
+        reserve_factor,
+        interest_rate_model,
+    } = migration_msg()
+    {
+        (reserve_factor, interest_rate_model)
+    } else {
+        panic!("Expected MigrateMsg::V2_3_0")
+    };
+
     let res =
-        migrations::v2_2_0::migrate(deps.as_mut(), Decimal::from_str("0.9").unwrap()).unwrap();
+        migrations::v2_3_0::migrate(deps.as_mut(), reserve_factor, interest_rate_model).unwrap();
 
     assert_eq!(res.messages, vec![]);
     assert_eq!(res.events, vec![] as Vec<Event>);
     assert!(res.data.is_none());
     assert_eq!(
         res.attributes,
-        vec![attr("action", "migrate"), attr("from_version", "2.1.0"), attr("to_version", "2.2.3")]
+        vec![attr("action", "migrate"), attr("from_version", "2.2.0"), attr("to_version", "2.2.3")]
     );
 
     let new_contract_version = ContractVersion {
@@ -102,7 +120,7 @@ fn successful_migration() {
 }
 
 fn migration_msg() -> MigrateMsg {
-    MigrateMsg {
+    MigrateMsg::V2_3_0 {
         reserve_factor: Decimal::percent(49),
         interest_rate_model: InterestRateModel {
             optimal_utilization_rate: Decimal::percent(82u64),
@@ -142,6 +160,17 @@ fn asset_1() -> v2_2_0_state::AssetParams {
 
 fn expected_asset_1() -> AssetParams {
     let migrate_msg = migration_msg();
+
+    let (reserve_factor, interest_rate_model) = if let MigrateMsg::V2_3_0 {
+        reserve_factor,
+        interest_rate_model,
+    } = migrate_msg
+    {
+        (reserve_factor, interest_rate_model)
+    } else {
+        panic!("Expected MigrateMsg::V2_3_0")
+    };
+
     AssetParams {
         denom: "asset_1".to_string(),
         credit_manager: CmSettings {
@@ -165,8 +194,8 @@ fn expected_asset_1() -> AssetParams {
         protocol_liquidation_fee: Decimal::from_str("0.05").unwrap(),
         deposit_cap: Uint128::from(1230000u128),
         close_factor: Decimal::from_str("0.9").unwrap(),
-        reserve_factor: migrate_msg.reserve_factor,
-        interest_rate_model: migrate_msg.interest_rate_model,
+        reserve_factor,
+        interest_rate_model,
     }
 }
 

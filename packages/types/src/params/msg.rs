@@ -204,8 +204,9 @@ pub enum ManagedVaultConfigUpdate {
 
 #[cw_serde]
 pub enum MigrateMsg {
-    V2_2_0 {
-        close_factor: Decimal,
-    },
     V2_2_3 {},
+    V2_3_0 {
+        reserve_factor: Decimal,
+        interest_rate_model: InterestRateModel,
+    },
 }

@@ -353,6 +353,9 @@ impl Action {
             Action::ExecutePerpOrder {
                 ..
             } => true,
+            Action::ClosePerpPosition {
+                ..
+            } => true,
             Action::RefundAllCoinBalances {} => true,
 
             // Forbidden actions

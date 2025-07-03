@@ -583,7 +583,7 @@ impl MockEnvBuilder {
                         transfer_type: TransferType::Bank,
                     },
                     fee_collector_config: RewardConfig {
-                        target_denom: "uusdc".to_string(),
+                        target_denom: "umars".to_string(),
                         transfer_type: TransferType::Bank,
                     },
                     channel_id: "0".to_string(),

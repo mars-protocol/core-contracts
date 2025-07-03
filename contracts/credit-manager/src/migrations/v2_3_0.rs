@@ -3,8 +3,8 @@ use cw2::{assert_contract_version, set_contract_version};
 
 use crate::{contract::CONTRACT_NAME, error::ContractError, state::MAX_TRIGGER_ORDERS};
 
-const FROM_VERSION: &str = "2.2.0";
-const TO_VERSION: &str = "2.2.1";
+const FROM_VERSION: &str = "2.2.3";
+const TO_VERSION: &str = "2.3.0";
 
 pub fn migrate(deps: DepsMut, max_trigger_orders: u8) -> Result<Response, ContractError> {
     // make sure we're migrating the correct contract and from the correct version

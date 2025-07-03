@@ -161,6 +161,7 @@ fn only_owner_can_update_asset_params_reserve_factor() {
 
     // Add asset param as owner
     let mut params = default_asset_params("xyz");
+    mock.set_price_source_fixed("xyz", Decimal::one());
     mock.update_asset_params(
         &mock.query_owner(),
         AssetParamsUpdate::AddOrUpdate {

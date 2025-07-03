@@ -3,7 +3,7 @@ use cw2::{assert_contract_version, set_contract_version};
 use mars_owner::OwnerInit::SetInitialOwner;
 use mars_types::{
     address_provider::{self, MarsAddressType},
-    params::{AssetParams, MigrateMsg},
+    params::AssetParams,
     red_bank::{self, InterestRateModel, Market},
 };
 
@@ -40,7 +40,11 @@ pub mod v2_2_0_state {
     pub const ASSET_PARAMS: Map<&str, AssetParams> = Map::new("asset_params");
 }
 
-pub fn migrate(deps: DepsMut, msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(
+    deps: DepsMut,
+    reserve_factor: Decimal,
+    interest_rate_model: InterestRateModel,
+) -> Result<Response, ContractError> {
     // Make sure we're migrating the correct contract and from the correct version.
     assert_contract_version(deps.storage, &format!("crates.io:{CONTRACT_NAME}"), FROM_VERSION)?;
 
@@ -82,7 +86,7 @@ pub fn migrate(deps: DepsMut, msg: MigrateMsg) -> Result<Response, ContractError
             Some(market) => (market.reserve_factor, market.interest_rate_model),
             None => {
                 // If the market doesn't exist, use the default values
-                (msg.reserve_factor, msg.interest_rate_model.clone())
+                (reserve_factor, interest_rate_model.clone())
             }
         };
 

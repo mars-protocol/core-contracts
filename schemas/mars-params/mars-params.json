@@ -544,6 +544,7 @@
         "additionalProperties": false
       },
       "ManagedVaultConfigUpdate": {
+        "description": "Default values for markets in the Red Bank that have not yet been initialized. These values correspond to markets not currently listed in the Red Bank, but are maintained here to ensure consistency between the Red Bank and the Params contract.",
         "oneOf": [
           {
             "type": "object",

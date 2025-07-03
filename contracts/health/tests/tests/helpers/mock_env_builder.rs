@@ -111,50 +111,6 @@ impl MockEnvBuilder {
         self.oracle = Some(addr);
     }
 
-    fn get_address_provider(&mut self) -> Addr {
-        if self.address_provider.is_none() {
-            let addr = self.deploy_address_provider();
-
-            self.address_provider = Some(addr);
-        }
-        self.address_provider.clone().unwrap()
-    }
-
-    fn deploy_address_provider(&mut self) -> Addr {
-        let contract = mock_address_provider_contract();
-        let code_id = self.app.store_code(contract);
-
-        self.app
-            .instantiate_contract(
-                code_id,
-                self.deployer.clone(),
-                &address_provider::InstantiateMsg {
-                    owner: self.deployer.clone().to_string(),
-                    prefix: "".to_string(),
-                },
-                &[],
-                "mock-address-provider",
-                None,
-            )
-            .unwrap()
-    }
-
-    fn set_address(&mut self, address_type: MarsAddressType, address: Addr) {
-        let address_provider_addr = self.get_address_provider();
-
-        self.app
-            .execute_contract(
-                self.deployer.clone(),
-                address_provider_addr,
-                &address_provider::ExecuteMsg::SetAddress {
-                    address_type,
-                    address: address.into(),
-                },
-                &[],
-            )
-            .unwrap();
-    }
-
     fn get_red_bank(&mut self) -> Addr {
         if self.red_bank.is_none() {
             let addr = self.deploy_red_bank();
