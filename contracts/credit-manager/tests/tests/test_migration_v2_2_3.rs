@@ -1,7 +1,8 @@
-use cosmwasm_std::{attr, testing::mock_env, Empty};
+use cosmwasm_std::{attr, testing::mock_env};
 use cw2::{ContractVersion, VersionError};
 use mars_credit_manager::{contract::migrate, error::ContractError, state::OWNER};
 use mars_testing::mock_dependencies;
+use mars_types::credit_manager::MigrateMsg;
 
 const CONTRACT_NAME: &str = "crates.io:mars-credit-manager";
 const CONTRACT_VERSION: &str = "2.2.3";
@@ -11,7 +12,7 @@ fn wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.2.0").unwrap();
 
-    let err = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_0ToV2_2_3 {}).unwrap_err();
 
     assert_eq!(
         err,
@@ -27,7 +28,7 @@ fn wrong_contract_version() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "2.1.0").unwrap();
 
-    let err = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_0ToV2_2_3 {}).unwrap_err();
 
     assert_eq!(
         err,
@@ -57,7 +58,7 @@ fn successful_migration() {
         .unwrap();
 
     // Execute the migration
-    let res = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap();
+    let res = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_0ToV2_2_3 {}).unwrap();
 
     // Verify the response
     assert_eq!(res.messages, vec![]);

@@ -17,11 +17,13 @@ use mars_types::{
         ExecuteMsg::UpdateVaultConfig, HlsParamsUnchecked, InstantiateMsg as ParamsInstantiateMsg,
         VaultConfigUnchecked, VaultConfigUpdate::AddOrUpdate,
     },
+    red_bank,
 };
 
 use super::{
     mock_address_provider_contract, mock_credit_manager_contract, mock_health_contract,
-    mock_oracle_contract, mock_params_contract, mock_vault_contract, MockEnv,
+    mock_oracle_contract, mock_params_contract, mock_red_bank_contract, mock_vault_contract,
+    MockEnv,
 };
 
 pub struct MockEnvBuilder {
@@ -33,6 +35,7 @@ pub struct MockEnvBuilder {
     pub oracle: Option<Addr>,
     pub params: Option<Addr>,
     pub address_provider: Option<Addr>,
+    pub red_bank: Option<Addr>,
     pub set_cm_config: bool,
 }
 
@@ -48,8 +51,12 @@ impl MockEnvBuilder {
             vault_contract: self.get_vault_contract(),
             oracle: self.get_oracle(),
             cm_contract: self.get_cm_contract(),
-            app: take(&mut self.app),
             params: self.get_params_contract(),
+            address_provider: self.get_address_provider(),
+            red_bank: self.get_red_bank(),
+
+            // Should be last
+            app: take(&mut self.app),
         })
     }
 
@@ -102,6 +109,42 @@ impl MockEnvBuilder {
         self.set_address(MarsAddressType::Oracle, addr.clone());
 
         self.oracle = Some(addr);
+    }
+
+    fn get_red_bank(&mut self) -> Addr {
+        if self.red_bank.is_none() {
+            let addr = self.deploy_red_bank();
+
+            self.red_bank = Some(addr);
+        }
+        self.red_bank.clone().unwrap()
+    }
+
+    fn deploy_red_bank(&mut self) -> Addr {
+        let code_id = self.app.store_code(mock_red_bank_contract());
+
+        let address_provider_addr = self.get_address_provider();
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &red_bank::InstantiateMsg {
+                    owner: self.deployer.to_string(),
+                    config: red_bank::CreateOrUpdateConfig {
+                        address_provider: Some(address_provider_addr.to_string()),
+                    },
+                },
+                &[],
+                "red-bank",
+                None,
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::RedBank, addr.clone());
+
+        addr
     }
 
     fn get_cm_contract(&mut self) -> Addr {

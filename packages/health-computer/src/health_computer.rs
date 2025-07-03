@@ -757,34 +757,56 @@ impl HealthComputer {
         denom: &str,
         base_denom_price: Decimal,
     ) -> HealthResult<(Uint128, Uint128, Uint128)> {
-        let (base_denom_deposits, other_deposits): (Vec<_>, Vec<_>) =
-            self.positions.deposits.iter().partition(|deposit| deposit.denom == base_denom);
+        let Positions {
+            // Destruct Positions so whenever we add new positions we don't forget to add them here
+            account_id: _,
+            account_kind: _,
+            deposits,
+            debts,
+            lends,
+            vaults: _, // Vaults (Osmosis chain) are not considered in account composition for now
+            staked_astro_lps,
+            perps,
+        } = &self.positions;
 
-        // there is only one base denom deposit
+        let (base_denom_deposits, other_deposits): (Vec<_>, Vec<_>) =
+            deposits.iter().partition(|deposit| deposit.denom == base_denom);
+
+        // There is only one base denom deposit
         let account_base_denom_deposits =
             base_denom_deposits.first().map_or(Uint128::zero(), |d| d.amount);
 
         let (base_denom_lends, other_lends): (Vec<_>, Vec<_>) =
-            self.positions.lends.iter().partition(|lend| lend.denom == base_denom);
+            lends.iter().partition(|lend| lend.denom == base_denom);
         let account_base_denom_lends =
             base_denom_lends.first().map_or(Uint128::zero(), |l| l.amount);
 
-        let filtered_perps: Vec<_> =
-            self.positions.perps.iter().filter(|x| x.denom != denom).cloned().collect();
+        let (base_denom_staked_astro_lps, other_staked_astro_lps): (Vec<_>, Vec<_>) =
+            staked_astro_lps.iter().partition(|sal| sal.denom == base_denom);
+        let account_base_denom_staked_astro_lps =
+            base_denom_staked_astro_lps.first().map_or(Uint128::zero(), |s| s.amount);
+
+        let filtered_perps: Vec<_> = perps.iter().filter(|x| x.denom != denom).cloned().collect();
 
         // (named c_usdc in docs + sheet)
         // Refers to the value of collateral the user has in the base_denom (e.g usdc)
         let base_denom_collateral_value = account_base_denom_deposits
             .checked_add(account_base_denom_lends)?
+            .checked_add(account_base_denom_staked_astro_lps)?
             .checked_mul_floor(base_denom_price)?;
 
         let deref_deposits: Vec<Coin> = other_deposits.into_iter().cloned().collect();
         let deref_lends: Vec<Coin> = other_lends.into_iter().cloned().collect();
+        let deref_staked_astro_lps: Vec<Coin> =
+            other_staked_astro_lps.into_iter().cloned().collect();
 
         let assets_ltv_adjusted_value = self
             .coins_value(deref_deposits.as_slice())?
             .max_ltv_adjusted_collateral
             .checked_add(self.coins_value(deref_lends.as_slice())?.max_ltv_adjusted_collateral)?
+            .checked_add(
+                self.coins_value(deref_staked_astro_lps.as_slice())?.max_ltv_adjusted_collateral,
+            )?
             .checked_add(self.vaults_value()?.max_ltv_adjusted_collateral)?;
 
         // Contains denominator / numerator for HF for all perps *excluding* a perp position for given denom
@@ -798,7 +820,7 @@ impl HealthComputer {
         // the position for given denom.
         let mut raw_debt_value = Uint128::zero();
 
-        for d in &self.positions.debts {
+        for d in debts {
             let price = self
                 .oracle_prices
                 .get(&d.denom)

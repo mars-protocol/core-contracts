@@ -3,6 +3,7 @@ use cosmwasm_std::{Decimal, Uint128};
 use mars_owner::OwnerUpdate;
 
 use super::{asset::AssetParamsUnchecked, vault::VaultConfigUnchecked, PerpParams};
+use crate::red_bank::InterestRateModel;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -189,6 +190,9 @@ pub enum EmergencyUpdate {
     Perps(PerpsEmergencyUpdate),
 }
 
+/// Default values for markets in the Red Bank that have not yet been initialized.
+/// These values correspond to markets not currently listed in the Red Bank,
+/// but are maintained here to ensure consistency between the Red Bank and the Params contract.
 #[cw_serde]
 pub enum ManagedVaultConfigUpdate {
     AddCodeId(u64),
@@ -200,8 +204,9 @@ pub enum ManagedVaultConfigUpdate {
 
 #[cw_serde]
 pub enum MigrateMsg {
-    V2_2_0 {
-        close_factor: Decimal,
-    },
     V2_2_3 {},
+    V2_3_0 {
+        reserve_factor: Decimal,
+        interest_rate_model: InterestRateModel,
+    },
 }

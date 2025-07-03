@@ -12,8 +12,8 @@ use mars_types::{
     error::MarsError,
     keys::{UserId, UserIdKey},
     red_bank::{
-        ConfigResponse, CreateOrUpdateConfig, ExecuteMsg, InitOrUpdateAssetParams, InstantiateMsg,
-        InterestRateModel, Market, QueryMsg,
+        ConfigResponse, CreateOrUpdateConfig, ExecuteMsg, InstantiateMsg, InterestRateModel,
+        Market, MarketParams, MarketParamsUpdate, QueryMsg,
     },
 };
 use mars_utils::error::ValidationError;
@@ -141,29 +141,32 @@ fn init_asset() {
         slope_2: Decimal::one(),
     };
 
-    let params = InitOrUpdateAssetParams {
+    let params = MarketParams {
+        denom: "someasset".to_string(),
         reserve_factor: Some(Decimal::from_ratio(1u128, 100u128)),
         interest_rate_model: Some(ir_model.clone()),
     };
 
     // non owner is not authorized
     {
-        let msg = ExecuteMsg::InitAsset {
-            denom: "someasset".to_string(),
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
             params: params.clone(),
-        };
+        });
         let info = mock_info("somebody", &[]);
         let error_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
-        assert_eq!(error_res, ContractError::Owner(NotOwner {}));
+        assert_eq!(error_res, ContractError::Mars(MarsError::Unauthorized {}));
     }
 
     // init incorrect asset denom - error 1
     {
-        let msg = ExecuteMsg::InitAsset {
+        let params = MarketParams {
             denom: "!ksdfakefb*.s-".to_string(),
-            params: params.clone(),
+            ..params.clone()
         };
-        let info = mock_info("owner", &[]);
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
+            params,
+        });
+        let info = mock_info("params", &[]);
         let err = execute(deps.as_mut(), env.clone(), info, msg);
         assert_eq!(
             err,
@@ -175,11 +178,14 @@ fn init_asset() {
 
     // init incorrect asset denom - error 2
     {
-        let msg = ExecuteMsg::InitAsset {
+        let params = MarketParams {
             denom: "ahdbufenf&*!-".to_string(),
-            params: params.clone(),
+            ..params.clone()
         };
-        let info = mock_info("owner", &[]);
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
+            params,
+        });
+        let info = mock_info("params", &[]);
         let err = execute(deps.as_mut(), env.clone(), info, msg);
         assert_eq!(
             err,
@@ -192,11 +198,14 @@ fn init_asset() {
 
     // init incorrect asset denom - error 3
     {
-        let msg = ExecuteMsg::InitAsset {
+        let params = MarketParams {
             denom: "ab".to_string(),
-            params: params.clone(),
+            ..params.clone()
         };
-        let info = mock_info("owner", &[]);
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
+            params,
+        });
+        let info = mock_info("params", &[]);
         let err = execute(deps.as_mut(), env.clone(), info, msg);
         assert_eq!(
             err,
@@ -208,30 +217,30 @@ fn init_asset() {
 
     // init asset with empty params
     {
-        let empty_asset_params = InitOrUpdateAssetParams {
+        let empty_asset_params = MarketParams {
+            denom: "someasset".to_string(),
             reserve_factor: None,
             interest_rate_model: None,
         };
-        let msg = ExecuteMsg::InitAsset {
-            denom: "someasset".to_string(),
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
             params: empty_asset_params,
-        };
-        let info = mock_info("owner", &[]);
+        });
+        let info = mock_info("params", &[]);
         let error_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
         assert_eq!(error_res, MarsError::InstantiateParamsUnavailable {}.into());
     }
 
     // init asset with reserve_factor equal to 1
     {
-        let invalid_asset_params = InitOrUpdateAssetParams {
+        let invalid_asset_params = MarketParams {
+            denom: "someasset".to_string(),
             reserve_factor: Some(Decimal::one()),
             ..params.clone()
         };
-        let msg = ExecuteMsg::InitAsset {
-            denom: "someasset".to_string(),
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
             params: invalid_asset_params,
-        };
-        let info = mock_info("owner", &[]);
+        });
+        let info = mock_info("params", &[]);
         let error_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
         assert_eq!(
             error_res,
@@ -246,18 +255,18 @@ fn init_asset() {
 
     // init asset where optimal utilization rate > 1
     {
-        let invalid_asset_params = InitOrUpdateAssetParams {
+        let invalid_asset_params = MarketParams {
+            denom: "someasset".to_string(),
             interest_rate_model: Some(InterestRateModel {
                 optimal_utilization_rate: Decimal::percent(110),
                 ..ir_model
             }),
-            ..params
+            ..params.clone()
         };
-        let msg = ExecuteMsg::InitAsset {
-            denom: "someasset".to_string(),
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
             params: invalid_asset_params,
-        };
-        let info = mock_info("owner", &[]);
+        });
+        let info = mock_info("params", &[]);
         let error_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
         assert_eq!(
             error_res,
@@ -272,19 +281,18 @@ fn init_asset() {
 
     // init asset where slope_1 >= slope_2
     {
-        let invalid_asset_params = InitOrUpdateAssetParams {
+        let invalid_asset_params = MarketParams {
             interest_rate_model: Some(InterestRateModel {
                 slope_1: Decimal::percent(10),
                 slope_2: Decimal::percent(10),
                 ..ir_model
             }),
-            ..params
+            ..params.clone()
         };
-        let msg = ExecuteMsg::InitAsset {
-            denom: "someasset".to_string(),
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
             params: invalid_asset_params,
-        };
-        let info = mock_info("owner", &[]);
+        });
+        let info = mock_info("params", &[]);
         let error_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
         assert_eq!(
             error_res,
@@ -299,11 +307,14 @@ fn init_asset() {
 
     // owner is authorized
     {
-        let msg = ExecuteMsg::InitAsset {
+        let params = MarketParams {
             denom: "someasset".to_string(),
-            params: params.clone(),
+            ..params.clone()
         };
-        let info = mock_info("owner", &[]);
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
+            params,
+        });
+        let info = mock_info("params", &[]);
         let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
 
         // should have asset market with Canonical default address
@@ -316,15 +327,14 @@ fn init_asset() {
         assert_eq!(res.attributes, vec![attr("action", "init_asset"), attr("denom", "someasset")]);
     }
 
-    // can't init more than once
+    // can update more than once
     {
-        let msg = ExecuteMsg::InitAsset {
-            denom: "someasset".to_string(),
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
             params,
-        };
-        let info = mock_info("owner", &[]);
-        let error_res = execute(deps.as_mut(), env, info, msg).unwrap_err();
-        assert_eq!(error_res, ContractError::AssetAlreadyInitialized {});
+        });
+
+        let info = mock_info("params", &[]);
+        execute(deps.as_mut(), env, info, msg).unwrap();
     }
 }
 
@@ -351,57 +361,55 @@ fn update_asset() {
         slope_2: Decimal::one(),
     };
 
-    let params = InitOrUpdateAssetParams {
+    let params = MarketParams {
+        denom: "someasset".to_string(),
         reserve_factor: Some(Decimal::from_ratio(1u128, 100u128)),
         interest_rate_model: Some(ir_model.clone()),
     };
 
-    // non owner is not authorized
+    // owner of the contract is not authorized
     {
-        let msg = ExecuteMsg::UpdateAsset {
-            denom: "someasset".to_string(),
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
             params: params.clone(),
-        };
-        let info = mock_info("somebody", &[]);
-        let error_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
-        assert_eq!(error_res, ContractError::Owner(NotOwner {}));
-    }
-
-    // owner is authorized but can't update asset if not initialized first
-    {
-        let msg = ExecuteMsg::UpdateAsset {
-            denom: "someasset".to_string(),
-            params: params.clone(),
-        };
+        });
         let info = mock_info("owner", &[]);
         let error_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
-        assert_eq!(error_res, ContractError::AssetNotInitialized {});
+        assert_eq!(error_res, ContractError::Mars(MarsError::Unauthorized {}));
+    }
+
+    // random user is not authorized
+    {
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        });
+        let info = mock_info("somebody", &[]);
+        let error_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
+        assert_eq!(error_res, ContractError::Mars(MarsError::Unauthorized {}));
     }
 
     // initialize asset
     {
-        let msg = ExecuteMsg::InitAsset {
-            denom: "someasset".to_string(),
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
             params: params.clone(),
-        };
-        let info = mock_info("owner", &[]);
+        });
+        let info = mock_info("params", &[]);
         let _res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
     }
 
     // update asset where optimal utilization rate > 1
     {
-        let invalid_asset_params = InitOrUpdateAssetParams {
+        let invalid_asset_params = MarketParams {
+            denom: "someasset".to_string(),
             interest_rate_model: Some(InterestRateModel {
                 optimal_utilization_rate: Decimal::percent(110),
                 ..ir_model
             }),
             ..params
         };
-        let msg = ExecuteMsg::UpdateAsset {
-            denom: "someasset".to_string(),
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
             params: invalid_asset_params,
-        };
-        let info = mock_info("owner", &[]);
+        });
+        let info = mock_info("params", &[]);
         let error_res = execute(deps.as_mut(), env.clone(), info, msg).unwrap_err();
         assert_eq!(
             error_res,
@@ -416,15 +424,15 @@ fn update_asset() {
 
     // update asset with new params
     {
-        let params = InitOrUpdateAssetParams {
+        let params = MarketParams {
+            denom: "someasset".to_string(),
             reserve_factor: Some(Decimal::from_ratio(10u128, 100u128)),
             interest_rate_model: Some(ir_model),
         };
-        let msg = ExecuteMsg::UpdateAsset {
-            denom: "someasset".to_string(),
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
             params: params.clone(),
-        };
-        let info = mock_info("owner", &[]);
+        });
+        let info = mock_info("params", &[]);
 
         let res = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
         assert_eq!(res.messages, vec![],);
@@ -442,15 +450,15 @@ fn update_asset() {
     {
         let market_before = MARKETS.load(&deps.storage, "someasset").unwrap();
 
-        let empty_asset_params = InitOrUpdateAssetParams {
+        let empty_asset_params = MarketParams {
+            denom: "someasset".to_string(),
             reserve_factor: None,
             interest_rate_model: None,
         };
-        let msg = ExecuteMsg::UpdateAsset {
-            denom: "someasset".to_string(),
+        let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
             params: empty_asset_params,
-        };
-        let info = mock_info("owner", &[]);
+        });
+        let info = mock_info("params", &[]);
         let res = execute(deps.as_mut(), env, info, msg).unwrap();
 
         // no interest updated event
@@ -486,16 +494,16 @@ fn update_asset_with_new_interest_rate_model_params() {
         slope_2: Decimal::one(),
     };
 
-    let params = InitOrUpdateAssetParams {
+    let params = MarketParams {
+        denom: "someasset".to_string(),
         reserve_factor: Some(Decimal::from_ratio(2u128, 100u128)),
         interest_rate_model: Some(ir_model.clone()),
     };
 
-    let msg = ExecuteMsg::InitAsset {
-        denom: "someasset".to_string(),
+    let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
         params: params.clone(),
-    };
-    let info = mock_info("owner", &[]);
+    });
+    let info = mock_info("params", &[]);
     let env = mock_env_at_block_time(1_000_000);
     let _res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -508,15 +516,15 @@ fn update_asset_with_new_interest_rate_model_params() {
         base: Decimal::percent(69),
         ..ir_model
     };
-    let asset_params_with_new_ir_model = InitOrUpdateAssetParams {
+    let asset_params_with_new_ir_model = MarketParams {
+        denom: "someasset".to_string(),
         interest_rate_model: Some(new_ir_model.clone()),
         ..params
     };
-    let msg = ExecuteMsg::UpdateAsset {
-        denom: "someasset".to_string(),
+    let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
         params: asset_params_with_new_ir_model,
-    };
-    let info = mock_info("owner", &[]);
+    });
+    let info = mock_info("params", &[]);
     let env = mock_env_at_block_time(2_000_000);
     let res = execute(deps.as_mut(), env, info, msg).unwrap();
 
@@ -598,15 +606,15 @@ fn update_asset_new_reserve_factor_accrues_interest_rate() {
         },
     );
 
-    let params = InitOrUpdateAssetParams {
+    let params = MarketParams {
+        denom: "somecoin".to_string(),
         reserve_factor: Some(Decimal::from_ratio(2_u128, 10_u128)),
         interest_rate_model: None,
     };
-    let msg = ExecuteMsg::UpdateAsset {
-        denom: "somecoin".to_string(),
+    let msg = ExecuteMsg::UpdateMarketParams(MarketParamsUpdate::AddOrUpdate {
         params,
-    };
-    let info = mock_info("owner", &[]);
+    });
+    let info = mock_info("params", &[]);
     let env = mock_env_at_block_time(1_500_000);
     let res = execute(deps.as_mut(), env, info, msg).unwrap();
 

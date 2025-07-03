@@ -11,12 +11,12 @@ const pclLpUsdcDenom = 'factory/neutron1wm8jd0hrw79pfhhm9xmuq43jwz4wtukvxfgkkw/u
 const pclLpMarsUsdcPairAddr = 'neutron1sf456kx85dz0wfjs4sx0s80dyzmc360pfc0rdzactxt8xrse9ykqsdpy2y'
 
 // dummy denoms for testing
-const btcDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/ubtc'
-const ethDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/ueth'
-const injDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/uinj'
-const dydxDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/udydx'
-const tiaDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/utia'
-const solDenom = 'factory/neutron166t9ww3p6flv7c86376fy0r92r88t3492xxj2h/usol'
+const btcDenom = 'perps/ubtc'
+const ethDenom = 'perps/ueth'
+const injDenom = 'perps/uinj'
+const dydxDenom = 'perps/udydx'
+const tiaDenom = 'perps/utia'
+const solDenom = 'perps/usol'
 
 const protocolAdminAddr = 'neutron1ke0vqqzyymlp5esr8gjwuzh94ysnpvj8er5hm7'
 
@@ -40,7 +40,7 @@ export const ntrnOracle: OracleConfig = {
     slinky: {
       base_symbol: 'NTRN',
       denom_decimals: 6,
-      max_blocks_old: 5,
+      max_blocks_old: 2,
     },
   },
 }
@@ -62,7 +62,7 @@ export const atomOracle: OracleConfig = {
     slinky: {
       base_symbol: 'ATOM',
       denom_decimals: 6,
-      max_blocks_old: 5,
+      max_blocks_old: 2,
     },
   },
 }
@@ -73,7 +73,7 @@ export const nobleUSDCOracle: OracleConfig = {
     slinky: {
       base_symbol: 'USDT', // TODO: change to USDC when available on Slinky
       denom_decimals: 6,
-      max_blocks_old: 5,
+      max_blocks_old: 2,
     },
   },
 }
@@ -94,8 +94,8 @@ export const btcOracle: OracleConfig = {
   price_source: {
     slinky: {
       base_symbol: 'BTC',
-      denom_decimals: 8,
-      max_blocks_old: 5,
+      denom_decimals: 6,
+      max_blocks_old: 2,
     },
   },
 }
@@ -116,8 +116,8 @@ export const ethOracle: OracleConfig = {
   price_source: {
     slinky: {
       base_symbol: 'ETH',
-      denom_decimals: 18,
-      max_blocks_old: 5,
+      denom_decimals: 6,
+      max_blocks_old: 2,
     },
   },
 }
@@ -138,8 +138,8 @@ export const injOracle: OracleConfig = {
   price_source: {
     slinky: {
       base_symbol: 'INJ',
-      denom_decimals: 18,
-      max_blocks_old: 5,
+      denom_decimals: 6,
+      max_blocks_old: 2,
     },
   },
 }
@@ -160,8 +160,8 @@ export const dydxOracle: OracleConfig = {
   price_source: {
     slinky: {
       base_symbol: 'DYDX',
-      denom_decimals: 18,
-      max_blocks_old: 5,
+      denom_decimals: 6,
+      max_blocks_old: 2,
     },
   },
 }
@@ -183,7 +183,7 @@ export const tiaOracle: OracleConfig = {
     slinky: {
       base_symbol: 'TIA',
       denom_decimals: 6,
-      max_blocks_old: 5,
+      max_blocks_old: 2,
     },
   },
 }
@@ -204,8 +204,8 @@ export const solOracle: OracleConfig = {
   price_source: {
     slinky: {
       base_symbol: 'SOL',
-      denom_decimals: 9,
-      max_blocks_old: 5,
+      denom_decimals: 6,
+      max_blocks_old: 2,
     },
   },
 }
@@ -591,7 +591,7 @@ export const atomPerpDenom: PerpDenom = {
   maxShortOiValue: '490402700000',
   closingFeeRate: '0.00075',
   openingFeeRate: '0.00075',
-  minPositionValue: '500000000',
+  minPositionValue: '10000000',
   liquidationThreshold: '0.86',
   maxLoanToValue: '0.85',
   maxLoanToValueUsdc: null,
@@ -607,7 +607,7 @@ export const ntrnPerpDenom: PerpDenom = {
   maxShortOiValue: '490402700000',
   closingFeeRate: '0.00075',
   openingFeeRate: '0.00075',
-  minPositionValue: '500000000',
+  minPositionValue: '10000000',
   liquidationThreshold: '0.86',
   maxLoanToValue: '0.85',
   maxLoanToValueUsdc: null,
@@ -617,13 +617,13 @@ export const ntrnPerpDenom: PerpDenom = {
 export const btcPerpDenom: PerpDenom = {
   denom: 'perps/ubtc',
   maxFundingVelocity: '36',
-  skewScale: '8892400000000',
+  skewScale: '88924000000',
   maxNetOiValue: '88882000000',
   maxLongOiValue: '28135198400000',
   maxShortOiValue: '28135198400000',
   closingFeeRate: '0.00075',
   openingFeeRate: '0.00075',
-  minPositionValue: '500000000',
+  minPositionValue: '10000000',
   liquidationThreshold: '0.91',
   maxLoanToValue: '0.90',
   maxLoanToValueUsdc: '0.94',
@@ -633,13 +633,13 @@ export const btcPerpDenom: PerpDenom = {
 export const ethPerpDenom: PerpDenom = {
   denom: 'perps/ueth',
   maxFundingVelocity: '36',
-  skewScale: '1186268000000000000000000',
+  skewScale: '1186268000000',
   maxNetOiValue: '86049000000',
   maxLongOiValue: '19093576000000',
   maxShortOiValue: '19093576000000',
   closingFeeRate: '0.00075',
   openingFeeRate: '0.00075',
-  minPositionValue: '500000000',
+  minPositionValue: '10000000',
   liquidationThreshold: '0.91',
   maxLoanToValue: '0.90',
   maxLoanToValueUsdc: '0.94',
@@ -649,13 +649,13 @@ export const ethPerpDenom: PerpDenom = {
 export const injPerpDenom: PerpDenom = {
   denom: 'perps/uinj',
   maxFundingVelocity: '36',
-  skewScale: '1805314000000000000000000',
+  skewScale: '1805314000000',
   maxNetOiValue: '33496000000',
   maxLongOiValue: '400314200000',
   maxShortOiValue: '400314200000',
   closingFeeRate: '0.00075',
   openingFeeRate: '0.00075',
-  minPositionValue: '500000000',
+  minPositionValue: '10000000',
   liquidationThreshold: '0.88',
   maxLoanToValue: '0.83',
   maxLoanToValueUsdc: '0.89',
@@ -665,13 +665,13 @@ export const injPerpDenom: PerpDenom = {
 export const dydxPerpDenom: PerpDenom = {
   denom: 'perps/udydx',
   maxFundingVelocity: '36',
-  skewScale: '1462272000000000000000000',
+  skewScale: '1462272000000',
   maxNetOiValue: '32529000000',
   maxLongOiValue: '221088700000',
   maxShortOiValue: '221088700000',
   closingFeeRate: '0.00075',
   openingFeeRate: '0.00075',
-  minPositionValue: '500000000',
+  minPositionValue: '10000000',
   liquidationThreshold: '0.82',
   maxLoanToValue: '0.80',
   maxLoanToValueUsdc: null,
@@ -687,7 +687,7 @@ export const tiaPerpDenom: PerpDenom = {
   maxShortOiValue: '316093400000',
   closingFeeRate: '0.00075',
   openingFeeRate: '0.00075',
-  minPositionValue: '500000000',
+  minPositionValue: '10000000',
   liquidationThreshold: '0.76',
   maxLoanToValue: '0.71',
   maxLoanToValueUsdc: '0.77',
@@ -697,13 +697,13 @@ export const tiaPerpDenom: PerpDenom = {
 export const solPerpDenom: PerpDenom = {
   denom: 'perps/usol',
   maxFundingVelocity: '36',
-  skewScale: '3954627000000000',
+  skewScale: '3954627000000',
   maxNetOiValue: '36869000000',
   maxLongOiValue: '3396453000000',
   maxShortOiValue: '3396453000000',
   closingFeeRate: '0.00075',
   openingFeeRate: '0.00075',
-  minPositionValue: '500000000',
+  minPositionValue: '10000000',
   liquidationThreshold: '0.88',
   maxLoanToValue: '0.85',
   maxLoanToValueUsdc: '0.87',
@@ -719,7 +719,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
   protocolAdminAddr: protocolAdminAddr,
   feeCollectorAddr: feeCollectorAddr,
   keeperFeeConfig: {
-    min_fee: { amount: '1000000', denom: nobleUsdcDenom },
+    min_fee: { amount: '200000', denom: nobleUsdcDenom },
   },
   chain: {
     baseDenom: 'untrn',
@@ -764,6 +764,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
     routes: [atomUsdcRoute, atomMarsRoute, ntrnUsdcRoute, ntrnMarsRoute, usdcMarsRoute],
   },
   maxValueForBurn: '10000',
+  maxTriggerOrders: 50,
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',
   zapperContractName: 'mars_zapper_astroport',

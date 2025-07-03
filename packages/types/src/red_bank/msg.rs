@@ -1,8 +1,8 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::{Decimal, Uint128};
+use cosmwasm_std::{Addr, Decimal, Uint128};
 use mars_owner::OwnerUpdate;
 
-use crate::red_bank::InterestRateModel;
+use crate::{params::AssetParamsBase, red_bank::InterestRateModel};
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -22,21 +22,8 @@ pub enum ExecuteMsg {
         config: CreateOrUpdateConfig,
     },
 
-    /// Initialize an asset on the money market (only owner can call)
-    InitAsset {
-        /// Asset related info
-        denom: String,
-        /// Asset parameters
-        params: InitOrUpdateAssetParams,
-    },
-
-    /// Update an asset on the money market (only owner can call)
-    UpdateAsset {
-        /// Asset related info
-        denom: String,
-        /// Asset parameters
-        params: InitOrUpdateAssetParams,
-    },
+    /// Initialize or update an asset on the money market
+    UpdateMarketParams(MarketParamsUpdate),
 
     /// Deposit native coins. Deposited coins must be sent in the transaction
     /// this call is made
@@ -110,12 +97,29 @@ pub struct CreateOrUpdateConfig {
 }
 
 #[cw_serde]
-pub struct InitOrUpdateAssetParams {
+pub enum MarketParamsUpdate {
+    AddOrUpdate {
+        params: MarketParams,
+    },
+}
+
+#[cw_serde]
+pub struct MarketParams {
+    pub denom: String,
     /// Portion of the borrow rate that is kept as protocol rewards
     pub reserve_factor: Option<Decimal>,
-
     /// Interest rate strategy to calculate borrow_rate and liquidity_rate
     pub interest_rate_model: Option<InterestRateModel>,
+}
+
+impl From<&AssetParamsBase<Addr>> for MarketParams {
+    fn from(p: &AssetParamsBase<Addr>) -> Self {
+        Self {
+            denom: p.denom.clone(),
+            reserve_factor: Some(p.reserve_factor),
+            interest_rate_model: Some(p.interest_rate_model.clone()),
+        }
+    }
 }
 
 /// Migrate from V1 to V2, only owner can call

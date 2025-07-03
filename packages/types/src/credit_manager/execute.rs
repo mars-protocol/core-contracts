@@ -176,6 +176,12 @@ pub enum Condition {
         threshold: Decimal,
         comparison: Comparison,
     },
+    /// If the other trigger_order is successfully executed, the condition is met.
+    TriggerOrderExecuted {
+        // When empty string is provided, a base order should be provided in the same tx.
+        // The `trigger_order_id` will then be set to that base order.
+        trigger_order_id: String,
+    },
 }
 
 /// The list of actions that users can perform on their positions
@@ -231,21 +237,29 @@ pub enum Action {
         denom: String,
         order_size: Int128,
         reduce_only: Option<bool>,
+        order_type: Option<ExecutePerpOrderType>,
     },
 
-    /// Dispatch orders to be triggered under specified conditions
+    /// Executes a perp order against the given market for the current position size to close the
+    /// position.
+    ClosePerpPosition {
+        denom: String,
+    },
+
+    /// Dispatch orders to be triggered under specified conditions.
     CreateTriggerOrder {
         actions: Vec<Action>,
         conditions: Vec<Condition>,
         keeper_fee: Coin,
+        order_type: Option<CreateTriggerOrderType>,
     },
 
     DeleteTriggerOrder {
         trigger_order_id: String,
     },
 
-    /// Deposit coins into vault strategy
-    /// If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault
+    /// Deposit coins into vault strategy.
+    /// If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault.
     EnterVault {
         vault: VaultUnchecked,
         coin: ActionCoin,
@@ -337,6 +351,9 @@ impl Action {
                 ..
             } => true,
             Action::ExecutePerpOrder {
+                ..
+            } => true,
+            Action::ClosePerpPosition {
                 ..
             } => true,
             Action::RefundAllCoinBalances {} => true,
@@ -500,6 +517,11 @@ pub enum CallbackMsg {
         size: Int128,
         reduce_only: Option<bool>,
     },
+    /// Executes a perp order against the given market for the current position size.
+    ClosePerpPosition {
+        account_id: String,
+        denom: String,
+    },
     /// Requests unlocking of shares for a vault with a lock period
     RequestVaultUnlock {
         account_id: String,
@@ -606,4 +628,26 @@ impl CallbackMsg {
             funds: vec![],
         }))
     }
+}
+
+#[cw_serde]
+pub enum CreateTriggerOrderType {
+    /// Marks the order to have no relation to another trigger order.
+    Default,
+    /// Marks the order to have exactly 1 parent trigger order. This order can only be executed
+    /// when the parent has been executed prior.
+    Parent,
+    /// Marks the order as a parent order. This means 1+ trigger orders depend on this order to
+    /// be executed before they are considered executable.
+    Child,
+}
+
+#[cw_serde]
+pub enum ExecutePerpOrderType {
+    /// Marks the perp order as default, without any trigger orders depending on it.
+    Default,
+    /// Marks the perp order as parent. This means that 1+ trigger orders depend on this perp order
+    /// to be executed before they are considered executable. A perp order can not be a child, as
+    /// a perp order is executed directly, since it is NOT a trigger order.
+    Parent,
 }
