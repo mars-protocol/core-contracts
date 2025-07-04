@@ -7,6 +7,7 @@
     "title": "InstantiateMsg",
     "type": "object",
     "required": [
+      "duality_swapper",
       "health_contract",
       "incentives",
       "keeper_fee_config",
@@ -21,6 +22,14 @@
       "zapper"
     ],
     "properties": {
+      "duality_swapper": {
+        "description": "Helper contract for making swaps",
+        "allOf": [
+          {
+            "$ref": "#/definitions/SwapperBase_for_String"
+          }
+        ]
+      },
       "health_contract": {
         "description": "Helper contract for calculating health factor",
         "allOf": [
@@ -2314,6 +2323,16 @@
               }
             ]
           },
+          "duality_swapper": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/SwapperBase_for_String"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "health_contract": {
             "anyOf": [
               {
@@ -2447,6 +2466,32 @@
       "Decimal": {
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
+      },
+      "DualityRoute": {
+        "type": "object",
+        "required": [
+          "from",
+          "swap_denoms",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "description": "Entry denom, in other words the asset we are selling",
+            "type": "string"
+          },
+          "swap_denoms": {
+            "description": "The denoms to swap through. For example, For a single swap route e.g A:B, the swap_denoms are [A, B] For a multi-swap route e.g A:B, B:C, C:D, the swap_denoms are [A, B, C]",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "to": {
+            "description": "Exit denom, in other words the asset we are buying",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "Expiration": {
         "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
@@ -2950,6 +2995,18 @@
             "properties": {
               "astro": {
                 "$ref": "#/definitions/AstroRoute"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "duality"
+            ],
+            "properties": {
+              "duality": {
+                "$ref": "#/definitions/DualityRoute"
               }
             },
             "additionalProperties": false
@@ -4616,6 +4673,32 @@
           "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
         },
+        "DualityRoute": {
+          "type": "object",
+          "required": [
+            "from",
+            "swap_denoms",
+            "to"
+          ],
+          "properties": {
+            "from": {
+              "description": "Entry denom, in other words the asset we are selling",
+              "type": "string"
+            },
+            "swap_denoms": {
+              "description": "The denoms to swap through. For example, For a single swap route e.g A:B, the swap_denoms are [A, B] For a multi-swap route e.g A:B, B:C, C:D, the swap_denoms are [A, B, C]",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "to": {
+              "description": "Exit denom, in other words the asset we are buying",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
         "Int128": {
           "description": "An implementation of i128 that is using strings for JSON encoding/decoding, such that the full i128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `i128` to get the value out:\n\n``` # use cosmwasm_std::Int128; let a = Int128::from(258i128); assert_eq!(a.i128(), 258); ```",
           "type": "string"
@@ -4747,6 +4830,18 @@
               "properties": {
                 "astro": {
                   "$ref": "#/definitions/AstroRoute"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "duality"
+              ],
+              "properties": {
+                "duality": {
+                  "$ref": "#/definitions/DualityRoute"
                 }
               },
               "additionalProperties": false
@@ -5781,6 +5876,32 @@
           "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
         },
+        "DualityRoute": {
+          "type": "object",
+          "required": [
+            "from",
+            "swap_denoms",
+            "to"
+          ],
+          "properties": {
+            "from": {
+              "description": "Entry denom, in other words the asset we are selling",
+              "type": "string"
+            },
+            "swap_denoms": {
+              "description": "The denoms to swap through. For example, For a single swap route e.g A:B, the swap_denoms are [A, B] For a multi-swap route e.g A:B, B:C, C:D, the swap_denoms are [A, B, C]",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "to": {
+              "description": "Exit denom, in other words the asset we are buying",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
         "Int128": {
           "description": "An implementation of i128 that is using strings for JSON encoding/decoding, such that the full i128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `i128` to get the value out:\n\n``` # use cosmwasm_std::Int128; let a = Int128::from(258i128); assert_eq!(a.i128(), 258); ```",
           "type": "string"
@@ -5912,6 +6033,18 @@
               "properties": {
                 "astro": {
                   "$ref": "#/definitions/AstroRoute"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "duality"
+              ],
+              "properties": {
+                "duality": {
+                  "$ref": "#/definitions/DualityRoute"
                 }
               },
               "additionalProperties": false
@@ -6243,6 +6376,7 @@
       "title": "ConfigResponse",
       "type": "object",
       "required": [
+        "duality_swapper",
         "health_contract",
         "incentives",
         "keeper_fee_config",
@@ -6263,6 +6397,9 @@
             "string",
             "null"
           ]
+        },
+        "duality_swapper": {
+          "type": "string"
         },
         "health_contract": {
           "type": "string"

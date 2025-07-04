@@ -19,6 +19,7 @@ pub const ACCOUNT_NFT: Item<AccountNft> = Item::new("account_nft");
 pub const ORACLE: Item<Oracle> = Item::new("oracle");
 pub const RED_BANK: Item<RedBank> = Item::new("red_bank");
 pub const SWAPPER: Item<Swapper> = Item::new("swapper");
+pub const DUALITY_SWAPPER: Item<Swapper> = Item::new("duality_swapper");
 pub const ZAPPER: Item<Zapper> = Item::new("zapper");
 pub const HEALTH_CONTRACT: Item<HealthContract> = Item::new("health_contract");
 pub const PARAMS: Item<Params> = Item::new("params");

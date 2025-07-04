@@ -24,6 +24,7 @@ anyhow                         = { workspace = true }
 astroport                      = { workspace = true, optional = true }
 astroport-v5                   = { workspace = true }
 cosmwasm-std                   = { workspace = true }
+cosmwasm-std-2                 = { workspace = true }
 cosmwasm-schema                = { workspace = true }
 cw721                          = { workspace = true }
 cw721-base                     = { workspace = true }
@@ -51,6 +52,7 @@ mars-red-bank                  = { workspace = true }
 mars-rewards-collector-osmosis = { workspace = true }
 mars-rover-health              = { workspace = true }
 mars-swapper-astroport         = { workspace = true }
+mars-swapper-duality           = { workspace = true }
 mars-swapper-mock              = { workspace = true }
 mars-types                     = { workspace = true }
 mars-vault                     = { workspace = true }
@@ -65,3 +67,4 @@ serde                          = { workspace = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 cw-it         = { workspace = true, features = ["multi-test"] }
 cw-multi-test = { workspace = true }
+neutron-test-tube              = { workspace = true }
