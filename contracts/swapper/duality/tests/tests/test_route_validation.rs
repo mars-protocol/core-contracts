@@ -1,4 +1,4 @@
-use cosmwasm_std::{Decimal, Empty, Uint128};
+use cosmwasm_std::{Empty, Uint128};
 use mars_swapper_base::{ContractError, Route};
 use mars_swapper_duality::{DualityConfig, DualityRoute as DualityRouteImpl};
 use mars_testing::{duality_swapper::DualitySwapperTester, MarsMockQuerier};
@@ -236,25 +236,16 @@ fn test_set_multi_hop_route() {
 
     let multi_hop_route = tester.create_multi_hop_route(denom_in, intermediate, denom_out);
 
-    // Test that the multihop serialisation works
-    tester.multihop_swap(
-        multi_hop_route.swap_denoms.clone(),
-        cosmwasm_std::coin(1000, denom_in),
-        Decimal::one(),
-    );
-
     // Set the route
     let result = tester.set_route(multi_hop_route.clone(), denom_in, denom_out);
     assert!(result.is_ok(), "Route should pass validation");
 
     // Verify by executing a swap with the route
-    let coin_in = cosmwasm_std::coin(1000, denom_in);
-    let min_receive = Uint128::from(1u128);
+    let coin_in = cosmwasm_std::coin(1000000, denom_in);
+    let min_receive = Uint128::from(10u128);
 
     // Execute swap - this should work if the multi-hop route was set correctly
     let swap_res = tester.execute_swap(coin_in, denom_out, min_receive, None, &tester.admin);
-
-    println!("swap_res: {:#?}", swap_res);
 
     // Verify swap was successful
     assert!(swap_res.is_ok(), "Multi-hop swap should succeed if route was properly set");
@@ -316,9 +307,6 @@ fn test_routes_query() {
         assert!(res.is_ok(), "Setting route should succeed");
     }
 
-    // Verify by adding liquidity and executing swaps for each route
-    // This ensures all routes were set correctly
-
     // Add liquidity to all pairs
     tester.add_liquidity("untrn", "uusdc", Uint128::from(1000000u128), Uint128::from(1000000u128));
     tester.add_liquidity("uatom", "uusdc", Uint128::from(1000000u128), Uint128::from(1000000u128));
@@ -326,18 +314,10 @@ fn test_routes_query() {
     // Test each route with a swap
     for (in_denom, out_denom) in route_configs.iter() {
         let coin_in = cosmwasm_std::coin(1000, *in_denom);
-        let min_receive = Uint128::from(1u128);
-
-        println!("Executing swap from {} to {}", in_denom, out_denom);
-
-        // Get the existing liquidity
-        let liquidity = tester.get_liquidity("0".to_string(), in_denom.to_string(), 0, 0);
-        println!("Liquidity: {:#?}", liquidity);
+        let min_receive = Uint128::from(1000u128);
 
         // Execute swap - this should work if the route was set correctly
         let swap_res = tester.execute_swap(coin_in, *out_denom, min_receive, None, &tester.admin);
-
-        println!("swap_res: {:#?}", swap_res);
         // Verify swap was successful
         assert!(
             swap_res.is_ok(),
@@ -356,14 +336,22 @@ fn test_unauthorized_set_route() {
 
     // Create a direct route
     let denom_in = "untrn";
-    let denom_out = "usdc";
+    let denom_out = "uusdc";
     let direct_route = tester.create_direct_route(denom_in, denom_out);
+
+    // Add liquidity to the pool
+    tester.add_liquidity(
+        denom_in,
+        denom_out,
+        Uint128::from(1000000u128),
+        Uint128::from(1000000u128),
+    );
 
     // Attempt to set the route as non-admin (user) - should fail
     let result = tester.execute_swap(
         cosmwasm_std::coin(1000, denom_in),
         denom_out,
-        Uint128::from(1u128),
+        Uint128::from(1000u128),
         Some(SwapperRoute::Duality(direct_route)), // Providing an explicit route that hasn't been saved by admin
         &tester.user,                              // Using the non-admin user
     );

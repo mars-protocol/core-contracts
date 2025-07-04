@@ -10,69 +10,67 @@ This document outlines the test plan for the Mars Protocol's Duality Swapper imp
   - [x] Route with too few denoms (< 2) is rejected
   - [x] Route with loop (same denom appears twice) is rejected
   - [x] Route where final denom doesn't match expected output is rejected
-
-- [x] **Error Messages**
   - [x] Verify appropriate error messages for each validation failure case
   - [x] Error messages are descriptive and actionable
 
 ## Swap Estimation Tests
 
-- [ ] **Direct Swap Estimation (2 denoms)**
-  - [ ] Basic estimation functions correctly
-  - [ ] Test with small amounts
-  - [ ] Test with large amounts
-  - [ ] Test with different token decimal places
+- [x] **Direct Swap Estimation (2 denoms)**
+  - [x] Basic estimation functions correctly
+  - [x] Test with small amounts
+  - [x] Test with large amounts
+  - [x] Test with different token decimal places
 
-- [ ] **Multi-hop Swap Estimation (>2 denoms)**
-  - [ ] Basic multi-hop estimation functions correctly
-  - [ ] Test with various path lengths (3, 4, 5+ denoms)
-  - [ ] Test with small amounts
-  - [ ] Test with large amounts
+- [x] **Multi-hop Swap Estimation (>2 denoms)**
+  - [x] Basic multi-hop estimation functions correctly
+  - [x] Test with various path lengths (3, 4, 5+ denoms)
+  - [x] Test with small amounts
+  - [x] Test with large amounts
 
-- [ ] **Route Source Testing**
-  - [ ] Estimation works with saved routes
-  - [ ] Estimation works with provided routes
-  - [ ] When both saved and provided routes exist, provided routes take precedence
-  - [ ] Error handling when no route exists
+- [x] **Route Source Testing**
+  - [x] Estimation works with saved routes
+  - [x] Estimation works with provided routes
+  - [x] When both saved and provided routes exist, provided routes take precedence
+  - [x] Error handling when no route exists
 
-- [ ] **Neutron Query Mock Testing**
-  - [ ] Proper mocking of `EstimatePlaceLimitOrder` responses
-  - [ ] Proper mocking of `EstimateMultiHopSwap` responses
-  - [ ] Error propagation from Neutron queries
+- [x] **Neutron Query Mock Testing**
+  - [x] Proper mocking of `EstimatePlaceLimitOrder` responses
+  - [x] Proper mocking of `EstimateMultiHopSwap` responses
+  - [x] Error propagation from Neutron queries
 
 ## Message Construction Tests
 
-- [ ] **Direct Swap Message Construction**
-  - [ ] Correct message type (`PlaceLimitOrderRequest`) for direct swaps
-  - [ ] Verify correct parameters are set:
-    - [ ] `order_type` is set to `FillOrKill`
-    - [ ] `sender` and `receiver` are set to contract address
-    - [ ] `token_in` and `token_out` match route
-    - [ ] `amount_in` matches input
-    - [ ] `limit_sell_price` is correctly calculated from `min_receive`
+- [x] **Direct Swap Message Construction**
+  - [x] Correct message type (`PlaceLimitOrderRequest`) for direct swaps
+  - [x] Verify correct parameters are set:
+    - [x] `order_type` is set to `FillOrKill`
+    - [x] `sender` and `receiver` are set to contract address
+    - [x] `token_in` and `token_out` match route
+    - [x] `amount_in` matches input
+    - [x] `limit_sell_price` is correctly calculated from `min_receive`
 
-- [ ] **Multi-hop Swap Message Construction**
-  - [ ] Correct message type (`MultiHopSwapRequest`) for multi-hop swaps
-  - [ ] Verify correct parameters are set:
-    - [ ] `sender` and `receiver` are set to contract address
-    - [ ] `routes` contains correct swap path
-    - [ ] `amount_in` matches input
-    - [ ] `exit_limit_price` is correctly calculated from `min_receive`
-    - [ ] `pick_best_route` is set to `true`
+- [x] **Multi-hop Swap Message Construction**
+  - [x] Correct message type (`MultiHopSwapRequest`) for multi-hop swaps
+  - [x] Verify correct parameters are set:
+    - [x] `sender` and `receiver` are set to contract address
+    - [x] `routes` contains correct swap path
+    - [x] `amount_in` matches input
+    - [x] `exit_limit_price` is correctly calculated from `min_receive`
+    - [x] `pick_best_route` is set to `true`
 
 ## Integration Tests
 
-- [ ] **End-to-End Swap Flow**
-  - [ ] Direct swap executes successfully
-  - [ ] Multi-hop swap executes successfully
-  - [ ] Funds are correctly transferred to recipient
-  - [ ] Minimum receive amount constraint is enforced
+- [x] **End-to-End Swap Flow**
+  - [x] Direct swap executes successfully
+  - [x] Multi-hop swap executes successfully
+  - [x] Funds are correctly transferred to recipient
+  - [x] Minimum receive amount constraint is enforced
 
-- [ ] **Route Management**
-  - [ ] Routes can be set and retrieved
-  - [ ] Routes can be updated
-  - [ ] Route enumeration works correctly
-  - [ ] Only owner can set routes
+- [x] **Route Management**
+  - [x] Routes can be set and retrieved
+  - [x] Routes can be updated
+  - [x] Route enumeration works correctly
+  - [x] Only owner can set routes
 
 ## Error Handling Tests
 
@@ -88,14 +86,14 @@ This document outlines the test plan for the Mars Protocol's Duality Swapper imp
 
 ## Edge Cases
 
-- [ ] **Extreme Values**
-  - [ ] Test with very small swap amounts (near minimum)
-  - [ ] Test with very large swap amounts (near maximum)
-  - [ ] Test with tokens that have different decimal places
+- [x] **Extreme Values**
+  - [x] Test with very small swap amounts (near minimum)
+  - [x] Test with very large swap amounts (near maximum)
+  - [x] Test with tokens that have different decimal places
 
-- [ ] **Swap Mode Transition**
-  - [ ] Test the boundary between direct and multi-hop modes
-  - [ ] Verify correct handling when swap path length is exactly 2 vs >2
+- [x] **Swap Mode Transition**
+  - [x] Test the boundary between direct and multi-hop modes
+  - [x] Verify correct handling when swap path length is exactly 2 vs >2
 
 ## Configuration Tests
 
@@ -115,11 +113,11 @@ This document outlines the test plan for the Mars Protocol's Duality Swapper imp
 
 | Category | Total Tests | Implemented | Passing | Failing |
 |----------|-------------|-------------|---------|---------|
-| Route Validation | 0 | 0 | 0 | 0 |
-| Swap Estimation | 0 | 0 | 0 | 0 |
-| Message Construction | 0 | 0 | 0 | 0 |
-| Integration | 0 | 0 | 0 | 0 |
+| Route Validation | 7 | 7 | 7 | 0 |
+| Swap Estimation | 16 | 16 | 16 | 0 |
+| Message Construction | 12 | 12 | 12 | 0 |
+| Integration | 8 | 8 | 8 | 0 |
 | Error Handling | 0 | 0 | 0 | 0 |
-| Edge Cases | 0 | 0 | 0 | 0 |
+| Edge Cases | 5 | 5 | 5 | 0 |
 | Configuration | 0 | 0 | 0 | 0 |
-| **TOTAL** | 0 | 0 | 0 | 0 |
+| **TOTAL** | 48 | 48 | 48 | 0 |

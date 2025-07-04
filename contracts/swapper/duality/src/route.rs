@@ -9,6 +9,7 @@ use neutron_sdk::{
 
 use crate::{config::DualityConfig, helpers::hashset};
 
+
 #[cw_serde]
 pub struct DualityRoute {
     pub from: String,
@@ -108,20 +109,24 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
             });
         }
 
-        // our limit sell price is the worst price we are willing to accept.
-        let limit_sell_price = Decimal::from_ratio(min_receive, coin_in.amount);
-
-        // if we have more than two denoms, we need to do a multi-hop swap
+        // If we have more than two denoms, we need to do a multi-hop swap.
         let swap_msg: CosmosMsg<NeutronMsg> = if swap_denoms.len() > 2 {
+            let exponent = Uint128::from(10u128.pow(27));
+            let min_receive_scaled = min_receive.checked_mul(exponent)?;
+            
+            // Our limit sell price is the worst price we are willing to accept.
+            let exit_limit_price = min_receive_scaled.checked_div(coin_in.amount)?;
             neutron_sdk::stargate::dex::msg::msg_multi_hop_swap(MultiHopSwapRequest {
                 sender: env.contract.address.to_string(),
                 receiver: env.contract.address.to_string(),
                 routes: vec![swap_denoms.clone()],
                 amount_in: coin_in.amount.to_string(),
-                exit_limit_price: limit_sell_price.to_string(),
+                exit_limit_price: exit_limit_price.to_string(),
                 pick_best_route: true,
             })
         } else {
+            // Our limit sell price is the worst price we are willing to accept.
+            let limit_sell_price = Decimal::from_ratio(min_receive, coin_in.amount);
             neutron_sdk::stargate::dex::msg::msg_place_limit_order(PlaceLimitOrderRequest {
                 order_type: LimitOrderType::FillOrKill,
                 sender: env.contract.address.to_string(),

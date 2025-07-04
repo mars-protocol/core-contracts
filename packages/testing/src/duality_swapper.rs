@@ -37,11 +37,11 @@ impl<'a> DualitySwapperTester<'a> {
     pub fn new(app: &'a NeutronTestApp) -> Self {
         // Initialize admin and user accounts with funds
         let initial_balance = vec![
-            Coin2::new(100_000_000_000_000u128, "untrn"),
-            Coin2::new(100_000_000_000_000u128, "uusdc"),
-            Coin2::new(100_000_000_000_000u128, "uatom"),
-            Coin2::new(100_000_000_000_000u128, "ujuno"),
-            Coin2::new(100_000_000_000_000u128, "uosmo"),
+            Coin2::new(100_000_000_000_000_000u128, "untrn"),
+            Coin2::new(100_000_000_000_000_000u128, "uusdc"),
+            Coin2::new(100_000_000_000_000_000u128, "uatom"),
+            Coin2::new(100_000_000_000_000_000u128, "ujuno"),
+            Coin2::new(100_000_000_000_000_000u128, "uosmo"),
         ];
 
         let admin = app.init_account(initial_balance.as_slice()).unwrap();
