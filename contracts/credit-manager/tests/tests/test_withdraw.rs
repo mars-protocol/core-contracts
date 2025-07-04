@@ -1,6 +1,12 @@
-use cosmwasm_std::{coin, coins, Addr, Coin, OverflowError, OverflowOperation::Sub, Uint128};
+use cosmwasm_std::{
+    coin, coins, Addr, Coin, Decimal, OverflowError, OverflowOperation::Sub, Uint128,
+};
 use mars_credit_manager::error::{ContractError, ContractError::NotTokenOwner};
-use mars_types::credit_manager::Action;
+use mars_testing::multitest::helpers::uusdc_info;
+use mars_types::{
+    credit_manager::Action, oracle::ActionKind, params::AssetParamsUpdate::AddOrUpdate,
+};
+use test_case::test_case;
 
 use super::helpers::{assert_err, uatom_info, uosmo_info, AccountToFund, MockEnv};
 
@@ -361,4 +367,100 @@ fn multiple_withdraw_actions() {
 
     let coin = mock.query_balance(&user, &uatom_info.denom);
     assert_eq!(coin.amount, uatom_amount);
+}
+
+#[test_case(
+    false,
+    true;
+    "delisting asset; uusdc not whitelisted, max ltv non-zero"
+)]
+#[test_case(
+    true,
+    false;
+    "delisting asset; uusdc whitelisted, max ltv zero"
+)]
+#[test_case(
+    false,
+    false;
+    "delisting asset; uusdc not whitelisted, max ltv zero"
+)]
+fn withdraw_delisted_asset(uusdc_whitelisted: bool, uusdc_max_ltv_non_zero: bool) {
+    let uusdc_coin_info = uusdc_info();
+    let uosmo_coin_info = uosmo_info();
+    let user = Addr::unchecked("user");
+    let mut mock = MockEnv::new()
+        .set_params(&[uusdc_coin_info.clone(), uosmo_coin_info.clone()])
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: coins(1000, uusdc_coin_info.denom.clone()),
+        })
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: coins(1000, uosmo_coin_info.denom.clone()),
+        })
+        .build()
+        .unwrap();
+    let account_id = mock.create_credit_account(&user).unwrap();
+
+    let uusdc_deposit_amount = 300;
+    mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Action::Deposit(uusdc_coin_info.to_coin(uusdc_deposit_amount)),
+            Action::Borrow(uosmo_coin_info.to_coin(100)),
+        ],
+        &[Coin::new(uusdc_deposit_amount, uusdc_coin_info.denom.clone())],
+    )
+    .unwrap();
+
+    // Account is healthy
+    let health = mock.query_health(&account_id, ActionKind::Default);
+    assert!(!health.above_max_ltv);
+    assert!(!health.liquidatable);
+
+    // Withdrawing uusdc should not be allowed because it would make the account unhealthy
+    let res = mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![Action::Withdraw(uusdc_coin_info.to_action_coin(uusdc_deposit_amount))],
+        &[],
+    );
+    assert_err(
+        res,
+        ContractError::AboveMaxLTV {
+            account_id: account_id.clone(),
+            max_ltv_health_factor: "0.653846153846153846".to_string(),
+        },
+    );
+
+    // Delist uusdc
+    let mut uusdc_asset_param = mock.query_asset_params(&uusdc_coin_info.denom);
+    uusdc_asset_param.credit_manager.whitelisted = uusdc_whitelisted;
+    if !uusdc_max_ltv_non_zero {
+        uusdc_asset_param.max_loan_to_value = Decimal::zero();
+    }
+    mock.update_asset_params(AddOrUpdate {
+        params: uusdc_asset_param.into(),
+    });
+
+    // Account is unhealthy (maxLTV < 1) but not liquidatable (liqLTV > 1)
+    let health = mock.query_health(&account_id, ActionKind::Default);
+    assert!(health.above_max_ltv);
+    assert!(!health.liquidatable);
+
+    // Withdrawing uusdc is now allowed. The account will be liquidatable after the withdrawal.
+    let res = mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![Action::Withdraw(uusdc_coin_info.to_action_coin(uusdc_deposit_amount))],
+        &[],
+    );
+    assert_err(
+        res,
+        ContractError::UnhealthyLiquidationHfDecrease {
+            prev_hf: "12.5".to_string(),
+            new_hf: "0.730769230769230769".to_string(),
+        },
+    );
 }

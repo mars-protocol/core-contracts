@@ -124,6 +124,13 @@
             ]
           },
           {
+            "description": "Health contract",
+            "type": "string",
+            "enum": [
+              "health"
+            ]
+          },
+          {
             "description": "The address that shall receive the revenue share given to neutron (10%)",
             "type": "string",
             "enum": [
@@ -349,6 +356,13 @@
             ]
           },
           {
+            "description": "Health contract",
+            "type": "string",
+            "enum": [
+              "health"
+            ]
+          },
+          {
             "description": "The address that shall receive the revenue share given to neutron (10%)",
             "type": "string",
             "enum": [
@@ -439,6 +453,13 @@
               "type": "string",
               "enum": [
                 "perps"
+              ]
+            },
+            {
+              "description": "Health contract",
+              "type": "string",
+              "enum": [
+                "health"
               ]
             },
             {
@@ -538,6 +559,13 @@
               ]
             },
             {
+              "description": "Health contract",
+              "type": "string",
+              "enum": [
+                "health"
+              ]
+            },
+            {
               "description": "The address that shall receive the revenue share given to neutron (10%)",
               "type": "string",
               "enum": [
@@ -631,6 +659,13 @@
               "type": "string",
               "enum": [
                 "perps"
+              ]
+            },
+            {
+              "description": "Health contract",
+              "type": "string",
+              "enum": [
+                "health"
               ]
             },
             {

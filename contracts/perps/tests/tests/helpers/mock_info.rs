@@ -14,6 +14,8 @@ pub fn default_perp_params(denom: &str) -> PerpParams {
         opening_fee_rate: Decimal::from_str("0.0").unwrap(),
         liquidation_threshold: Decimal::from_str("0.85").unwrap(),
         max_loan_to_value: Decimal::from_str("0.8").unwrap(),
+        max_loan_to_value_usdc: None,
+        liquidation_threshold_usdc: None,
         max_position_value: None,
         min_position_value: Uint128::zero(),
         max_funding_velocity: Decimal::from_str("3").unwrap(),

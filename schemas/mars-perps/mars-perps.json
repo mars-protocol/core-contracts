@@ -537,19 +537,36 @@
               }
             ]
           },
-          "max_funding_velocity": {
-            "description": "Determines the maximum rate at which funding can be adjusted",
-            "allOf": [
+          "liquidation_threshold_usdc": {
+            "description": "LTV at which a position becomes liquidatable for USDC margin accounts.",
+            "anyOf": [
               {
                 "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
               }
             ]
+          },
+          "max_funding_velocity": {
+            "$ref": "#/definitions/Decimal"
           },
           "max_loan_to_value": {
             "description": "Max loan to position value for the position.",
             "allOf": [
               {
                 "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "max_loan_to_value_usdc": {
+            "description": "Max loan to position value for the position for USDC margin accounts.",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
               }
             ]
           },

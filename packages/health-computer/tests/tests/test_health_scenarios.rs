@@ -8,7 +8,7 @@ use mars_types::{
         VaultPositionAmount, VaultPositionValue, VaultUnlockingPosition,
     },
     credit_manager::{DebtAmount, Positions},
-    health::AccountKind,
+    health::{AccountKind, HealthError},
     params::VaultConfig,
     perps::{PerpPosition, PnlAmounts},
 };
@@ -1400,6 +1400,65 @@ fn long_one_negative_pnl_perp_no_spot_debt() {
     );
     assert!(health.is_above_max_ltv());
     assert!(health.is_liquidatable());
+}
+
+// Test for missing USDC margin params for perp
+#[test]
+fn test_missing_usdc_margin_params() {
+    let uusd = uusdc_info();
+    let entry_price = Decimal::from_str("100").unwrap();
+    let current_price = Decimal::from_str("92").unwrap();
+    let max_ltv = Decimal::from_str("0.9").unwrap();
+    let liquidation_threshold = Decimal::from_str("0.95").unwrap();
+    let size = Int128::from_str("10000000").unwrap();
+    let btcperp =
+        create_perp_info("btc/usd/perp".to_string(), current_price, max_ltv, liquidation_threshold);
+
+    let asset_params = HashMap::from([(uusd.denom.clone(), uusd.params.clone())]);
+
+    let oracle_prices =
+        HashMap::from([(uusd.denom.clone(), uusd.price), (btcperp.denom.clone(), btcperp.price)]);
+    let perps_data = PerpsData {
+        params: HashMap::from([(btcperp.denom.clone(), btcperp.perp_params.clone())]),
+    };
+
+    let vaults_data = Default::default();
+    let unrealized_funding_accrued = Int128::from_str("1225210000").unwrap();
+    let h = HealthComputer {
+        kind: AccountKind::UsdcMargin,
+        positions: Positions {
+            account_id: "123".to_string(),
+            account_kind: AccountKind::UsdcMargin,
+
+            deposits: vec![coin(152000000, &uusd.denom)],
+            debts: vec![],
+            lends: vec![],
+            vaults: vec![],
+            staked_astro_lps: vec![],
+            perps: vec![PerpPosition {
+                denom: btcperp.denom,
+                base_denom: uusd.denom,
+                current_price,
+                entry_price,
+                entry_exec_price: entry_price,
+                current_exec_price: current_price,
+                size,
+                unrealized_pnl: PnlAmounts {
+                    accrued_funding: unrealized_funding_accrued,
+                    pnl: Int128::from_str("-24790000").unwrap(),
+                    ..Default::default()
+                },
+                realized_pnl: PnlAmounts::default(),
+            }],
+        },
+        oracle_prices,
+        asset_params,
+        vaults_data,
+        perps_data,
+    };
+    let err = h.compute_health().unwrap_err();
+    assert!(h.compute_health().is_err());
+    assert_eq!(err, HealthError::MissingUSDCMarginParams(h.kind.to_string()));
 }
 
 // DOC: Health Factor positive - longs

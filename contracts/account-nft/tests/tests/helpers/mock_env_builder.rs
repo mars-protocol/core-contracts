@@ -4,12 +4,20 @@ use anyhow::Result as AnyResult;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use cw_multi_test::{BasicApp, Executor};
 use mars_mock_credit_manager::msg::InstantiateMsg as CmMockInstantiateMsg;
+use mars_mock_oracle::msg::{CoinPrice, InstantiateMsg as OracleInstantiateMsg};
 use mars_owner::OwnerResponse;
-use mars_types::{account_nft::InstantiateMsg, credit_manager::ConfigResponse};
+use mars_testing::multitest::helpers::mock_perps_contract;
+use mars_types::{
+    account_nft::InstantiateMsg,
+    address_provider::{self, MarsAddressType},
+    credit_manager::ConfigResponse,
+    oracle::ActionKind,
+};
 
 use super::{
-    mock_credit_manager_contract, mock_health_contract, mock_nft_contract, MockEnv,
-    MAX_VALUE_FOR_BURN,
+    mock_address_provider_contract, mock_credit_manager_contract, mock_health_contract,
+    mock_incentives_contract, mock_nft_contract, mock_oracle_contract, mock_params_contract,
+    MockEnv, MAX_VALUE_FOR_BURN,
 };
 
 pub struct MockEnvBuilder {
@@ -19,7 +27,11 @@ pub struct MockEnvBuilder {
     pub health_contract: Option<Addr>,
     pub nft_contract: Option<Addr>,
     pub cm_contract: Option<Addr>,
-    pub set_health_contract: bool,
+    pub ap_contract: Option<Addr>,
+    pub oracle: Option<Addr>,
+    pub params: Option<Addr>,
+    pub incentives: Option<Addr>,
+    pub perps: Option<Addr>,
 }
 
 impl MockEnvBuilder {
@@ -28,23 +40,19 @@ impl MockEnvBuilder {
             minter: self.get_minter(),
             nft_contract: self.get_nft_contract(),
             cm_contract: self.get_cm_contract(),
+            health_contract: self.get_health_contract(),
+            ap_contract: self.get_ap_contract(),
+            oracle: self.get_oracle(),
+            params: self.get_params_contract(),
+            incentives: self.get_incentives(),
+            perps: self.get_perps_contract(),
             deployer: self.deployer.clone(),
             app: take(&mut self.app),
         })
     }
 
-    pub fn instantiate_with_health_contract(&mut self, bool: bool) -> &mut Self {
-        self.set_health_contract = bool;
-        self
-    }
-
     pub fn set_minter(&mut self, minter: &str) -> &mut Self {
         self.minter = Some(Addr::unchecked(minter.to_string()));
-        self
-    }
-
-    pub fn set_health_contract(&mut self, contract_addr: &str) -> &mut Self {
-        self.health_contract = Some(Addr::unchecked(contract_addr.to_string()));
         self
     }
 
@@ -70,6 +78,7 @@ impl MockEnvBuilder {
                 None,
             )
             .unwrap();
+        self.set_address(MarsAddressType::Health, health_contract.clone());
         self.health_contract = Some(health_contract.clone());
         health_contract
     }
@@ -89,12 +98,9 @@ impl MockEnvBuilder {
         let contract = mock_nft_contract();
         let code_id = self.app.store_code(contract);
         let minter = self.get_minter().into();
-        let health_contract = if self.set_health_contract {
-            Some(self.get_health_contract().into())
-        } else {
-            None
-        };
-        let cm_contract = self.get_cm_contract();
+        let ap_contract = self.get_ap_contract();
+        self.deploy_health_contract();
+        self.deploy_health_contract();
 
         let addr = self
             .app
@@ -106,8 +112,7 @@ impl MockEnvBuilder {
                     name: "mock_nft".to_string(),
                     symbol: "MOCK".to_string(),
                     minter,
-                    health_contract,
-                    credit_manager_contract: Some(cm_contract.to_string()),
+                    address_provider_contract: ap_contract.to_string(),
                 },
                 &[],
                 "mock-account-nft",
@@ -163,6 +168,189 @@ impl MockEnvBuilder {
                 Some(self.deployer.clone().into()),
             )
             .unwrap();
+        self.set_address(MarsAddressType::CreditManager, cm_addr.clone());
         self.cm_contract = Some(cm_addr);
+    }
+
+    fn get_ap_contract(&mut self) -> Addr {
+        if self.ap_contract.is_none() {
+            self.deploy_ap_contract();
+        }
+        self.ap_contract.clone().unwrap()
+    }
+
+    fn deploy_ap_contract(&mut self) {
+        let contract = mock_address_provider_contract();
+        let code_id = self.app.store_code(contract);
+
+        let ap_addr = self
+            .app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &mars_types::address_provider::InstantiateMsg {
+                    owner: self.deployer.to_string(),
+                    prefix: "".to_string(),
+                },
+                &[],
+                "address-provider-contract",
+                None,
+            )
+            .unwrap();
+        self.ap_contract = Some(ap_addr);
+    }
+
+    fn set_address(&mut self, address_type: MarsAddressType, address: Addr) {
+        let address_provider_addr = self.get_ap_contract();
+
+        self.app
+            .execute_contract(
+                self.deployer.clone(),
+                address_provider_addr,
+                &address_provider::ExecuteMsg::SetAddress {
+                    address_type,
+                    address: address.into(),
+                },
+                &[],
+            )
+            .unwrap();
+    }
+
+    fn get_oracle(&mut self) -> Addr {
+        if self.oracle.is_none() {
+            let addr = self.deploy_oracle();
+            self.oracle = Some(addr);
+        }
+        self.oracle.clone().unwrap()
+    }
+
+    fn deploy_oracle(&mut self) -> Addr {
+        let contract_code_id = self.app.store_code(mock_oracle_contract());
+
+        let prices = vec![CoinPrice {
+            pricing: ActionKind::Default,
+            denom: "uusdc".to_string(),
+            price: Decimal::one(),
+        }];
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                contract_code_id,
+                Addr::unchecked("oracle_contract_owner"),
+                &OracleInstantiateMsg {
+                    prices,
+                },
+                &[],
+                "mock-oracle",
+                None,
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::Oracle, addr.clone());
+
+        addr
+    }
+
+    fn get_params_contract(&mut self) -> Addr {
+        if self.params.is_none() {
+            let p = self.deploy_params_contract();
+            self.params = Some(p);
+        }
+        self.params.clone().unwrap()
+    }
+
+    pub fn deploy_params_contract(&mut self) -> Addr {
+        let contract_code_id = self.app.store_code(mock_params_contract());
+        let owner = self.deployer.clone();
+        let address_provider = self.get_ap_contract();
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                contract_code_id,
+                owner.clone(),
+                &mars_types::params::InstantiateMsg {
+                    owner: owner.to_string(),
+                    risk_manager: None,
+                    address_provider: address_provider.into(),
+                    max_perp_params: 40,
+                },
+                &[],
+                "mock-params-contract",
+                Some(owner.to_string()),
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::Params, addr.clone());
+
+        addr
+    }
+
+    fn get_perps_contract(&mut self) -> Addr {
+        if self.perps.is_none() {
+            let p = self.deploy_perps_contract();
+            self.perps = Some(p);
+        }
+        self.perps.clone().unwrap()
+    }
+
+    fn deploy_perps_contract(&mut self) -> Addr {
+        let contract_code_id = self.app.store_code(mock_perps_contract());
+        let owner = self.deployer.clone();
+        let address_provider = self.get_ap_contract();
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                contract_code_id,
+                owner.clone(),
+                &mars_types::perps::InstantiateMsg {
+                    address_provider: address_provider.into(),
+                    base_denom: "uusdc".to_string(),
+                    cooldown_period: 360,
+                    max_positions: 4,
+                    protocol_fee_rate: Decimal::percent(0),
+                    target_vault_collateralization_ratio: Decimal::from_ratio(12u128, 10u128),
+                    deleverage_enabled: true,
+                    vault_withdraw_enabled: true,
+                    max_unlocks: 5,
+                },
+                &[],
+                "mock-perps-contract",
+                Some(owner.to_string()),
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::Perps, addr.clone());
+
+        addr
+    }
+
+    fn get_incentives(&mut self) -> Addr {
+        if self.incentives.is_none() {
+            let rb = self.deploy_incentives();
+            self.incentives = Some(rb);
+        }
+        self.incentives.clone().unwrap()
+    }
+
+    pub fn deploy_incentives(&mut self) -> Addr {
+        let contract_code_id = self.app.store_code(mock_incentives_contract());
+        let addr = self
+            .app
+            .instantiate_contract(
+                contract_code_id,
+                Addr::unchecked("incentives_contract_owner"),
+                &Empty {},
+                &[],
+                "mock-incentives",
+                None,
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::Incentives, addr.clone());
+
+        addr
     }
 }

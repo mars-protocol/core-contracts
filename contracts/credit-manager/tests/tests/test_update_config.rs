@@ -28,6 +28,7 @@ fn only_owner_can_update_config() {
             oracle: None,
             red_bank: None,
             incentives: None,
+            max_trigger_orders: None,
             max_unlocking_positions: None,
             max_slippage: None,
             swapper: None,
@@ -90,6 +91,7 @@ fn update_config_works_with_full_config() {
     let new_red_bank = deploy_new_red_bank(&mut mock.app);
     let new_incentives = IncentivesUnchecked::new("new_incentives".to_string());
     let new_zapper = ZapperBase::new("new_zapper".to_string());
+    let new_max_trigger_orders = 50u8;
     let new_unlocking_max = Uint128::new(321);
     let new_max_slippage = Decimal::percent(12);
     let new_perps_lb_ratio = Decimal::percent(39);
@@ -109,6 +111,7 @@ fn update_config_works_with_full_config() {
             oracle: Some(new_oracle.clone()),
             red_bank: Some(new_red_bank.clone()),
             incentives: Some(new_incentives.clone()),
+            max_trigger_orders: Some(new_max_trigger_orders),
             max_unlocking_positions: Some(new_unlocking_max),
             max_slippage: Some(new_max_slippage),
             swapper: Some(new_swapper.clone()),

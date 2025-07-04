@@ -13,6 +13,7 @@ export interface StorageItems {
     rewardsCollector?: number
     zapper?: number
     perps?: number
+    vault?: number
   }
 
   addresses: {

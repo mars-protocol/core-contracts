@@ -16,7 +16,7 @@ use mars_types::{
     params::AssetParamsUpdate,
     red_bank::{
         CreateOrUpdateConfig,
-        ExecuteMsg::{self as ExecuteRedBank, Borrow, Deposit},
+        ExecuteMsg::{Borrow, Deposit},
         InstantiateMsg as InstantiateRedBank,
     },
     rewards_collector::{InstantiateMsg as InstantiateRewards, RewardConfig, TransferType},
@@ -1389,7 +1389,7 @@ fn setup_redbank(wasm: &Wasm<OsmosisTestApp>, signer: &SigningAccount) -> (Strin
     )
     .unwrap();
 
-    let (market_params, asset_params) = default_asset_params("uosmo");
+    let asset_params = default_asset_params("uosmo");
 
     // Set price source for uosmo to 1 to satisfy params setup
     wasm.execute(
@@ -1406,16 +1406,6 @@ fn setup_redbank(wasm: &Wasm<OsmosisTestApp>, signer: &SigningAccount) -> (Strin
     .unwrap();
 
     wasm.execute(
-        &red_bank_addr,
-        &ExecuteRedBank::InitAsset {
-            denom: "uosmo".to_string(),
-            params: market_params,
-        },
-        &[],
-        signer,
-    )
-    .unwrap();
-    wasm.execute(
         &params_addr,
         &mars_types::params::ExecuteMsg::UpdateAssetParams(AssetParamsUpdate::AddOrUpdate {
             params: asset_params.into(),
@@ -1425,7 +1415,7 @@ fn setup_redbank(wasm: &Wasm<OsmosisTestApp>, signer: &SigningAccount) -> (Strin
     )
     .unwrap();
 
-    let (market_params, asset_params) = default_asset_params("uatom");
+    let asset_params = default_asset_params("uatom");
 
     // Set price source for uatom to 1 to satisfy params setup
     wasm.execute(
@@ -1435,17 +1425,6 @@ fn setup_redbank(wasm: &Wasm<OsmosisTestApp>, signer: &SigningAccount) -> (Strin
             price_source: OsmosisPriceSourceUnchecked::Fixed {
                 price: Decimal::one(),
             },
-        },
-        &[],
-        signer,
-    )
-    .unwrap();
-
-    wasm.execute(
-        &red_bank_addr,
-        &ExecuteRedBank::InitAsset {
-            denom: "uatom".to_string(),
-            params: market_params,
         },
         &[],
         signer,

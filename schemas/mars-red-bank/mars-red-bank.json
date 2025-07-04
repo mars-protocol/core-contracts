@@ -1,6 +1,6 @@
 {
   "contract_name": "mars-red-bank",
-  "contract_version": "2.2.0",
+  "contract_version": "2.2.1",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -80,65 +80,14 @@
         "additionalProperties": false
       },
       {
-        "description": "Initialize an asset on the money market (only owner can call)",
+        "description": "Initialize or update an asset on the money market",
         "type": "object",
         "required": [
-          "init_asset"
+          "update_market_params"
         ],
         "properties": {
-          "init_asset": {
-            "type": "object",
-            "required": [
-              "denom",
-              "params"
-            ],
-            "properties": {
-              "denom": {
-                "description": "Asset related info",
-                "type": "string"
-              },
-              "params": {
-                "description": "Asset parameters",
-                "allOf": [
-                  {
-                    "$ref": "#/definitions/InitOrUpdateAssetParams"
-                  }
-                ]
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "description": "Update an asset on the money market (only owner can call)",
-        "type": "object",
-        "required": [
-          "update_asset"
-        ],
-        "properties": {
-          "update_asset": {
-            "type": "object",
-            "required": [
-              "denom",
-              "params"
-            ],
-            "properties": {
-              "denom": {
-                "description": "Asset related info",
-                "type": "string"
-              },
-              "params": {
-                "description": "Asset parameters",
-                "allOf": [
-                  {
-                    "$ref": "#/definitions/InitOrUpdateAssetParams"
-                  }
-                ]
-              }
-            },
-            "additionalProperties": false
+          "update_market_params": {
+            "$ref": "#/definitions/MarketParamsUpdate"
           }
         },
         "additionalProperties": false
@@ -370,34 +319,6 @@
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
       },
-      "InitOrUpdateAssetParams": {
-        "type": "object",
-        "properties": {
-          "interest_rate_model": {
-            "description": "Interest rate strategy to calculate borrow_rate and liquidity_rate",
-            "anyOf": [
-              {
-                "$ref": "#/definitions/InterestRateModel"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "reserve_factor": {
-            "description": "Portion of the borrow rate that is kept as protocol rewards",
-            "anyOf": [
-              {
-                "$ref": "#/definitions/Decimal"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "additionalProperties": false
-      },
       "InterestRateModel": {
         "type": "object",
         "required": [
@@ -441,6 +362,65 @@
           }
         },
         "additionalProperties": false
+      },
+      "MarketParams": {
+        "type": "object",
+        "required": [
+          "denom"
+        ],
+        "properties": {
+          "denom": {
+            "type": "string"
+          },
+          "interest_rate_model": {
+            "description": "Interest rate strategy to calculate borrow_rate and liquidity_rate",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/InterestRateModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reserve_factor": {
+            "description": "Portion of the borrow rate that is kept as protocol rewards",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "MarketParamsUpdate": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "add_or_update"
+            ],
+            "properties": {
+              "add_or_update": {
+                "type": "object",
+                "required": [
+                  "params"
+                ],
+                "properties": {
+                  "params": {
+                    "$ref": "#/definitions/MarketParams"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "OwnerUpdate": {
         "oneOf": [

@@ -1,10 +1,12 @@
 use cosmwasm_std::{coin, coins, Addr, Coin, Coins, Uint128};
-use mars_credit_manager::error::ContractError::{ExtraFundsReceived, FundsMismatch, NotTokenOwner};
+use mars_credit_manager::error::ContractError::{
+    ExtraFundsReceived, FundsMismatch, IllegalAction, IllegalDepositDenom, NotTokenOwner,
+};
 use mars_types::credit_manager::{Action, Positions};
 
 use super::helpers::{
-    assert_err, blacklisted_coin_info, uatom_info, ujake_info, uosmo_info, AccountToFund, CoinInfo,
-    MockEnv,
+    assert_err, blacklisted_coin_info, uatom_info, ujake_info, uosmo_info, uusdc_info,
+    AccountToFund, CoinInfo, MockEnv,
 };
 
 #[test]
@@ -269,4 +271,68 @@ fn multiple_deposit_actions() {
 
 fn assert_present(res: &Positions, coin: &CoinInfo, amount: Uint128) {
     res.deposits.iter().find(|item| item.denom == coin.denom && item.amount == amount).unwrap();
+}
+
+#[test]
+fn validate_deposit_if_usdc_account_kind() {
+    let osmo_coin_info = uosmo_info();
+    let usdc_coin_info = uusdc_info();
+    let user = Addr::unchecked("user");
+    let mut mock = MockEnv::new()
+        .set_params(&[osmo_coin_info.clone(), usdc_coin_info.clone()])
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![
+                coin(3000, osmo_coin_info.denom.clone()),
+                coin(3000, usdc_coin_info.denom.clone()),
+            ],
+        })
+        .build()
+        .unwrap();
+    let account_id = mock.create_usdc_account(&user).unwrap();
+
+    let position = mock.query_positions(&account_id);
+    assert_eq!(position.deposits.len(), 0);
+    assert_eq!(position.debts.len(), 0);
+
+    let res = mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![Action::Deposit(coin(300, osmo_coin_info.denom.clone()))],
+        &[coin(300, osmo_coin_info.denom.clone())],
+    );
+
+    assert_err(
+        res,
+        IllegalDepositDenom {
+            denom: osmo_coin_info.denom.clone(),
+            expected_denom: "uusdc".to_string(),
+        },
+    );
+
+    let res = mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![Action::Deposit(coin(300, usdc_coin_info.denom.clone()))],
+        &[coin(300, usdc_coin_info.denom.clone())],
+    );
+    assert!(res.is_ok());
+    assert!(mock.query_positions(&account_id).deposits.len() == 1);
+
+    let res = mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Action::Deposit(coin(300, usdc_coin_info.denom.clone())),
+            Action::Borrow(coin(300, osmo_coin_info.denom.clone())),
+        ],
+        &[coin(300, osmo_coin_info.denom.clone())],
+    );
+    assert_err(
+        res,
+        IllegalAction {
+            user: account_id.to_string(),
+            action: "Borrow".to_string(),
+        },
+    );
 }

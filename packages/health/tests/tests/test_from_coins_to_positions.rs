@@ -10,7 +10,7 @@ use mars_health::{
 use mars_testing::MarsMockQuerier;
 use mars_types::{
     params::{AssetParams, CmSettings, LiquidationBonus, RedBankSettings},
-    red_bank::Market,
+    red_bank::{InterestRateModel, Market},
 };
 
 // Test converting a collection of coins (collateral and debts) to a map of `Position`
@@ -152,6 +152,13 @@ fn mock_setup() -> MarsMockQuerier {
             protocol_liquidation_fee: Decimal::zero(),
             deposit_cap: Default::default(),
             close_factor: Decimal::percent(80u64),
+            reserve_factor: Decimal::percent(10u64),
+            interest_rate_model: InterestRateModel {
+                optimal_utilization_rate: Decimal::percent(80u64),
+                base: Decimal::zero(),
+                slope_1: Decimal::percent(7u64),
+                slope_2: Decimal::percent(45u64),
+            },
         },
     );
     let atom_market = Market {
@@ -184,6 +191,13 @@ fn mock_setup() -> MarsMockQuerier {
             protocol_liquidation_fee: Decimal::zero(),
             deposit_cap: Default::default(),
             close_factor: Decimal::percent(80u64),
+            reserve_factor: Decimal::percent(10u64),
+            interest_rate_model: InterestRateModel {
+                optimal_utilization_rate: Decimal::percent(80u64),
+                base: Decimal::zero(),
+                slope_1: Decimal::percent(7u64),
+                slope_2: Decimal::percent(45u64),
+            },
         },
     );
 

@@ -5,7 +5,11 @@ use mars_types::health::HealthValuesResponse;
 
 pub const MAX_VALUE_FOR_BURN: Uint128 = Uint128::new(1000);
 
-pub fn generate_health_response(debt_value: u128, collateral_value: u128) -> HealthValuesResponse {
+pub fn generate_health_response(
+    debt_value: u128,
+    collateral_value: u128,
+    has_perps: bool,
+) -> HealthValuesResponse {
     HealthValuesResponse {
         total_debt_value: debt_value.into(),
         total_collateral_value: collateral_value.into(),
@@ -17,7 +21,7 @@ pub fn generate_health_response(debt_value: u128, collateral_value: u128) -> Hea
         above_max_ltv: false,
         perps_pnl_profit: Uint128::zero(),
         perps_pnl_loss: Uint128::zero(),
-        has_perps: false,
+        has_perps,
     }
 }
 

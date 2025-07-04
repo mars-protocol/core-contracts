@@ -37,6 +37,30 @@ fn liquidation_threshold_must_be_le_one() {
 }
 
 #[test]
+fn liquidation_threshold_usdc_must_be_le_one() {
+    let mut mock = MockEnv::new().build().unwrap();
+    let denom = "btc/perp/usd".to_string();
+    let res = mock.update_perp_params(
+        &mock.query_owner(),
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                liquidation_threshold_usdc: Some(Decimal::from_str("1.1").unwrap()),
+                ..default_perp_params(&denom)
+            },
+        },
+    );
+
+    assert_err(
+        res,
+        ContractError::Mars(Validation(InvalidParam {
+            param_name: "liquidation_threshold_usdc".to_string(),
+            invalid_value: "1.1".to_string(),
+            predicate: "<= 1".to_string(),
+        })),
+    );
+}
+
+#[test]
 fn max_ltv_must_be_less_than_liquidation_threshold() {
     let mut mock = MockEnv::new().build().unwrap();
     let denom = "btc/perp/usd".to_string();
@@ -57,6 +81,31 @@ fn max_ltv_must_be_less_than_liquidation_threshold() {
             param_name: "liquidation_threshold".to_string(),
             invalid_value: "0.95".to_string(),
             predicate: "> 0.96 (max LTV)".to_string(),
+        })),
+    );
+}
+
+#[test]
+fn max_loan_to_value_usdc_must_be_less_than_liquidation_threshold_usdc() {
+    let mut mock = MockEnv::new().build().unwrap();
+    let denom = "btc/perp/usd".to_string();
+    let res = mock.update_perp_params(
+        &mock.query_owner(),
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                liquidation_threshold_usdc: Some(Decimal::from_str("0.95").unwrap()),
+                max_loan_to_value_usdc: Some(Decimal::from_str("0.96").unwrap()),
+                ..default_perp_params(&denom)
+            },
+        },
+    );
+
+    assert_err(
+        res,
+        ContractError::Mars(Validation(InvalidParam {
+            param_name: "liquidation_threshold_usdc".to_string(),
+            invalid_value: "0.95".to_string(),
+            predicate: "> 0.96 (max LTV USDC)".to_string(),
         })),
     );
 }
