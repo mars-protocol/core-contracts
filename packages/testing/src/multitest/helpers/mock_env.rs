@@ -71,7 +71,6 @@ use mars_types::{
         VaultPositionResponse, VaultResponse,
     },
     red_bank::{
-        self, InitOrUpdateAssetParams, InterestRateModel,
         QueryMsg::{UserCollateral, UserDebt},
         UserCollateralResponse, UserDebtResponse,
     },
@@ -125,6 +124,7 @@ pub struct MockEnvBuilder {
     pub deploy_nft_contract: bool,
     pub set_nft_contract_minter: bool,
     pub accounts_to_fund: Vec<AccountToFund>,
+    pub max_trigger_orders: Option<u8>,
     pub max_unlocking_positions: Option<Uint128>,
     pub max_slippage: Option<Decimal>,
     pub health_contract: Option<HealthContract>,
@@ -157,6 +157,7 @@ impl MockEnv {
             deploy_nft_contract: true,
             set_nft_contract_minter: true,
             accounts_to_fund: vec![],
+            max_trigger_orders: None,
             max_unlocking_positions: None,
             max_slippage: None,
             health_contract: None,
@@ -408,6 +409,10 @@ impl MockEnv {
 
     pub fn create_credit_account(&mut self, sender: &Addr) -> AnyResult<String> {
         self._create_credit_account(sender, AccountKind::Default)
+    }
+
+    pub fn create_usdc_account(&mut self, sender: &Addr) -> AnyResult<String> {
+        self._create_credit_account(sender, AccountKind::UsdcMargin)
     }
 
     pub fn create_hls_account(&mut self, sender: &Addr) -> String {
@@ -1293,26 +1298,9 @@ impl MockEnvBuilder {
     fn add_params_to_contract(&mut self) {
         let params_to_set = self.get_coin_params();
         let params_contract = self.get_params_contract();
-        let red_bank_contract = self.get_red_bank();
 
         for coin_info in params_to_set {
-            // initialize red bank market
-            self.app
-                .execute_contract(
-                    Addr::unchecked("red_bank_contract_owner"),
-                    Addr::unchecked(red_bank_contract.address()),
-                    &red_bank::ExecuteMsg::InitAsset {
-                        denom: coin_info.denom.clone(),
-                        params: InitOrUpdateAssetParams {
-                            reserve_factor: Some(Decimal::zero()),
-                            interest_rate_model: Some(InterestRateModel::default()),
-                        },
-                    },
-                    &[],
-                )
-                .unwrap();
-
-            // save asset params to mars-params contract
+            // save asset params to mars-params contract (also initalizes the red bank market)
             self.app
                 .execute_contract(
                     self.get_owner(),
@@ -1363,6 +1351,7 @@ impl MockEnvBuilder {
         let red_bank = self.get_red_bank();
         let incentives = self.get_incentives();
         let swapper = self.deploy_swapper().into();
+        let max_trigger_orders = self.get_max_trigger_orders();
         let max_unlocking_positions = self.get_max_unlocking_positions();
         let max_slippage = self.get_max_slippage();
         let perps_liquidation_bonus_ratio = self.get_perps_liquidation_ratio();
@@ -1385,6 +1374,7 @@ impl MockEnvBuilder {
                     owner: self.get_owner().to_string(),
                     red_bank,
                     oracle,
+                    max_trigger_orders,
                     max_unlocking_positions,
                     max_slippage,
                     swapper,
@@ -1879,6 +1869,10 @@ impl MockEnvBuilder {
         self.coin_params.clone().unwrap_or_default()
     }
 
+    fn get_max_trigger_orders(&self) -> u8 {
+        self.max_trigger_orders.unwrap_or(20u8)
+    }
+
     fn get_max_unlocking_positions(&self) -> Uint128 {
         self.max_unlocking_positions.unwrap_or_else(|| Uint128::new(100))
     }
@@ -1981,6 +1975,11 @@ impl MockEnvBuilder {
         self
     }
 
+    pub fn max_trigger_orders(mut self, max: u8) -> Self {
+        self.max_trigger_orders = Some(max);
+        self
+    }
+
     pub fn max_unlocking_positions(mut self, max: u128) -> Self {
         self.max_unlocking_positions = Some(Uint128::new(max));
         self
@@ -2028,11 +2027,10 @@ fn deploy_nft_contract(app: &mut CustomApp, minter: &Addr) -> Addr {
         minter.clone(),
         &NftInstantiateMsg {
             max_value_for_burn: Default::default(),
-            health_contract: None,
             name: "Rover Credit Account".to_string(),
             symbol: "RCA".to_string(),
             minter: minter.to_string(),
-            credit_manager_contract: None,
+            address_provider_contract: "ap_contract".to_string(), // dummy value because burning is not used in tests
         },
         &[],
         "manager-mock-account-nft",

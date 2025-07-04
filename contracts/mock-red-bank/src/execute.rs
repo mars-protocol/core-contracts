@@ -3,36 +3,41 @@ use cosmwasm_std::{
     StdResult, Uint128,
 };
 use cw_utils::one_coin;
-use mars_types::red_bank::{InitOrUpdateAssetParams, Market};
+use mars_types::red_bank::{Market, MarketParamsUpdate};
 
 use crate::{
     helpers::{load_collateral_amount, load_debt_amount},
     state::{COLLATERAL_AMOUNT, COLLATERAL_DENOMS, DEBT_AMOUNT, MARKETS},
 };
 
-pub fn init_asset(
+pub fn update_market_params(
     deps: DepsMut,
     env: Env,
-    denom: String,
-    params: InitOrUpdateAssetParams,
+    update: MarketParamsUpdate,
 ) -> StdResult<Response> {
-    // since this is just a mock, we don't do the same checks that we do in the
-    // real red bank contract, such as sender == owner, validate denom, market
-    // not already exists...
-    let market = Market {
-        denom: denom.clone(),
-        borrow_index: Decimal::one(),
-        liquidity_index: Decimal::one(),
-        borrow_rate: Decimal::zero(),
-        liquidity_rate: Decimal::zero(),
-        reserve_factor: params.reserve_factor.unwrap(),
-        indexes_last_updated: env.block.time.seconds(),
-        collateral_total_scaled: Uint128::zero(),
-        debt_total_scaled: Uint128::zero(),
-        interest_rate_model: params.interest_rate_model.unwrap(),
-    };
+    match update {
+        MarketParamsUpdate::AddOrUpdate {
+            params,
+        } => {
+            // since this is just a mock, we don't do the same checks that we do in the
+            // real red bank contract, such as sender == owner, validate denom, market
+            // not already exists...
+            let market = Market {
+                denom: params.denom.clone(),
+                borrow_index: Decimal::one(),
+                liquidity_index: Decimal::one(),
+                borrow_rate: Decimal::zero(),
+                liquidity_rate: Decimal::zero(),
+                reserve_factor: params.reserve_factor.unwrap(),
+                indexes_last_updated: env.block.time.seconds(),
+                collateral_total_scaled: Uint128::zero(),
+                debt_total_scaled: Uint128::zero(),
+                interest_rate_model: params.interest_rate_model.unwrap(),
+            };
 
-    MARKETS.save(deps.storage, &denom, &market)?;
+            MARKETS.save(deps.storage, &params.denom, &market)?;
+        }
+    }
 
     Ok(Response::new())
 }

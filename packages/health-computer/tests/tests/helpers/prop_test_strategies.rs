@@ -16,6 +16,7 @@ use mars_types::{
         RedBankSettings, VaultConfig,
     },
     perps::{Funding, PerpPosition, PnlAmounts, Position},
+    red_bank::InterestRateModel,
 };
 use proptest::{
     collection::vec,
@@ -99,46 +100,71 @@ fn random_signed_decimal(
 }
 
 fn random_coin_info() -> impl Strategy<Value = AssetParams> {
-    (random_denom(), 30..70, 2..10, 80..90, 50..80, random_bool()).prop_map(
-        |(denom, max_ltv, liq_thresh_buffer, hls_base, close_factor, whitelisted)| {
-            let max_loan_to_value = Decimal::from_atomics(max_ltv as u128, 2).unwrap();
-            let liquidation_threshold =
-                max_loan_to_value + Decimal::from_atomics(liq_thresh_buffer as u128, 2).unwrap();
-            let hls_max_ltv = Decimal::from_atomics(hls_base as u128, 2).unwrap();
-            let hls_liq_threshold =
-                hls_max_ltv + Decimal::from_atomics(liq_thresh_buffer as u128, 2).unwrap();
-            let close_factor = Decimal::from_atomics(close_factor as u128, 2).unwrap();
-
-            AssetParams {
+    (random_denom(), 30..70, 2..10, 80..90, 50..80, random_bool(), 10..25, 50..90, 2..15, 45..300)
+        .prop_map(
+            |(
                 denom,
-                credit_manager: CmSettings {
-                    whitelisted,
-                    withdraw_enabled: true,
-                    hls: Some(HlsParams {
-                        max_loan_to_value: hls_max_ltv,
-                        liquidation_threshold: hls_liq_threshold,
-                        correlations: vec![],
-                    }),
-                },
-                red_bank: RedBankSettings {
-                    withdraw_enabled: true,
-                    deposit_enabled: true,
-                    borrow_enabled: true,
-                },
-                max_loan_to_value,
-                liquidation_threshold,
-                liquidation_bonus: LiquidationBonus {
-                    starting_lb: Default::default(),
-                    slope: Default::default(),
-                    min_lb: Default::default(),
-                    max_lb: Default::default(),
-                },
-                protocol_liquidation_fee: Default::default(),
-                deposit_cap: Default::default(),
+                max_ltv,
+                liq_thresh_buffer,
+                hls_base,
                 close_factor,
-            }
-        },
-    )
+                whitelisted,
+                reserve_factor,
+                optimal_utilization_rate,
+                slope_1,
+                slope_2,
+            )| {
+                let max_loan_to_value = Decimal::from_atomics(max_ltv as u128, 2).unwrap();
+                let liquidation_threshold = max_loan_to_value
+                    + Decimal::from_atomics(liq_thresh_buffer as u128, 2).unwrap();
+                let hls_max_ltv = Decimal::from_atomics(hls_base as u128, 2).unwrap();
+                let hls_liq_threshold =
+                    hls_max_ltv + Decimal::from_atomics(liq_thresh_buffer as u128, 2).unwrap();
+                let close_factor = Decimal::from_atomics(close_factor as u128, 2).unwrap();
+                let reserve_factor = Decimal::from_atomics(reserve_factor as u128, 2).unwrap();
+                let optimal_utilization_rate =
+                    Decimal::from_atomics(optimal_utilization_rate as u128, 2).unwrap();
+                let base = Decimal::zero();
+                let slope_1 = Decimal::from_atomics(slope_1 as u128, 2).unwrap();
+                let slope_2 = Decimal::from_atomics(slope_2 as u128, 2).unwrap();
+
+                AssetParams {
+                    denom: denom.clone(),
+                    credit_manager: CmSettings {
+                        whitelisted,
+                        withdraw_enabled: true,
+                        hls: Some(HlsParams {
+                            max_loan_to_value: hls_max_ltv,
+                            liquidation_threshold: hls_liq_threshold,
+                            correlations: vec![],
+                        }),
+                    },
+                    red_bank: RedBankSettings {
+                        withdraw_enabled: true,
+                        deposit_enabled: true,
+                        borrow_enabled: true,
+                    },
+                    max_loan_to_value,
+                    liquidation_threshold,
+                    liquidation_bonus: LiquidationBonus {
+                        starting_lb: Default::default(),
+                        slope: Default::default(),
+                        min_lb: Default::default(),
+                        max_lb: Default::default(),
+                    },
+                    protocol_liquidation_fee: Default::default(),
+                    deposit_cap: Default::default(),
+                    close_factor,
+                    reserve_factor,
+                    interest_rate_model: InterestRateModel {
+                        optimal_utilization_rate,
+                        base,
+                        slope_1,
+                        slope_2,
+                    },
+                }
+            },
+        )
 }
 
 fn random_denoms_data(

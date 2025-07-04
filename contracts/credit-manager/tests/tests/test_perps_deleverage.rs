@@ -9,7 +9,7 @@ use mars_types::{
     address_provider::MarsAddressType,
     credit_manager::{
         Action::{Deposit, ExecutePerpOrder},
-        Positions,
+        ExecutePerpOrderType, Positions,
     },
     oracle::ActionKind,
     params::{PerpParams, PerpParamsUpdate},
@@ -477,6 +477,7 @@ fn open_perp(mock: &mut MockEnv, user: &Addr, acc_id: &str, denom: &str, size: I
             denom: denom.to_string(),
             order_size: size,
             reduce_only: None,
+            order_type: Some(ExecutePerpOrderType::Default),
         }],
         &[],
     )

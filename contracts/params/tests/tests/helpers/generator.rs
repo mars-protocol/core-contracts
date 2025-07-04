@@ -1,9 +1,12 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{coin, Decimal, Uint128};
-use mars_types::params::{
-    AssetParamsUnchecked, CmSettings, LiquidationBonus, PerpParams, RedBankSettings,
-    VaultConfigUnchecked,
+use mars_types::{
+    params::{
+        AssetParamsUnchecked, CmSettings, LiquidationBonus, PerpParams, RedBankSettings,
+        VaultConfigUnchecked,
+    },
+    red_bank::InterestRateModel,
 };
 
 pub fn default_asset_params(denom: &str) -> AssetParamsUnchecked {
@@ -30,6 +33,13 @@ pub fn default_asset_params(denom: &str) -> AssetParamsUnchecked {
         protocol_liquidation_fee: Decimal::percent(2),
         deposit_cap: Uint128::new(1_000_000_000),
         close_factor: Decimal::percent(80u64),
+        reserve_factor: Decimal::percent(10u64),
+        interest_rate_model: InterestRateModel {
+            optimal_utilization_rate: Decimal::percent(80u64),
+            base: Decimal::zero(),
+            slope_1: Decimal::percent(7u64),
+            slope_2: Decimal::percent(45u64),
+        },
     }
 }
 
@@ -55,6 +65,8 @@ pub fn default_perp_params(denom: &str) -> PerpParams {
         opening_fee_rate: Decimal::from_str("0.004").unwrap(),
         liquidation_threshold: Decimal::from_str("0.85").unwrap(),
         max_loan_to_value: Decimal::from_str("0.8").unwrap(),
+        max_loan_to_value_usdc: None,
+        liquidation_threshold_usdc: None,
         max_position_value: None,
         min_position_value: Uint128::zero(),
         max_funding_velocity: Decimal::from_str("3").unwrap(),

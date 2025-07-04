@@ -22,9 +22,8 @@ fn rewards_claim() {
     let params = mock_env.params.clone();
     let oracle = mock_env.oracle.clone();
 
-    let (market_params, asset_params) = default_asset_params("uusdc");
+    let asset_params = default_asset_params("uusdc");
     oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uusdc", market_params);
     params.init_params(&mut mock_env, asset_params);
 
     let incentives = mock_env.incentives.clone();
@@ -79,9 +78,8 @@ fn rewards_claim_for_credit_account() {
     let params = mock_env.params.clone();
     let oracle = mock_env.oracle.clone();
 
-    let (market_params, asset_params) = default_asset_params("uusdc");
+    let asset_params = default_asset_params("uusdc");
     oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uusdc", market_params);
     params.init_params(&mut mock_env, asset_params);
 
     let incentives = mock_env.incentives.clone();
@@ -262,17 +260,14 @@ fn emissions_rates() {
     let params = mock_env.params.clone();
     let oracle = mock_env.oracle.clone();
 
-    let (market_params, asset_params) = default_asset_params("uusdc");
-    oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uusdc", market_params);
+    let asset_params = default_asset_params("uosmo");
+    oracle.set_price_source_fixed(&mut mock_env, &asset_params.denom, Decimal::one());
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params("uosmo");
-    oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uosmo", market_params);
+    let asset_params = default_asset_params("uusdc");
+    oracle.set_price_source_fixed(&mut mock_env, &asset_params.denom, Decimal::one());
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params("umars");
-    oracle.set_price_source_fixed(&mut mock_env, "umars", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "umars", market_params);
+    let asset_params = default_asset_params("umars");
+    oracle.set_price_source_fixed(&mut mock_env, &asset_params.denom, Decimal::one());
     params.init_params(&mut mock_env, asset_params);
 
     let incentives = mock_env.incentives.clone();
@@ -358,21 +353,17 @@ fn no_incentives_accrued_after_withdraw() {
     let owner = Addr::unchecked("owner");
     let mut mock_env = MockEnvBuilder::new(None, owner).build();
 
-    let red_bank = mock_env.red_bank.clone();
     let params = mock_env.params.clone();
     let oracle = mock_env.oracle.clone();
 
-    let (market_params, asset_params) = default_asset_params("uusdc");
+    let asset_params = default_asset_params("uusdc");
     oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uusdc", market_params);
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params("uosmo");
+    let asset_params = default_asset_params("uosmo");
     oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uosmo", market_params);
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params("umars");
+    let asset_params = default_asset_params("umars");
     oracle.set_price_source_fixed(&mut mock_env, "umars", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "umars", market_params);
     params.init_params(&mut mock_env, asset_params);
 
     let incentives = mock_env.incentives.clone();
@@ -392,7 +383,7 @@ fn no_incentives_accrued_after_withdraw() {
     mock_env.fund_account(&user, &[coin(funded_amt, "uosmo")]);
 
     mock_env.fund_account(&incentives.contract_addr, &[coin(funded_amt, "umars")]);
-
+    let red_bank = mock_env.red_bank.clone();
     red_bank.deposit(&mut mock_env, &user, coin(funded_amt, "uusdc")).unwrap();
     let balance = mock_env.query_balance(&user, "uusdc").unwrap();
     assert_eq!(balance.amount, Uint128::zero());
@@ -440,24 +431,21 @@ fn multiple_assets() {
     let owner = Addr::unchecked("owner");
     let mut mock_env = MockEnvBuilder::new(None, owner).build();
 
-    let red_bank = mock_env.red_bank.clone();
     let params = mock_env.params.clone();
     let oracle = mock_env.oracle.clone();
-    let (market_params, asset_params) = default_asset_params("uusdc");
+    let red_bank = mock_env.red_bank.clone();
+
+    let asset_params = default_asset_params("uusdc");
     oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uusdc", market_params);
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params("uosmo");
+    let asset_params = default_asset_params("uosmo");
     oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uosmo", market_params);
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params("uatom");
+    let asset_params = default_asset_params("uatom");
     oracle.set_price_source_fixed(&mut mock_env, "uatom", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uatom", market_params);
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params("umars");
+    let asset_params = default_asset_params("umars");
     oracle.set_price_source_fixed(&mut mock_env, "umars", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "umars", market_params);
     params.init_params(&mut mock_env, asset_params);
 
     // set incentives
@@ -537,9 +525,8 @@ fn multiple_users() {
     let params = mock_env.params.clone();
     let oracle = mock_env.oracle.clone();
 
-    let (market_params, asset_params) = default_asset_params("uusdc");
+    let asset_params = default_asset_params("uusdc");
     oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uusdc", market_params);
     params.init_params(&mut mock_env, asset_params);
 
     // set incentives
@@ -627,17 +614,14 @@ fn rewards_distributed_among_users_and_rewards_collector() {
     let params = mock_env.params.clone();
     let oracle = mock_env.oracle.clone();
 
-    let (market_params, asset_params) = default_asset_params("uusdc");
+    let asset_params = default_asset_params("uusdc");
     oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uusdc", market_params);
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params("uosmo");
+    let asset_params = default_asset_params("uosmo");
     oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uosmo", market_params);
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = default_asset_params("uatom");
+    let asset_params = default_asset_params("uatom");
     oracle.set_price_source_fixed(&mut mock_env, "uatom", Decimal::one());
-    red_bank.init_asset(&mut mock_env, "uatom", market_params);
     params.init_params(&mut mock_env, asset_params);
 
     // fund user accounts

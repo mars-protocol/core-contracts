@@ -2122,7 +2122,7 @@ checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 
 [[package]]
 name = "mars-account-nft"
-version = "2.2.0"
+version = "2.2.1"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -2133,9 +2133,13 @@ dependencies = [
  "cw721 0.18.0",
  "cw721-base 0.16.0",
  "cw721-base 0.18.0",
+ "mars-address-provider",
  "mars-mock-credit-manager",
+ "mars-mock-incentives",
+ "mars-mock-oracle",
  "mars-mock-rover-health",
  "mars-owner",
+ "mars-params",
  "mars-testing",
  "mars-types",
  "serde_json",
@@ -2456,10 +2460,13 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "mars-address-provider",
+ "mars-incentives",
  "mars-interest-rate",
  "mars-oracle-osmosis",
  "mars-owner",
  "mars-perps",
+ "mars-red-bank",
+ "mars-rewards-collector-osmosis",
  "mars-testing",
  "mars-types",
  "mars-utils",
@@ -2506,7 +2513,7 @@ dependencies = [
 
 [[package]]
 name = "mars-red-bank"
-version = "2.2.0"
+version = "2.2.1"
 dependencies = [
  "anyhow",
  "cosmwasm-schema",
@@ -2591,6 +2598,7 @@ dependencies = [
  "mars-address-provider",
  "mars-mock-credit-manager",
  "mars-mock-oracle",
+ "mars-mock-red-bank",
  "mars-mock-vault",
  "mars-owner",
  "mars-params",
