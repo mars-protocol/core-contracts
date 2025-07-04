@@ -522,6 +522,8 @@ export class Deployer {
             opening_fee_rate: perpDenom.openingFeeRate,
             liquidation_threshold: perpDenom.liquidationThreshold,
             max_loan_to_value: perpDenom.maxLoanToValue,
+            max_loan_to_value_usdc: perpDenom.maxLoanToValueUsdc,
+            liquidation_threshold_usdc: perpDenom.liquidationThresholdUsdc,
             max_position_value: perpDenom.maxPositionValue,
             min_position_value: minPositionValue,
             max_funding_velocity: perpDenom.maxFundingVelocity,

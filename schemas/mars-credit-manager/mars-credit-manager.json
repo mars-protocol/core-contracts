@@ -397,6 +397,7 @@
             "type": "string",
             "enum": [
               "default",
+              "usdc_margin",
               "high_levered_strategy"
             ]
           },
@@ -3684,6 +3685,7 @@
           "type": "string",
           "enum": [
             "default",
+            "usdc_margin",
             "high_levered_strategy"
           ]
         },
@@ -3741,6 +3743,7 @@
               "type": "string",
               "enum": [
                 "default",
+                "usdc_margin",
                 "high_levered_strategy"
               ]
             },
@@ -6505,6 +6508,7 @@
               "type": "string",
               "enum": [
                 "default",
+                "usdc_margin",
                 "high_levered_strategy"
               ]
             },

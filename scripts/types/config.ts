@@ -191,6 +191,8 @@ export interface PerpDenom {
   openingFeeRate: string
   liquidationThreshold: string
   maxLoanToValue: string
+  maxLoanToValueUsdc: string | null
+  liquidationThresholdUsdc: string | null
   maxPositionValue?: string
   minPositionValue: string
 }

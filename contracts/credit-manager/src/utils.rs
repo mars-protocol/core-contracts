@@ -327,3 +327,15 @@ pub fn assert_vault_has_no_admin(deps: &mut DepsMut<'_>, vault: &Addr) -> Contra
     }
     Ok(())
 }
+
+pub fn extract_action_names<T: std::fmt::Debug>(actions: &[T]) -> String {
+    actions
+        .iter()
+        .map(|action| {
+            let dbg = format!("{:?}", action);
+            let end = dbg.find(|c: char| " ({".contains(c)).unwrap_or(dbg.len());
+            dbg[..end].to_string()
+        })
+        .collect::<Vec<String>>()
+        .join(", ")
+}

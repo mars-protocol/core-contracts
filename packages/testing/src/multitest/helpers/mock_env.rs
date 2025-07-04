@@ -410,6 +410,10 @@ impl MockEnv {
         self._create_credit_account(sender, AccountKind::Default)
     }
 
+    pub fn create_usdc_account(&mut self, sender: &Addr) -> AnyResult<String> {
+        self._create_credit_account(sender, AccountKind::UsdcMargin)
+    }
+
     pub fn create_hls_account(&mut self, sender: &Addr) -> String {
         self._create_credit_account(sender, AccountKind::HighLeveredStrategy).unwrap()
     }

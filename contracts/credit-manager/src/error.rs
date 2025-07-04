@@ -35,6 +35,12 @@ pub enum ContractError {
         maximum: String,
     },
 
+    #[error("Illegal deposit of {denom:?}. Expected: {expected_denom:?}")]
+    IllegalDepositDenom {
+        denom: String,
+        expected_denom: String,
+    },
+
     #[error("{0}")]
     Owner(#[from] OwnerError),
 
@@ -168,6 +174,12 @@ pub enum ContractError {
 
     #[error("{user:?} is not authorized to {action:?}")]
     Unauthorized {
+        user: String,
+        action: String,
+    },
+
+    #[error("{user:?} is not allowed to {action:?}")]
+    IllegalAction {
         user: String,
         action: String,
     },
