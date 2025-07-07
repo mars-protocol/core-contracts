@@ -50,7 +50,7 @@ pub fn swap_exact_in(
     // If this is a duality specific route, use the duality swapper, otherwise use the default swapper
     let swapper = match route {
         Some(SwapperRoute::Duality(_)) => DUALITY_SWAPPER.load(deps.storage)?,
-        _ => SWAPPER.load(deps.storage)?, 
+        _ => SWAPPER.load(deps.storage)?,
     };
 
     Ok(Response::new()
