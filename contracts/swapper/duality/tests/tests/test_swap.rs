@@ -168,7 +168,8 @@ fn test_swap_with_custom_pricing(
     );
 
     // Allow for 0.1% slippage, rounding
-    let slippage_adjusted_price_ratio = price_ratio.checked_mul(Decimal::from_ratio(999u128, 1000u128)).unwrap();
+    let slippage_adjusted_price_ratio =
+        price_ratio.checked_mul(Decimal::from_ratio(999u128, 1000u128)).unwrap();
 
     // Calculate expected output
     let expected_amount_out = Decimal::from_atomics(amount_in, 0)
@@ -176,9 +177,10 @@ fn test_swap_with_custom_pricing(
         .checked_mul(slippage_adjusted_price_ratio)
         .unwrap()
         .to_uint_floor();
-    
+
     // Execute the swap
-    let result = tester.execute_swap(coin_in, denom_out, expected_amount_out, swapper_route, &tester.user);
+    let result =
+        tester.execute_swap(coin_in, denom_out, expected_amount_out, swapper_route, &tester.user);
 
     // Unwrap and verify the result
     let _result = result.unwrap();
@@ -438,16 +440,16 @@ fn test_insufficient_output_multi_hop_swap() {
     tester.add_liquidity(
         denom_in,
         intermediate,
-        Uint128::new(10_000_000),  // 10M input tokens
-        Uint128::new(30_000_000),  // 30M intermediate tokens (3:1 ratio)
+        Uint128::new(10_000_000), // 10M input tokens
+        Uint128::new(30_000_000), // 30M intermediate tokens (3:1 ratio)
     );
 
     // Add liquidity with a 1:1 ratio for the second hop
     tester.add_liquidity(
         intermediate,
         denom_out,
-        Uint128::new(30_000_000),  // 30M intermediate tokens
-        Uint128::new(30_000_000),  // 30M output tokens (1:1 ratio)
+        Uint128::new(30_000_000), // 30M intermediate tokens
+        Uint128::new(30_000_000), // 30M output tokens (1:1 ratio)
     );
 
     // Create and set up a multi-hop route
@@ -463,10 +465,10 @@ fn test_insufficient_output_multi_hop_swap() {
     // Calculate expected output - with 3:1 for first hop and 1:1 for second hop
     // For 1M input tokens, we expect ~3M output tokens
     let expected_amount_out = amount_in * 3;
-    
+
     // Set minimum receive slightly higher than the expected output to trigger the error
     let min_receive = expected_amount_out + 1000u128; // Asking for more than the pools will provide
-    
+
     // This should fail because the minimum receive amount is too high
     let result = tester.execute_swap(
         coin(amount_in, denom_in),

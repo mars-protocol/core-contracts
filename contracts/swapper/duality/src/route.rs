@@ -116,7 +116,6 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
 
         // If we have more than two denoms, we need to do a multi-hop swap.
         let swap_msg: CosmosMsg<NeutronMsg> = if swap_denoms.len() > 2 {
-
             neutron_sdk::stargate::dex::msg::msg_multi_hop_swap(MultiHopSwapRequest {
                 sender: env.contract.address.to_string(),
                 receiver: env.contract.address.to_string(),
@@ -126,7 +125,7 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
                 pick_best_route: true,
             })
         } else {
-            let limit_sell_price = Decimal::from_ratio( min_receive, coin_in.amount).to_string();
+            let limit_sell_price = Decimal::from_ratio(min_receive, coin_in.amount).to_string();
 
             neutron_sdk::stargate::dex::msg::msg_place_limit_order(PlaceLimitOrderRequest {
                 order_type: LimitOrderType::FillOrKill,
