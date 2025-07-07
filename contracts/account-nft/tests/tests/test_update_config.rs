@@ -12,8 +12,7 @@ fn only_minter_can_update_config() {
         &bad_guy,
         &NftConfigUpdates {
             max_value_for_burn: None,
-            health_contract_addr: None,
-            credit_manager_contract_addr: None,
+            address_provider_contract_addr: None,
         },
     );
 
@@ -27,19 +26,16 @@ fn minter_can_update_config() {
     let mut mock = MockEnv::new().build().unwrap();
 
     let new_max_burn_val = Uint128::new(4918453);
-    let new_health_contract = "new_health_contract_123".to_string();
-    let new_cm_contract = "new_cm_contract_123".to_string();
+    let new_ap_contract = "new_ap_contract_123".to_string();
 
     let updates = NftConfigUpdates {
         max_value_for_burn: Some(new_max_burn_val),
-        health_contract_addr: Some(new_health_contract.clone()),
-        credit_manager_contract_addr: Some(new_cm_contract.clone()),
+        address_provider_contract_addr: Some(new_ap_contract.clone()),
     };
 
     mock.update_config(&mock.minter.clone(), &updates).unwrap();
 
     let config = mock.query_config();
     assert_eq!(config.max_value_for_burn, new_max_burn_val);
-    assert_eq!(config.health_contract_addr.unwrap(), new_health_contract);
-    assert_eq!(config.credit_manager_contract_addr.unwrap(), new_cm_contract);
+    assert_eq!(config.address_provider_contract_addr, new_ap_contract);
 }

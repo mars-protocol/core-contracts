@@ -8,6 +8,7 @@ use tsify::Tsify;
 #[cw_serde]
 pub enum AccountKind {
     Default,
+    UsdcMargin,
     HighLeveredStrategy,
 
     /// A vault that is managed by a fund manager.

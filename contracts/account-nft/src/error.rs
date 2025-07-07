@@ -18,9 +18,6 @@ pub enum ContractError {
         reason: String,
     },
 
-    #[error("Health contract should be added to config before burns are allowed")]
-    HealthContractNotSet,
-
     #[error("{0}")]
     Version(#[from] cw2::VersionError),
 }

@@ -1,6 +1,6 @@
 [package]
 name          = "mars-account-nft"
-version       = { workspace = true }
+version       = "2.2.1"
 authors       = { workspace = true }
 license       = { workspace = true }
 edition       = { workspace = true }
@@ -32,8 +32,12 @@ thiserror       = { workspace = true }
 anyhow                   = { workspace = true }
 cw721-base-v16           = { package = "cw721-base", version = "0.16.0" }
 cw-multi-test            = { workspace = true }
+mars-address-provider    = { workspace = true }
 mars-mock-credit-manager = { workspace = true }
+mars-mock-incentives     = { workspace = true }
+mars-mock-oracle         = { workspace = true }
 mars-mock-rover-health   = { workspace = true }
+mars-params              = { workspace = true }
 mars-owner               = { workspace = true }
 mars-testing             = { workspace = true }
 serde_json               = { workspace = true }

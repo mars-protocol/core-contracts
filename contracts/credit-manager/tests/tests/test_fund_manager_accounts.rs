@@ -530,6 +530,7 @@ fn vault_cannot_be_used_after_being_blacklisted() {
             denom: coin_info.denom.clone(),
             order_size: Int128::from(-100),
             reduce_only: None,
+            order_type: None,
         }],
         &[],
     );

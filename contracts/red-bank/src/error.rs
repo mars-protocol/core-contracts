@@ -67,12 +67,6 @@ pub enum ContractError {
     #[error("User's health factor can't be less than 1 after withdraw")]
     InvalidHealthFactorAfterWithdraw {},
 
-    #[error("Asset is already initialized")]
-    AssetAlreadyInitialized {},
-
-    #[error("Asset not initialized")]
-    AssetNotInitialized {},
-
     #[error("Deposit Cap exceeded for {denom:?}")]
     DepositCapExceeded {
         denom: String,
