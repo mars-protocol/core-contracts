@@ -123,6 +123,7 @@ pub enum HealthState {
     Healthy,
     Unhealthy {
         max_ltv_health_factor: Decimal,
+        liquidation_health_factor: Decimal,
     },
 }
 
@@ -132,11 +133,13 @@ impl fmt::Display for HealthState {
             HealthState::Healthy => write!(f, "healthy"),
             HealthState::Unhealthy {
                 max_ltv_health_factor,
+                liquidation_health_factor,
             } => {
                 write!(
                     f,
-                    "unhealthy (max_ltv_health_factor: {:?}",
+                    "unhealthy (max_ltv_health_factor: {:?}, liquidation_health_factor: {:?}",
                     max_ltv_health_factor.to_string(),
+                    liquidation_health_factor.to_string()
                 )
             }
         }

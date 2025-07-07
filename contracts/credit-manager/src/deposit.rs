@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 
 use cosmwasm_std::{Coin, Coins, Deps, DepsMut, Response, Uint128};
-use mars_types::params::TotalDepositResponse;
+use mars_types::{health::AccountKind, params::TotalDepositResponse};
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::PARAMS,
+    state::{PARAMS, PERPS},
     utils::increment_coin_balance,
 };
 
@@ -40,6 +40,22 @@ fn assert_sent_fund(expected: &Coin, received_coins: &Coins) -> ContractResult<(
             expected: expected.amount,
             received,
         });
+    }
+
+    Ok(())
+}
+
+/// Validate deposit based on AccountKind
+pub fn validate_deposit(deps: Deps, account_kind: &AccountKind, coin: &Coin) -> ContractResult<()> {
+    if matches!(account_kind, AccountKind::UsdcMargin) {
+        let perp_config = PERPS.load(deps.storage)?.query_config(&deps.querier)?;
+
+        if coin.denom != perp_config.base_denom {
+            return Err(ContractError::IllegalDepositDenom {
+                denom: coin.denom.clone(),
+                expected_denom: perp_config.base_denom,
+            });
+        }
     }
 
     Ok(())

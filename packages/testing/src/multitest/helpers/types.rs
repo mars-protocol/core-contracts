@@ -6,6 +6,7 @@ use mars_types::{
     params::{
         AssetParamsUnchecked, CmSettings, HlsParamsUnchecked, LiquidationBonus, RedBankSettings,
     },
+    red_bank::InterestRateModel,
 };
 
 #[cw_serde]
@@ -72,7 +73,7 @@ impl CoinInfo {
 impl From<CoinInfo> for AssetParamsUnchecked {
     fn from(c: CoinInfo) -> Self {
         Self {
-            denom: c.denom,
+            denom: c.denom.clone(),
             credit_manager: CmSettings {
                 whitelisted: c.whitelisted,
                 withdraw_enabled: c.withdraw_enabled,
@@ -89,6 +90,13 @@ impl From<CoinInfo> for AssetParamsUnchecked {
             protocol_liquidation_fee: c.protocol_liquidation_fee,
             deposit_cap: Uint128::MAX,
             close_factor: c.close_factor,
+            reserve_factor: Decimal::percent(10u64),
+            interest_rate_model: InterestRateModel {
+                optimal_utilization_rate: Decimal::percent(80u64),
+                base: Decimal::zero(),
+                slope_1: Decimal::percent(7u64),
+                slope_2: Decimal::percent(45u64),
+            },
         }
     }
 }

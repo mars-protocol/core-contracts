@@ -172,9 +172,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
     match msg {
-        MigrateMsg::V2_2_0 {
-            close_factor,
-        } => migrations::v2_2_0::migrate(deps, close_factor),
         MigrateMsg::V2_2_3 {} => migrations::v2_2_3::migrate(deps),
+        MigrateMsg::V2_3_0 {
+            reserve_factor,
+            interest_rate_model,
+        } => migrations::v2_3_0::migrate(deps, reserve_factor, interest_rate_model),
     }
 }

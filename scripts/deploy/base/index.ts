@@ -32,6 +32,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     await deployer.upload('creditManager', wasmFile('mars_credit_manager'))
     await deployer.upload('health', wasmFile('mars_rover_health'))
     await deployer.upload('perps', wasmFile('mars_perps'))
+    await deployer.upload('vault', wasmFile('mars_vault'))
 
     // Instantiate contracts
     await deployer.instantiateAddressProvider()
@@ -73,7 +74,6 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
 
     for (const asset of config.assets) {
       await deployer.updateAssetParams(asset)
-      await deployer.initializeMarket(asset)
     }
     for (const vault of config.vaults) {
       await deployer.updateVaultConfig(vault)

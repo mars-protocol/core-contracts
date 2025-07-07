@@ -1,11 +1,11 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+    to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
 };
 use cw2::set_contract_version;
 use cw721_base::Cw721Contract;
-use mars_types::account_nft::{ExecuteMsg, InstantiateMsg, NftConfig, QueryMsg};
+use mars_types::account_nft::{ExecuteMsg, InstantiateMsg, MigrateMsg, NftConfig, QueryMsg};
 
 use crate::{
     error::ContractError,
@@ -32,19 +32,13 @@ pub fn instantiate(
 
     NEXT_ID.save(deps.storage, &1)?;
 
-    let validate_func = |contract: Option<&String>| -> StdResult<Option<Addr>> {
-        contract.map(|unchecked| deps.api.addr_validate(unchecked)).transpose()
-    };
-
-    let health_contract_addr = validate_func(msg.health_contract.as_ref())?;
-    let credit_manager_contract_addr = validate_func(msg.credit_manager_contract.as_ref())?;
+    let address_provider_contract_addr = deps.api.addr_validate(&msg.address_provider_contract)?;
 
     CONFIG.save(
         deps.storage,
         &NftConfig {
             max_value_for_burn: msg.max_value_for_burn,
-            health_contract_addr,
-            credit_manager_contract_addr,
+            address_provider_contract_addr,
         },
     )?;
 
@@ -82,6 +76,6 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
-    migrations::v2_2_0::migrate(deps)
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    migrations::v2_2_1::migrate(deps, msg)
 }

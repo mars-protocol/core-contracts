@@ -110,6 +110,7 @@ pub fn compute_health_state(
     } else {
         Ok(HealthState::Unhealthy {
             max_ltv_health_factor: health.max_ltv_health_factor.unwrap(),
+            liquidation_health_factor: health.liquidation_health_factor.unwrap_or(Decimal::MAX),
         })
     }
 }

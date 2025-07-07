@@ -6,7 +6,7 @@ use cosmwasm_std::{
 use mars_types::red_bank;
 
 use crate::{
-    execute::{borrow, deposit, init_asset, repay, withdraw},
+    execute::{borrow, deposit, repay, update_market_params, withdraw},
     query::{query_collateral, query_collaterals, query_collaterals_v2, query_debt, query_market},
 };
 
@@ -28,10 +28,7 @@ pub fn execute(
     msg: red_bank::ExecuteMsg,
 ) -> StdResult<Response> {
     match msg {
-        red_bank::ExecuteMsg::InitAsset {
-            denom,
-            params,
-        } => init_asset(deps, env, denom, params),
+        red_bank::ExecuteMsg::UpdateMarketParams(update) => update_market_params(deps, env, update),
         red_bank::ExecuteMsg::Borrow {
             denom,
             amount,

@@ -16,11 +16,10 @@ use mars_testing::{mock_env_at_block_time, MarsMockQuerier};
 use mars_types::{
     address_provider::MarsAddressType,
     error::MarsError,
-    incentives,
-    incentives::IncentiveKind,
+    incentives::{self, IncentiveKind},
     keys::{UserId, UserIdKey},
     params::{AssetParams, CmSettings, LiquidationBonus, RedBankSettings},
-    red_bank::{Collateral, ExecuteMsg, Market},
+    red_bank::{Collateral, ExecuteMsg, InterestRateModel, Market},
 };
 use test_case::test_case;
 
@@ -82,6 +81,13 @@ fn setup_test() -> TestSuite {
             protocol_liquidation_fee: Decimal::percent(2u64),
             deposit_cap: Uint128::new(12_000_000),
             close_factor: Decimal::percent(80u64),
+            reserve_factor: Decimal::percent(10u64),
+            interest_rate_model: InterestRateModel {
+                optimal_utilization_rate: Decimal::percent(80u64),
+                base: Decimal::zero(),
+                slope_1: Decimal::percent(7u64),
+                slope_2: Decimal::percent(45u64),
+            },
         },
     );
 

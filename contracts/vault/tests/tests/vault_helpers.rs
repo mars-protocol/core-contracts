@@ -122,6 +122,7 @@ pub fn open_perp_position(
             denom: perp_denom.to_string(),
             order_size: size,
             reduce_only: None,
+            order_type: None,
         }],
         &[],
     )

@@ -30,7 +30,7 @@ fn can_be_first_staker() {
     oracle.set_price_source_fixed(&mut mock_env, lp_denom, Decimal::one());
 
     // Set asset params for lp token
-    let (_, asset_params) = default_asset_params(lp_denom);
+    let asset_params = default_asset_params(lp_denom);
     params.init_params(&mut mock_env, asset_params);
 
     // Fund accounts
@@ -75,7 +75,7 @@ fn claim_rewards() {
     oracle.set_price_source_fixed(&mut mock_env, lp_denom, Decimal::one());
 
     // Set asset params for lp token
-    let (_, asset_params) = default_asset_params(lp_denom);
+    let asset_params = default_asset_params(lp_denom);
     params.init_params(&mut mock_env, asset_params);
 
     // Fund accounts
@@ -135,7 +135,7 @@ fn claim_rewards_without_active_schedule() {
     oracle.set_price_source_fixed(&mut mock_env, lp_denom, Decimal::one());
 
     // Set asset params for lp token
-    let (_, asset_params) = default_asset_params(lp_denom);
+    let asset_params = default_asset_params(lp_denom);
     params.init_params(&mut mock_env, asset_params);
 
     // Fund accounts
@@ -188,7 +188,7 @@ fn unstake_claims_rewards() {
     };
 
     // Set asset params for lp token
-    let (_, asset_params) = default_asset_params(lp_denom);
+    let asset_params = default_asset_params(lp_denom);
     params.init_params(&mut mock_env, asset_params);
 
     // Fund accounts
@@ -324,7 +324,7 @@ impl AstroIncentivesTestHelper {
         oracle.set_price_source_fixed(&mut mock_env, &lp_denom, Decimal::one());
 
         // Set asset params for lp token
-        let (_, asset_params) = default_asset_params(lp_denom.as_str());
+        let asset_params = default_asset_params(lp_denom.as_str());
         params.init_params(&mut mock_env, asset_params);
 
         // Fund accounts we need funded

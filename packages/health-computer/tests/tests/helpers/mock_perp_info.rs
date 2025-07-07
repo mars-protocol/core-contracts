@@ -22,6 +22,8 @@ pub fn create_default_perp_info() -> PerpParams {
         max_position_value: None,
         max_loan_to_value: Decimal::percent(75),
         liquidation_threshold: Decimal::percent(78),
+        max_loan_to_value_usdc: None,
+        liquidation_threshold_usdc: None,
         max_funding_velocity: Decimal::from_str("36").unwrap(),
         skew_scale: Uint128::new(1_000_000_000_000_000u128),
     }
@@ -46,6 +48,8 @@ pub fn create_perp_info(
             max_position_value: None,
             max_loan_to_value: max_ltv,
             liquidation_threshold,
+            max_loan_to_value_usdc: None,
+            liquidation_threshold_usdc: None,
             max_funding_velocity: Decimal::from_str("36").unwrap(),
             skew_scale: Uint128::new(1_000_000_000_000_000u128),
         },

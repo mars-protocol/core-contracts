@@ -5,9 +5,7 @@ use cosmwasm_std::{Coin, Decimal, Fraction, Uint128};
 use cw_multi_test::AppResponse;
 use mars_types::{
     params::{AssetParams, CmSettings, LiquidationBonus, RedBankSettings},
-    red_bank::{
-        InitOrUpdateAssetParams, InterestRateModel, UserHealthStatus, UserPositionResponse,
-    },
+    red_bank::{InterestRateModel, UserHealthStatus, UserPositionResponse},
 };
 use osmosis_std::types::osmosis::{
     gamm::v1beta1::{MsgSwapExactAmountIn, MsgSwapExactAmountInResponse},
@@ -15,17 +13,8 @@ use osmosis_std::types::osmosis::{
 };
 use osmosis_test_tube::{Account, ExecuteResponse, OsmosisTestApp, Runner, SigningAccount};
 
-pub fn default_asset_params(denom: &str) -> (InitOrUpdateAssetParams, AssetParams) {
-    let market_params = InitOrUpdateAssetParams {
-        reserve_factor: Some(Decimal::percent(20)),
-        interest_rate_model: Some(InterestRateModel {
-            optimal_utilization_rate: Decimal::percent(10),
-            base: Decimal::percent(30),
-            slope_1: Decimal::percent(25),
-            slope_2: Decimal::percent(30),
-        }),
-    };
-    let asset_params = AssetParams {
+pub fn default_asset_params(denom: &str) -> AssetParams {
+    AssetParams {
         denom: denom.to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
@@ -48,8 +37,14 @@ pub fn default_asset_params(denom: &str) -> (InitOrUpdateAssetParams, AssetParam
         protocol_liquidation_fee: Decimal::percent(2u64),
         deposit_cap: Uint128::MAX,
         close_factor: Decimal::percent(80u64),
-    };
-    (market_params, asset_params)
+        reserve_factor: Decimal::percent(20),
+        interest_rate_model: InterestRateModel {
+            optimal_utilization_rate: Decimal::percent(10),
+            base: Decimal::percent(30),
+            slope_1: Decimal::percent(25),
+            slope_2: Decimal::percent(30),
+        },
+    }
 }
 
 pub fn default_asset_params_with(
@@ -57,17 +52,8 @@ pub fn default_asset_params_with(
     max_loan_to_value: Decimal,
     liquidation_threshold: Decimal,
     liquidation_bonus: LiquidationBonus,
-) -> (InitOrUpdateAssetParams, AssetParams) {
-    let market_params = InitOrUpdateAssetParams {
-        reserve_factor: Some(Decimal::percent(20)),
-        interest_rate_model: Some(InterestRateModel {
-            optimal_utilization_rate: Decimal::percent(10),
-            base: Decimal::percent(30),
-            slope_1: Decimal::percent(25),
-            slope_2: Decimal::percent(30),
-        }),
-    };
-    let asset_params = AssetParams {
+) -> AssetParams {
+    AssetParams {
         denom: denom.to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
@@ -85,8 +71,14 @@ pub fn default_asset_params_with(
         protocol_liquidation_fee: Decimal::percent(2u64),
         deposit_cap: Uint128::MAX,
         close_factor: Decimal::percent(80u64),
-    };
-    (market_params, asset_params)
+        reserve_factor: Decimal::percent(20),
+        interest_rate_model: InterestRateModel {
+            optimal_utilization_rate: Decimal::percent(10),
+            base: Decimal::percent(30),
+            slope_1: Decimal::percent(25),
+            slope_2: Decimal::percent(30),
+        },
+    }
 }
 
 pub fn is_user_liquidatable(position: &UserPositionResponse) -> bool {

@@ -15,6 +15,22 @@ pub(super) fn assert_lqt_gt_max_ltv(
     Ok(())
 }
 
+pub(super) fn assert_lqt_usdc_gt_max_ltv_usdc(
+    max_ltv: Option<Decimal>,
+    liq_threshold: Option<Decimal>,
+) -> Result<(), ValidationError> {
+    if let (Some(max_ltv_unwrapped), Some(liq_threshold_unwrapped)) = (max_ltv, liq_threshold) {
+        if liq_threshold_unwrapped <= max_ltv_unwrapped {
+            return Err(ValidationError::InvalidParam {
+                param_name: "liquidation_threshold_usdc".to_string(),
+                invalid_value: liq_threshold_unwrapped.to_string(),
+                predicate: format!("> {} (max LTV USDC)", max_ltv_unwrapped),
+            });
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn assert_hls_lqt_gt_max_ltv(
     max_ltv: Decimal,
     liq_threshold: Decimal,

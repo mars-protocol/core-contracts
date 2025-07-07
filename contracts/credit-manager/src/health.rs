@@ -54,18 +54,26 @@ pub fn assert_max_ltv(
         // If previous health was in an unhealthy state, assert it did not further weaken ⚠️
         (
             HealthState::Unhealthy {
-                max_ltv_health_factor: prev_hf,
-                ..
+                max_ltv_health_factor: prev_max_ltv_hf,
+                liquidation_health_factor: prev_liq_hf,
             },
             HealthState::Unhealthy {
-                max_ltv_health_factor: new_hf,
-                ..
+                max_ltv_health_factor: new_max_ltv_hf,
+                liquidation_health_factor: new_liq_hf,
             },
         ) => {
-            if prev_hf > new_hf {
+            if prev_max_ltv_hf > new_max_ltv_hf {
                 return Err(ContractError::HealthNotImproved {
-                    prev_hf: prev_hf.to_string(),
-                    new_hf: new_hf.to_string(),
+                    prev_hf: prev_max_ltv_hf.to_string(),
+                    new_hf: new_max_ltv_hf.to_string(),
+                });
+            }
+
+            // Max LTV health factor is the same, but liquidation health factor has decreased, raise! ⚠️
+            if prev_max_ltv_hf == new_max_ltv_hf && prev_liq_hf > new_liq_hf {
+                return Err(ContractError::UnhealthyLiquidationHfDecrease {
+                    prev_hf: prev_liq_hf.to_string(),
+                    new_hf: new_liq_hf.to_string(),
                 });
             }
         }

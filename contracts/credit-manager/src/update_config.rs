@@ -77,6 +77,13 @@ pub fn update_config(
             response.add_attribute("key", "zapper").add_attribute("value", unchecked.address());
     }
 
+    if let Some(num) = updates.max_trigger_orders {
+        MAX_TRIGGER_ORDERS.save(deps.storage, &num)?;
+        response = response
+            .add_attribute("key", "max_trigger_orders")
+            .add_attribute("value", num.to_string());
+    }
+
     if let Some(num) = updates.max_unlocking_positions {
         MAX_UNLOCKING_POSITIONS.save(deps.storage, &num)?;
         response = response

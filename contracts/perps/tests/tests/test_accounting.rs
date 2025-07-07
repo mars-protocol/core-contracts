@@ -440,6 +440,8 @@ fn accounting_works_up_to_oi_limits(
                 opening_fee_rate: Decimal::from_str("0.00075").unwrap(),
                 liquidation_threshold: Decimal::from_str("0.91").unwrap(),
                 max_loan_to_value: Decimal::from_str("0.90").unwrap(),
+                max_loan_to_value_usdc: None,
+                liquidation_threshold_usdc: None,
                 max_position_value: None,
                 min_position_value: Uint128::zero(),
                 max_funding_velocity: Decimal::from_str("36").unwrap(),

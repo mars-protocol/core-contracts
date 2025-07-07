@@ -24,8 +24,8 @@ use mars_types::{
     keys::{UserId, UserIdKey},
     params::{AssetParams, CmSettings, LiquidationBonus, RedBankSettings},
     red_bank::{
-        Collateral, CreateOrUpdateConfig, Debt, InstantiateMsg, Market, QueryMsg,
-        UserCollateralResponse, UserDebtResponse, UserHealthStatus, UserPositionResponse,
+        Collateral, CreateOrUpdateConfig, Debt, InstantiateMsg, InterestRateModel, Market,
+        QueryMsg, UserCollateralResponse, UserDebtResponse, UserHealthStatus, UserPositionResponse,
     },
 };
 
@@ -145,6 +145,13 @@ pub fn th_default_asset_params() -> AssetParams {
         protocol_liquidation_fee: Decimal::percent(2u64),
         deposit_cap: Uint128::MAX,
         close_factor: Decimal::percent(80u64),
+        reserve_factor: Decimal::percent(10u64),
+        interest_rate_model: InterestRateModel {
+            optimal_utilization_rate: Decimal::percent(80u64),
+            base: Decimal::zero(),
+            slope_1: Decimal::percent(7u64),
+            slope_2: Decimal::percent(45u64),
+        },
     }
 }
 

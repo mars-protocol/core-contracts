@@ -10,11 +10,8 @@ pub struct InstantiateMsg {
     /// The maximum value of Debts + Collaterals (denominated in base token) for an account
     /// before burns are disallowed for the NFT. Meant to prevent accidental account deletions
     pub max_value_for_burn: Uint128,
-    /// Used to validate the account id's health status allows for burning.
-    /// Can be set later, but no burning allowed until set.
-    pub health_contract: Option<String>,
-    /// Used to query the account kind
-    pub credit_manager_contract: Option<String>,
+    /// Used to query contract addresses to validate the account state in other contracts
+    pub address_provider_contract: String,
 
     //--------------------------------------------------------------------------------------------------
     // Base cw721 messages
