@@ -39,6 +39,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     await deployer.instantiateOracle(config.oracle.customInitParams)
     await deployer.instantiateRewards()
     await deployer.instantiateSwapper()
+    await deployer.instantiateDualitySwapper()
     await deployer.instantiateParams()
     await deployer.instantiateMockVault()
     await deployer.instantiateZapper()

@@ -1198,7 +1198,7 @@ impl MockEnvBuilder {
         let incentives =
             Incentives::new(Addr::unchecked(self.get_incentives().address()), rover.clone());
 
-        let params: mars_types::adapters::params::ParamsBase<Addr> = self.get_params_contract();
+        let params = self.get_params_contract();
         self.add_params_to_contract();
 
         let health_contract = self.get_health_contract();
@@ -1368,6 +1368,7 @@ impl MockEnvBuilder {
         let perps_liquidation_bonus_ratio = self.get_perps_liquidation_ratio();
 
         let oracle = self.get_oracle().into();
+        let duality_swapper = self.deploy_swapper().into(); // just use the mock.
         let zapper = self.deploy_zapper(&oracle)?.into();
         let health_contract = self.get_health_contract().into();
         let params = self.get_params_contract().into();
@@ -1388,6 +1389,7 @@ impl MockEnvBuilder {
                     max_unlocking_positions,
                     max_slippage,
                     swapper,
+                    duality_swapper,
                     zapper,
                     health_contract,
                     params,
