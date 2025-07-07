@@ -13,10 +13,10 @@ use crate::{
     state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, RISK_MANAGER},
 };
 
-const FROM_VERSION: &str = "2.2.0";
+const FROM_VERSION: &str = "2.2.3";
 
 /// Copy paste of the state structs from the v2.2.0 of the contract (https://github.com/mars-protocol/core-contracts/releases/tag/v2.2.0-perps).
-pub mod v2_2_0_state {
+pub mod v2_2_3_state {
     use cosmwasm_schema::cw_serde;
     use cosmwasm_std::{Addr, Decimal, Uint128};
     use cw_storage_plus::Map;
@@ -50,8 +50,8 @@ pub fn migrate(
 
     set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), CONTRACT_VERSION)?;
 
-    // Since version <= 2.2.0 of the contract didn't have the risk manager storage item, that is initialised in the instantiate function.
-    // We need to initialise the risk manager to the default owner of the contract here in the migration.
+    // Since version <= 2.2.0 of the contract didn't have the risk manager storage item, that is initialized in the instantiate function.
+    // We need to initialize the risk manager to the default owner of the contract here in the migration.
     let owner = OWNER.query(deps.storage)?.owner.unwrap();
     RISK_MANAGER.initialize(
         deps.storage,
@@ -70,10 +70,10 @@ pub fn migrate(
     )?;
 
     // Migrate assets
-    let asset_params = v2_2_0_state::ASSET_PARAMS
+    let asset_params = v2_2_3_state::ASSET_PARAMS
         .range(deps.storage, None, None, Order::Ascending)
         .collect::<StdResult<Vec<_>>>()?;
-    v2_2_0_state::ASSET_PARAMS.clear(deps.storage);
+    v2_2_3_state::ASSET_PARAMS.clear(deps.storage);
     for (denom, asset_param) in asset_params.into_iter() {
         // Query the market to get the reserve factor and interest rate model
         let rb_market_opt = deps.querier.query_wasm_smart::<Option<Market>>(
@@ -93,7 +93,7 @@ pub fn migrate(
         ASSET_PARAMS.save(
             deps.storage,
             &denom,
-            &from_v2_2_0_to_v2_2_1_asset_param(asset_param, reserve_factor, interest_rate_model),
+            &from_v2_2_3_to_v2_3_0_asset_param(asset_param, reserve_factor, interest_rate_model),
         )?;
 
         // We don't have to initialize the market in the Red Bank contract now in the migration process, as the market will be created when it will be needed (for example if we change red bank settings)
@@ -105,8 +105,8 @@ pub fn migrate(
         .add_attribute("to_version", CONTRACT_VERSION))
 }
 
-fn from_v2_2_0_to_v2_2_1_asset_param(
-    value: v2_2_0_state::AssetParams,
+fn from_v2_2_3_to_v2_3_0_asset_param(
+    value: v2_2_3_state::AssetParams,
     reserve_factor: Decimal,
     interest_rate_model: InterestRateModel,
 ) -> AssetParams {

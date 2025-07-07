@@ -1,7 +1,7 @@
 use cosmwasm_std::{attr, testing::mock_env, Addr, Event, Uint128};
 use cw2::{ContractVersion, VersionError};
 use mars_account_nft::{
-    contract::migrate, error::ContractError, migrations::v2_2_1::v2_2_0_state, query,
+    contract::migrate, error::ContractError, migrations::v2_3_0::v2_2_0_state, query,
 };
 use mars_testing::mock_dependencies;
 use mars_types::account_nft::MigrateMsg;
