@@ -7,7 +7,7 @@ use neutron_sdk::{
     stargate::dex::types::{LimitOrderType, MultiHopSwapRequest, PlaceLimitOrderRequest},
 };
 
-use crate::{config::DualityConfig, helpers::hashset};
+use crate::{config::DualityConfig, helpers::{hashset, msg_place_limit_order}};
 
 #[cw_serde]
 pub struct DualityRoute {
@@ -127,7 +127,7 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
         } else {
             let limit_sell_price = Decimal::from_ratio(min_receive, coin_in.amount).to_string();
 
-            neutron_sdk::stargate::dex::msg::msg_place_limit_order(PlaceLimitOrderRequest {
+            msg_place_limit_order(PlaceLimitOrderRequest {
                 order_type: LimitOrderType::FillOrKill,
                 sender: env.contract.address.to_string(),
                 receiver: env.contract.address.to_string(),
