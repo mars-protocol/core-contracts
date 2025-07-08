@@ -50,17 +50,6 @@ pub fn migrate(
 
     set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), CONTRACT_VERSION)?;
 
-    // Since version <= 2.2.0 of the contract didn't have the risk manager storage item, that is initialized in the instantiate function.
-    // We need to initialize the risk manager to the default owner of the contract here in the migration.
-    let owner = OWNER.query(deps.storage)?.owner.unwrap();
-    RISK_MANAGER.initialize(
-        deps.storage,
-        deps.api,
-        SetInitialOwner {
-            owner,
-        },
-    )?;
-
     // Get the address of the Red Bank contract
     let ap_addr = ADDRESS_PROVIDER.load(deps.storage)?;
     let rb_addr = address_provider::helpers::query_contract_addr(
