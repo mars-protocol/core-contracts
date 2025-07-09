@@ -690,33 +690,31 @@ export class Deployer {
       printBlue('LP already provided for Duality Swapper')
       return
     }
-    
+
     printBlue('Providing liquidity for Duality Swapper...')
-   // Replace the CosmWasm execution with a Stargate message
+    // Replace the CosmWasm execution with a Stargate message
     const msgDeposit = {
-      typeUrl: "/neutron.dex.MsgDeposit",
+      typeUrl: '/neutron.dex.MsgDeposit',
       value: {
         creator: this.deployerAddr,
         receiver: this.deployerAddr,
-        tokenA: "untrn",
+        tokenA: 'untrn',
         tokenB: USDCAsset.denom,
-        amountsA: ["1000000000"],
-        amountsB: ["1000000000"],
+        amountsA: ['1000000000'],
+        amountsB: ['1000000000'],
         tickIndexesAToB: [0],
         fees: [0],
-        options: [{
-          disableAutoswap: false,
-          failTxOnBel: true
-        }]
-      }
-    };
+        options: [
+          {
+            disableAutoswap: false,
+            failTxOnBel: true,
+          },
+        ],
+      },
+    }
 
     // Send the Stargate message
-    const response = await this.cwClient.signAndBroadcast(
-      this.deployerAddr,
-      [msgDeposit],
-      "auto"
-    );
+    const response = await this.cwClient.signAndBroadcast(this.deployerAddr, [msgDeposit], 'auto')
 
     // Mark action as complete
     this.storage.actions.dualityLpProvided = true

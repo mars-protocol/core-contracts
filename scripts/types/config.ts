@@ -1,5 +1,8 @@
 import { OsmosisPriceSourceForString } from './generated/mars-oracle-osmosis/MarsOracleOsmosis.types'
-import { DualityRoute, OsmosisRoute } from './generated/mars-swapper-osmosis/MarsSwapperOsmosis.types'
+import {
+  DualityRoute,
+  OsmosisRoute,
+} from './generated/mars-swapper-osmosis/MarsSwapperOsmosis.types'
 import { AstroportRoute } from './generated/mars-swapper-astroport/MarsSwapperAstroport.types'
 import {
   WasmOracleCustomInitParams,
@@ -26,20 +29,28 @@ export type SwapperExecuteMsg = {
   set_route: SwapRoute
 }
 
-export function isOsmosisRoute(route: OsmosisRoute | AstroportRoute | DualityRoute): route is OsmosisRoute {
+export function isOsmosisRoute(
+  route: OsmosisRoute | AstroportRoute | DualityRoute,
+): route is OsmosisRoute {
   return Array.isArray(route)
 }
 
-export function isAstroportRoute(route: OsmosisRoute | AstroportRoute | DualityRoute): route is AstroportRoute {
+export function isAstroportRoute(
+  route: OsmosisRoute | AstroportRoute | DualityRoute,
+): route is AstroportRoute {
   return !isOsmosisRoute(route) && !isDualityRoute(route)
 }
 
-export function isDualityRoute(route: OsmosisRoute | AstroportRoute | DualityRoute): route is DualityRoute {
-  return typeof route === 'object' && 
-         !Array.isArray(route) && 
-         'from' in route && 
-         'to' in route && 
-         'swap_denoms' in route;
+export function isDualityRoute(
+  route: OsmosisRoute | AstroportRoute | DualityRoute,
+): route is DualityRoute {
+  return (
+    typeof route === 'object' &&
+    !Array.isArray(route) &&
+    'from' in route &&
+    'to' in route &&
+    'swap_denoms' in route
+  )
 }
 export interface AstroportConfig {
   factory: string

@@ -318,7 +318,7 @@ export const atomUsdcDualityRoute = {
   denom_in: atomDenom,
   denom_out: nobleUsdcDenom,
   route: {
-    from: atomDenom,  
+    from: atomDenom,
     swap_denoms: [atomDenom, nobleUsdcDenom],
     to: nobleUsdcDenom,
   },
