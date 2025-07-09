@@ -1,0 +1,38 @@
+[package]
+name          = "mars-swapper-duality"
+version       = { workspace = true }
+authors       = { workspace = true }
+license       = { workspace = true }
+edition       = { workspace = true }
+repository    = { workspace = true }
+homepage      = { workspace = true }
+documentation = { workspace = true }
+keywords      = { workspace = true }
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+doctest    = false
+
+[features]
+# for quicker tests, cargo test --lib
+# for more explicit tests, cargo test --features=backtraces
+backtraces        = ["cosmwasm-std/backtraces"]
+default           = []
+library           = []
+
+[dependencies]
+cosmwasm-schema   = { workspace = true }
+cosmwasm-std      = { workspace = true }
+cw2               = { workspace = true }
+mars-swapper-base = { workspace = true }
+mars-types        = { workspace = true }
+neutron-sdk       = { workspace = true }
+prost             = { workspace = true }
+
+[dev-dependencies]
+anyhow           = { workspace = true }
+cw-it            = { workspace = true }
+mars-testing     = { workspace = true }
+neutron-test-tube = { workspace = true }
+test-case        = { workspace = true }
+

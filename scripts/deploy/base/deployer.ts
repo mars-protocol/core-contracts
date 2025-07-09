@@ -62,6 +62,7 @@ import {
 } from '../../types/generated/mars-credit-manager/MarsCreditManager.client'
 import { kebabCase } from 'lodash'
 import { MarsRoverHealthClient } from '../../types/generated/mars-rover-health/MarsRoverHealth.client'
+import { USDCAsset } from '../osmosis/testnet-config'
 
 type SwapperInstantiateMsg = AstroportSwapperInstantiateMsg | OsmosisSwapperInstantiateMsg
 type OracleInstantiateMsg = WasmOracleInstantiateMsg | OsmosisOracleInstantiateMsg
@@ -202,6 +203,7 @@ export class Deployer {
       owner: this.deployerAddr,
       red_bank: this.storage.addresses.redBank!,
       swapper: this.storage.addresses.swapper!,
+      duality_swapper: this.storage.addresses.dualitySwapper!,
       zapper: this.storage.addresses.zapper!,
       health_contract: this.storage.addresses.health!,
       incentives: this.storage.addresses.incentives!,
@@ -429,6 +431,14 @@ export class Deployer {
     await this.instantiate('swapper', this.storage.codeIds.swapper!, msg)
   }
 
+  async instantiateDualitySwapper() {
+    const msg: SwapperInstantiateMsg = {
+      owner: this.deployerAddr,
+    }
+
+    await this.instantiate('dualitySwapper', this.storage.codeIds.dualitySwapper!, msg)
+  }
+
   async instantiateParams() {
     const msg: ParamsInstantiateMsg = {
       owner: this.deployerAddr,
@@ -638,6 +648,79 @@ export class Deployer {
     }
 
     printYellow(`${this.config.chain.id} :: Swapper Routes have been set`)
+  }
+
+  async setDualityRoutes() {
+    if (!this.config.dualitySwapper?.routes || this.config.dualitySwapper.routes.length === 0) {
+      printBlue('No Duality routes to set')
+      return
+    }
+
+    printBlue('Setting Duality Swapper Routes')
+    for (const route of this.config.dualitySwapper.routes) {
+      const routeKey = `${route.denom_in} -> ${route.denom_out}`
+
+      if (this.storage.actions.dualityRoutesSet?.includes(routeKey)) {
+        printBlue(`${routeKey} already set in Duality Swapper contract`)
+        continue
+      }
+
+      printBlue(`Setting duality route: ${routeKey}`)
+
+      await this.cwClient.execute(
+        this.deployerAddr,
+        this.storage.addresses.dualitySwapper!,
+        {
+          set_route: route,
+        } satisfies SwapperExecuteMsg,
+        'auto',
+      )
+
+      if (!this.storage.actions.dualityRoutesSet) {
+        this.storage.actions.dualityRoutesSet = []
+      }
+      this.storage.actions.dualityRoutesSet.push(routeKey)
+    }
+
+    printYellow(`${this.config.chain.id} :: Duality Swapper Routes have been set`)
+  }
+
+  async setDualitySwapperLP() {
+    if (this.storage.actions.dualityLpProvided) {
+      printBlue('LP already provided for Duality Swapper')
+      return
+    }
+    
+    printBlue('Providing liquidity for Duality Swapper...')
+   // Replace the CosmWasm execution with a Stargate message
+    const msgDeposit = {
+      typeUrl: "/neutron.dex.MsgDeposit",
+      value: {
+        creator: this.deployerAddr,
+        receiver: this.deployerAddr,
+        tokenA: "untrn",
+        tokenB: USDCAsset.denom,
+        amountsA: ["1000000000"],
+        amountsB: ["1000000000"],
+        tickIndexesAToB: [0],
+        fees: [0],
+        options: [{
+          disableAutoswap: false,
+          failTxOnBel: true
+        }]
+      }
+    };
+
+    // Send the Stargate message
+    const response = await this.cwClient.signAndBroadcast(
+      this.deployerAddr,
+      [msgDeposit],
+      "auto"
+    );
+
+    // Mark action as complete
+    this.storage.actions.dualityLpProvided = true
+    printYellow(`Liquidity provided for Duality Swapper: ${response.transactionHash}`)
   }
 
   async updateAddressProvider() {

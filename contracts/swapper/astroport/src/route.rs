@@ -133,6 +133,9 @@ impl Route<Empty, Empty, AstroportConfig> for AstroportRoute {
             SwapperRoute::Osmo(_) => Err(ContractError::InvalidRoute {
                 reason: "OsmosisRoute not supported".to_string(),
             }),
+            SwapperRoute::Duality(_) => Err(ContractError::InvalidRoute {
+                reason: "DualityRoute not supported".to_string(),
+            }),
         }
     }
 
