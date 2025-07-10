@@ -85,7 +85,7 @@ impl<'a> DualitySwapperTester<'a> {
     }
 
     /// Convert a price ratio to the nearest tick index.
-    /// The Duality DEX defines price at tick *i* as `p(i) = 1.0001^i`.
+    /// The Duality DEX defines price at tick i as `p(i) = 1.0001^i`.
     /// Therefore `i = ln(price) / ln(1.0001)`.
     pub fn price_to_tick(price: Decimal) -> i64 {
         // Convert `Decimal` → `f64` so we can use the standard library’s `ln`.
@@ -105,7 +105,6 @@ impl<'a> DualitySwapperTester<'a> {
         amount1: Uint128,
         amount2: Uint128,
     ) -> ExecuteResponse<MsgDepositResponse> {
-        println!("Adding liquidity: {} {}, {} {}", amount1, denom1, amount2, denom2);
 
         // Calculate the price based on the ratio of amount2 to amount1
         let price_ratio = Decimal::from_ratio(amount1, amount2);
@@ -232,7 +231,6 @@ impl<'a> DualitySwapperTester<'a> {
         coin_in: Coin,
         limit_sell_price: Decimal,
     ) {
-        println!("swap_denoms: {:?}", swap_denoms);
 
         let execute_msg = MsgMultiHopSwap {
             creator: self.admin.address().to_string(),

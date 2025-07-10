@@ -6,8 +6,67 @@ use mars_types::swapper::{DualityRoute, SwapperRoute};
 use neutron_test_tube::{Account, NeutronTestApp};
 use test_case::test_case;
 
+#[test_case("untrn", "uusdc", 1_000_000, 1_000_000, true, false, None; "direct swap with explicit route")]
+#[test_case("untrn", "uusdc", 500_000, 500_000, true, false, None; "direct swap without route")]
+#[test_case("untrn", "uusdc", 750_000, 750_000, true, true, Some("uatom"); "multi-hop swap through uatom")]
+#[test_case("uatom", "ujuno", 1_000_000, 1_000_000, true, false, None; "different token pair direct swap")]
+#[test_case("uatom", "ujuno", 2_000_000, 2_000_000, true, true, Some("uosmo"); "different token pair multi-hop swap")]
+#[test_case("untrn", "uusdc", 1, 1, true, false, None; "minimal amount direct swap")]
+fn test_basic_swaps(
+    denom_in: &str,
+    denom_out: &str,
+    amount_in: u128,
+    expected_amount_out: u128,
+    use_route: bool,
+    use_multihop: bool,
+    intermediate_denom: Option<&str>,
+) {
+    test_swap_basic(
+        denom_in,
+        denom_out,
+        amount_in,
+        expected_amount_out,
+        use_route,
+        use_multihop,
+        intermediate_denom,
+    );
+}
+
+#[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(200); "direct swap with 2:1 price ratio")]
+#[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(1000000); "direct swap with very high price ratio (10000:1)")]
+#[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(100000000); "direct swap with extreme price ratio (1000000:1)")]
+#[test_case("uatom", "ujuno", 1_000_000, Decimal::percent(100); "different pair with 1:1 price ratio")]
+#[test_case("untrn", "uusdc", 10000, Decimal::percent(500); "tiny amount swap with 5:1 ratio")]
+#[test_case("untrn", "uusdc", 50_000_000, Decimal::percent(100); "large amount swap with 1:1 ratio")]
+#[test_case("untrn", "uusdc", 10_000_000, Decimal::percent(10); "swap with 0.1:1 price ratio")]
+#[test_case("untrn", "uusdc", 100_000_000, Decimal::percent(1); "swap with 0.01:1 price ratio")]
+fn test_custom_price_swaps(denom_in: &str, denom_out: &str, amount_in: u128, price_ratio: Decimal) {
+    test_swap_with_custom_pricing(denom_in, denom_out, amount_in, price_ratio);
+}
+
+#[test_case("untrn", "ujuno", 1_000_000, vec!["uusdc"], vec![2.0, 0.5], None; "3-hop swap with varied rates")]
+#[test_case("untrn", "uusdc", 5_000_000, vec!["uatom"], vec![0.5, 4.0], None; "3-hop swap with offsetting rates")]
+#[test_case("uatom", "ujuno", 1_000_000, vec!["uusdc"], vec![1.5, 0.75], Some(1.125); "3-hop swap with calculated aggregate rate")]
+fn test_multi_hop_swaps(
+    denom_in: &str,
+    denom_out: &str,
+    amount_in: u128,
+    intermediates: Vec<&str>,
+    exchange_rates: Vec<f64>,
+    expected_output_multiplier: Option<f64>,
+) {
+    test_multi_hop_with_varied_exchange_rates(
+        denom_in,
+        denom_out,
+        amount_in,
+        intermediates,
+        exchange_rates,
+        expected_output_multiplier,
+    );
+}
+
 // Base test function that will be parameterized with test_case
-fn test_swap_integration(
+fn test_swap_basic(
     denom_in: &str,
     denom_out: &str,
     amount_in: u128,
@@ -101,32 +160,6 @@ fn test_swap_integration(
     );
 }
 
-#[test_case("untrn", "uusdc", 1_000_000, 1_000_000, true, false, None; "direct swap with explicit route")]
-#[test_case("untrn", "uusdc", 500_000, 500_000, true, false, None; "direct swap without route")]
-#[test_case("untrn", "uusdc", 750_000, 750_000, true, true, Some("uatom"); "multi-hop swap through uatom")]
-#[test_case("uatom", "ujuno", 1_000_000, 1_000_000, true, false, None; "different token pair direct swap")]
-#[test_case("uatom", "ujuno", 2_000_000, 2_000_000, true, true, Some("uosmo"); "different token pair multi-hop swap")]
-#[test_case("untrn", "uusdc", 1, 1, true, false, None; "minimal amount direct swap")]
-fn test_basic_swaps(
-    denom_in: &str,
-    denom_out: &str,
-    amount_in: u128,
-    expected_amount_out: u128,
-    use_route: bool,
-    use_multihop: bool,
-    intermediate_denom: Option<&str>,
-) {
-    test_swap_integration(
-        denom_in,
-        denom_out,
-        amount_in,
-        expected_amount_out,
-        use_route,
-        use_multihop,
-        intermediate_denom,
-    );
-}
-
 // Test function for custom pricing scenarios - simplified for direct swaps only
 fn test_swap_with_custom_pricing(
     denom_in: &str,
@@ -200,18 +233,6 @@ fn test_swap_with_custom_pricing(
         user_balance <= user_balance_before + expected_amount_out + max_rounding_error,
         "User received significantly more tokens than expected"
     );
-}
-
-#[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(200); "direct swap with 2:1 price ratio")]
-#[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(1000000); "direct swap with very high price ratio (10000:1)")]
-#[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(100000000); "direct swap with extreme price ratio (1000000:1)")]
-#[test_case("uatom", "ujuno", 1_000_000, Decimal::percent(100); "different pair with 1:1 price ratio")]
-#[test_case("untrn", "uusdc", 10000, Decimal::percent(500); "tiny amount swap with 5:1 ratio")]
-#[test_case("untrn", "uusdc", 50_000_000, Decimal::percent(100); "large amount swap with 1:1 ratio")]
-#[test_case("untrn", "uusdc", 10_000_000, Decimal::percent(10); "swap with 0.1:1 price ratio")]
-#[test_case("untrn", "uusdc", 100_000_000, Decimal::percent(1); "swap with 0.01:1 price ratio")]
-fn test_custom_price_swaps(denom_in: &str, denom_out: &str, amount_in: u128, price_ratio: Decimal) {
-    test_swap_with_custom_pricing(denom_in, denom_out, amount_in, price_ratio);
 }
 
 /// Tests multi-hop swaps with different exchange rates at each hop
@@ -346,27 +367,6 @@ fn test_multi_hop_with_varied_exchange_rates(
         "User should have received at most the expected amount plus rounding error. Expected: {}, Received: {}",
         expected_amount_out,
         received_amount
-    );
-}
-
-#[test_case("untrn", "ujuno", 1_000_000, vec!["uusdc"], vec![2.0, 0.5], None; "3-hop swap with varied rates")]
-#[test_case("untrn", "uusdc", 5_000_000, vec!["uatom"], vec![0.5, 4.0], None; "3-hop swap with offsetting rates")]
-#[test_case("uatom", "ujuno", 1_000_000, vec!["uusdc"], vec![1.5, 0.75], Some(1.125); "3-hop swap with calculated aggregate rate")]
-fn test_multi_hop_swaps(
-    denom_in: &str,
-    denom_out: &str,
-    amount_in: u128,
-    intermediates: Vec<&str>,
-    exchange_rates: Vec<f64>,
-    expected_output_multiplier: Option<f64>,
-) {
-    test_multi_hop_with_varied_exchange_rates(
-        denom_in,
-        denom_out,
-        amount_in,
-        intermediates,
-        exchange_rates,
-        expected_output_multiplier,
     );
 }
 

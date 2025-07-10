@@ -7,6 +7,7 @@ pub struct DualityConfig {}
 
 impl Config for DualityConfig {
     fn validate(&self, _api: &dyn Api) -> ContractResult<()> {
-        unimplemented!("TODO: Implement validate for DualityConfig")
+        // Nothing to validate
+        Ok(())
     }
 }

@@ -3448,9 +3448,9 @@ dependencies = [
 
 [[package]]
 name = "neutron-std"
-version = "5.1.2"
+version = "5.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eedb87e41d6065ef0012e33aae06692a03e888c6ddca7125d768e24deace367a"
+checksum = "8fd808afc35eaeb219789e6e508a0dff51a195d557212b7fbcc2f4a33b9bd8d7"
 dependencies = [
  "bech32 0.9.1",
  "chrono",

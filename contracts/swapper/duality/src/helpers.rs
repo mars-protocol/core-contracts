@@ -83,7 +83,7 @@ fn serialize_prec_dec(decimal_str: String) -> String {
     fractional_part = fractional_part.trim_end_matches('0').to_string();
     // Remove leading zeros from the integer_part
     let mut result = integer_part.trim_start_matches('0').to_string();
-    // combine integer part and fractional part
+    // Combine integer part and fractional part
     result.push_str(&fractional_part.to_owned());
 
     // Add zeros to the end. This is the equivalent of multiplying by 10^PREC_DEC_PRECISION

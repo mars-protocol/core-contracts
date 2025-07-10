@@ -7,9 +7,7 @@ use neutron_sdk::bindings::msg::NeutronMsg;
 use neutron_test_tube::{Account, NeutronTestApp};
 use test_case::test_case;
 
-// No helper functions needed - we'll use the DualitySwapperTester directly
-
-// define error patterns to check for
+// Define error patterns to check for
 enum ExpectedValidationResult {
     Success,
     Error(String), // string is the error pattern to look for
@@ -78,20 +76,20 @@ fn test_route_validation(
     denom_out: &str,
     expected_result: ExpectedValidationResult,
 ) {
-    // create the route using the provided factory function
+    // Create the route using the provided factory function
     let route = route_factory();
 
-    // set up the mock querier
+    // Set up the mock querier
     let querier = MarsMockQuerier::new(cosmwasm_std::testing::MockQuerier::new(&[]));
     let querier_wrapper = cosmwasm_std::QuerierWrapper::new(&querier);
 
     let duality_route =
         <DualityRouteImpl as Route<NeutronMsg, Empty, DualityConfig>>::from(route, None).unwrap();
 
-    // validate the route
+    // Validate the route
     let result = duality_route.validate(&querier_wrapper, denom_in, denom_out);
 
-    // check the result based on expected outcome
+    // Check the result based on expected outcome
     match expected_result {
         ExpectedValidationResult::Success => {
             assert!(result.is_ok(), "Route should pass validation");
@@ -118,7 +116,7 @@ fn test_route_validation(
 
 #[test]
 fn test_route_from_swapper_route() {
-    // test conversion from SwapperRoute to DualityRoute
+    // Test conversion from SwapperRoute to DualityRoute
     let denom_in = "untrn";
     let intermediate = "usdc";
     let denom_out = "uatom";
@@ -141,7 +139,7 @@ fn test_route_from_swapper_route() {
 
 #[test]
 fn test_invalid_swapper_route_type() {
-    // test conversion from wrong SwapperRoute type
+    // Test conversion from wrong SwapperRoute type
     let swapper_route = SwapperRoute::Osmo(mars_types::swapper::OsmoRoute {
         swaps: vec![mars_types::swapper::OsmoSwap {
             pool_id: 1,

@@ -4,7 +4,7 @@ use mars_swapper_base::{ContractError, ContractResult, Route};
 use mars_types::swapper::{EstimateExactInSwapResponse, SwapperRoute};
 use neutron_sdk::{
     bindings::msg::NeutronMsg,
-    stargate::dex::types::{LimitOrderType, MultiHopSwapRequest, PlaceLimitOrderRequest},
+    stargate::dex::{msg::msg_multi_hop_swap, types::{LimitOrderType, MultiHopSwapRequest, PlaceLimitOrderRequest}},
 };
 
 use crate::{
@@ -53,14 +53,14 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
     ) -> ContractResult<()> {
         let swap_denoms = &self.swap_denoms;
 
-        // there must be at least two denoms in the route
+        // There must be at least two denoms in the route
         if swap_denoms.len() < 2 {
             return Err(ContractError::InvalidRoute {
                 reason: "the route must contain at least one pair".to_string(),
             });
         }
 
-        // ensure the first denom in the route is the input denom
+        // Ensure the first denom in the route is the input denom
         if swap_denoms.first() != Some(&denom_in.to_string()) {
             return Err(ContractError::InvalidRoute {
                 reason: format!(
@@ -71,7 +71,7 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
             });
         }
 
-        // ensure the last denom in the route is the output denom
+        // Ensure the last denom in the route is the output denom
         if swap_denoms.last() != Some(&denom_out.to_string()) {
             return Err(ContractError::InvalidRoute {
                 reason: format!(
@@ -82,7 +82,7 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
             });
         }
 
-        // check for loops - each denom should only appear once in the route
+        // Check for loops - each denom should only appear once in the route
         let mut seen_denoms = hashset(&[]);
         for denom in swap_denoms.iter() {
             if seen_denoms.contains(denom) {
@@ -110,16 +110,19 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
                 reason: "the route must contain at least two denoms".to_string(),
             });
         }
-
-        let exponent = Uint256::from(10u128.pow(27));
-        let min_receive_scaled = Uint256::from(min_receive).checked_mul(exponent)?;
-
-        // Our limit sell price is the worst price we are willing to accept.
-        let exit_limit_price = min_receive_scaled.checked_div(coin_in.amount.into())?;
+       
 
         // If we have more than two denoms, we need to do a multi-hop swap.
         let swap_msg: CosmosMsg<NeutronMsg> = if swap_denoms.len() > 2 {
-            neutron_sdk::stargate::dex::msg::msg_multi_hop_swap(MultiHopSwapRequest {
+            // PrecDec (neutrons decimal implementation) uses fixed-point precision of 27 decimal places.
+            let exponent = Uint256::from(10u128.pow(27));
+            let min_receive_scaled = Uint256::from(min_receive).checked_mul(exponent)?;
+
+            // Our limit sell price is the worst price we are willing to accept.
+            // Note that MultiHopSwapRequest msg requires the raw integer string value of the price, not a decimal string.
+            // This means that 1.0 will be 1^27 (1000000000000000000000000000)
+            let exit_limit_price = min_receive_scaled.checked_div(coin_in.amount.into())?;
+            msg_multi_hop_swap(MultiHopSwapRequest {
                 sender: env.contract.address.to_string(),
                 receiver: env.contract.address.to_string(),
                 routes: vec![swap_denoms.clone()],
@@ -128,6 +131,8 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
                 pick_best_route: true,
             })
         } else {
+
+            // The PlaceLimitOrderRequest msg requires the decimal, not the integer value.
             let limit_sell_price = Decimal::from_ratio(min_receive, coin_in.amount).to_string();
 
             msg_place_limit_order(PlaceLimitOrderRequest {
@@ -154,6 +159,6 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
         _: &Env,
         _: &Coin,
     ) -> ContractResult<EstimateExactInSwapResponse> {
-        unimplemented!("Duality does not yet support estimate_exact_in_swap")
+        unimplemented!("Duality does not support estimate_exact_in_swap")
     }
 }
