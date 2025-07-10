@@ -4,7 +4,10 @@ use mars_swapper_base::{ContractError, ContractResult, Route};
 use mars_types::swapper::{EstimateExactInSwapResponse, SwapperRoute};
 use neutron_sdk::{
     bindings::msg::NeutronMsg,
-    stargate::dex::{msg::msg_multi_hop_swap, types::{LimitOrderType, MultiHopSwapRequest, PlaceLimitOrderRequest}},
+    stargate::dex::{
+        msg::msg_multi_hop_swap,
+        types::{LimitOrderType, MultiHopSwapRequest, PlaceLimitOrderRequest},
+    },
 };
 
 use crate::{
@@ -110,7 +113,6 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
                 reason: "the route must contain at least two denoms".to_string(),
             });
         }
-       
 
         // If we have more than two denoms, we need to do a multi-hop swap.
         let swap_msg: CosmosMsg<NeutronMsg> = if swap_denoms.len() > 2 {
@@ -131,7 +133,6 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
                 pick_best_route: true,
             })
         } else {
-
             // The PlaceLimitOrderRequest msg requires the decimal, not the integer value.
             let limit_sell_price = Decimal::from_ratio(min_receive, coin_in.amount).to_string();
 

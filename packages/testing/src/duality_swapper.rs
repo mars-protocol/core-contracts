@@ -105,7 +105,6 @@ impl<'a> DualitySwapperTester<'a> {
         amount1: Uint128,
         amount2: Uint128,
     ) -> ExecuteResponse<MsgDepositResponse> {
-
         // Calculate the price based on the ratio of amount2 to amount1
         let price_ratio = Decimal::from_ratio(amount1, amount2);
 
@@ -231,7 +230,6 @@ impl<'a> DualitySwapperTester<'a> {
         coin_in: Coin,
         limit_sell_price: Decimal,
     ) {
-
         let execute_msg = MsgMultiHopSwap {
             creator: self.admin.address().to_string(),
             receiver: self.admin.address().to_string(),
