@@ -1,6 +1,5 @@
 use cosmwasm_std::{Decimal, DepsMut, Order, Response, StdResult};
 use cw2::{assert_contract_version, set_contract_version};
-use mars_owner::OwnerInit::SetInitialOwner;
 use mars_types::{
     address_provider::{self, MarsAddressType},
     params::AssetParams,
@@ -10,7 +9,7 @@ use mars_types::{
 use crate::{
     contract::{CONTRACT_NAME, CONTRACT_VERSION},
     error::ContractError,
-    state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, RISK_MANAGER},
+    state::{ADDRESS_PROVIDER, ASSET_PARAMS},
 };
 
 const FROM_VERSION: &str = "2.2.3";
