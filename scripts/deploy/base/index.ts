@@ -78,7 +78,6 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     for (const vault of config.vaults) {
       await deployer.updateVaultConfig(vault)
     }
-
     if (config.perps) {
       for (const perp of config.perps?.denoms) {
         await deployer.initializePerpDenom(perp)
