@@ -42,9 +42,6 @@ impl fmt::Display for OsmosisRoute {
 impl Route<Empty, Empty, OsmosisConfig> for OsmosisRoute {
     fn from(route: SwapperRoute, _config: Option<OsmosisConfig>) -> ContractResult<Self> {
         match route {
-            SwapperRoute::Astro(_) => Err(ContractError::InvalidRoute {
-                reason: "AstroRoute not supported".to_string(),
-            }),
             SwapperRoute::Osmo(route) => {
                 let steps: Vec<_> = route
                     .swaps
@@ -56,6 +53,9 @@ impl Route<Empty, Empty, OsmosisConfig> for OsmosisRoute {
                     .collect();
                 Ok(Self(steps))
             }
+            _ => Err(ContractError::InvalidRoute {
+                reason: "Invalid route type. Route must be of type OsmosisRoute".to_string(),
+            }),
         }
     }
 

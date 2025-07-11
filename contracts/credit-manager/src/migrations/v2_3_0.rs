@@ -12,6 +12,8 @@ pub fn migrate(deps: DepsMut, max_trigger_orders: u8) -> Result<Response, Contra
 
     MAX_TRIGGER_ORDERS.save(deps.storage, &max_trigger_orders)?;
 
+    // TODO Add duality swapper?
+
     set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), TO_VERSION)?;
 
     Ok(Response::new()

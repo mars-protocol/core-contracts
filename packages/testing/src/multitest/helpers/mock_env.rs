@@ -1203,7 +1203,7 @@ impl MockEnvBuilder {
         let incentives =
             Incentives::new(Addr::unchecked(self.get_incentives().address()), rover.clone());
 
-        let params: mars_types::adapters::params::ParamsBase<Addr> = self.get_params_contract();
+        let params = self.get_params_contract();
         self.add_params_to_contract();
 
         let health_contract = self.get_health_contract();
@@ -1357,6 +1357,7 @@ impl MockEnvBuilder {
         let perps_liquidation_bonus_ratio = self.get_perps_liquidation_ratio();
 
         let oracle = self.get_oracle().into();
+        let duality_swapper = self.deploy_duality_swapper().into();
         let zapper = self.deploy_zapper(&oracle)?.into();
         let health_contract = self.get_health_contract().into();
         let params = self.get_params_contract().into();
@@ -1378,6 +1379,7 @@ impl MockEnvBuilder {
                     max_unlocking_positions,
                     max_slippage,
                     swapper,
+                    duality_swapper,
                     zapper,
                     health_contract,
                     params,
@@ -1785,6 +1787,31 @@ impl MockEnvBuilder {
             .instantiate_contract(
                 code_id,
                 Addr::unchecked("swapper-instantiator"),
+                &SwapperInstantiateMsg {
+                    owner: self.get_owner().to_string(),
+                },
+                &[],
+                "mock-vault",
+                None,
+            )
+            .unwrap();
+        // Fund with osmo to simulate swaps
+        self.app
+            .sudo(SudoMsg::Bank(BankSudo::Mint {
+                to_address: addr.to_string(),
+                amount: coins(1_000_000, "uosmo"),
+            }))
+            .unwrap();
+        SwapperBase::new(addr)
+    }
+
+    fn deploy_duality_swapper(&mut self) -> Swapper {
+        let code_id = self.app.store_code(mock_swapper_contract());
+        let addr = self
+            .app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("duality-swapper-instantiator"),
                 &SwapperInstantiateMsg {
                     owner: self.get_owner().to_string(),
                 },

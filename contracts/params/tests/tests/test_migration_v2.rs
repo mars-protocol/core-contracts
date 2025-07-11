@@ -4,7 +4,7 @@ use cosmwasm_std::{attr, Addr, Decimal, Event, Order, StdResult, Uint128};
 use cw2::{ContractVersion, VersionError};
 use mars_params::{
     error::ContractError,
-    migrations::{self, v2_3_0::v2_2_0_state},
+    migrations::{self, v2_3_0::v2_2_3_state},
     state::{ADDRESS_PROVIDER, ASSET_PARAMS, OWNER, RISK_MANAGER},
 };
 use mars_testing::mock_dependencies;
@@ -19,7 +19,7 @@ use mars_types::{
 #[test]
 fn wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.2.0").unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.2.3").unwrap();
 
     let err =
         migrations::v2_3_0::migrate(deps.as_mut(), Decimal::one(), InterestRateModel::default())
@@ -46,7 +46,7 @@ fn wrong_contract_version() {
     assert_eq!(
         err,
         ContractError::Version(VersionError::WrongVersion {
-            expected: "2.2.0".to_string(),
+            expected: "2.2.3".to_string(),
             found: "2.0.0".to_string()
         })
     );
@@ -55,7 +55,7 @@ fn wrong_contract_version() {
 #[test]
 fn successful_migration() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "2.2.0").unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-params", "2.2.3").unwrap();
 
     // Initialize the OWNER storage item so we can later verify the migration has set the risk manager to the owner as default
     let owner = Addr::unchecked("owner");
@@ -69,11 +69,22 @@ fn successful_migration() {
             },
         )
         .unwrap();
+
+    RISK_MANAGER
+        .initialize(
+            deps_muted.storage,
+            deps_muted.api,
+            mars_owner::OwnerInit::SetInitialOwner {
+                owner: owner.to_string(),
+            },
+        )
+        .unwrap();
+
     ADDRESS_PROVIDER.save(deps.as_mut().storage, &Addr::unchecked("address_provider")).unwrap();
 
     // Initialize the ASSET_PARAMS storage items with the old state
-    v2_2_0_state::ASSET_PARAMS.save(deps.as_mut().storage, "asset_2", &asset_2()).unwrap();
-    v2_2_0_state::ASSET_PARAMS.save(deps.as_mut().storage, "asset_1", &asset_1()).unwrap();
+    v2_2_3_state::ASSET_PARAMS.save(deps.as_mut().storage, "asset_2", &asset_2()).unwrap();
+    v2_2_3_state::ASSET_PARAMS.save(deps.as_mut().storage, "asset_1", &asset_1()).unwrap();
 
     // Add a market to the querier so we can later verify the migration has set the market params correctly
     deps.querier.set_redbank_market(market_2());
@@ -96,12 +107,12 @@ fn successful_migration() {
     assert!(res.data.is_none());
     assert_eq!(
         res.attributes,
-        vec![attr("action", "migrate"), attr("from_version", "2.2.0"), attr("to_version", "2.2.3")]
+        vec![attr("action", "migrate"), attr("from_version", "2.2.3"), attr("to_version", "2.3.0")]
     );
 
     let new_contract_version = ContractVersion {
         contract: "crates.io:mars-params".to_string(),
-        version: "2.2.3".to_string(),
+        version: "2.3.0".to_string(),
     };
     assert_eq!(cw2::get_contract_version(deps.as_ref().storage).unwrap(), new_contract_version);
 
@@ -131,8 +142,8 @@ fn migration_msg() -> MigrateMsg {
     }
 }
 
-fn asset_1() -> v2_2_0_state::AssetParams {
-    v2_2_0_state::AssetParams {
+fn asset_1() -> v2_2_3_state::AssetParams {
+    v2_2_3_state::AssetParams {
         denom: "asset_1".to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
@@ -199,8 +210,8 @@ fn expected_asset_1() -> AssetParams {
     }
 }
 
-fn asset_2() -> v2_2_0_state::AssetParams {
-    v2_2_0_state::AssetParams {
+fn asset_2() -> v2_2_3_state::AssetParams {
+    v2_2_3_state::AssetParams {
         denom: "asset_2".to_string(),
         credit_manager: CmSettings {
             whitelisted: true,

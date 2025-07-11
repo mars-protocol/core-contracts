@@ -210,6 +210,32 @@
           }
         }
       },
+      "DualityRoute": {
+        "type": "object",
+        "required": [
+          "from",
+          "swap_denoms",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "description": "Entry denom, in other words the asset we are selling",
+            "type": "string"
+          },
+          "swap_denoms": {
+            "description": "The denoms to swap through. For example, For a single swap route e.g A:B, the swap_denoms are [A, B] For a multi-swap route e.g A:B, B:C, C:D, the swap_denoms are [A, B, C]",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "to": {
+            "description": "Exit denom, in other words the asset we are buying",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "Empty": {
         "description": "An empty struct that serves as a placeholder in different places, such as contracts that don't set a custom message.\n\nIt is designed to be expressable in correct JSON and JSON Schema but contains no meaningful data. Previously we used enums without cases, but those cannot represented as valid JSON Schema (https://github.com/CosmWasm/cosmwasm/issues/451)",
         "type": "object"
@@ -336,6 +362,18 @@
             "properties": {
               "astro": {
                 "$ref": "#/definitions/AstroRoute"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "duality"
+            ],
+            "properties": {
+              "duality": {
+                "$ref": "#/definitions/DualityRoute"
               }
             },
             "additionalProperties": false
@@ -545,6 +583,32 @@
           }
         }
       },
+      "DualityRoute": {
+        "type": "object",
+        "required": [
+          "from",
+          "swap_denoms",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "description": "Entry denom, in other words the asset we are selling",
+            "type": "string"
+          },
+          "swap_denoms": {
+            "description": "The denoms to swap through. For example, For a single swap route e.g A:B, the swap_denoms are [A, B] For a multi-swap route e.g A:B, B:C, C:D, the swap_denoms are [A, B, C]",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "to": {
+            "description": "Exit denom, in other words the asset we are buying",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "OsmoRoute": {
         "type": "object",
         "required": [
@@ -591,6 +655,18 @@
             "properties": {
               "astro": {
                 "$ref": "#/definitions/AstroRoute"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "duality"
+            ],
+            "properties": {
+              "duality": {
+                "$ref": "#/definitions/DualityRoute"
               }
             },
             "additionalProperties": false

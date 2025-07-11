@@ -5,8 +5,9 @@ use mars_types::credit_manager::InstantiateMsg;
 use crate::{
     error::ContractResult,
     state::{
-        HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE, MAX_TRIGGER_ORDERS,
-        MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS_LB_RATIO, RED_BANK, SWAPPER, ZAPPER,
+        DUALITY_SWAPPER, HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE,
+        MAX_TRIGGER_ORDERS, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS_LB_RATIO,
+        RED_BANK, SWAPPER, ZAPPER,
     },
     utils::{assert_max_slippage, assert_perps_lb_ratio},
 };
@@ -23,6 +24,7 @@ pub fn store_config(deps: DepsMut, env: Env, msg: &InstantiateMsg) -> ContractRe
     RED_BANK.save(deps.storage, &msg.red_bank.check(deps.api, env.contract.address.clone())?)?;
     ORACLE.save(deps.storage, &msg.oracle.check(deps.api)?)?;
     SWAPPER.save(deps.storage, &msg.swapper.check(deps.api)?)?;
+    DUALITY_SWAPPER.save(deps.storage, &msg.duality_swapper.check(deps.api)?)?;
     ZAPPER.save(deps.storage, &msg.zapper.check(deps.api)?)?;
     MAX_TRIGGER_ORDERS.save(deps.storage, &msg.max_trigger_orders)?;
     MAX_UNLOCKING_POSITIONS.save(deps.storage, &msg.max_unlocking_positions)?;

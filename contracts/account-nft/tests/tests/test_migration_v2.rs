@@ -1,7 +1,7 @@
 use cosmwasm_std::{attr, testing::mock_env, Addr, Event, Uint128};
 use cw2::{ContractVersion, VersionError};
 use mars_account_nft::{
-    contract::migrate, error::ContractError, migrations::v2_2_1::v2_2_0_state, query,
+    contract::migrate, error::ContractError, migrations::v2_3_0::v2_2_0_state, query,
 };
 use mars_testing::mock_dependencies;
 use mars_types::account_nft::MigrateMsg;
@@ -88,12 +88,12 @@ fn successful_migration() {
     assert!(res.data.is_none());
     assert_eq!(
         res.attributes,
-        vec![attr("action", "migrate"), attr("from_version", "2.2.0"), attr("to_version", "2.2.1")]
+        vec![attr("action", "migrate"), attr("from_version", "2.2.0"), attr("to_version", "2.3.0")]
     );
 
     let new_contract_version = ContractVersion {
         contract: "crates.io:mars-account-nft".to_string(),
-        version: "2.2.1".to_string(),
+        version: "2.3.0".to_string(),
     };
     assert_eq!(cw2::get_contract_version(deps.as_ref().storage).unwrap(), new_contract_version);
 }

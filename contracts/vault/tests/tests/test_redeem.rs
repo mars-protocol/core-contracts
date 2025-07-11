@@ -90,7 +90,7 @@ fn redeem_invalid_funds() {
     );
     assert_vault_err(
         res,
-        ContractError::Payment(PaymentError::MissingDenom("factory/contract13/vault".to_string())),
+        ContractError::Payment(PaymentError::MissingDenom("factory/contract14/vault".to_string())),
     );
 }
 

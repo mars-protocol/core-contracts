@@ -33,6 +33,7 @@ import {
   VaultBaseForString,
   AstroRoute,
   AstroSwap,
+  DualityRoute,
   OsmoRoute,
   OsmoSwap,
   QueryMsg,

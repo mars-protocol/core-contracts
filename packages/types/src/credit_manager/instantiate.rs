@@ -27,6 +27,8 @@ pub struct InstantiateMsg {
     pub max_slippage: Decimal,
     /// Helper contract for making swaps
     pub swapper: SwapperUnchecked,
+    /// Helper contract for making swaps
+    pub duality_swapper: SwapperUnchecked,
     /// Helper contract for adding/removing liquidity
     pub zapper: ZapperUnchecked,
     /// Helper contract for calculating health factor
@@ -60,6 +62,7 @@ pub struct ConfigUpdates {
     pub max_unlocking_positions: Option<Uint128>,
     pub max_slippage: Option<Decimal>,
     pub swapper: Option<SwapperUnchecked>,
+    pub duality_swapper: Option<SwapperUnchecked>,
     pub zapper: Option<ZapperUnchecked>,
     pub health_contract: Option<HealthContractUnchecked>,
     pub params: Option<ParamsUnchecked>,
