@@ -1,8 +1,10 @@
 use std::str::FromStr;
 
 use cosmwasm_std::{coin, Decimal, Uint128};
+#[cfg(feature = "duality")]
 use mars_testing::duality_swapper::DualitySwapperTester;
 use mars_types::swapper::{DualityRoute, SwapperRoute};
+#[cfg(feature = "duality")]
 use neutron_test_tube::{Account, NeutronTestApp};
 use test_case::test_case;
 

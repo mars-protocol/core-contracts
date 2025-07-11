@@ -69,6 +69,17 @@ fn successful_migration() {
             },
         )
         .unwrap();
+
+    RISK_MANAGER
+        .initialize(
+            deps_muted.storage,
+            deps_muted.api,
+            mars_owner::OwnerInit::SetInitialOwner {
+                owner: owner.to_string(),
+            },
+        )
+        .unwrap();
+
     ADDRESS_PROVIDER.save(deps.as_mut().storage, &Addr::unchecked("address_provider")).unwrap();
 
     // Initialize the ASSET_PARAMS storage items with the old state

@@ -7,6 +7,8 @@ pub mod astroport_incentives_querier;
 pub mod astroport_swapper;
 
 mod cosmwasm_pool_querier;
+
+#[cfg(feature = "duality")]
 pub mod duality_swapper;
 /// cosmwasm_std::testing overrides and custom test helpers
 mod helpers;

@@ -5,6 +5,7 @@ use cosmwasm_std_2::Coin as Coin2;
 use mars_types::swapper::{
     DualityRoute, EstimateExactInSwapResponse, ExecuteMsg, InstantiateMsg, QueryMsg, SwapperRoute,
 };
+#[cfg(feature = "duality")]
 use neutron_test_tube::{
     neutron_std::types::{
         cosmos::bank::v1beta1::QueryBalanceRequest,
@@ -21,6 +22,7 @@ use neutron_test_tube::{
 // Constants
 const ARTIFACTS_PATH: &str = "../../../artifacts";
 
+#[cfg(feature = "duality")]
 /// DualitySwapperTester is a test helper that encapsulates all interactions with the Duality swapper.
 /// It provides a clean, high-level interface for setting up and running tests with the Neutron DEX.
 pub struct DualitySwapperTester<'a> {
@@ -32,6 +34,7 @@ pub struct DualitySwapperTester<'a> {
     bank: Bank<'a, NeutronTestApp>,
 }
 
+#[cfg(feature = "duality")]
 impl<'a> DualitySwapperTester<'a> {
     /// Creates a new test environment with the Duality swapper deployed
     pub fn new(app: &'a NeutronTestApp) -> Self {
