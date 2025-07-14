@@ -33,6 +33,7 @@ fn instantiating() {
             fee_collector_config: config.fee_collector_config,
             channel_id: config.channel_id,
             timeout_seconds: config.timeout_seconds,
+            whitelisted_distributors: vec!["owner".to_string()],
         }
     );
 

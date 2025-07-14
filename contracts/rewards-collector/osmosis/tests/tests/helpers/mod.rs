@@ -32,6 +32,7 @@ pub fn mock_instantiate_msg() -> InstantiateMsg {
         channel_id: "channel-69".to_string(),
         timeout_seconds: 300,
         slippage_tolerance: Decimal::percent(3),
+        whitelisted_distributors: vec!["owner".to_string()],
     }
 }
 

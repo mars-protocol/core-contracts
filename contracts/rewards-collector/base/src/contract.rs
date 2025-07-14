@@ -95,7 +95,7 @@ where
             } => self.withdraw_from_credit_manager(deps, account_id, actions),
             ExecuteMsg::DistributeRewards {
                 denom,
-            } => self.distribute_rewards(deps, &env, &denom),
+            } => self.distribute_rewards(deps, &env, &denom, info.sender),
             ExecuteMsg::SwapAsset {
                 denom,
                 amount,
@@ -162,6 +162,7 @@ where
             fee_collector_config,
             channel_id,
             timeout_seconds,
+            whitelist_actions,
         } = new_cfg;
 
         cfg.address_provider =
@@ -173,6 +174,30 @@ where
         cfg.fee_collector_config = fee_collector_config.unwrap_or(cfg.fee_collector_config);
         cfg.channel_id = channel_id.unwrap_or(cfg.channel_id);
         cfg.timeout_seconds = timeout_seconds.unwrap_or(cfg.timeout_seconds);
+        
+        // Process whitelist actions if provided
+        if let Some(actions) = whitelist_actions {
+            for action in actions {
+                match action {
+                    mars_types::rewards_collector::WhitelistAction::AddAddress { address } => {
+                        // Validate the address
+                        let validated_addr = deps.api.addr_validate(&address)?;
+                        
+                        // Only add if not already in the list
+                        if !cfg.whitelisted_distributors.contains(&validated_addr) {
+                            cfg.whitelisted_distributors.push(validated_addr);
+                        }
+                    },
+                    mars_types::rewards_collector::WhitelistAction::RemoveAddress { address } => {
+                        // Validate the address for consistency
+                        let validated_addr = deps.api.addr_validate(&address)?;
+                        
+                        // Remove the address if it exists in the list
+                        cfg.whitelisted_distributors.retain(|addr| addr != &validated_addr);
+                    },
+                }
+            }
+        }
 
         cfg.validate()?;
 
@@ -392,12 +417,23 @@ where
         deps: DepsMut,
         env: &Env,
         denom: &str,
+        sender: Addr,
     ) -> ContractResult<Response<M>> {
         let mut res = Response::new().add_attribute("action", "distribute_rewards");
         let mut msgs: Vec<CosmosMsg<M>> = vec![];
 
         // Configs
         let cfg = &self.config.load(deps.storage)?;
+        
+        // Check if sender is allowed to distribute rewards
+        if !cfg.whitelisted_distributors.is_empty() && !cfg.whitelisted_distributors.contains(&sender) {
+            // Owner can always distribute rewards
+            if !self.owner.is_owner(deps.storage, &sender)? {
+                return Err(ContractError::UnauthorizedDistributor {
+                    sender: sender.to_string(),
+                });
+            }
+        }
         let safety_fund_config = &cfg.safety_fund_config;
         let revenue_share_config = &cfg.revenue_share_config;
         let fee_collector_config = &cfg.fee_collector_config;
@@ -515,6 +551,7 @@ where
             fee_collector_config: cfg.fee_collector_config,
             channel_id: cfg.channel_id,
             timeout_seconds: cfg.timeout_seconds,
+            whitelisted_distributors: cfg.whitelisted_distributors.iter().map(|addr| addr.to_string()).collect(),
         })
     }
 }
