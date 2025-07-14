@@ -59,7 +59,6 @@ pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
     let new_config = Config {
         // old, unchanged values
         address_provider: old_config.address_provider,
-        slippage_tolerance: old_config.slippage_tolerance,
         timeout_seconds: old_config.timeout_seconds,
 
         // source channel on osmosis-1 for neutron-1 is channel-874. Proof below

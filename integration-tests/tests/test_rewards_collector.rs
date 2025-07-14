@@ -510,7 +510,6 @@ fn distribute_rewards_if_ibc_channel_invalid() {
                 fee_collector_config: None,
                 channel_id: Some("channel-1".to_string()),
                 timeout_seconds: None,
-                slippage_tolerance: None,
             },
         },
         &[],

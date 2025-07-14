@@ -8,7 +8,6 @@ use mars_types::{
     address_provider::{self, AddressResponseItem, MarsAddressType},
     credit_manager::{self, Action},
     incentives::{self, IncentiveKind},
-    oracle::ActionKind,
     red_bank,
     rewards_collector::{
         Config, ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg, UpdateConfig,
@@ -163,7 +162,6 @@ where
             fee_collector_config,
             channel_id,
             timeout_seconds,
-            slippage_tolerance,
         } = new_cfg;
 
         cfg.address_provider =
@@ -175,7 +173,6 @@ where
         cfg.fee_collector_config = fee_collector_config.unwrap_or(cfg.fee_collector_config);
         cfg.channel_id = channel_id.unwrap_or(cfg.channel_id);
         cfg.timeout_seconds = timeout_seconds.unwrap_or(cfg.timeout_seconds);
-        cfg.slippage_tolerance = slippage_tolerance.unwrap_or(cfg.slippage_tolerance);
 
         cfg.validate()?;
 
@@ -321,42 +318,22 @@ where
         )?;
 
         let swapper_addr = &addresses[0].address;
-        let oracle_addr = &addresses[1].address;
-
-        let asset_in_price = deps
-            .querier
-            .query_wasm_smart::<mars_types::oracle::PriceResponse>(
-                oracle_addr.to_string(),
-                &mars_types::oracle::QueryMsg::Price {
-                    denom: denom.to_string(),
-                    kind: Some(ActionKind::Default),
-                },
-            )?
-            .price;
-
-        // apply slippage to asset in price. Creating this variable means we only need to apply
-        // slippage tolerance calculation once, instead of for each denom
-        let slippage_adjusted_asset_in_price =
-            asset_in_price.checked_mul(Decimal::one().checked_sub(cfg.slippage_tolerance)?)?;
 
         // execute the swap to safety fund denom, if the amount to swap is non-zero,
         // and if the denom is not already the safety fund denom
         // Note that revenue share is included in this swap as they are the same denom
         if !rf_and_sf_combined.is_zero() && denom != cfg.safety_fund_config.target_denom {
-            let swap_msg = self.swap_asset_to_reward(
-                &deps,
-                oracle_addr,
-                &denom.to_string(),
+            let swap_msg = self.generate_swap_msg(
+                swapper_addr,
+                denom,
                 rf_and_sf_combined,
-                slippage_adjusted_asset_in_price,
+                &cfg.safety_fund_config.target_denom,
                 safety_fund_min_receive.ok_or(
                     ContractError::InvalidMinReceive {
                         reason: "required to pass 'safety_fund_min_receive' when swapping safety fund amount".to_string()
                     }
                 )?,
-                &cfg.safety_fund_config.target_denom,
                 safety_fund_route,
-                swapper_addr,
             )?;
 
             messages.push(swap_msg);
@@ -365,20 +342,17 @@ where
         // execute the swap to fee collector denom, if the amount to swap is non-zero,
         // and if the denom is not already the fee collector denom
         if !fc_amount.is_zero() && denom != cfg.fee_collector_config.target_denom {
-            let swap_msg = self.swap_asset_to_reward(
-                &deps,
-                oracle_addr,
-                &denom.to_string(),
+            let swap_msg = self.generate_swap_msg(
+                swapper_addr,
+                denom,
                 fc_amount,
-                slippage_adjusted_asset_in_price,
+                &cfg.fee_collector_config.target_denom,
                 fee_collector_min_receive.ok_or(
                     ContractError::InvalidMinReceive {
                         reason: "required to pass 'fee_collector_min_receive' when swapping to fee collector".to_string()
                     }
                 )?,
-                &cfg.fee_collector_config.target_denom,
                 fee_collector_route,
-                swapper_addr,
             )?;
 
             messages.push(swap_msg);
@@ -390,48 +364,6 @@ where
             .add_attribute("denom", denom)
             .add_attribute("amount_safety_fund", rf_and_sf_combined)
             .add_attribute("amount_fee_collector", fc_amount))
-    }
-
-    fn swap_asset_to_reward(
-        &self,
-        deps: &DepsMut,
-        oracle_addr: &str,
-        asset_in_denom: &String,
-        asset_in_amount: Uint128,
-        slippage_adjusted_asset_in_price: Decimal,
-        min_receive: Uint128,
-        target_reward_denom: &String,
-        target_route: Option<SwapperRoute>,
-        swapper_addr: &str,
-    ) -> Result<WasmMsg, ContractError> {
-        let target_fund_price = deps
-            .querier
-            .query_wasm_smart::<mars_types::oracle::PriceResponse>(
-                oracle_addr.to_string(),
-                &mars_types::oracle::QueryMsg::Price {
-                    denom: target_reward_denom.to_string(),
-                    kind: Some(ActionKind::Default),
-                },
-            )?
-            .price;
-
-        self.ensure_min_receive_within_slippage_tolerance(
-            asset_in_denom.to_string(),
-            target_reward_denom.to_string(),
-            asset_in_amount,
-            slippage_adjusted_asset_in_price,
-            target_fund_price,
-            min_receive,
-        )?;
-
-        self.generate_swap_msg(
-            swapper_addr,
-            asset_in_denom,
-            asset_in_amount,
-            target_reward_denom,
-            min_receive,
-            target_route,
-        )
     }
 
     fn generate_swap_msg(
@@ -453,39 +385,6 @@ where
             })?,
             funds: vec![coin(amount_in.u128(), denom_in)],
         })
-    }
-
-    /// Ensure the slippage is not greater than what is tolerated in contract config
-    /// We do this by calculating the minimum_price and applying that to the min receive
-    /// Calculation is as follows:
-    /// Safety_denom price in oracle is 2
-    /// slippage_adjusted_asset_in_price (calculated via oracle) is 9.5
-    /// pair price = 9.5 / 2 = 4.75
-    /// minimum_tolerated = 4.75 * amount_in
-    fn ensure_min_receive_within_slippage_tolerance(
-        &self,
-        asset_in_denom: String,
-        asset_out_denom: String,
-        amount_in: Uint128,
-        slippage_adjusted_asset_in_price: Decimal,
-        asset_out_price: Decimal,
-        min_receive: Uint128,
-    ) -> Result<(), ContractError> {
-        // The price of the asset to be swapped, denominated in the output asset denom
-        let asset_out_denominated_price =
-            slippage_adjusted_asset_in_price.checked_div(asset_out_price)?;
-        let min_receive_lower_limit = amount_in.checked_mul_floor(asset_out_denominated_price)?;
-
-        if min_receive_lower_limit > min_receive {
-            return Err(ContractError::SlippageLimitExceeded {
-                denom_in: asset_in_denom,
-                denom_out: asset_out_denom,
-                min_receive_minumum: min_receive_lower_limit,
-                min_receive_given: min_receive,
-            });
-        }
-
-        Ok(())
     }
 
     pub fn distribute_rewards(
@@ -616,7 +515,6 @@ where
             fee_collector_config: cfg.fee_collector_config,
             channel_id: cfg.channel_id,
             timeout_seconds: cfg.timeout_seconds,
-            slippage_tolerance: cfg.slippage_tolerance,
         })
     }
 }
