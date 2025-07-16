@@ -1,5 +1,7 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_json_binary, Addr, QuerierWrapper, QueryRequest, StdResult, WasmQuery};
+use cosmwasm_std::{
+    to_json_binary, Addr, QuerierWrapper, QueryRequest, StdResult, WasmQuery,
+};
 use ica_oracle::msg::{QueryMsg, RedemptionRateResponse};
 
 use crate::{ContractError, ContractError::InvalidPrice};
@@ -12,6 +14,12 @@ pub struct RedemptionRate<T> {
     /// The maximum number of seconds since the last price was by an oracle, before
     /// rejecting the price as too stale
     pub max_staleness: u64,
+}
+
+#[cw_serde]
+pub struct NeutronRedemptionRate<T> {
+    /// Contract addr
+    pub contract_addr: T,
 }
 
 /// How much base_denom we get for 1 denom
