@@ -223,6 +223,7 @@ impl fmt::Display for WasmPriceSourceChecked {
                         } = redemption_rate;
                         format!("lsd:{transitive_denom}:{pair_address}:{window_size}:{tolerance}:{contract_addr}:{max_staleness}")
                     },
+            WasmPriceSource::SlinkyLsd { transitive_denom, contract_addr } => format!("slinky_lsd:{transitive_denom}:{contract_addr}"),
             WasmPriceSource::XykLiquidityToken { pair_address } => format!("xyk_liquidity_token:{pair_address}"),
             WasmPriceSource::PclLiquidityToken { pair_address } => format!("pcl_liquidity_token:{pair_address}"),
             WasmPriceSource::PclDualityOrderbookLiquidityToken { pair_address } => format!("pcl_duality_orderbook_liquidity_token:{pair_address}"),
@@ -230,7 +231,6 @@ impl fmt::Display for WasmPriceSourceChecked {
             WasmPriceSource::Slinky { base_symbol, denom_decimals, max_blocks_old } => {
                         format!("slinky:{base_symbol}:{denom_decimals}:{max_blocks_old}")
                     },
-WasmPriceSource::SlinkyLsd { transitive_denom, contract_addr } => format!("slinky_lsd:{transitive_denom}:{contract_addr}"),
         };
         write!(f, "{label}")
     }
