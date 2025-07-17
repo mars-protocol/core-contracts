@@ -224,7 +224,6 @@ pub struct ConfigResponse {
     pub max_unlocking_positions: Uint128,
     pub max_slippage: Decimal,
     pub swapper: String,
-    pub duality_swapper: String,
     pub zapper: String,
     pub health_contract: String,
     pub rewards_collector: Option<RewardsCollector>,

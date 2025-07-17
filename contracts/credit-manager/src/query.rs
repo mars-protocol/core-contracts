@@ -18,10 +18,10 @@ use mars_types::{
 use crate::{
     error::ContractResult,
     state::{
-        ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, DEBT_SHARES, DUALITY_SWAPPER, HEALTH_CONTRACT,
-        INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER,
-        PARAMS, PERPS, PERPS_LB_RATIO, RED_BANK, REWARDS_COLLECTOR, SWAPPER, TOTAL_DEBT_SHARES,
-        TRIGGER_ORDERS, VAULTS, VAULT_POSITIONS, ZAPPER,
+        ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, DEBT_SHARES, HEALTH_CONTRACT, INCENTIVES,
+        KEEPER_FEE_CONFIG, MAX_SLIPPAGE, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS,
+        PERPS_LB_RATIO, RED_BANK, REWARDS_COLLECTOR, SWAPPER, TOTAL_DEBT_SHARES, TRIGGER_ORDERS,
+        VAULTS, VAULT_POSITIONS, ZAPPER,
     },
     utils::debt_shares_to_amount,
     vault::vault_utilization_in_deposit_cap_denom,
@@ -62,7 +62,6 @@ pub fn query_config(deps: Deps) -> ContractResult<ConfigResponse> {
         max_unlocking_positions: MAX_UNLOCKING_POSITIONS.load(deps.storage)?,
         max_slippage: MAX_SLIPPAGE.load(deps.storage)?,
         swapper: SWAPPER.load(deps.storage)?.address().into(),
-        duality_swapper: DUALITY_SWAPPER.load(deps.storage)?.address().into(),
         zapper: ZAPPER.load(deps.storage)?.address().into(),
         health_contract: HEALTH_CONTRACT.load(deps.storage)?.address().into(),
         rewards_collector: REWARDS_COLLECTOR.may_load(deps.storage)?,

@@ -174,7 +174,6 @@ impl MockEnvBuilder {
                             initialized: true,
                             abolished: false,
                         },
-                        duality_swapper: "n/a".to_string(),
                         red_bank: "n/a".to_string(),
                         incentives: "n/a".to_string(),
                         oracle,

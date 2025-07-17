@@ -155,7 +155,6 @@ impl MockEnvBuilder {
                         max_unlocking_positions: Default::default(),
                         max_slippage: Decimal::percent(99),
                         swapper: "n/a".to_string(),
-                        duality_swapper: "n/a".to_string(),
                         zapper: "n/a".to_string(),
                         health_contract: "n/a".to_string(),
                         rewards_collector: None,

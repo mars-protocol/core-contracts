@@ -163,9 +163,6 @@ fn update_config_works_with_full_config() {
     assert_eq!(&new_config.swapper, new_swapper.address());
     assert_ne!(new_config.swapper, original_config.swapper);
 
-    assert_eq!(&new_config.duality_swapper, new_duality_swapper.address());
-    assert_ne!(new_config.duality_swapper, original_config.duality_swapper);
-
     assert_eq!(&new_config.health_contract, new_health_contract.address());
     assert_ne!(new_config.health_contract, original_config.health_contract);
 
@@ -226,7 +223,6 @@ fn update_config_works_with_some_config() {
     assert_eq!(new_config.ownership.proposed, original_config.ownership.proposed);
     assert_eq!(new_config.red_bank, original_config.red_bank);
     assert_eq!(new_config.oracle, original_config.oracle);
-    assert_eq!(new_config.duality_swapper, original_config.duality_swapper);
     assert_eq!(new_config.params, original_config.params);
     assert_eq!(new_config.swapper, original_config.swapper);
     assert_eq!(new_config.zapper, original_config.zapper);
@@ -250,7 +246,6 @@ fn update_config_does_nothing_when_nothing_is_passed() {
     assert_eq!(new_config.ownership, original_config.ownership);
     assert_eq!(new_config.red_bank, original_config.red_bank);
     assert_eq!(new_config.oracle, original_config.oracle);
-    assert_eq!(new_config.duality_swapper, original_config.duality_swapper);
     assert_eq!(new_config.zapper, original_config.zapper);
     assert_eq!(new_config.params, original_config.params);
     assert_eq!(new_config.swapper, original_config.swapper);
