@@ -826,7 +826,6 @@ export interface VaultUtilizationResponse {
 }
 export interface ConfigResponse {
   account_nft?: string | null
-  duality_swapper: string
   health_contract: string
   incentives: string
   keeper_fee_config: KeeperFeeConfig

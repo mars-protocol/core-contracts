@@ -6739,7 +6739,6 @@
       "title": "ConfigResponse",
       "type": "object",
       "required": [
-        "duality_swapper",
         "health_contract",
         "incentives",
         "keeper_fee_config",
@@ -6760,9 +6759,6 @@
             "string",
             "null"
           ]
-        },
-        "duality_swapper": {
-          "type": "string"
         },
         "health_contract": {
           "type": "string"
