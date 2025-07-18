@@ -1,15 +1,18 @@
 use cosmwasm_std::{DepsMut, Response};
 use cw2::{assert_contract_version, set_contract_version};
-use mars_types::health::HealthResult;
 
-use crate::contract::{CONTRACT_NAME, CONTRACT_VERSION};
+use crate::{
+    contract::{CONTRACT_NAME, CONTRACT_VERSION},
+    error::ContractError,
+};
 
-const FROM_VERSION: &str = "2.1.0";
+const FROM_VERSION: &str = "2.2.3";
 
-pub fn migrate(deps: DepsMut) -> HealthResult<Response> {
-    // make sure we're migrating the correct contract and from the correct version
+pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
+    // Make sure we're migrating the correct contract and from the correct version
     assert_contract_version(deps.storage, &format!("crates.io:{CONTRACT_NAME}"), FROM_VERSION)?;
 
+    // Update contract version
     set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), CONTRACT_VERSION)?;
 
     Ok(Response::new()

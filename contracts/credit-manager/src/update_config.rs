@@ -12,7 +12,7 @@ use crate::{
     error::ContractResult,
     execute::create_credit_account,
     state::{
-        ACCOUNT_NFT, HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE,
+        ACCOUNT_NFT, DUALITY_SWAPPER, HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE,
         MAX_TRIGGER_ORDERS, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS, PERPS_LB_RATIO,
         RED_BANK, REWARDS_COLLECTOR, SWAPPER, ZAPPER,
     },
@@ -62,6 +62,13 @@ pub fn update_config(
         SWAPPER.save(deps.storage, &unchecked.check(deps.api)?)?;
         response =
             response.add_attribute("key", "swapper").add_attribute("value", unchecked.address());
+    }
+
+    if let Some(unchecked) = updates.duality_swapper {
+        DUALITY_SWAPPER.save(deps.storage, &unchecked.check(deps.api)?)?;
+        response = response
+            .add_attribute("key", "duality_swapper")
+            .add_attribute("value", unchecked.address());
     }
 
     if let Some(unchecked) = updates.zapper {

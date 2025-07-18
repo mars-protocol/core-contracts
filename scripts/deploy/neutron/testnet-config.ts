@@ -284,6 +284,46 @@ export const atomUsdcRoute = {
   },
 }
 
+export const ntrnUsdcDualityRoute = {
+  denom_in: 'untrn',
+  denom_out: nobleUsdcDenom,
+  route: {
+    from: 'untrn',
+    swap_denoms: ['untrn', nobleUsdcDenom],
+    to: nobleUsdcDenom,
+  },
+}
+
+export const usdcNtrnDualityRoute = {
+  denom_in: nobleUsdcDenom,
+  denom_out: 'untrn',
+  route: {
+    from: nobleUsdcDenom,
+    swap_denoms: [nobleUsdcDenom, 'untrn'],
+    to: 'untrn',
+  },
+}
+
+export const usdcAtomDualityRoute = {
+  denom_in: nobleUsdcDenom,
+  denom_out: atomDenom,
+  route: {
+    from: nobleUsdcDenom,
+    swap_denoms: [nobleUsdcDenom, atomDenom],
+    to: atomDenom,
+  },
+}
+
+export const atomUsdcDualityRoute = {
+  denom_in: atomDenom,
+  denom_out: nobleUsdcDenom,
+  route: {
+    from: atomDenom,
+    swap_denoms: [atomDenom, nobleUsdcDenom],
+    to: nobleUsdcDenom,
+  },
+}
+
 export const ntrnUsdcRoute = {
   denom_in: 'untrn',
   denom_out: nobleUsdcDenom,
@@ -762,6 +802,15 @@ export const neutronTestnetConfig: DeploymentConfig = {
   swapper: {
     name: 'astroport',
     routes: [atomUsdcRoute, atomMarsRoute, ntrnUsdcRoute, ntrnMarsRoute, usdcMarsRoute],
+  },
+  dualitySwapper: {
+    name: 'duality',
+    routes: [
+      ntrnUsdcDualityRoute,
+      usdcNtrnDualityRoute,
+      usdcAtomDualityRoute,
+      atomUsdcDualityRoute,
+    ],
   },
   maxValueForBurn: '10000',
   maxTriggerOrders: 50,
