@@ -129,9 +129,13 @@ impl Config {
 #[cw_serde]
 pub enum WhitelistAction {
     /// Add an address to the whitelist of distributors
-    AddAddress { address: String },
+    AddAddress {
+        address: String,
+    },
     /// Remove an address from the whitelist of distributors
-    RemoveAddress { address: String },
+    RemoveAddress {
+        address: String,
+    },
 }
 
 #[cw_serde]

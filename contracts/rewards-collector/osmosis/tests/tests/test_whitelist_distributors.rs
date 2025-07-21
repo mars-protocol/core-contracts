@@ -1,7 +1,7 @@
-use cosmwasm_std::{testing::mock_env, Addr};
+use cosmwasm_std::{testing::mock_env, Uint128};
 use mars_owner::OwnerError::NotOwner;
-use mars_rewards_collector_base::{error::ContractError, ContractResult};
-use mars_rewards_collector_osmosis::entry::{execute, query};
+use mars_rewards_collector_base::ContractError;
+use mars_rewards_collector_osmosis::entry::execute;
 use mars_testing::mock_info;
 use mars_types::rewards_collector::{
     ConfigResponse, ExecuteMsg, QueryMsg, UpdateConfig, WhitelistAction,
@@ -10,15 +10,26 @@ use mars_types::rewards_collector::{
 use super::helpers;
 
 #[test]
-fn whitelist_add_and_remove_distributor() {
+fn owner_can_add_to_whitelist() {
     let mut deps = helpers::setup_test();
-
-    // Initial state should have only the owner whitelisted
+    // Owner adds alice
+    let info = mock_info("owner");
+    let msg = ExecuteMsg::UpdateConfig {
+        new_cfg: UpdateConfig {
+            whitelist_actions: Some(vec![WhitelistAction::AddAddress {
+                address: "alice".to_string(),
+            }]),
+            ..Default::default()
+        },
+    };
+    execute(deps.as_mut(), mock_env(), info, msg).unwrap();
     let cfg: ConfigResponse = helpers::query(deps.as_ref(), QueryMsg::Config {});
-    assert_eq!(cfg.whitelisted_distributors.len(), 1);
-    assert_eq!(cfg.whitelisted_distributors[0], "owner");
+    assert!(cfg.whitelisted_distributors.contains(&"alice".to_string()));
+}
 
-    // Non-owner cannot update the whitelist
+#[test]
+fn non_owner_cannot_add_to_whitelist() {
+    let mut deps = helpers::setup_test();
     let info = mock_info("not_owner");
     let msg = ExecuteMsg::UpdateConfig {
         new_cfg: UpdateConfig {
@@ -30,8 +41,12 @@ fn whitelist_add_and_remove_distributor() {
     };
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert_eq!(err, ContractError::Owner(NotOwner {}));
+}
 
-    // Add a new distributor by the owner
+#[test]
+fn owner_can_remove_from_whitelist() {
+    let mut deps = helpers::setup_test();
+    // Owner adds alice
     let info = mock_info("owner");
     let msg = ExecuteMsg::UpdateConfig {
         new_cfg: UpdateConfig {
@@ -42,30 +57,7 @@ fn whitelist_add_and_remove_distributor() {
         },
     };
     execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
-
-    // Check if alice was added
-    let cfg: ConfigResponse = helpers::query(deps.as_ref(), QueryMsg::Config {});
-    assert_eq!(cfg.whitelisted_distributors.len(), 2);
-    assert!(cfg.whitelisted_distributors.contains(&"owner".to_string()));
-    assert!(cfg.whitelisted_distributors.contains(&"alice".to_string()));
-
-    // Add another distributor
-    let msg = ExecuteMsg::UpdateConfig {
-        new_cfg: UpdateConfig {
-            whitelist_actions: Some(vec![WhitelistAction::AddAddress {
-                address: "bob".to_string(),
-            }]),
-            ..Default::default()
-        },
-    };
-    execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
-
-    // Check if bob was added
-    let cfg: ConfigResponse = helpers::query(deps.as_ref(), QueryMsg::Config {});
-    assert_eq!(cfg.whitelisted_distributors.len(), 3);
-    assert!(cfg.whitelisted_distributors.contains(&"bob".to_string()));
-
-    // Remove a distributor
+    // Owner removes alice
     let msg = ExecuteMsg::UpdateConfig {
         new_cfg: UpdateConfig {
             whitelist_actions: Some(vec![WhitelistAction::RemoveAddress {
@@ -75,20 +67,14 @@ fn whitelist_add_and_remove_distributor() {
         },
     };
     execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-    // Check if alice was removed
     let cfg: ConfigResponse = helpers::query(deps.as_ref(), QueryMsg::Config {});
-    assert_eq!(cfg.whitelisted_distributors.len(), 2);
-    assert!(cfg.whitelisted_distributors.contains(&"owner".to_string()));
-    assert!(cfg.whitelisted_distributors.contains(&"bob".to_string()));
     assert!(!cfg.whitelisted_distributors.contains(&"alice".to_string()));
 }
 
 #[test]
-fn only_whitelisted_can_distribute_rewards() {
+fn whitelisted_can_distribute_rewards() {
     let mut deps = helpers::setup_test();
-
-    // Add a new distributor "alice" to the whitelist
+    // Owner adds alice
     let info = mock_info("owner");
     let msg = ExecuteMsg::UpdateConfig {
         new_cfg: UpdateConfig {
@@ -99,27 +85,32 @@ fn only_whitelisted_can_distribute_rewards() {
         },
     };
     execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-    // Set up a balance of tokens
     deps.querier.set_contract_balances(&[cosmwasm_std::coin(1000, "umars")]);
-
-    // Owner can distribute rewards
-    let info = mock_info("owner");
-    let msg = ExecuteMsg::DistributeRewards {
-        denom: "umars".to_string(),
-    };
-    let result: ContractResult<_> = execute(deps.as_mut(), mock_env(), info, msg);
-    assert!(result.is_ok());
-
-    // Alice can distribute rewards because she's whitelisted
+    // Alice can distribute
     let info = mock_info("alice");
     let msg = ExecuteMsg::DistributeRewards {
         denom: "umars".to_string(),
     };
-    let result: ContractResult<_> = execute(deps.as_mut(), mock_env(), info, msg);
+    let result = execute(deps.as_mut(), mock_env(), info, msg);
     assert!(result.is_ok());
+}
 
-    // Bob cannot distribute rewards because he's not whitelisted
+#[test]
+fn owner_can_distribute_rewards() {
+    let mut deps = helpers::setup_test();
+    deps.querier.set_contract_balances(&[cosmwasm_std::coin(1000, "umars")]);
+    let info = mock_info("owner");
+    let msg = ExecuteMsg::DistributeRewards {
+        denom: "umars".to_string(),
+    };
+    let result = execute(deps.as_mut(), mock_env(), info, msg);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn non_whitelisted_cannot_distribute_rewards() {
+    let mut deps = helpers::setup_test();
+    deps.querier.set_contract_balances(&[cosmwasm_std::coin(1000, "umars")]);
     let info = mock_info("bob");
     let msg = ExecuteMsg::DistributeRewards {
         denom: "umars".to_string(),
@@ -127,14 +118,33 @@ fn only_whitelisted_can_distribute_rewards() {
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert!(matches!(
         err,
-        ContractError::UnauthorizedDistributor { sender: _ }
+        ContractError::UnauthorizedDistributor {
+            sender: _
+        }
     ));
-    if let ContractError::UnauthorizedDistributor { sender } = err {
+    if let ContractError::UnauthorizedDistributor {
+        sender,
+    } = err
+    {
         assert_eq!(sender, "bob");
     }
+}
 
-    // Remove all distributors except owner
+#[test]
+fn removed_account_cannot_distribute_rewards() {
+    let mut deps = helpers::setup_test();
+    // Owner adds alice
     let info = mock_info("owner");
+    let msg = ExecuteMsg::UpdateConfig {
+        new_cfg: UpdateConfig {
+            whitelist_actions: Some(vec![WhitelistAction::AddAddress {
+                address: "alice".to_string(),
+            }]),
+            ..Default::default()
+        },
+    };
+    execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+    // Owner removes alice
     let msg = ExecuteMsg::UpdateConfig {
         new_cfg: UpdateConfig {
             whitelist_actions: Some(vec![WhitelistAction::RemoveAddress {
@@ -144,8 +154,7 @@ fn only_whitelisted_can_distribute_rewards() {
         },
     };
     execute(deps.as_mut(), mock_env(), info, msg).unwrap();
-
-    // Alice can no longer distribute rewards
+    // Alice can no longer distribute
     let info = mock_info("alice");
     let msg = ExecuteMsg::DistributeRewards {
         denom: "umars".to_string(),
@@ -153,6 +162,126 @@ fn only_whitelisted_can_distribute_rewards() {
     let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
     assert!(matches!(
         err,
-        ContractError::UnauthorizedDistributor { sender: _ }
+        ContractError::UnauthorizedDistributor {
+            sender: _
+        }
     ));
+}
+
+#[test]
+fn whitelisted_can_swap_asset() {
+    let mut deps = helpers::setup_test();
+    // Owner adds alice
+    let info = mock_info("owner");
+    let msg = ExecuteMsg::UpdateConfig {
+        new_cfg: UpdateConfig {
+            whitelist_actions: Some(vec![WhitelistAction::AddAddress {
+                address: "alice".to_string(),
+            }]),
+            ..Default::default()
+        },
+    };
+    execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    deps.querier.set_contract_balances(&[cosmwasm_std::coin(1000, "umars")]);
+    // Alice can swap
+    let info = mock_info("alice");
+    let msg = ExecuteMsg::SwapAsset {
+        denom: "umars".to_string(),
+        amount: None,
+        safety_fund_route: None,
+        fee_collector_route: None,
+        safety_fund_min_receive: Some(Uint128::from(1000u128)),
+
+        fee_collector_min_receive: None,
+    };
+    let result = execute(deps.as_mut(), mock_env(), info, msg);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn non_whitelisted_cannot_swap_asset() {
+    let mut deps = helpers::setup_test();
+    deps.querier.set_contract_balances(&[cosmwasm_std::coin(1000, "umars")]);
+    let info = mock_info("bob");
+    let msg = ExecuteMsg::SwapAsset {
+        denom: "umars".to_string(),
+        amount: None,
+        safety_fund_route: None,
+        fee_collector_route: None,
+        safety_fund_min_receive: None,
+        fee_collector_min_receive: None,
+    };
+    let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert!(matches!(
+        err,
+        ContractError::UnauthorizedDistributor {
+            sender: _
+        }
+    ));
+    if let ContractError::UnauthorizedDistributor {
+        sender,
+    } = err
+    {
+        assert_eq!(sender, "bob");
+    }
+}
+
+#[test]
+fn removed_account_cannot_swap_asset() {
+    let mut deps = helpers::setup_test();
+    // Owner adds alice
+    let info = mock_info("owner");
+    let msg = ExecuteMsg::UpdateConfig {
+        new_cfg: UpdateConfig {
+            whitelist_actions: Some(vec![WhitelistAction::AddAddress {
+                address: "alice".to_string(),
+            }]),
+            ..Default::default()
+        },
+    };
+    execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+    // Owner removes alice
+    let msg = ExecuteMsg::UpdateConfig {
+        new_cfg: UpdateConfig {
+            whitelist_actions: Some(vec![WhitelistAction::RemoveAddress {
+                address: "alice".to_string(),
+            }]),
+            ..Default::default()
+        },
+    };
+    execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    // Alice can no longer swap
+    let info = mock_info("alice");
+    let msg = ExecuteMsg::SwapAsset {
+        denom: "umars".to_string(),
+        amount: None,
+        safety_fund_route: None,
+        fee_collector_route: None,
+        safety_fund_min_receive: Some(Uint128::from(1000u128)),
+        fee_collector_min_receive: None,
+    };
+    let err = execute(deps.as_mut(), mock_env(), info, msg).unwrap_err();
+    assert!(matches!(
+        err,
+        ContractError::UnauthorizedDistributor {
+            sender: _
+        }
+    ));
+}
+
+#[test]
+fn owner_can_swap_asset() {
+    let mut deps = helpers::setup_test();
+    deps.querier.set_contract_balances(&[cosmwasm_std::coin(1000, "umars")]);
+    let info = mock_info("owner");
+    let msg = ExecuteMsg::SwapAsset {
+        denom: "umars".to_string(),
+        amount: None,
+        safety_fund_route: None,
+        fee_collector_route: None,
+        safety_fund_min_receive: Some(Uint128::from(1000u128)),
+        fee_collector_min_receive: None,
+    };
+    let result = execute(deps.as_mut(), mock_env(), info, msg);
+    assert!(result.is_ok());
 }

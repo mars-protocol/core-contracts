@@ -1098,6 +1098,7 @@ impl MockEnvBuilder {
                     fee_collector_config: self.fee_collector_config.clone(),
                     channel_id: "0".to_string(),
                     timeout_seconds: 900,
+                    whitelisted_distributors: vec![],
                     slippage_tolerance: self.slippage_tolerance,
                 },
                 &[],

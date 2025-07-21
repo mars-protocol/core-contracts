@@ -87,6 +87,7 @@ fn swapping_rewards() {
             channel_id: "channel-1".to_string(),
             timeout_seconds: 60,
             slippage_tolerance: Decimal::percent(5),
+            whitelisted_distributors: vec![signer.address()],
         },
     );
 
@@ -470,6 +471,7 @@ fn distribute_rewards_if_ibc_channel_invalid() {
             channel_id: "".to_string(),
             timeout_seconds: 60,
             slippage_tolerance: Decimal::percent(1),
+            whitelisted_distributors: vec![signer.address()],
         },
     );
 
@@ -510,6 +512,7 @@ fn distribute_rewards_if_ibc_channel_invalid() {
                 fee_collector_config: None,
                 channel_id: Some("channel-1".to_string()),
                 timeout_seconds: None,
+                whitelist_actions: None,
             },
         },
         &[],

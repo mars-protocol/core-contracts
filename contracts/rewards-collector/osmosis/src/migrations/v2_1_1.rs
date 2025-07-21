@@ -89,6 +89,8 @@ pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
             target_denom: old_config.fee_collector_denom,
             transfer_type: TransferType::Ibc,
         },
+        // empty initially
+        whitelisted_distributors: vec![],
     };
 
     // ensure our new config is legal
