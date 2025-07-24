@@ -56,6 +56,11 @@ pub enum ContractError {
 
     #[error("{0}")]
     Version(#[from] cw2::VersionError),
+
+    #[error("Invalid input: {reason}")]
+    InvalidInput {
+        reason: String,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

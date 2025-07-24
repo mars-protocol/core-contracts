@@ -1,13 +1,19 @@
 use std::{collections::HashSet, hash::Hash};
 
 use cosmwasm_std::CosmosMsg;
+use mars_swapper_base::{ContractError, ContractResult};
 use neutron_sdk::{
     bindings::msg::NeutronMsg,
     proto_types::neutron::dex::MsgPlaceLimitOrder,
     stargate::{aux::create_stargate_msg, dex::types::PlaceLimitOrderRequest},
 };
 
+// Precision of the decimal values used in the Neutron DEX
+// They use 27 decimal places for their PrecDec type
 const PREC_DEC_PRECISION: usize = 27;
+
+// Fully qualified protobuf type URL for the Neutron DEX limit order message.
+// This path is defined in the Neutron proto files, https://github.com/neutron-org/neutron/blob/main/proto/neutron/dex/tx.proto#L135.
 const PLACE_LIMIT_ORDER_MSG_PATH: &str = "/neutron.dex.MsgPlaceLimitOrder";
 
 /// Build a hashset from array data
@@ -27,8 +33,10 @@ pub(crate) fn hashset<T: Eq + Clone + Hash>(data: &[T]) -> HashSet<T> {
 /// # Returns
 ///
 /// A CosmosMsg that can be included in the response of a contract execution
-pub(crate) fn msg_place_limit_order(req: PlaceLimitOrderRequest) -> CosmosMsg<NeutronMsg> {
-    create_stargate_msg(PLACE_LIMIT_ORDER_MSG_PATH, from(req))
+pub(crate) fn msg_place_limit_order(
+    req: PlaceLimitOrderRequest,
+) -> ContractResult<CosmosMsg<NeutronMsg>> {
+    Ok(create_stargate_msg(PLACE_LIMIT_ORDER_MSG_PATH, from(req)?))
 }
 
 /// Converts a PlaceLimitOrderRequest into a MsgPlaceLimitOrder with proper price serialization.
@@ -44,11 +52,11 @@ pub(crate) fn msg_place_limit_order(req: PlaceLimitOrderRequest) -> CosmosMsg<Ne
 /// # Returns
 ///
 /// A properly formatted MsgPlaceLimitOrder with correct PrecDec serialization
-fn from(v: PlaceLimitOrderRequest) -> MsgPlaceLimitOrder {
+fn from(v: PlaceLimitOrderRequest) -> ContractResult<MsgPlaceLimitOrder> {
     let price = v.limit_sell_price.clone();
     let mut msg = MsgPlaceLimitOrder::from(v);
-    msg.limit_sell_price = serialize_prec_dec(price);
-    msg
+    msg.limit_sell_price = serialize_prec_dec(&price)?;
+    Ok(msg)
 }
 
 /// Serializes a decimal string into the format expected by PrecDec in the Neutron SDK.
@@ -69,35 +77,64 @@ fn from(v: PlaceLimitOrderRequest) -> MsgPlaceLimitOrder {
 ///
 /// A string representation of the decimal as a fixed-point integer with the leading
 /// zeros properly removed, ready for PrecDec serialization.
-fn serialize_prec_dec(decimal_str: String) -> String {
-    // The proto marshaller expects the decimal to come as an integer that will be divided by 10^PREC_DEC_PRECISION to produce a PrecDec
-    // There is no available decimal type that can hold 27 decimals of precision. So instead we use string manipulation to serialize the PrecDec into an integer
-    let parts: Vec<&str> = decimal_str.split('.').collect();
-    let integer_part = parts[0];
-    let mut fractional_part = if parts.len() > 1 {
-        String::from(parts[1])
-    } else {
-        String::new()
-    };
-    // Remove trailing zeros from the fractional_part
-    fractional_part = fractional_part.trim_end_matches('0').to_string();
-    // Remove leading zeros from the integer_part
-    let mut result = integer_part.trim_start_matches('0').to_string();
-    // Combine integer part and fractional part
-    result.push_str(&fractional_part.to_owned());
-
-    // Add zeros to the end. This is the equivalent of multiplying by 10^PREC_DEC_PRECISION
-    let zeros_to_add = PREC_DEC_PRECISION
-        .checked_sub(fractional_part.len())
-        .expect("Cannot retain precision when serializing PrecDec");
-    for _ in 0..zeros_to_add {
-        result.push('0');
+fn serialize_prec_dec(decimal_str: &str) -> ContractResult<String> {
+    // Basic validation
+    if decimal_str.is_empty() {
+        return Err(ContractError::InvalidInput {
+            reason: "Empty input".to_string(),
+        });
     }
 
-    // Remove leading zeros from the whole
-    result.trim_start_matches('0').to_string()
-}
+    // Split into parts
+    let (integer_part, fractional_part) = match decimal_str.split_once('.') {
+        Some((int_part, frac_part)) => (int_part, frac_part),
+        None => (decimal_str, ""),
+    };
 
+    // Remove leading zeros from integer part, keep at least one "0"
+    let integer_clean = integer_part.trim_start_matches('0');
+    let integer_clean = if integer_clean.is_empty() {
+        "0"
+    } else {
+        integer_clean
+    };
+
+    // Remove trailing zeros from fractional part
+    let fractional_clean = fractional_part.trim_end_matches('0');
+
+    // Handle fractional part that's too long
+    let fractional_to_use = if fractional_clean.len() > PREC_DEC_PRECISION {
+        &fractional_clean[..PREC_DEC_PRECISION]
+    } else {
+        fractional_clean
+    };
+
+    // Build result efficiently
+    let mut result = String::with_capacity(integer_clean.len() + PREC_DEC_PRECISION);
+
+    // Special case for zero
+    if integer_clean == "0" && fractional_to_use.is_empty() {
+        result.push('0');
+        result.push_str(&"0".repeat(PREC_DEC_PRECISION));
+        return Ok(result);
+    }
+
+    // Build result
+    result.push_str(integer_clean);
+    result.push_str(fractional_to_use);
+
+    // Add missing zeros
+    let zeros_to_add = PREC_DEC_PRECISION.saturating_sub(fractional_to_use.len());
+    result.push_str(&"0".repeat(zeros_to_add));
+
+    // Remove leading zeros from result (keep at least one)
+    let final_result = result.trim_start_matches('0');
+    Ok(if final_result.is_empty() {
+        "0".to_string()
+    } else {
+        final_result.to_string()
+    })
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -117,29 +154,26 @@ mod tests {
     #[test]
     fn test_serialize_prec_dec() {
         // Standard case with both integer and decimal parts
-        assert_eq!(serialize_prec_dec("1.23".to_string()), "1230000000000000000000000000");
+        assert_eq!(serialize_prec_dec("1.23").unwrap(), "1230000000000000000000000000");
 
         // Case with leading zero in integer part (the buggy case)
-        assert_eq!(serialize_prec_dec("0.01".to_string()), "10000000000000000000000000");
+        assert_eq!(serialize_prec_dec("0.01").unwrap(), "10000000000000000000000000");
 
         // Case with only integer part
-        assert_eq!(serialize_prec_dec("42".to_string()), "42000000000000000000000000000");
+        assert_eq!(serialize_prec_dec("42").unwrap(), "42000000000000000000000000000");
 
         // Zero case
-        assert_eq!(
-            serialize_prec_dec("0.0".to_string()),
-            "" // Or should be "0" + zeros? Depends on your implementation
-        );
+        assert_eq!(serialize_prec_dec("0.0").unwrap(), "0000000000000000000000000000");
 
         // Case with trailing zeros in fractional part
-        assert_eq!(serialize_prec_dec("1.2300".to_string()), "1230000000000000000000000000");
+        assert_eq!(serialize_prec_dec("1.2300").unwrap(), "1230000000000000000000000000");
 
         // Case with long fractional part
-        assert_eq!(serialize_prec_dec("0.000123".to_string()), "123000000000000000000000");
+        assert_eq!(serialize_prec_dec("0.000123").unwrap(), "123000000000000000000000");
 
         // Edge case: exactly 27 digits in fractional part
         assert_eq!(
-            serialize_prec_dec("0.123456789012345678901234567".to_string()),
+            serialize_prec_dec("0.123456789012345678901234567").unwrap(),
             "123456789012345678901234567"
         );
     }

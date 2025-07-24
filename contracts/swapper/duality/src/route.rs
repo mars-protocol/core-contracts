@@ -148,7 +148,7 @@ impl Route<NeutronMsg, Empty, DualityConfig> for DualityRoute {
                 expiration_time: None,
                 max_amount_out: None,
                 limit_sell_price,
-            })
+            })?
         };
 
         Ok(swap_msg)
