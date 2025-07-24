@@ -69,6 +69,28 @@ enum ExpectedValidationResult {
     ExpectedValidationResult::Error("does not match the output denom".to_string())
     ; "route with mismatched output"
 )]
+#[test_case(
+    "route_first_denom_mismatch",
+    || SwapperRoute::Duality(DualityRoute {
+        from: "uatom".to_string(),
+        to: "usdc".to_string(),
+        swap_denoms: vec!["uosmo".to_string(), "usdc".to_string()],
+    }),
+    "uatom", "usdc",
+    ExpectedValidationResult::Error("does not match the input denom".to_string())
+    ; "route where first denom doesn't match the 'from' field"
+)]
+#[test_case(
+    "route_duplicate_consecutive_denoms",
+    || SwapperRoute::Duality(DualityRoute {
+        from: "untrn".to_string(),
+        to: "atom".to_string(),
+        swap_denoms: vec!["untrn".to_string(), "usdc".to_string(), "usdc".to_string(), "atom".to_string()],
+    }),
+    "untrn", "atom",
+    ExpectedValidationResult::Error("duplicate consecutive denoms".to_string())
+    ; "route with duplicate consecutive denoms"
+)]
 fn test_route_validation(
     _test_name: &str,
     route_factory: impl FnOnce() -> SwapperRoute,
