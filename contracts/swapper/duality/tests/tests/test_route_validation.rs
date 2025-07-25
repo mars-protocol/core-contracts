@@ -212,8 +212,8 @@ fn test_set_direct_route() {
     tester.add_liquidity(
         denom_in,
         denom_out,
-        Uint128::from(base_liquidity),
-        Uint128::from(base_liquidity),
+        Uint128::from(base_liquidity).into(),
+        Uint128::from(base_liquidity).into(),
     );
 
     // Execute a swap using the route (this will only work if route was set correctly)
@@ -244,14 +244,14 @@ fn test_set_multi_hop_route() {
     tester.add_liquidity(
         denom_in,
         intermediate,
-        Uint128::from(base_liquidity),
-        Uint128::from(base_liquidity),
+        Uint128::from(base_liquidity).into(),
+        Uint128::from(base_liquidity).into(),
     );
     tester.add_liquidity(
         intermediate,
         denom_out,
-        Uint128::from(base_liquidity),
-        Uint128::from(base_liquidity),
+        Uint128::from(base_liquidity).into(),
+        Uint128::from(base_liquidity).into(),
     );
 
     let multi_hop_route = tester.create_multi_hop_route(denom_in, intermediate, denom_out);
@@ -328,21 +328,51 @@ fn test_routes_query() {
     }
 
     // Add liquidity to all pairs
-    tester.add_liquidity("untrn", "uusdc", Uint128::from(1000000u128), Uint128::from(1000000u128));
-    tester.add_liquidity("uatom", "uusdc", Uint128::from(1000000u128), Uint128::from(1000000u128));
+    tester.add_liquidity(
+        "untrn",
+        "uusdc",
+        Uint128::from(1000000000u128).into(),
+        Uint128::from(1000000000u128).into(),
+    );
+    tester.add_liquidity(
+        "uatom",
+        "uusdc",
+        Uint128::from(1000000000u128).into(),
+        Uint128::from(1000000000u128).into(),
+    );
 
-    // Test each route with a swap
     for (in_denom, out_denom) in route_configs.iter() {
-        let coin_in = cosmwasm_std::coin(1000, *in_denom);
-        let min_receive = Uint128::from(1000u128);
+        let coin_in = cosmwasm_std::coin(1000000, *in_denom);
+        let min_receive = Uint128::from(1000000u128);
 
-        // Execute swap - this should work if the route was set correctly
+        // Query balances before swap
+        let before_in = tester.get_balance(&tester.admin.address(), in_denom);
+        let before_out = tester.get_balance(&tester.admin.address(), out_denom);
+
+        // Execute swap
         let swap_res = tester.execute_swap(coin_in, *out_denom, min_receive, None, &tester.admin);
-        // Verify swap was successful
         assert!(
             swap_res.is_ok(),
             "Swap from {} to {} should succeed if route was properly set",
             in_denom,
+            out_denom
+        );
+
+        // Query balances after swap
+        let after_in = tester.get_balance(&tester.admin.address(), in_denom);
+        let after_out = tester.get_balance(&tester.admin.address(), out_denom);
+
+        // Assert fund flow
+        assert_eq!(
+            before_in - after_in,
+            Uint128::from(1000u128),
+            "Input denom {} should decrease by swap amount",
+            in_denom
+        );
+        assert!(after_out > before_out, "Output denom {} should increase after swap", out_denom);
+        assert!(
+            after_out - before_out >= min_receive,
+            "Output denom {} should increase by at least min_receive",
             out_denom
         );
     }
@@ -363,8 +393,8 @@ fn test_unauthorized_set_route() {
     tester.add_liquidity(
         denom_in,
         denom_out,
-        Uint128::from(1000000u128),
-        Uint128::from(1000000u128),
+        Uint128::from(1000000u128).into(),
+        Uint128::from(1000000u128).into(),
     );
 
     // Attempt to set the route as non-admin (user) - should fail

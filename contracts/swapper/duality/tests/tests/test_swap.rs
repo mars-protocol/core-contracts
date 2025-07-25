@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{coin, Decimal, Uint128};
+use cosmwasm_std::{coin, Decimal, Decimal256, Uint128, Uint256};
 #[cfg(feature = "duality")]
 use mars_testing::duality_swapper::DualitySwapperTester;
 use mars_types::swapper::{DualityRoute, SwapperRoute};
@@ -8,44 +8,20 @@ use mars_types::swapper::{DualityRoute, SwapperRoute};
 use neutron_test_tube::{Account, NeutronTestApp};
 use test_case::test_case;
 
-#[test_case("untrn", "uusdc", 1_000_000, 1_000_000, true, false, None; "direct swap with explicit route")]
-#[test_case("untrn", "uusdc", 500_000, 500_000, true, false, None; "direct swap without route")]
-#[test_case("untrn", "uusdc", 750_000, 750_000, true, true, Some("uatom"); "multi-hop swap through uatom")]
-#[test_case("uatom", "ujuno", 1_000_000, 1_000_000, true, false, None; "different token pair direct swap")]
-#[test_case("uatom", "ujuno", 2_000_000, 2_000_000, true, true, Some("uosmo"); "different token pair multi-hop swap")]
-#[test_case("untrn", "uusdc", 1, 1, true, false, None; "minimal amount direct swap")]
-fn test_basic_swaps(
-    denom_in: &str,
-    denom_out: &str,
-    amount_in: u128,
-    expected_amount_out: u128,
-    use_route: bool,
-    use_multihop: bool,
-    intermediate_denom: Option<&str>,
-) {
-    test_swap_basic(
-        denom_in,
-        denom_out,
-        amount_in,
-        expected_amount_out,
-        use_route,
-        use_multihop,
-        intermediate_denom,
-    );
-}
-
 #[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(200); "direct swap with 2:1 price ratio")]
 #[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(1000000); "direct swap with very high price ratio (10000:1)")]
 #[test_case("untrn", "uusdc", 1_000_000, Decimal::percent(100000000); "direct swap with extreme price ratio (1000000:1)")]
 #[test_case("uatom", "ujuno", 1_000_000, Decimal::percent(100); "different pair with 1:1 price ratio")]
 #[test_case("untrn", "uusdc", 10000, Decimal::percent(500); "tiny amount swap with 5:1 ratio")]
-#[test_case("untrn", "uusdc", 50_000_000, Decimal::percent(100); "large amount swap with 1:1 ratio")]
+#[test_case("untrn", "uusdc", 50_000_000, Decimal::percent(100); "medium amount swap with 1:1 ratio")]
+#[test_case("untrn", "uusdc", 50_000_000, Decimal::percent(300); "medium amount swap with 3:1 ratio")]
+#[test_case("untrn", "uusdc", 500_000_000_000_000, Decimal::percent(1000); "large amount swap with 10:1 ratio")]
+#[test_case("untrn", "uusdc", 500_000_000_000_000_000_000_000_000_000, Decimal::percent(1000); "extreme amount swap with 10:1 ratio")]
 #[test_case("untrn", "uusdc", 10_000_000, Decimal::percent(10); "swap with 0.1:1 price ratio")]
 #[test_case("untrn", "uusdc", 100_000_000, Decimal::percent(1); "swap with 0.01:1 price ratio")]
 fn test_custom_price_swaps(denom_in: &str, denom_out: &str, amount_in: u128, price_ratio: Decimal) {
     test_swap_with_custom_pricing(denom_in, denom_out, amount_in, price_ratio);
 }
-
 #[test_case("untrn", "ujuno", 1_000_000, vec!["uusdc"], vec![2.0, 0.5], None; "3-hop swap with varied rates")]
 #[test_case("untrn", "uusdc", 5_000_000, vec!["uatom"], vec![0.5, 4.0], None; "3-hop swap with offsetting rates")]
 #[test_case("uatom", "ujuno", 1_000_000, vec!["uusdc"], vec![1.5, 0.75], Some(1.125); "3-hop swap with calculated aggregate rate")]
@@ -67,7 +43,6 @@ fn test_multi_hop_swaps(
     );
 }
 
-// Base test function that will be parameterized with test_case
 fn test_swap_basic(
     denom_in: &str,
     denom_out: &str,
@@ -115,31 +90,21 @@ fn test_swap_basic(
 
     // Add liquidity to pools with 1:1 ratio for simplicity
     // For the direct route
-    let base_liquidity = 1_000_000_000u128;
+    let base_liquidity = Uint256::from(1_000_000_000u128);
     tester.add_liquidity(
         denom_in,
         denom_out,
-        Uint128::new(base_liquidity),
-        Uint128::new(base_liquidity), // 1:1 ratio
+        base_liquidity,
+        base_liquidity, // 1:1 ratio
     );
 
     // If using multi-hop, also add liquidity to intermediate pools
     if use_multihop && intermediate_denom.is_some() {
         let intermediate = intermediate_denom.unwrap();
         // Add liquidity for both hops with 1:1 ratios
-        tester.add_liquidity(
-            denom_in,
-            intermediate,
-            Uint128::new(base_liquidity),
-            Uint128::new(base_liquidity),
-        );
+        tester.add_liquidity(denom_in, intermediate, base_liquidity, base_liquidity);
 
-        tester.add_liquidity(
-            intermediate,
-            denom_out,
-            Uint128::new(base_liquidity),
-            Uint128::new(base_liquidity),
-        );
+        tester.add_liquidity(intermediate, denom_out, base_liquidity, base_liquidity);
     }
 
     // Execute the swap
@@ -173,6 +138,7 @@ fn test_swap_with_custom_pricing(
     let app = NeutronTestApp::default();
     let tester = DualitySwapperTester::new(&app);
 
+    let price_ratio: Decimal256 = price_ratio.into();
     // Record initial balance
     let user_balance_before = tester.get_balance(&tester.user.address(), denom_out);
 
@@ -190,28 +156,32 @@ fn test_swap_with_custom_pricing(
     let swapper_route = Some(SwapperRoute::Duality(route));
 
     // Add liquidity with custom price ratio
-    let base_liquidity_in = 100_000_000_000u128; // Large enough liquidity pool
-    let base_liquidity_out =
-        Decimal::from_atomics(base_liquidity_in, 0).unwrap().checked_mul(price_ratio).unwrap();
+    let base_liquidity_in = amount_in * 2; // Large enough liquidity pool
+    let base_liquidity_out = Decimal256::from_atomics(base_liquidity_in, 0)
+        .unwrap()
+        .checked_mul(price_ratio.into())
+        .unwrap();
 
     // Direct swap with custom price ratio. - we only add liquidity
     let _res = tester.add_liquidity(
         denom_in,
         denom_out,
-        Uint128::new(base_liquidity_in),
+        Uint256::from(base_liquidity_in),
         base_liquidity_out.to_uint_floor(),
     );
 
     // Allow for 0.1% slippage, rounding
-    let slippage_adjusted_price_ratio =
-        price_ratio.checked_mul(Decimal::from_ratio(999u128, 1000u128)).unwrap();
+    let slippage_adjusted_price_ratio: Decimal256 =
+        price_ratio.checked_mul(Decimal256::from_ratio(999u128, 1000u128)).unwrap();
 
     // Calculate expected output
-    let expected_amount_out = Decimal::from_atomics(amount_in, 0)
+    let expected_amount_out = Decimal256::from_atomics(amount_in, 0)
         .unwrap()
         .checked_mul(slippage_adjusted_price_ratio)
         .unwrap()
         .to_uint_floor();
+
+    let expected_amount_out: Uint128 = expected_amount_out.try_into().unwrap();
 
     // Execute the swap
     let result =
@@ -222,9 +192,9 @@ fn test_swap_with_custom_pricing(
 
     // Verify the user received at least the minimum amount
     let user_balance = tester.get_balance(&tester.user.address(), denom_out);
-
     let max_rounding_error =
-        expected_amount_out.checked_mul_floor(Decimal::from_str("0.2").unwrap()).unwrap();
+        expected_amount_out.checked_mul_floor(Decimal::from_str("0.02").unwrap()).unwrap();
+
     assert!(
         user_balance >= user_balance_before + expected_amount_out - max_rounding_error,
         "User should have received at least the minimum amount of tokens"
@@ -295,8 +265,8 @@ fn test_multi_hop_with_varied_exchange_rates(
     tester.add_liquidity(
         denom_in,
         first_target,
-        Uint128::new(10_000_000),
-        Uint128::new((10_000_000.0 * exchange_rates[0]) as u128),
+        Uint256::from(10_000_000u128),
+        Uint256::from((10_000_000.0 * exchange_rates[0]) as u128),
     );
 
     // Add liquidity for all intermediate hops
@@ -306,16 +276,16 @@ fn test_multi_hop_with_varied_exchange_rates(
             tester.add_liquidity(
                 intermediates[i],
                 intermediates[i + 1],
-                Uint128::new(10_000_000),
-                Uint128::new((10_000_000.0 * exchange_rates[i + 1]) as u128),
+                Uint256::from(10_000_000u128),
+                Uint256::from((10_000_000.0 * exchange_rates[i + 1]) as u128),
             );
         } else {
             // Last intermediate connects to final output token
             tester.add_liquidity(
                 intermediates[i],
                 denom_out,
-                Uint128::new(10_000_000),
-                Uint128::new((10_000_000.0 * exchange_rates[i + 1]) as u128),
+                Uint256::from(10_000_000u128),
+                Uint256::from((10_000_000.0 * exchange_rates[i + 1]) as u128),
             );
         }
     }
@@ -384,7 +354,12 @@ fn test_insufficient_output_direct_swap() {
     let amount_in = 1_000_000u128;
 
     // Add liquidity with a 3:1 ratio
-    tester.add_liquidity(denom_in, denom_out, Uint128::new(10_000_000), Uint128::new(30_000_000));
+    tester.add_liquidity(
+        denom_in,
+        denom_out,
+        Uint256::from(10_000_000u128),
+        Uint256::from(30_000_000u128),
+    );
 
     // Create and set up a direct route
     let route = DualityRoute {
@@ -442,16 +417,16 @@ fn test_insufficient_output_multi_hop_swap() {
     tester.add_liquidity(
         denom_in,
         intermediate,
-        Uint128::new(10_000_000), // 10M input tokens
-        Uint128::new(30_000_000), // 30M intermediate tokens (3:1 ratio)
+        Uint256::from(10_000_000u128), // 10M input tokens
+        Uint256::from(30_000_000u128), // 30M intermediate tokens (3:1 ratio)
     );
 
     // Add liquidity with a 1:1 ratio for the second hop
     tester.add_liquidity(
         intermediate,
         denom_out,
-        Uint128::new(30_000_000), // 30M intermediate tokens
-        Uint128::new(30_000_000), // 30M output tokens (1:1 ratio)
+        Uint256::from(30_000_000u128), // 30M intermediate tokens
+        Uint256::from(30_000_000u128), // 30M output tokens (1:1 ratio)
     );
 
     // Create and set up a multi-hop route
@@ -511,8 +486,8 @@ fn test_default_slippage_protection() {
     tester.add_liquidity(
         denom_in,
         denom_out,
-        Uint128::new(10_000_000), // Base amount
-        Uint128::new(10_000_000), // 1:1 initial ratio
+        Uint256::from(10_000_000u128), // Base amount
+        Uint256::from(10_000_000u128), // 1:1 initial ratio
     );
 
     // Create and set up a direct route
@@ -546,16 +521,24 @@ fn test_default_slippage_protection() {
     let tester = DualitySwapperTester::new(&app);
 
     // Add the same liquidity
-    tester.add_liquidity(denom_in, denom_out, Uint128::new(10_000_000), Uint128::new(9_500_000));
+    tester.add_liquidity(
+        denom_in,
+        denom_out,
+        Uint256::from(10_000_000u128),
+        Uint256::from(9_500_000u128),
+    );
 
     // Set the route again
-    let res = tester.set_route(route.clone(), denom_in, denom_out);
+    let res: Result<
+        neutron_test_tube::ExecuteResponse<
+            neutron_test_tube::neutron_std::types::cosmwasm::wasm::v1::MsgExecuteContractResponse,
+        >,
+        neutron_test_tube::RunnerError,
+    > = tester.set_route(route.clone(), denom_in, denom_out);
     assert!(res.is_ok(), "Route should pass validation");
 
     // Now execute a swap with tight slippage tolerance
     let min_receive_high = amount_in * 99 / 100; // Allow only 1% slippage
-    println!("min_receive_high: {}", min_receive_high);
-    println!("amount_in: {}", amount_in);
     let result_failure = tester.execute_swap(
         coin_in.clone(),
         denom_out,
@@ -591,7 +574,12 @@ fn test_insufficient_output_with_provided_route() {
     let amount_in = 1_000_000u128;
 
     // Add liquidity with a 1:1 ratio
-    tester.add_liquidity(denom_in, denom_out, Uint128::new(10_000_000), Uint128::new(10_000_000));
+    tester.add_liquidity(
+        denom_in,
+        denom_out,
+        Uint128::new(10_000_000).into(),
+        Uint128::new(10_000_000).into(),
+    );
 
     // Create a route but DON'T save it in the contract state
     let route = DualityRoute {

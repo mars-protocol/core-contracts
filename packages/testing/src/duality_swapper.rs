@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use cosmwasm_std::{Coin, Decimal, Uint128};
+use cosmwasm_std::{Coin, Decimal, Decimal256, Uint128, Uint256};
 use cosmwasm_std_2::Coin as Coin2;
 use mars_types::swapper::{
     DualityRoute, EstimateExactInSwapResponse, ExecuteMsg, InstantiateMsg, QueryMsg, SwapperRoute,
@@ -34,17 +34,16 @@ pub struct DualitySwapperTester<'a> {
     bank: Bank<'a, NeutronTestApp>,
 }
 
-#[cfg(feature = "duality")]
 impl<'a> DualitySwapperTester<'a> {
     /// Creates a new test environment with the Duality swapper deployed
     pub fn new(app: &'a NeutronTestApp) -> Self {
         // Initialize admin and user accounts with funds
         let initial_balance = vec![
-            Coin2::new(100_000_000_000_000_000u128, "untrn"),
-            Coin2::new(100_000_000_000_000_000u128, "uusdc"),
-            Coin2::new(100_000_000_000_000_000u128, "uatom"),
-            Coin2::new(100_000_000_000_000_000u128, "ujuno"),
-            Coin2::new(100_000_000_000_000_000u128, "uosmo"),
+            Coin2::new(Uint128::MAX.u128() / 2, "untrn"),
+            Coin2::new(Uint128::MAX.u128() / 2, "uusdc"),
+            Coin2::new(Uint128::MAX.u128() / 2, "uatom"),
+            Coin2::new(Uint128::MAX.u128() / 2, "ujuno"),
+            Coin2::new(Uint128::MAX.u128() / 2, "uosmo"),
         ];
 
         let admin = app.init_account(initial_balance.as_slice()).unwrap();
@@ -90,7 +89,7 @@ impl<'a> DualitySwapperTester<'a> {
     /// Convert a price ratio to the nearest tick index.
     /// The Duality DEX defines price at tick i as `p(i) = 1.0001^i`.
     /// Therefore `i = ln(price) / ln(1.0001)`.
-    pub fn price_to_tick(price: Decimal) -> i64 {
+    pub fn price_to_tick(price: Decimal256) -> i64 {
         // Convert `Decimal` → `f64` so we can use the standard library’s `ln`.
         // Safe because tests only need ~15 decimals of precision.
         let price_f64: f64 = price.to_string().parse().expect("invalid decimal");
@@ -105,11 +104,11 @@ impl<'a> DualitySwapperTester<'a> {
         &self,
         denom1: &str,
         denom2: &str,
-        amount1: Uint128,
-        amount2: Uint128,
+        amount1: Uint256,
+        amount2: Uint256,
     ) -> ExecuteResponse<MsgDepositResponse> {
         // Calculate the price based on the ratio of amount2 to amount1
-        let price_ratio = Decimal::from_ratio(amount1, amount2);
+        let price_ratio = Decimal256::from_ratio(amount1, amount2);
 
         let tick_index = Self::price_to_tick(price_ratio);
 
