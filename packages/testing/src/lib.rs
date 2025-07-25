@@ -5,7 +5,11 @@ extern crate core;
 pub mod astroport_incentives_querier;
 #[cfg(feature = "astroport")]
 pub mod astroport_swapper;
+
 mod cosmwasm_pool_querier;
+
+#[cfg(feature = "duality")]
+pub mod duality_swapper;
 /// cosmwasm_std::testing overrides and custom test helpers
 mod helpers;
 mod incentives_querier;

@@ -5,6 +5,7 @@ use mars_owner::OwnerUpdate;
 #[cw_serde]
 pub enum SwapperRoute {
     Astro(AstroRoute),
+    Duality(DualityRoute),
     Osmo(OsmoRoute),
 }
 
@@ -35,6 +36,18 @@ pub struct OsmoSwap {
     pub pool_id: u64,
     /// Asset to swap to
     pub to: String,
+}
+
+#[cw_serde]
+pub struct DualityRoute {
+    /// Entry denom, in other words the asset we are selling
+    pub from: String,
+    /// Exit denom, in other words the asset we are buying
+    pub to: String,
+    /// The denoms to swap through. For example,
+    /// For a single swap route e.g A:B, the swap_denoms are [A, B]
+    /// For a multi-swap route e.g A:B, B:C, C:D, the swap_denoms are [A, B, C]
+    pub swap_denoms: Vec<String>,
 }
 
 #[cw_serde]
