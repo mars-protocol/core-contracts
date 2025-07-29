@@ -1,15 +1,15 @@
 # Delta-Neutral Entry/Exit Model
 
-This document describes a simple entry/exit model for delta-neutral trading strategies. It provides guidance on when to enter or exit positions based on price impact, funding rates, and borrowing costs.
+This document describes a simple entry/exit model for delta-neutral trading strategies. It provides guidance on when to enter or exit positions based on price execution, funding rates, borrowing costs, supply rates.
 
 ## Key Concepts
 
 - **Price PnL**: The price difference between the spot and perpetual (perp) markets.
   - **Long Position**: Short perp - Long spot (positive when shorts are higher).
-  - **Short Position**: Spot - Perp (positive when spot is higher).
+  - **Short Position**: Short spot - long Perp (positive when spot is higher).
 
 - **Net yield**: The net cost or yield after considering all funding rates and borrow/supply rates.
-- **`K`** A constant that controls the sensitivity of the entry/exit model. The higher the value of `K`, 
+- **`K`** A constant that controls the sensitivity of the entry/exit model. The higher the value of `K`, the less sensitive the model is to price pnl. A higher `K` means that the .
 
 ## Entry and Exit Criteria
 
@@ -63,11 +63,14 @@ In the following chart we can see how the model works. Everything above the line
 
 Everything below the trend line when the yield rate is below 0 is a signal to short.
 
-Note : there might be a better model to have the long and short side independent configurations, with a base that is not 0
 
 ![Example](./img/entry_exit_model.png)
 
+Possible alternative model could have a base that is not 0, and have individual distinct models for long and short.
 
+Again, for longs everything below the line is a signal to long. For the short size, everything above the line is a signal to short.
+
+![Example](./img/long_only_model.png) ![Example](./img/short_only_model.png)
 
 ## Usage Notes
 

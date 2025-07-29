@@ -1,5 +1,7 @@
 # Delta Neutral Contract
 
+This contract implements an actively managed delta-neutral strategy utilizing the credit manager. Its primary goal is to maintain a market-neutral position by dynamically balancing long and short exposures via spot assets and perpetual futures, minimizing risk from price movements while capturing yield.
+
 
 ## Core Concepts
 
