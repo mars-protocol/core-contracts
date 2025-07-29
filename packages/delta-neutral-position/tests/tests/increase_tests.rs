@@ -111,14 +111,8 @@ fn test_decrease_correct_outputs(
     // assert_eq!(result.entry_value_slice, &expected_slice);
     assert_eq!(result.net_realized_funding, expected_funding);
     assert_eq!(result.net_realized_borrow, expected_borrow);
-    assert_eq!(
-        pos.spot_amount,
-        Uint128::new(initial_size - decrease_amount)
-    );
-    assert_eq!(
-        pos.perp_amount,
-        Uint128::new(initial_size - decrease_amount)
-    );
+    assert_eq!(pos.spot_amount, Uint128::new(initial_size - decrease_amount));
+    assert_eq!(pos.perp_amount, Uint128::new(initial_size - decrease_amount));
 }
 
 #[test_case(10 * SCALE, "100.0", "101.0", 20 * SCALE; "attempt to decrease more than position size should fail")]
@@ -201,12 +195,8 @@ fn test_full_decrease_resets_state(amount: u128, spot: &str, perp: &str, reduce:
     assert_eq!(Uint128::new(amount), Uint128::new(reduce));
 
     // The total accrued funding should include both the increase and decrease deltas
-    let total_funding = funding_delta_increase
-        .checked_add(funding_delta_decrease)
-        .unwrap();
-    let total_borrow = borrow_delta_increase
-        .checked_add(borrow_delta_decrease)
-        .unwrap();
+    let total_funding = funding_delta_increase.checked_add(funding_delta_decrease).unwrap();
+    let total_borrow = borrow_delta_increase.checked_add(borrow_delta_decrease).unwrap();
 
     // For a full decrease, all funding and borrow is realized
     assert_eq!(result.net_realized_funding, total_funding);

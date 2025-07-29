@@ -3,7 +3,11 @@ use cosmwasm_std::{
     to_json_binary, Addr, Api, CosmosMsg, QuerierWrapper, QueryRequest, StdResult, WasmMsg,
     WasmQuery,
 };
-use crate::{credit_manager::{self}, health::AccountKind};
+
+use crate::{
+    credit_manager::{self},
+    health::AccountKind,
+};
 
 #[cw_serde]
 pub struct CreditManagerUnchecked(String);
@@ -36,7 +40,9 @@ pub struct CreditManager {
 
 impl CreditManager {
     pub fn new(addr: Addr) -> Self {
-        Self { addr }
+        Self {
+            addr,
+        }
     }
 }
 

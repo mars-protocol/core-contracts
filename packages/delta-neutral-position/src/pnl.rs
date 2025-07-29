@@ -1,5 +1,6 @@
-use cosmwasm_std::{Decimal, Int128, Uint128};
 use std::convert::TryFrom;
+
+use cosmwasm_std::{Decimal, Int128, Uint128};
 
 use crate::error::{ContractError, ContractResult};
 
@@ -62,9 +63,8 @@ pub fn compute_realized_pnl(
         Int128::try_from(spot_exit_value)?.checked_sub(Int128::try_from(perp_exit_value)?)?;
 
     // Calculate entry value portion // TODO - can we do this more accurately?
-    let entry_value_position_slice = total_entry_value
-        .checked_mul(decrease_amount_int)?
-        .checked_div(total_position_size_int)?;
+    let entry_value_position_slice =
+        total_entry_value.checked_mul(decrease_amount_int)?.checked_div(total_position_size_int)?;
 
     // Raw PnL from price difference
     let raw_pnl = exit_value.checked_sub(entry_value_position_slice)?;
@@ -79,9 +79,7 @@ pub fn compute_realized_pnl(
     let net_yield = realized_funding.checked_sub(realized_borrow)?;
 
     // Final PnL calculation
-    let final_pnl = raw_pnl
-        .checked_add(net_yield)?
-        .checked_sub(perp_trading_fee_amount)?;
+    let final_pnl = raw_pnl.checked_add(net_yield)?.checked_sub(perp_trading_fee_amount)?;
 
     Ok(final_pnl)
 }

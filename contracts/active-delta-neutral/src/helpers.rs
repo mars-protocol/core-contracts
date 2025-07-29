@@ -1,14 +1,15 @@
-use mars_types::swapper::SwapperRoute;
+// Extracts spot balance, debt, and funding delta from Mars positions
+use cosmwasm_std::{Coin, Decimal, Int128, Uint128};
 use mars_delta_neutral_position::types::Position;
+use mars_types::{
+    active_delta_neutral::query::Config,
+    credit_manager::{DebtAmount, Positions},
+    perps::{PerpPosition, PnlAmounts},
+    swapper::SwapperRoute,
+};
 use mars_utils::helpers::uint128_to_int128;
 
 use crate::error::ContractResult;
-
-// Extracts spot balance, debt, and funding delta from Mars positions
-use cosmwasm_std::{Coin, Decimal, Int128, Uint128};
-use mars_types::credit_manager::{DebtAmount, Positions};
-use mars_types::perps::{PerpPosition, PnlAmounts};
-use mars_types::active_delta_neutral::query::Config;
 
 /// Calculates key position deltas (spot, debt, funding, borrow) from Mars on-chain positions and config.
 ///
@@ -96,10 +97,7 @@ pub fn validate_swapper_route(
 ) -> ContractResult<()> {
     match route {
         SwapperRoute::Astro(astro_route) => {
-            assert!(
-                !astro_route.swaps.is_empty(),
-                "Astro route must have at least one swap"
-            );
+            assert!(!astro_route.swaps.is_empty(), "Astro route must have at least one swap");
             assert!(
                 astro_route.swaps[0].from == denom_in || astro_route.swaps[0].from == denom_out,
                 "Invalid swap from asset"

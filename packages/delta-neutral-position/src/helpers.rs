@@ -38,7 +38,5 @@ pub fn prorate_i128_by_amount(
     let sd_total_size = SignedDecimal::from_atomics(uint128_to_int128(total_size)?, 0)?;
     let ratio = sd_slice.checked_div(sd_total_size)?;
 
-    Ok(int128_to_signed_decimal(total)?
-        .checked_mul(ratio)?
-        .to_int_floor())
+    Ok(int128_to_signed_decimal(total)?.checked_mul(ratio)?.to_int_floor())
 }

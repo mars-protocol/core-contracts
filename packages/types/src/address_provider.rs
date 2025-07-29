@@ -8,6 +8,7 @@ use strum::EnumIter;
 #[cw_serde]
 #[derive(Copy, Eq, Hash, EnumIter)]
 pub enum MarsAddressType {
+    ActiveDeltaNeutral,
     Incentives,
     Oracle,
     RedBank,
@@ -50,6 +51,7 @@ pub enum MarsAddressType {
 impl fmt::Display for MarsAddressType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
+            MarsAddressType::ActiveDeltaNeutral => "active_delta_neutral",
             MarsAddressType::CreditManager => "credit_manager",
             MarsAddressType::FeeCollector => "fee_collector",
             MarsAddressType::Incentives => "incentives",
@@ -75,6 +77,7 @@ impl FromStr for MarsAddressType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
+            "active_delta_neutral" => Ok(MarsAddressType::ActiveDeltaNeutral),
             "credit_manager" => Ok(MarsAddressType::CreditManager),
             "fee_collector" => Ok(MarsAddressType::FeeCollector),
             "incentives" => Ok(MarsAddressType::Incentives),

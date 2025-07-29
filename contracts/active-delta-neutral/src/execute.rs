@@ -1,24 +1,21 @@
-use crate::error::ContractResult;
-use crate::helpers::PositionDeltas;
-use crate::state::POSITION;
-use crate::{helpers, order_validation};
 use cosmwasm_std::{
     to_json_binary, CosmosMsg, Decimal, DepsMut, Env, Int128, MessageInfo, Response, Uint128,
     WasmMsg,
 };
-use mars_types::adapters::params::Params;
 use mars_delta_neutral_position::types::Position;
-use mars_types::active_delta_neutral::query::Config;
+use mars_types::{
+    active_delta_neutral::{query::Config, ExecuteMsg},
+    adapters::{credit_manager::CreditManager, params::Params},
+    credit_manager,
+    credit_manager::{ActionAmount, ActionCoin},
+    swapper::SwapperRoute,
+};
 use mars_utils::helpers::uint128_to_int128;
 
-use super::{
-    error::ContractError, helpers::validate_swapper_route, msg::ExecuteMsg, state::CONFIG,
+use super::{error::ContractError, helpers::validate_swapper_route, state::CONFIG};
+use crate::{
+    error::ContractResult, helpers, helpers::PositionDeltas, order_validation, state::POSITION,
 };
-
-use mars_types::credit_manager::{self, ActionAmount, ActionCoin};
-use mars_types::swapper::SwapperRoute;
-use mars_types::adapters::credit_manager::CreditManager;
-
 /// # Execute Increase Position
 ///
 /// Increases the delta-neutral position by the specified amount using the provided swapper route.

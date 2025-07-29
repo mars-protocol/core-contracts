@@ -1,6 +1,7 @@
+use std::fmt;
+
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 /// Trading direction for a single-sided position
 ///

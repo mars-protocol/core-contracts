@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use cosmwasm_std::{Decimal, Int128, SignedDecimal, Uint128};
 use mars_delta_neutral_position::helpers::{prorate_i128_by_amount, weighted_avg};
-use test_case::test_case;
 use mars_utils::helpers::{int128_to_signed_decimal, uint128_to_decimal};
+use test_case::test_case;
 
 #[test_case(1_000_000i128, "1000000.0")]
 #[test_case(0i128, "0.0")]
@@ -48,12 +48,9 @@ fn test_weighted_avg(
 #[test_case(-12_345_678i128, 2_000_000u128, 8_000_000u128, -3_086_420i128; "prorate negative value")]
 #[test_case(0i128, 1_000_000u128, 1_000_000u128, 0i128; "zero stays zero")]
 fn test_prorate_i128_by_amount(total: i128, slice: u128, total_size: u128, expected: i128) {
-    let result = prorate_i128_by_amount(
-        Int128::new(total),
-        Uint128::new(slice),
-        Uint128::new(total_size),
-    )
-    .unwrap();
+    let result =
+        prorate_i128_by_amount(Int128::new(total), Uint128::new(slice), Uint128::new(total_size))
+            .unwrap();
     assert_eq!(result, Int128::new(expected));
 }
 

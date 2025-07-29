@@ -3,7 +3,6 @@ use cosmwasm_std::{
     DecimalRangeExceeded, DivideByZeroError, DivisionError, OverflowError,
     SignedDecimalRangeExceeded, StdError,
 };
-
 use mars_delta_neutral_position::types::Side;
 use thiserror::Error;
 
@@ -38,7 +37,10 @@ pub enum ContractError {
     #[error(
         "The minimum hedge deviation was exceeded. Min acceptable: {min}, result was: {actual}"
     )]
-    ExecutionDeviationExceeded { min: String, actual: String },
+    ExecutionDeviationExceeded {
+        min: String,
+        actual: String,
+    },
 
     #[error("Invalid decrease or position size")]
     InvalidDecreaseOrPositionSize {},
@@ -56,7 +58,9 @@ pub enum ContractError {
     ConversionOverflowError(#[from] ConversionOverflowError),
 
     #[error("Invalid amount: {reason}")]
-    InvalidAmount { reason: String },
+    InvalidAmount {
+        reason: String,
+    },
 
     #[error("Direction mismatch. Existing direction: {existing_direction}, new direction: {new_direction}")]
     DirectionMismatch {

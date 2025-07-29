@@ -55,14 +55,8 @@ fn test_decrease_with_yield_and_pnl(
     // assert_eq!(result.entry_value_slice, Int128::new(expected_slice));
     assert_eq!(result.net_realized_funding, Int128::new(expected_funding));
     assert_eq!(result.net_realized_borrow, Int128::new(expected_borrow));
-    assert_eq!(
-        pos.spot_amount,
-        Uint128::new(initial_size - decrease_amount)
-    );
-    assert_eq!(
-        pos.perp_amount,
-        Uint128::new(initial_size - decrease_amount)
-    );
+    assert_eq!(pos.spot_amount, Uint128::new(initial_size - decrease_amount));
+    assert_eq!(pos.perp_amount, Uint128::new(initial_size - decrease_amount));
 }
 
 #[test_case(10_000_000u128, "100.0", "101.0", 20_000_000u128, "Cannot decrease more than current position size"; "cannot decrease more than held")]
@@ -148,22 +142,18 @@ fn test_decrease_validation_and_boundaries(
             assert_eq!(pos.net_realized_borrow, Int128::new(-500_000));
 
             let decrease_result = result.unwrap();
-            assert_eq!(
-                decrease_result.net_realized_funding,
-                Int128::new(-1_000_000)
-            );
+            assert_eq!(decrease_result.net_realized_funding, Int128::new(-1_000_000));
             assert_eq!(decrease_result.net_realized_borrow, Int128::new(-500_000));
         }
     } else {
         // Check that the error is an InvalidAmount error with the expected message
         match result {
-            Err(ContractError::InvalidAmount { reason }) => {
+            Err(ContractError::InvalidAmount {
+                reason,
+            }) => {
                 assert_eq!(reason, expected_error_msg);
             }
-            _ => panic!(
-                "Expected InvalidAmount error with message: {}",
-                expected_error_msg
-            ),
+            _ => panic!("Expected InvalidAmount error with message: {}", expected_error_msg),
         }
     }
 }

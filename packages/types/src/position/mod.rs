@@ -1,7 +1,8 @@
 mod common;
 
-use cosmwasm_std::{Decimal, Int128, Uint128};
 use std::fmt;
+
+use cosmwasm_std::{Decimal, Int128, Uint128};
 
 /// Position type that holds all relevant data for a delta-neutral position
 ///

@@ -1,13 +1,14 @@
 use std::convert::TryFrom;
 
-use cosmwasm_std::{Decimal, Uint128};
-use cosmwasm_std::{Int128, SignedDecimal};
+use cosmwasm_std::{Decimal, Int128, SignedDecimal, Uint128};
 use mars_utils::helpers::uint128_to_int128;
 
-use crate::error::{ContractError, ContractResult};
-use crate::helpers::{prorate_i128_by_amount, weighted_avg};
-use crate::pnl::compute_realized_pnl;
-use crate::types::Position;
+use crate::{
+    error::{ContractError, ContractResult},
+    helpers::{prorate_i128_by_amount, weighted_avg},
+    pnl::compute_realized_pnl,
+    types::Position,
+};
 
 impl Position {
     #[allow(clippy::too_many_arguments)]

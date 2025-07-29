@@ -1,7 +1,8 @@
-use cosmwasm_std::{Decimal, Int128, SignedDecimal, StdError, Uint128};
 use std::str::FromStr;
-use test_case::test_case; 
+
+use cosmwasm_std::{Decimal, Int128, SignedDecimal, StdError, Uint128};
 use mars_utils::helpers::{int128_to_signed_decimal, uint128_to_decimal, uint128_to_int128};
+use test_case::test_case;
 
 #[test]
 fn test_uint128_to_decimal_normal() {
@@ -55,19 +56,13 @@ fn test_int128_to_signed_decimal_edge_cases() {
     let max_safe_value = i128::MAX.checked_div(10u128.pow(18) as i128).unwrap();
     let value = Int128::new(max_safe_value);
     let result = int128_to_signed_decimal(value).unwrap();
-    assert_eq!(
-        result,
-        SignedDecimal::from_str(&max_safe_value.to_string()).unwrap()
-    );
+    assert_eq!(result, SignedDecimal::from_str(&max_safe_value.to_string()).unwrap());
 
     // Test with minimum Int128 value
     let min_safe_value = i128::MIN.checked_div(-(10u128.pow(18) as i128)).unwrap();
     let value = Int128::new(min_safe_value);
     let result = int128_to_signed_decimal(value).unwrap();
-    assert_eq!(
-        result,
-        SignedDecimal::from_str(&min_safe_value.to_string()).unwrap()
-    );
+    assert_eq!(result, SignedDecimal::from_str(&min_safe_value.to_string()).unwrap());
 }
 
 #[test]
@@ -98,7 +93,10 @@ fn test_uint128_to_int128_overflow() {
     assert!(result.is_err());
 
     match result {
-        Err(StdError::GenericErr { msg, .. }) => {
+        Err(StdError::GenericErr {
+            msg,
+            ..
+        }) => {
             assert!(msg.contains("Overflow"));
         }
         _ => panic!("Expected StdError with Overflow message"),
