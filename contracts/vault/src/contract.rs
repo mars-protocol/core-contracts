@@ -70,7 +70,7 @@ pub fn execute(
 pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> ContractResult<Binary> {
     match msg {
         QueryMsg::VaultStandardInfo {} => to_json_binary(&VaultStandardInfoResponse {
-            version: VAULT_STANDARD_VERSION,
+            version: VAULT_STANDARD_VERSION.to_string(),
             extensions: vec![],
         }),
         QueryMsg::Info {} => to_json_binary(&VaultInfoResponse {
@@ -107,12 +107,13 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             } => to_json_binary(&query_all_unlocks(deps, start_after, limit)?),
             ExtensionQueryMsg::PerformanceFeeState {} => {
                 to_json_binary(&PERFORMANCE_FEE_STATE.load(deps.storage)?)
-            }
+            },
             ExtensionQueryMsg::UserPnl {
                 user_address,
             } => to_json_binary(&query_user_pnl(deps, user_address)?),
             ExtensionQueryMsg::VaultPnl {} => to_json_binary(&query_vault_pnl(deps)?),
         },
+        QueryMsg::VaultTokenExchangeRate { .. } => todo!(),
     }
     .map_err(Into::into)
 }
