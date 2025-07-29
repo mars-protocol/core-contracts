@@ -1,5 +1,4 @@
-use cosmwasm_std::{coins, Addr, Api, BankMsg, CosmosMsg, Decimal, StdResult, Uint128};
-
+use cosmwasm_std::{coins, Addr, Api, BankMsg, CosmosMsg, Decimal, DecimalRangeExceeded, Int128, SignedDecimal, SignedDecimalRangeExceeded, StdError, StdResult, Uint128};
 use crate::error::ValidationError;
 
 pub fn build_send_asset_msg(recipient_addr: &Addr, denom: &str, amount: Uint128) -> CosmosMsg {
@@ -91,4 +90,21 @@ pub fn validate_native_denom(denom: &str) -> Result<(), ValidationError> {
     }
 
     Ok(())
+}
+
+pub fn uint128_to_decimal(value: Uint128) -> Result<Decimal, DecimalRangeExceeded> {
+    Ok(Decimal::from_atomics(value.u128(), 0)?)
+}
+
+pub fn int128_to_signed_decimal(value: Int128) -> Result<SignedDecimal, SignedDecimalRangeExceeded> {
+    Ok(SignedDecimal::from_atomics(value.i128(), 0)?)
+}
+
+pub fn uint128_to_int128(value: Uint128) -> Result<Int128, StdError> {
+    if value.u128() > i128::MAX as u128 {
+        return Err(StdError::generic_err(
+            "Overflow: cannot convert Uint128 to Int128",
+        ));
+    }
+    Ok(Int128::new(value.u128() as i128))
 }

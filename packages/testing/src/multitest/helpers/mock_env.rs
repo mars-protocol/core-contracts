@@ -1561,6 +1561,30 @@ impl MockEnvBuilder {
         Perps::new(addr)
     }
 
+    // fn deploy_active_delta_neutral_contract(&mut self) -> ActiveDeltaNeutral {
+    //     let contract_code_id = self.app.store_code(mock_active_delta_neutral_contract());
+    //     let owner = self.get_owner();
+    //     let address_provider = self.get_address_provider();
+
+    //     let addr = self
+    //         .app
+    //         .instantiate_contract(
+    //             contract_code_id,
+    //             owner.clone(),
+    //             &ActiveDeltaNeutralInstantiateMsg {
+    //                 address_provider: address_provider.into(),
+    //             },
+    //             &[],
+    //             "mock-active-delta-neutral-contract",
+    //             Some(owner.to_string()),
+    //         )
+    //         .unwrap();
+
+    //     self.set_address(MarsAddressType::ActiveDeltaNeutral, addr.clone());
+
+    //     ActiveDeltaNeutral::new(addr)
+    // }
+
     fn get_health_contract(&mut self) -> HealthContract {
         if self.health_contract.is_none() {
             let hc = self.deploy_health_contract();

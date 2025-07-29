@@ -18,7 +18,7 @@ astroport         = ["cw-it/astroport", "dep:astroport"]
 backtraces        = ["cosmwasm-std/backtraces", "osmosis-std/backtraces"]
 default           = []
 osmosis-test-tube = ["cw-it/osmosis-test-tube"]
-duality = ["dep:neutron-test-tube"]
+duality           = ["dep:neutron-test-tube"]
 
 [dependencies]
 anyhow                         = { workspace = true }

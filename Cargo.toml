@@ -5,6 +5,7 @@ members  = [
   "contracts/address-provider",
   "contracts/account-nft",
   "contracts/credit-manager",
+  "contracts/active-delta-neutral",
   "contracts/health",
   "contracts/incentives",
   "contracts/oracle/*",
@@ -33,6 +34,7 @@ members  = [
   "packages/interest-rate",
   "packages/liquidation",
   "packages/perps-common",
+  "packages/delta-neutral-position",
   "packages/testing",
   "packages/types",
   "packages/utils",
@@ -107,22 +109,23 @@ proptest          = "1.4.0"
 test-case         = "3.3.1"
 cosmwasm-std-2     = { package = "cosmwasm-std", version = "2.2.2" }
 
-
 # packages
-mars-health                = { path = "./packages/health" }
-mars-rover-health-computer = { path = "./packages/health-computer" }
-mars-interest-rate         = { path = "./packages/interest-rate" }
-mars-liquidation           = { path = "./packages/liquidation" }
-mars-osmosis               = { path = "./packages/chains/osmosis" }
-mars-testing               = { path = "./packages/testing" }
-mars-types                 = { path = "./packages/types" }
-mars-utils                 = { path = "./packages/utils" }
-mars-perps-common          = { path = "./packages/perps-common" }
+mars-health                  = { path = "./packages/health" }
+mars-rover-health-computer   = { path = "./packages/health-computer" }
+mars-interest-rate           = { path = "./packages/interest-rate" }
+mars-liquidation             = { path = "./packages/liquidation" }
+mars-osmosis                 = { path = "./packages/chains/osmosis" }
+mars-testing                 = { path = "./packages/testing" }
+mars-types                   = { path = "./packages/types" }
+mars-utils                   = { path = "./packages/utils" }
+mars-perps-common            = { path = "./packages/perps-common" }
+mars-delta-neutral-position  = { path = "./packages/delta-neutral-position" }
 
 # contracts
 mars-account-nft               = { path = "./contracts/account-nft" }
 mars-address-provider          = { path = "./contracts/address-provider" }
 mars-credit-manager            = { path = "./contracts/credit-manager" }
+mars-active-delta-neutral     = { path = "./contracts/active-delta-neutral" }
 mars-incentives                = { path = "./contracts/incentives" }
 mars-mock-pyth                 = { path = "./contracts/mock-pyth" }
 mars-oracle-base               = { path = "./contracts/oracle/base" }

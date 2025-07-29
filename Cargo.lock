@@ -2655,6 +2655,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "mars-active-delta-neutral"
+version = "2.2.0"
+dependencies = [
+ "cosmwasm-schema 1.5.7",
+ "cosmwasm-std 1.5.7",
+ "cw-multi-test",
+ "cw-storage-plus 1.2.0",
+ "mars-credit-manager",
+ "mars-delta-neutral-position",
+ "mars-testing",
+ "mars-types",
+ "mars-utils",
+ "proptest",
+ "schemars",
+ "serde",
+ "test-case",
+ "thiserror",
+]
+
+[[package]]
 name = "mars-address-provider"
 version = "2.2.2"
 dependencies = [
@@ -2704,6 +2724,21 @@ dependencies = [
  "mars-utils",
  "mars-vault",
  "mars-zapper-mock",
+ "test-case",
+ "thiserror",
+]
+
+[[package]]
+name = "mars-delta-neutral-position"
+version = "2.2.0"
+dependencies = [
+ "cosmwasm-schema 1.5.7",
+ "cosmwasm-std 1.5.7",
+ "cw-multi-test",
+ "cw-storage-plus 1.2.0",
+ "mars-utils",
+ "proptest",
+ "serde",
  "test-case",
  "thiserror",
 ]
@@ -3301,6 +3336,7 @@ dependencies = [
  "cosmwasm-schema 1.5.7",
  "cosmwasm-std 1.5.7",
  "cw-storage-plus 1.2.0",
+ "test-case",
  "thiserror",
 ]
 
