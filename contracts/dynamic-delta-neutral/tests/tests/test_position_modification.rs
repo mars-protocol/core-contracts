@@ -10,7 +10,7 @@ fn test_position_modification() {
 
     // Deploy the contract
     let contract_addr = mock.deploy_contract("dynamic_delta_neutral", "").unwrap();
-    // Create a position
+
     //
     // Dep.o
     // Create the mocks

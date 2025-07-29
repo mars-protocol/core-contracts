@@ -2,7 +2,7 @@ use cosmwasm_std::{
     entry_point, to_binary, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
     StdResult,
 };
-use mars_types::active_delta_neutral::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use mars_types::active_delta_neutral::{execute::ExecuteMsg, instantiate::InstantiateMsg, query::QueryMsg};
 
 use crate::{error::ContractResult, execute, state::CONFIG};
 

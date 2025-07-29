@@ -14,3 +14,8 @@ pub struct Config {
     pub perp_denom: String,
     pub acceptable_entry_delta: Decimal,
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub enum QueryMsg {
+    Config {},
+}
