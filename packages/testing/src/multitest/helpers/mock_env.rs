@@ -25,10 +25,7 @@ use mars_types::{
         ExecuteMsg as NftExecuteMsg, InstantiateMsg as NftInstantiateMsg, NftConfigUpdates,
         QueryMsg as NftQueryMsg, UncheckedNftConfig,
     },
-    active_delta_neutral::{
-        execute::ExecuteMsg as ActiveDeltaNeutralExecuteMsg,
-        instantiate::InstantiateMsg as ActiveDeltaNeutralInstantiateMsg,
-    },
+    active_delta_neutral::instantiate::InstantiateMsg as ActiveDeltaNeutralInstantiateMsg,
     adapters::{
         account_nft::AccountNftUnchecked,
         active_delta_neutral::ActiveDeltaNeutral,

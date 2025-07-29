@@ -1,10 +1,9 @@
-use cosmwasm_std::{
-    entry_point, to_binary, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
-    StdResult,
+use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use mars_types::active_delta_neutral::{
+    execute::ExecuteMsg, instantiate::InstantiateMsg, query::QueryMsg,
 };
-use mars_types::active_delta_neutral::{execute::ExecuteMsg, instantiate::InstantiateMsg, query::QueryMsg};
 
-use crate::{error::ContractResult, execute, state::CONFIG};
+use crate::{error::ContractResult, execute};
 
 /// Handles execution of contract messages for the delta-neutral strategy.
 ///
@@ -53,7 +52,7 @@ pub fn execute(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    deps: DepsMut,
+    _deps: DepsMut,
     _env: Env,
     _info: MessageInfo,
     _msg: InstantiateMsg,
@@ -63,7 +62,7 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => unimplemented!(),
     }

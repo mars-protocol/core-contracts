@@ -4,7 +4,7 @@ use cosmwasm_std::{
 };
 use mars_delta_neutral_position::types::Position;
 use mars_types::{
-    active_delta_neutral::{query::Config, execute::ExecuteMsg},
+    active_delta_neutral::{execute::ExecuteMsg, query::Config},
     adapters::{credit_manager::CreditManager, params::Params},
     credit_manager,
     credit_manager::{ActionAmount, ActionCoin},

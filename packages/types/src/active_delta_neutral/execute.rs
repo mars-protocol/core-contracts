@@ -1,7 +1,8 @@
-use crate::swapper::SwapperRoute;
 use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use crate::swapper::SwapperRoute;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub enum ExecuteMsg {
