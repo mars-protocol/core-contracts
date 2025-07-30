@@ -29,6 +29,7 @@ mars-types      = { workspace = true }
 mars-utils      = { workspace = true }
 schemars        = { workspace = true }
 serde           = { workspace = true }
+cw-paginate     = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test       = { workspace = true, features = ["cosmwasm_1_1"] }

@@ -2661,6 +2661,7 @@ dependencies = [
  "cosmwasm-schema 1.5.7",
  "cosmwasm-std 1.5.7",
  "cw-multi-test",
+ "cw-paginate",
  "cw-storage-plus 1.2.0",
  "mars-credit-manager",
  "mars-delta-neutral-position",
