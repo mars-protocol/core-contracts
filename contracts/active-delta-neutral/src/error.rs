@@ -4,6 +4,7 @@ use cosmwasm_std::{
     SignedDecimalRangeExceeded, StdError,
 };
 use mars_delta_neutral_position::types::Side;
+use mars_utils::error::ValidationError;
 use thiserror::Error;
 
 pub type ContractResult<T> = Result<T, ContractError>;
@@ -70,4 +71,7 @@ pub enum ContractError {
 
     #[error("{0}")]
     PositionContractError(#[from] mars_delta_neutral_position::error::ContractError),
+
+    #[error("{0}")]
+    ValidationError(#[from] ValidationError),
 }

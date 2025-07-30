@@ -279,6 +279,7 @@ pub fn hedge(
 }
 
 pub fn add_market(deps: DepsMut, _env: Env, config: MarketConfig) -> ContractResult<Response> {
+    config.validate()?;
     MARKET_CONFIG.save(deps.storage, &config.market_id, &config)?;
     Ok(Response::new().add_attribute("action", "add_market"))
 }

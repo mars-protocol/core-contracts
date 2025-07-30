@@ -1,9 +1,15 @@
-use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
+use cosmwasm_std::{
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+};
 use mars_types::active_delta_neutral::{
     execute::ExecuteMsg, instantiate::InstantiateMsg, query::QueryMsg,
 };
 
-use crate::{error::ContractResult, execute};
+use crate::{
+    error::ContractResult,
+    execute,
+    query::{query_all_market_configs, query_market_config},
+};
 
 /// Handles execution of contract messages for the delta-neutral strategy.
 ///
@@ -66,8 +72,16 @@ pub fn instantiate(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
-    match msg {
+pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> ContractResult<Binary> {
+    let res = match msg {
         QueryMsg::Config {} => unimplemented!(),
-    }
+        QueryMsg::MarketConfig {
+            market_id,
+        } => to_json_binary(&query_market_config(_deps, market_id)?),
+        QueryMsg::MarketConfigs {
+            start_after,
+            limit,
+        } => to_json_binary(&query_all_market_configs(_deps, start_after, limit)?),
+    };
+    res.map_err(Into::into)
 }
