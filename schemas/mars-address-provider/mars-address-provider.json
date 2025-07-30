@@ -73,6 +73,7 @@
           {
             "type": "string",
             "enum": [
+              "active_delta_neutral",
               "incentives",
               "oracle",
               "red_bank",
@@ -312,6 +313,7 @@
           {
             "type": "string",
             "enum": [
+              "active_delta_neutral",
               "incentives",
               "oracle",
               "red_bank",
@@ -419,6 +421,7 @@
             {
               "type": "string",
               "enum": [
+                "active_delta_neutral",
                 "incentives",
                 "oracle",
                 "red_bank",
@@ -529,6 +532,7 @@
             {
               "type": "string",
               "enum": [
+                "active_delta_neutral",
                 "incentives",
                 "oracle",
                 "red_bank",
@@ -639,6 +643,7 @@
             {
               "type": "string",
               "enum": [
+                "active_delta_neutral",
                 "incentives",
                 "oracle",
                 "red_bank",

@@ -18,7 +18,7 @@ astroport         = ["cw-it/astroport", "dep:astroport"]
 backtraces        = ["cosmwasm-std/backtraces", "osmosis-std/backtraces"]
 default           = []
 osmosis-test-tube = ["cw-it/osmosis-test-tube"]
-duality = ["dep:neutron-test-tube"]
+duality           = ["dep:neutron-test-tube"]
 
 [dependencies]
 anyhow                         = { workspace = true }
@@ -35,6 +35,7 @@ cw-vault-standard              = { workspace = true }
 ica-oracle                     = { workspace = true }
 osmosis-std                    = { workspace = true }
 mars-account-nft               = { workspace = true }
+mars-active-delta-neutral      = { workspace = true }
 mars-address-provider          = { workspace = true }
 mars-credit-manager            = { workspace = true }
 mars-incentives                = { workspace = true }

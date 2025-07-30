@@ -1,4 +1,5 @@
 pub mod account_nft;
+pub mod active_delta_neutral;
 pub mod adapters;
 pub mod address_provider;
 pub mod credit_manager;
@@ -9,6 +10,7 @@ pub mod keys;
 pub mod oracle;
 pub mod params;
 pub mod perps;
+pub mod position;
 pub mod red_bank;
 pub mod rewards_collector;
 pub mod swapper;

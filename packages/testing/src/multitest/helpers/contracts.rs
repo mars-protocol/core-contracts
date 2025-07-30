@@ -1,6 +1,15 @@
 use cosmwasm_std::Empty;
 use cw_multi_test::{Contract, ContractWrapper};
 
+pub fn active_delta_neutral_contract() -> Box<dyn Contract<Empty>> {
+    let contract = ContractWrapper::new(
+        mars_active_delta_neutral::contract::execute,
+        mars_active_delta_neutral::contract::instantiate,
+        mars_active_delta_neutral::contract::query,
+    );
+    Box::new(contract)
+}
+
 pub fn mock_rover_contract() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
         mars_credit_manager::contract::execute,
