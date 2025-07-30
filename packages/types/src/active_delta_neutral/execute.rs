@@ -2,7 +2,7 @@ use cosmwasm_std::Uint128;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::swapper::SwapperRoute;
+use crate::{active_delta_neutral::query::MarketConfig, swapper::SwapperRoute};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub enum ExecuteMsg {
@@ -20,5 +20,8 @@ pub enum ExecuteMsg {
         swap_exact_in_amount: Uint128,
         denom: String,
         increasing: bool,
+    },
+    AddMarket {
+        config: MarketConfig,
     },
 }

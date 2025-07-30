@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::{Addr, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -9,13 +9,18 @@ pub struct Config {
     pub credit_manager_addr: Addr,
     pub oracle_addr: Addr,
     pub perps_addr: Addr,
-    pub usdc_denom: String,
-    pub spot_denom: String,
-    pub perp_denom: String,
-    pub acceptable_entry_delta: Decimal,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub enum QueryMsg {
     Config {},
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub struct MarketConfig {
+    pub market_id: String,
+    pub usdc_denom: String,
+    pub spot_denom: String,
+    pub perp_denom: String,
+    pub k: Uint128,
 }

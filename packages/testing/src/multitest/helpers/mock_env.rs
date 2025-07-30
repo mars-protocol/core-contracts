@@ -25,7 +25,10 @@ use mars_types::{
         ExecuteMsg as NftExecuteMsg, InstantiateMsg as NftInstantiateMsg, NftConfigUpdates,
         QueryMsg as NftQueryMsg, UncheckedNftConfig,
     },
-    active_delta_neutral::instantiate::InstantiateMsg as ActiveDeltaNeutralInstantiateMsg,
+    active_delta_neutral::{
+        execute::ExecuteMsg as ActiveDeltaNeutralExecuteMsg,
+        instantiate::InstantiateMsg as ActiveDeltaNeutralInstantiateMsg, query::MarketConfig,
+    },
     adapters::{
         account_nft::AccountNftUnchecked,
         active_delta_neutral::ActiveDeltaNeutral,
@@ -254,6 +257,21 @@ impl MockEnv {
                 actions,
             },
             send_funds,
+        )
+    }
+
+    pub fn add_active_delta_neutral_market(
+        &mut self,
+        sender: &Addr,
+        market_config: MarketConfig,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.active_delta_neutral.address().clone(),
+            &ActiveDeltaNeutralExecuteMsg::AddMarket {
+                config: market_config,
+            },
+            &[],
         )
     }
 

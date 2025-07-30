@@ -33,13 +33,17 @@ pub fn execute(
             amount,
             denom,
             swapper_route,
-        } => execute::increase(deps, env, &denom, amount, &swapper_route),
+        } => execute::buy(deps, env, &denom, amount, &swapper_route),
 
         ExecuteMsg::Decrease {
             amount,
             denom,
             swapper_route,
-        } => execute::decrease(deps, env, info, amount, &denom, &swapper_route),
+        } => execute::sell(deps, env, info, amount, &denom, &swapper_route),
+
+        ExecuteMsg::AddMarket {
+            config,
+        } => execute::add_market(deps, env, config),
 
         // For internal operations
         ExecuteMsg::CompleteHedge {

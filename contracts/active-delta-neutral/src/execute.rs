@@ -4,17 +4,22 @@ use cosmwasm_std::{
 };
 use mars_delta_neutral_position::types::Position;
 use mars_types::{
-    active_delta_neutral::{execute::ExecuteMsg, query::Config},
+    active_delta_neutral::{
+        execute::ExecuteMsg,
+        query::{Config, MarketConfig},
+    },
     adapters::{credit_manager::CreditManager, params::Params},
-    credit_manager,
-    credit_manager::{ActionAmount, ActionCoin},
     swapper::SwapperRoute,
 };
 use mars_utils::helpers::uint128_to_int128;
 
-use super::{error::ContractError, helpers::validate_swapper_route, state::CONFIG};
+use super::{error::ContractError, helpers::validate_swapper_route, state::MARKET_CONFIG};
 use crate::{
-    error::ContractResult, helpers, helpers::PositionDeltas, order_validation, state::POSITION,
+    error::ContractResult,
+    helpers::{self, combined_balance, PositionDeltas},
+    order_creation::build_trade_actions,
+    order_validation,
+    state::{CONFIG, POSITION},
 };
 /// # Execute Increase Position
 ///
@@ -30,36 +35,43 @@ use crate::{
 /// * `deps` - Mutable dependencies including storage access
 /// * `env` - Environment information (contract address, block height, etc.)
 /// * `info` - Message information including sender address
-/// * `amount` - Amount of the base asset to trade in both spot and perp markets
+/// * `amount` - Amount of the USDC to sell for the volatile asset
 /// * `swapper_route` - Detailed path for executing the swap via the Mars credit account
 ///
 /// ## Returns
 /// * `Response` on success with messages to execute the spot trade and trigger the hedge completion
 /// * `ContractError` if validation fails or if any operation cannot be completed
-pub fn increase(
+pub fn buy(
     deps: DepsMut,
     env: Env,
     denom: &str,
     amount: Uint128,
     swapper_route: &SwapperRoute,
 ) -> Result<Response, ContractError> {
-    let config = CONFIG.load(deps.storage, denom)?;
+    let config: Config = CONFIG.load(deps.storage)?;
+    let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, denom)?;
 
-    validate_swapper_route(swapper_route, &config.spot_denom, &config.perp_denom)?;
+    validate_swapper_route(swapper_route, &market_config.spot_denom, &market_config.perp_denom)?;
 
     let credit_manager = CreditManager::new(config.credit_manager_addr);
 
-    // TODO correct this swap
-    // Sell the USDC
-    let actions = vec![credit_manager::Action::SwapExactIn {
-        coin_in: ActionCoin {
-            amount: ActionAmount::Exact(amount),
-            denom: config.spot_denom.clone(),
-        },
-        denom_out: config.perp_denom.clone(),
-        min_receive: Uint128::zero(),
-        route: Some(swapper_route.clone()),
-    }];
+    let stable_balance = combined_balance(
+        &credit_manager.query_positions(&deps.querier, &config.credit_account_id)?,
+        &market_config.usdc_denom,
+    )?;
+
+    // TODO
+    // validate config (not more than max size)
+    // not more than max leverage
+    // If these are true, make it reduce only
+
+    let actions = build_trade_actions(
+        amount,
+        stable_balance,
+        &market_config.usdc_denom,
+        &market_config.spot_denom,
+        swapper_route,
+    );
 
     let execute_spot_swap =
         credit_manager.execute_actions_msg(&config.credit_account_id, actions)?;
@@ -68,7 +80,7 @@ pub fn increase(
         contract_addr: env.contract.address.to_string(),
         msg: to_json_binary(&ExecuteMsg::CompleteHedge {
             swap_exact_in_amount: amount,
-            denom: config.spot_denom.clone(),
+            denom: market_config.spot_denom.clone(),
             increasing: true,
         })?,
         funds: vec![],
@@ -77,12 +89,14 @@ pub fn increase(
     Ok(Response::new()
         .add_message(execute_spot_swap)
         .add_message(complete_hedge)
-        .add_attribute("action", "increase_position"))
+        .add_attribute("action", "buy"))
 }
 
-/// # Execute Decrease Position
+/// # Execute selling of our volatile asset
 ///
-/// Decreases the delta-neutral position by the specified amount using the provided swapper route.
+/// Short in this context refers to selling spot and buying perp.
+///
+/// Sells the delta-neutral position by the specified amount using the provided swapper route.
 /// Similar to the increase operation, this function also implements a two-phase trade execution:
 ///
 /// 1. Execute the spot market operation (sell the spot asset)
@@ -95,13 +109,13 @@ pub fn increase(
 /// * `deps` - Mutable dependencies including storage access
 /// * `env` - Environment information (contract address, block height, etc.)
 /// * `info` - Message information including sender address
-/// * `amount` - Amount of the base asset to reduce from both spot and perp positions
+/// * `amount` - Amount of the volatile asset to sell
 /// * `swapper_route` - Detailed path for executing the swap through Astroport
 ///
 /// ## Returns
 /// * `Response` on success with messages to execute the spot trade and trigger the hedge completion
 /// * `ContractError` if validation fails, if the position is too small, or if any operation cannot be completed
-pub fn decrease(
+pub fn sell(
     deps: DepsMut,
     env: Env,
     _info: MessageInfo,
@@ -109,22 +123,30 @@ pub fn decrease(
     denom: &str,
     swapper_route: &SwapperRoute,
 ) -> Result<Response, ContractError> {
-    let config: Config = CONFIG.load(deps.storage, denom)?;
+    let config: Config = CONFIG.load(deps.storage)?;
+    let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, denom)?;
 
-    validate_swapper_route(swapper_route, &config.spot_denom, &config.perp_denom)?;
+    validate_swapper_route(swapper_route, &market_config.spot_denom, &market_config.perp_denom)?;
 
     let credit_manager = CreditManager::new(config.credit_manager_addr);
 
-    // Execute the spot decrease operation
-    let actions = vec![credit_manager::Action::SwapExactIn {
-        coin_in: ActionCoin {
-            amount: ActionAmount::Exact(amount),
-            denom: config.spot_denom.clone(),
-        },
-        denom_out: config.perp_denom.clone(),
-        min_receive: Uint128::zero(),
-        route: Some(swapper_route.clone()),
-    }];
+    let spot_balance = combined_balance(
+        &credit_manager.query_positions(&deps.querier, &config.credit_account_id)?,
+        &market_config.spot_denom,
+    )?;
+
+    // TODO
+    // validate config (not more than max size)
+    // not more than max leverage
+    // If these are true, make it reduce only
+
+    let actions = build_trade_actions(
+        amount,
+        spot_balance,
+        &market_config.spot_denom,
+        &market_config.usdc_denom,
+        swapper_route,
+    );
 
     let execute_spot_swap =
         credit_manager.execute_actions_msg(&config.credit_account_id, actions)?;
@@ -134,7 +156,7 @@ pub fn decrease(
         contract_addr: env.contract.address.to_string(),
         msg: to_json_binary(&ExecuteMsg::CompleteHedge {
             swap_exact_in_amount: amount,
-            denom: config.spot_denom.clone(),
+            denom: market_config.spot_denom.clone(),
             increasing: false,
         })?,
         funds: vec![],
@@ -143,7 +165,7 @@ pub fn decrease(
     Ok(Response::new()
         .add_message(execute_spot_swap)
         .add_message(complete_hedge)
-        .add_attribute("action", "decrease_position"))
+        .add_attribute("action", "sell"))
 }
 
 /// # Execute Complete Hedge
@@ -165,7 +187,9 @@ pub fn decrease(
 /// * `deps` - Mutable dependencies including storage access
 /// * `env` - Environment information (contract address, block height, etc.)
 /// * `info` - Message information including sender address (must be the contract itself)
-/// * `previous_balance` - The token balance before the spot trade was executed
+/// * `swap_in_amount` - The amount of the spot asset that was swapped in
+/// * `denom` - The denomination of the spot asset
+/// * `increasing` - Whether the position is increasing or decreasing
 ///
 /// ## Returns
 /// * `Response` on success with attributes detailing the hedge operation
@@ -184,23 +208,25 @@ pub fn hedge(
     }
 
     // State variables
-    let config = CONFIG.load(deps.storage, denom)?;
+    let config: Config = CONFIG.load(deps.storage)?;
+    let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, denom)?;
     let mut position_state: Position = POSITION.load(deps.storage, denom)?;
 
     // Contract adapters
     let credit_manager = CreditManager::new(config.credit_manager_addr.clone());
-    let params = Params::new(deps.api.addr_validate(&config.perp_denom)?);
+    let params = Params::new(deps.api.addr_validate(&market_config.perp_denom)?);
 
     // Fresh state info
-    let mars_positions = credit_manager.query_positions(&deps.querier, &config.spot_denom)?;
+    let mars_positions =
+        credit_manager.query_positions(&deps.querier, &market_config.spot_denom)?;
 
     let PositionDeltas {
         funding_delta,
         borrow_delta,
         spot_delta,
-    } = helpers::calculate_deltas(&mars_positions, &config, &position_state)?;
+    } = helpers::calculate_deltas(&mars_positions, &market_config, &position_state)?;
 
-    let perp_params = params.query_perp_params(&deps.querier, &config.perp_denom)?;
+    let perp_params = params.query_perp_params(&deps.querier, &market_config.perp_denom)?;
     let trading_fee_rate = match increasing {
         true => perp_params.opening_fee_rate,
         false => perp_params.closing_fee_rate,
@@ -241,9 +267,18 @@ pub fn hedge(
 
     POSITION.save(deps.storage, denom, &position_state)?;
 
+    // TODO execute perp order of amount that we bought or sold.
+    // If we are selling volatile we need to long perp size by the amount that we sold.
+    // If we are buying volatile we need to short perp size by the amount that we received.
+
     Ok(Response::new()
         .add_attribute("action", "complete_hedge")
         .add_attribute("spot_delta", spot_delta.to_string())
         .add_attribute("funding_delta", funding_delta.to_string())
         .add_attribute("borrow_delta", borrow_delta.to_string()))
+}
+
+pub fn add_market(deps: DepsMut, _env: Env, config: MarketConfig) -> ContractResult<Response> {
+    MARKET_CONFIG.save(deps.storage, &config.market_id, &config)?;
+    Ok(Response::new().add_attribute("action", "add_market"))
 }

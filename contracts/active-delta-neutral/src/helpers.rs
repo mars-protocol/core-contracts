@@ -1,8 +1,8 @@
 // Extracts spot balance, debt, and funding delta from Mars positions
-use cosmwasm_std::{Coin, Decimal, Int128, Uint128};
+use cosmwasm_std::{Decimal, Int128, Uint128};
 use mars_delta_neutral_position::types::Position;
 use mars_types::{
-    active_delta_neutral::query::Config,
+    active_delta_neutral::query::MarketConfig,
     credit_manager::{DebtAmount, Positions},
     perps::{PerpPosition, PnlAmounts},
     swapper::SwapperRoute,
@@ -10,6 +10,13 @@ use mars_types::{
 use mars_utils::helpers::uint128_to_int128;
 
 use crate::error::ContractResult;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PositionDeltas {
+    pub funding_delta: Int128,
+    pub borrow_delta: Uint128,
+    pub spot_delta: Int128,
+}
 
 /// Calculates key position deltas (spot, debt, funding, borrow) from Mars on-chain positions and config.
 ///
@@ -24,34 +31,19 @@ use crate::error::ContractResult;
 ///     - `debt`: debt balance for the USDC denom
 ///     - `funding_delta`: accrued funding from the perp position
 ///     - `borrow_delta`: current borrow minus principle and accrued borrow
-#[derive(Debug, Clone, PartialEq)]
-pub struct PositionDeltas {
-    pub funding_delta: Int128,
-    pub borrow_delta: Uint128,
-    pub spot_delta: Int128,
-}
-
 pub fn calculate_deltas(
     mars_positions: &Positions,
-    config: &Config,
+    market_config: &MarketConfig,
     position_state: &Position,
 ) -> ContractResult<PositionDeltas> {
-    let current_balance = mars_positions
-        .deposits
-        .iter()
-        .find(|deposit| deposit.denom == config.spot_denom)
-        .unwrap_or(&Coin {
-            amount: Uint128::zero(),
-            denom: config.spot_denom.clone(),
-        })
-        .amount;
+    let current_balance = combined_balance(mars_positions, &market_config.spot_denom)?;
 
     let debt = mars_positions
         .debts
         .iter()
-        .find(|debt| debt.denom == config.usdc_denom)
+        .find(|debt| debt.denom == market_config.usdc_denom)
         .unwrap_or(&DebtAmount {
-            denom: config.usdc_denom.clone(),
+            denom: market_config.usdc_denom.clone(),
             amount: Uint128::zero(),
             shares: Uint128::zero(),
         })
@@ -60,10 +52,10 @@ pub fn calculate_deltas(
     let funding_delta = mars_positions
         .perps
         .iter()
-        .find(|perp| perp.denom == config.perp_denom)
+        .find(|perp| perp.denom == market_config.perp_denom)
         .unwrap_or(&PerpPosition {
-            base_denom: config.perp_denom.clone(),
-            denom: config.perp_denom.clone(),
+            base_denom: market_config.perp_denom.clone(),
+            denom: market_config.perp_denom.clone(),
             size: Int128::zero(),
             entry_price: Decimal::zero(),
             current_price: Decimal::zero(),
@@ -89,7 +81,7 @@ pub fn calculate_deltas(
     })
 }
 
-// TODO remove this?
+// TODO remove this? validated already by swapper
 pub fn validate_swapper_route(
     route: &SwapperRoute,
     denom_in: &str,
@@ -113,4 +105,18 @@ pub fn validate_swapper_route(
         }
         SwapperRoute::Duality(_duality_route) => Ok(()),
     }
+}
+
+/// Returns the total balance for a given denom by summing the deposit and lend positions.
+///
+/// # Arguments
+/// * `positions` - Reference to the Positions struct containing all deposits and lends.
+/// * `denom` - The denomination to sum balances for.
+///
+/// # Returns
+/// * `ContractResult<Uint128>` - The sum of deposit and lend amounts for the given denom, or an error if either is missing.
+pub fn combined_balance(positions: &Positions, denom: &str) -> ContractResult<Uint128> {
+    let deposit = positions.deposits.iter().find(|deposit| deposit.denom == denom).unwrap();
+    let lend = positions.lends.iter().find(|lend| lend.denom == denom).unwrap();
+    Ok(deposit.amount.checked_add(lend.amount)?)
 }
