@@ -47,6 +47,14 @@ impl CreditManager {
 }
 
 impl CreditManager {
+    pub fn create_credit_account(&self, account_kind: AccountKind) -> StdResult<CosmosMsg> {
+        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: self.addr.to_string(),
+            msg: to_json_binary(&credit_manager::ExecuteMsg::CreateCreditAccount(account_kind))?,
+            funds: vec![],
+        }))
+    }
+
     pub fn execute_actions_msg(
         &self,
         account_id: &str,

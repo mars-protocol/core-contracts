@@ -1,15 +1,20 @@
 use cosmwasm_std::Deps;
 use cw_paginate::{paginate_map_query, PaginationResponse};
 use cw_storage_plus::Bound;
-use mars_types::active_delta_neutral::query::MarketConfig;
+use mars_types::active_delta_neutral::query::{Config, MarketConfig};
 
 use crate::{
     error::{ContractError, ContractResult},
-    state::MARKET_CONFIG,
+    state::{CONFIG, MARKET_CONFIG},
 };
 
 pub const DEFAULT_LIMIT: u32 = 10;
 pub const MAX_LIMIT: u32 = 30;
+
+pub fn query_config(deps: Deps) -> ContractResult<Config> {
+    let config: Config = CONFIG.load(deps.storage)?;
+    Ok(config)
+}
 
 pub fn query_market_config(deps: Deps, market_id: String) -> ContractResult<MarketConfig> {
     let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, &market_id)?;

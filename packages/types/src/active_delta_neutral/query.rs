@@ -12,6 +12,8 @@ pub struct Config {
     pub credit_manager_addr: Addr,
     pub oracle_addr: Addr,
     pub perps_addr: Addr,
+    pub health_addr: Addr,
+    pub red_bank_addr: Addr,
 }
 
 #[cw_serde]
@@ -59,12 +61,6 @@ impl MarketConfig {
     pub fn validate(&self) -> Result<(), ValidationError> {
         validate_native_denom(&self.usdc_denom)?;
         validate_native_denom(&self.spot_denom)?;
-
-        if self.spot_denom == self.perp_denom {
-            return Err(ValidationError::InvalidDenom {
-                reason: "Spot and perp denoms must be different".to_string(),
-            });
-        }
 
         if !self.perp_denom.starts_with("perps/") {
             return Err(ValidationError::InvalidDenom {
