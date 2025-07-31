@@ -1681,6 +1681,8 @@ impl MockEnvBuilder {
             )
             .unwrap();
 
+        self.set_address(MarsAddressType::Health, addr.clone());
+
         HealthContract::new(addr)
     }
 

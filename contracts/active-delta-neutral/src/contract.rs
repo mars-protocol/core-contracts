@@ -1,14 +1,13 @@
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
 };
-use mars_types::active_delta_neutral::{
-    execute::ExecuteMsg, instantiate::InstantiateMsg, query::QueryMsg,
-};
+use mars_types::active_delta_neutral::{execute::ExecuteMsg, instantiate::InstantiateMsg, query::QueryMsg};
 
 use crate::{
     error::ContractResult,
     execute, instantiate,
     query::{query_all_market_configs, query_config, query_market_config},
+    reply,
 };
 
 /// Handles execution of contract messages for the delta-neutral strategy.
@@ -61,13 +60,18 @@ pub fn execute(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
+pub fn reply(deps: DepsMut, _: Env, reply: Reply) -> ContractResult<Response> {
+    reply::reply(deps, reply)
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
-    _deps: DepsMut,
-    _env: Env,
-    _info: MessageInfo,
-    _msg: InstantiateMsg,
+    deps: DepsMut,
+    env: Env,
+    info: MessageInfo,
+    msg: InstantiateMsg,
 ) -> ContractResult<Response> {
-    instantiate::instantiate(_deps, _env, _info, _msg)
+    instantiate::instantiate(deps, env, info, msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
