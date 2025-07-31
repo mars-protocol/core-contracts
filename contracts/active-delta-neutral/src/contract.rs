@@ -7,8 +7,8 @@ use mars_types::active_delta_neutral::{
 
 use crate::{
     error::ContractResult,
-    execute,
-    query::{query_all_market_configs, query_market_config},
+    execute, instantiate,
+    query::{query_all_market_configs, query_config, query_market_config},
 };
 
 /// Handles execution of contract messages for the delta-neutral strategy.
@@ -67,21 +67,20 @@ pub fn instantiate(
     _info: MessageInfo,
     _msg: InstantiateMsg,
 ) -> ContractResult<Response> {
-    // TODO instantiate
-    Ok(Response::default())
+    instantiate::instantiate(_deps, _env, _info, _msg)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> ContractResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> ContractResult<Binary> {
     let res = match msg {
-        QueryMsg::Config {} => unimplemented!(),
+        QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
         QueryMsg::MarketConfig {
             market_id,
-        } => to_json_binary(&query_market_config(_deps, market_id)?),
+        } => to_json_binary(&query_market_config(deps, market_id)?),
         QueryMsg::MarketConfigs {
             start_after,
             limit,
-        } => to_json_binary(&query_all_market_configs(_deps, start_after, limit)?),
+        } => to_json_binary(&query_all_market_configs(deps, start_after, limit)?),
     };
     res.map_err(Into::into)
 }

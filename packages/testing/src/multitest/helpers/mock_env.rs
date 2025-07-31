@@ -28,7 +28,10 @@ use mars_types::{
     active_delta_neutral::{
         execute::ExecuteMsg as ActiveDeltaNeutralExecuteMsg,
         instantiate::InstantiateMsg as ActiveDeltaNeutralInstantiateMsg,
-        query::{MarketConfig, QueryMsg as ActiveDeltaNeutralQueryMsg},
+        query::{
+            Config as ActiveDeltaNeutralConfig, MarketConfig,
+            QueryMsg as ActiveDeltaNeutralQueryMsg,
+        },
     },
     adapters::{
         account_nft::AccountNftUnchecked,
@@ -972,6 +975,16 @@ impl MockEnv {
                 &ActiveDeltaNeutralQueryMsg::MarketConfig {
                     market_id: market_id.to_string(),
                 },
+            )
+            .unwrap()
+    }
+
+    pub fn query_active_delta_neutral_config(&self) -> ActiveDeltaNeutralConfig {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.active_delta_neutral.address(),
+                &ActiveDeltaNeutralQueryMsg::Config {},
             )
             .unwrap()
     }
