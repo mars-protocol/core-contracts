@@ -7,8 +7,8 @@ fn test_config_is_created_on_instantiate() {
     let config = mock.query_active_delta_neutral_config();
 
     assert_eq!(config.owner, "owner");
-    assert_eq!(config.credit_account_id, "2");
-    // TODO should we query for mock? This will fail when new contracts added to mock or order of deployment changed
+    assert_eq!(config.credit_account_id, Some("2".to_string()));
+    // TODO should we query from mock? This will fail when new contracts added to mock or order of deployment changed
     assert_eq!(config.credit_manager_addr, "contract11");
     assert_eq!(config.oracle_addr, "contract4");
     assert_eq!(config.perps_addr, "contract13");

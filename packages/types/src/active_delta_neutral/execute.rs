@@ -6,19 +6,19 @@ use crate::{active_delta_neutral::query::MarketConfig, swapper::SwapperRoute};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub enum ExecuteMsg {
-    Increase {
+    Buy {
         amount: Uint128,
-        denom: String,
+        market_id: String,
         swapper_route: SwapperRoute,
     },
-    Decrease {
+    Sell {
         amount: Uint128,
-        denom: String,
+        market_id: String,
         swapper_route: SwapperRoute,
     },
-    CompleteHedge {
+    Hedge {
         swap_exact_in_amount: Uint128,
-        denom: String,
+        market_id: String,
         increasing: bool,
     },
     AddMarket {

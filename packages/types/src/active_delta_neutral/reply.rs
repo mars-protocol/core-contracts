@@ -31,8 +31,7 @@ impl AttrParse for Reply {
                     }
                 }
 
-                // TODO improve this method
-                Ok(token_id.expect("Missing token_id in mint event"))
+                Ok(token_id.ok_or_else(|| StdError::generic_err("Missing token_id in mint event"))?)
             }
         }
     }

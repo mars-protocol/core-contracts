@@ -43,9 +43,7 @@ pub fn instantiate(
     let create_credit_account_msg = credit_manager.create_credit_account(AccountKind::Default)?;
     let config: Config = Config {
         owner: owner.clone(),
-        // Initially set to 0, as we haven't created the credit account yet
-        // TODO make this nicer - maybe set as an option?
-        credit_account_id: "0".to_string(),
+        credit_account_id: None,
         credit_manager_addr: cm_addr.clone(),
         oracle_addr: oracle_addr.clone(),
         perps_addr: perps_addr.clone(),

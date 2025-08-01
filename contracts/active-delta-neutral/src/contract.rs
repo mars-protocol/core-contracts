@@ -36,28 +36,28 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> ContractResult<Response> {
     match msg {
-        ExecuteMsg::Increase {
+        ExecuteMsg::Buy {
             amount,
-            denom,
+            market_id,
             swapper_route,
-        } => execute::buy(deps, env, &denom, amount, &swapper_route),
+        } => execute::buy(deps, env, &market_id, amount, &swapper_route),
 
-        ExecuteMsg::Decrease {
+        ExecuteMsg::Sell {
             amount,
-            denom,
+            market_id,
             swapper_route,
-        } => execute::sell(deps, env, info, amount, &denom, &swapper_route),
+        } => execute::sell(deps, env, info, amount, &market_id, &swapper_route),
 
         ExecuteMsg::AddMarket {
             config,
         } => execute::add_market(deps, env, config),
 
         // For internal operations
-        ExecuteMsg::CompleteHedge {
+        ExecuteMsg::Hedge {
             swap_exact_in_amount,
-            denom,
+            market_id,
             increasing,
-        } => execute::hedge(deps, env, info, swap_exact_in_amount, &denom, increasing), // Add additional routes like Withdraw etc. here
+        } => execute::hedge(deps, env, info, swap_exact_in_amount, &market_id, increasing), // Add additional routes like Withdraw etc. here
     }
 }
 

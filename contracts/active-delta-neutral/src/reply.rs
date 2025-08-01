@@ -14,7 +14,7 @@ pub fn reply(deps: DepsMut, reply: Reply) -> ContractResult<Response> {
         INSTANTIATE_CREDIT_ACCOUNT_REPLY_ID => {
             let token_id = reply.parse_create_credit_account_event()?;
             CONFIG.update(deps.storage, |mut config: Config| {
-                config.credit_account_id = token_id;
+                config.credit_account_id = Some(token_id);
                 Ok::<Config, ContractError>(config)
             })?;
             Ok(Response::new().add_attribute("action", "active_delta_neutral/reply"))

@@ -1,16 +1,15 @@
 // Extracts spot balance, debt, and funding delta from Mars positions
-use cosmwasm_std::{Decimal, Int128, StdError, Uint128};
+use cosmwasm_std::{Decimal, Int128, Uint128};
 use mars_delta_neutral_position::types::Position;
 use mars_types::{
     active_delta_neutral::query::MarketConfig,
-    address_provider::{AddressResponseItem, MarsAddressType},
     credit_manager::{DebtAmount, Positions},
     perps::{PerpPosition, PnlAmounts},
     swapper::SwapperRoute,
 };
 use mars_utils::helpers::uint128_to_int128;
 
-use crate::error::{ContractError, ContractResult};
+use crate::error::ContractResult;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PositionDeltas {
@@ -120,23 +119,4 @@ pub fn combined_balance(positions: &Positions, denom: &str) -> ContractResult<Ui
     let deposit = positions.deposits.iter().find(|deposit| deposit.denom == denom).unwrap();
     let lend = positions.lends.iter().find(|lend| lend.denom == denom).unwrap();
     Ok(deposit.amount.checked_add(lend.amount)?)
-}
-
-/// Retrieves an address from the list of addresses based on the specified address type.
-///
-/// # Arguments
-/// * `addresses` - Reference to the list of addresses.
-/// * `address_type` - The type of address to retrieve.
-///
-/// # Returns
-/// * `ContractResult<&AddressResponseItem>` - The address with the specified type, or an error if not found.
-pub fn get_address_by_type(
-    addresses: &[AddressResponseItem],
-    address_type: MarsAddressType,
-) -> ContractResult<&AddressResponseItem> {
-    addresses.iter().find(|x| x.address_type == address_type).ok_or_else(|| {
-        ContractError::Std(StdError::GenericErr {
-            msg: format!("Failed to retrieve {address_type:?} address from address provider"),
-        })
-    })
 }

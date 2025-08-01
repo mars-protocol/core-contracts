@@ -8,7 +8,7 @@ use mars_utils::{
 #[cw_serde]
 pub struct Config {
     pub owner: Addr,
-    pub credit_account_id: String,
+    pub credit_account_id: Option<String>,
     pub credit_manager_addr: Addr,
     pub oracle_addr: Addr,
     pub perps_addr: Addr,

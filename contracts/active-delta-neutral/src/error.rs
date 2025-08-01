@@ -74,4 +74,7 @@ pub enum ContractError {
 
     #[error("{0}")]
     ValidationError(#[from] ValidationError),
+
+    #[error("Credit account not initialized")]
+    CreditAccountNotInitialized {},
 }

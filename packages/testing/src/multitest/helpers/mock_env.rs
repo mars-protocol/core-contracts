@@ -134,6 +134,7 @@ pub struct MockEnvBuilder {
     pub params: Option<Params>,
     pub red_bank: Option<RedBankUnchecked>,
     pub incentives: Option<IncentivesUnchecked>,
+    pub active_delta_neutral: Option<ActiveDeltaNeutral>,
     pub deploy_nft_contract: bool,
     pub set_nft_contract_minter: bool,
     pub accounts_to_fund: Vec<AccountToFund>,
@@ -167,6 +168,7 @@ impl MockEnv {
             params: None,
             red_bank: None,
             incentives: None,
+            active_delta_neutral: None,
             deploy_nft_contract: true,
             set_nft_contract_minter: true,
             accounts_to_fund: vec![],
@@ -274,6 +276,44 @@ impl MockEnv {
             self.active_delta_neutral.address().clone(),
             &ActiveDeltaNeutralExecuteMsg::AddMarket {
                 config: market_config,
+            },
+            &[],
+        )
+    }
+
+    pub fn buy_delta_neutral_market(
+        &mut self,
+        sender: &Addr,
+        market_id: &str,
+        amount: Uint128,
+        swapper_route: SwapperRoute,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.active_delta_neutral.address().clone(),
+            &ActiveDeltaNeutralExecuteMsg::Buy {
+                amount,
+                market_id: market_id.to_string(),
+                swapper_route,
+            },
+            &[],
+        )
+    }
+
+    pub fn sell_delta_neutral_market(
+        &mut self,
+        sender: &Addr,
+        market_id: &str,
+        amount: Uint128,
+        swapper_route: SwapperRoute,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.active_delta_neutral.address().clone(),
+            &ActiveDeltaNeutralExecuteMsg::Sell {
+                market_id: market_id.to_string(),
+                amount,
+                swapper_route,
             },
             &[],
         )
@@ -1383,6 +1423,20 @@ impl MockEnvBuilder {
         }
     }
 
+    pub fn add_delta_neutral_market(&mut self, market_config: MarketConfig) {
+        let active_delta_neutral_addr = self.get_active_delta_neutral();
+        self.app
+            .execute_contract(
+                self.get_owner(),
+                active_delta_neutral_addr.address().clone(),
+                &ActiveDeltaNeutralExecuteMsg::AddMarket {
+                    config: market_config,
+                },
+                &[],
+            )
+            .unwrap();
+    }
+
     pub fn set_emergency_owner(&mut self, rover: &Addr) {
         if let Some(eo) = self.emergency_owner.clone() {
             self.app
@@ -1628,6 +1682,14 @@ impl MockEnvBuilder {
         self.set_address(MarsAddressType::Perps, addr.clone());
 
         Perps::new(addr)
+    }
+
+    fn get_active_delta_neutral(&mut self) -> ActiveDeltaNeutral {
+        if self.active_delta_neutral.is_none() {
+            let addr = self.deploy_active_delta_neutral_contract();
+            self.active_delta_neutral = Some(addr);
+        }
+        self.active_delta_neutral.clone().unwrap()
     }
 
     pub fn deploy_active_delta_neutral_contract(&mut self) -> ActiveDeltaNeutral {

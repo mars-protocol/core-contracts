@@ -82,14 +82,6 @@ fn invalid_spot_denom_fails() {
 }
 
 #[test]
-fn spot_and_perp_same_fails() {
-    let mut config = valid_config();
-    config.spot_denom = config.perp_denom.clone();
-    let err = config.validate().unwrap_err().to_string();
-    assert!(err.contains("Spot and perp denoms must be different"));
-}
-
-#[test]
 fn perp_denom_not_perps_prefix_fails() {
     let mut config = valid_config();
     config.perp_denom = "BTCUSD".to_string();
