@@ -189,7 +189,7 @@ cargo make test
 | mars-red-bank             | [`neutron1n97wnm7q6d2hrcna3rqlnyqw2we6k0l8uqvmyqq6gsml92epdu7quugyph`][27] | [`v2.3.0`][62] |
 | mars-rewards-collector    | [`neutron1h4l6rvylzcuxwdw3gzkkdzfjdxf4mv2ypfdgvnvag0dtz6x07gps6fl2vm`][28] | [`v2.2.2`][60] |
 | mars-swapper              | [`neutron1udr9fc3kd743dezrj38v2ac74pxxr6qsx4xt4nfpcfczgw52rvyqyjp5au`][29] | [`v2.2.0`][57] |
-| mars-duality-swapper              | [`neutron1sunrkm9482mn4dvtekk53ns6vvntkrhzh2n36qngyfphjn32t63qy7hp6s`][29] | [`v2.3.0`][62] |
+| mars-duality-swapper      | [`neutron1sunrkm9482mn4dvtekk53ns6vvntkrhzh2n36qngyfphjn32t63qy7hp6s`][63] | [`v2.3.0`][62] |
 | mars-zapper               | [`neutron1dr0ckm3u2ztjuscmgqjr85lwyduphxkgl3tc02ac8zp54r05t5dqp5tgyq`][56] | [`v2.2.3`][61] |
 
 ### mars-1
@@ -260,3 +260,6 @@ For full terms and conditions, see the [LICENSE](./LICENSE) file.
 [60]: https://github.com/mars-protocol/core-contracts/releases/tag/v2.2.2-perps
 [61]: https://github.com/mars-protocol/core-contracts/releases/tag/v2.2.3-perps
 [62]: https://github.com/mars-protocol/core-contracts/releases/tag/v2.3.0-perps
+[63]: https://neutron.celat.one/neutron-1/contracts/neutron1sunrkm9482mn4dvtekk53ns6vvntkrhzh2n36qngyfphjn32t63qy7hp6s
+
+
