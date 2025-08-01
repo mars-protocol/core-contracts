@@ -2,6 +2,41 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.3.0-perps
+
+### Added
+- **USDC Margin Accounts:**
+  - Native support for USDC-denominated margin accounts, enabling users to open and manage margin positions directly in USDC, utilising higher leverage
+  - `PerpParams` now includes USDC-specific risk controls: `liquidation_threshold_usdc` and `max_loan_to_value_usdc`.
+- **DualityRoute support** 
+- New SwapperRoute variant: `duality` (enables direct and multi-hop swaps via Duality DEX).
+
+
+### Changed
+- **Red Bank Interest Rate Model Migration:**
+  - The interest rate model for lending/borrowing markets is now managed in the `params` contract for easier upgrades and governance.
+  - `InterestRateModel` struct and logic moved to shared params, with validation and lifecycle management in the params contract.
+  - Red Bank markets now reference interest rate models from the params contract.
+- Upgraded TypeScript dependency from 5.4.5 to 5.8.2.
+- Significant interface expansion for duality swapper and perps params (no major contract logic changes).
+
+---
+
+## v2.2.3-perps
+
+### Added
+- Managed Vault Configuration support in MarsParams contract and TypeScript clients:
+  - New query: `managed_vault_config`
+  - New execute: `update_managed_vault_config`
+  - New types: `ManagedVaultConfigUpdate`, `ManagedVaultConfigResponse`
+  - React Query hooks for managed vault config
+- MarsVault types: new `ExtensionQueryMsg` variants for `user_pnl` and `vault_pnl`
+
+### Changed
+- Interface and config management improvements for vaults (no core perps/credit-manager logic changes)
+
+---
+
 ## Unreleased (post v2.2.2-perps)
 
 ### Added
