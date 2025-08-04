@@ -39,7 +39,6 @@ import {
 import { ExecuteMsg as ParamsExecuteMsg } from '../../types/generated/mars-params/MarsParams.types'
 import {
   InstantiateMsg as RedBankInstantiateMsg,
-  ExecuteMsg as RedBankExecuteMsg,
   QueryMsg as RedBankQueryMsg,
   PaginationResponseForMarketV2Response,
   MarketV2Response,
@@ -75,6 +74,7 @@ import {
 } from '../../types/generated/mars-credit-manager/MarsCreditManager.client'
 import { kebabCase } from 'lodash'
 import { MarsRoverHealthClient } from '../../types/generated/mars-rover-health/MarsRoverHealth.client'
+import { USDCAsset } from '../osmosis/testnet-config'
 
 type SwapperInstantiateMsg = AstroportSwapperInstantiateMsg | OsmosisSwapperInstantiateMsg
 type OracleInstantiateMsg = WasmOracleInstantiateMsg | OsmosisOracleInstantiateMsg
@@ -165,6 +165,7 @@ export class Deployer {
   async instantiateNftContract() {
     const msg: NftInstantiateMsg = {
       max_value_for_burn: this.config.maxValueForBurn,
+      address_provider_contract: this.storage.addresses.addressProvider!,
       minter: this.deployerAddr,
       name: 'credit-manager-accounts',
       symbol: 'rNFT',
@@ -207,12 +208,14 @@ export class Deployer {
   async instantiateCreditManager() {
     const msg: RoverInstantiateMsg = {
       params: this.storage.addresses.params!,
+      max_trigger_orders: this.config.maxTriggerOrders,
       max_unlocking_positions: this.config.maxUnlockingPositions,
       max_slippage: this.config.maxSlippage,
       oracle: this.storage.addresses.oracle!,
       owner: this.deployerAddr,
       red_bank: this.storage.addresses.redBank!,
       swapper: this.storage.addresses.swapper!,
+      duality_swapper: this.storage.addresses.dualitySwapper!,
       zapper: this.storage.addresses.zapper!,
       health_contract: this.storage.addresses.health!,
       incentives: this.storage.addresses.incentives!,
@@ -238,8 +241,7 @@ export class Deployer {
       )
       await hExec.updateNftConfig({
         config: {
-          health_contract_addr: this.storage.addresses.health!,
-          credit_manager_contract_addr: this.storage.addresses.creditManager!,
+          address_provider_contract_addr: this.storage.addresses.addressProvider!,
         },
       })
 
@@ -441,6 +443,14 @@ export class Deployer {
     await this.instantiate('swapper', this.storage.codeIds.swapper!, msg)
   }
 
+  async instantiateDualitySwapper() {
+    const msg: SwapperInstantiateMsg = {
+      owner: this.deployerAddr,
+    }
+
+    await this.instantiate('dualitySwapper', this.storage.codeIds.dualitySwapper!, msg)
+  }
+
   async instantiateParams() {
     const msg: ParamsInstantiateMsg = {
       owner: this.deployerAddr,
@@ -478,6 +488,13 @@ export class Deployer {
             },
             deposit_cap: assetConfig.deposit_cap,
             close_factor: assetConfig.close_factor,
+            reserve_factor: assetConfig.reserve_factor,
+            interest_rate_model: {
+              base: assetConfig.interest_rate_model.base,
+              slope_1: assetConfig.interest_rate_model.slope_1,
+              slope_2: assetConfig.interest_rate_model.slope_2,
+              optimal_utilization_rate: assetConfig.interest_rate_model.optimal_utilization_rate,
+            },
           },
         },
       },
@@ -534,6 +551,8 @@ export class Deployer {
             opening_fee_rate: perpDenom.openingFeeRate,
             liquidation_threshold: perpDenom.liquidationThreshold,
             max_loan_to_value: perpDenom.maxLoanToValue,
+            max_loan_to_value_usdc: perpDenom.maxLoanToValueUsdc,
+            liquidation_threshold_usdc: perpDenom.liquidationThresholdUsdc,
             max_position_value: perpDenom.maxPositionValue,
             min_position_value: minPositionValue,
             max_funding_velocity: perpDenom.maxFundingVelocity,
@@ -551,35 +570,6 @@ export class Deployer {
     printYellow(`${perpDenom.denom} initialized in params contract`)
 
     this.storage.actions.perpsSet.push(perpDenom.denom)
-  }
-
-  async initializeMarket(assetConfig: AssetConfig) {
-    if (this.storage.actions.redBankMarketsSet.includes(assetConfig.denom)) {
-      printBlue(`${assetConfig.symbol} already initialized in red-bank contract`)
-      return
-    }
-    printBlue(`Initializing ${assetConfig.symbol}...`)
-
-    const msg: RedBankExecuteMsg = {
-      init_asset: {
-        denom: assetConfig.denom,
-        params: {
-          reserve_factor: assetConfig.reserve_factor,
-          interest_rate_model: {
-            optimal_utilization_rate: assetConfig.interest_rate_model.optimal_utilization_rate,
-            base: assetConfig.interest_rate_model.base,
-            slope_1: assetConfig.interest_rate_model.slope_1,
-            slope_2: assetConfig.interest_rate_model.slope_2,
-          },
-        },
-      },
-    }
-
-    await this.cwClient.execute(this.deployerAddr, this.storage.addresses['redBank']!, msg, 'auto')
-
-    printYellow(`${assetConfig.symbol} initialized`)
-
-    this.storage.actions.redBankMarketsSet.push(assetConfig.denom)
   }
 
   async updateVaultConfig(vaultConfig: VaultConfig) {
@@ -672,6 +662,77 @@ export class Deployer {
     printYellow(`${this.config.chain.id} :: Swapper Routes have been set`)
   }
 
+  async setDualityRoutes() {
+    if (!this.config.dualitySwapper?.routes || this.config.dualitySwapper.routes.length === 0) {
+      printBlue('No Duality routes to set')
+      return
+    }
+
+    printBlue('Setting Duality Swapper Routes')
+    for (const route of this.config.dualitySwapper.routes) {
+      const routeKey = `${route.denom_in} -> ${route.denom_out}`
+
+      if (this.storage.actions.dualityRoutesSet?.includes(routeKey)) {
+        printBlue(`${routeKey} already set in Duality Swapper contract`)
+        continue
+      }
+
+      printBlue(`Setting duality route: ${routeKey}`)
+
+      await this.cwClient.execute(
+        this.deployerAddr,
+        this.storage.addresses.dualitySwapper!,
+        {
+          set_route: route,
+        } satisfies SwapperExecuteMsg,
+        'auto',
+      )
+
+      if (!this.storage.actions.dualityRoutesSet) {
+        this.storage.actions.dualityRoutesSet = []
+      }
+      this.storage.actions.dualityRoutesSet.push(routeKey)
+    }
+
+    printYellow(`${this.config.chain.id} :: Duality Swapper Routes have been set`)
+  }
+
+  async setDualitySwapperLP() {
+    if (this.storage.actions.dualityLpProvided) {
+      printBlue('LP already provided for Duality Swapper')
+      return
+    }
+
+    printBlue('Providing liquidity for Duality Swapper...')
+    // Replace the CosmWasm execution with a Stargate message
+    const msgDeposit = {
+      typeUrl: '/neutron.dex.MsgDeposit',
+      value: {
+        creator: this.deployerAddr,
+        receiver: this.deployerAddr,
+        tokenA: 'untrn',
+        tokenB: USDCAsset.denom,
+        amountsA: ['1000000000'],
+        amountsB: ['1000000000'],
+        tickIndexesAToB: [0],
+        fees: [0],
+        options: [
+          {
+            disableAutoswap: false,
+            failTxOnBel: true,
+          },
+        ],
+      },
+    }
+
+    // Send the Stargate message
+    const response = await this.cwClient.signAndBroadcast(this.deployerAddr, [msgDeposit], 'auto')
+
+    // Mark action as complete
+    this.storage.actions.dualityLpProvided = true
+    printYellow(`Liquidity provided for Duality Swapper: ${response.transactionHash}`)
+  }
+
   async updateAddressProvider() {
     printBlue('Updating addresses in Address Provider...')
     const addressesToSet: AddressResponseItem[] = [
@@ -722,6 +783,10 @@ export class Deployer {
       {
         address: this.storage.addresses.perps!,
         address_type: 'perps',
+      },
+      {
+        address: this.storage.addresses.health!,
+        address_type: 'health',
       },
     ]
 

@@ -1,6 +1,6 @@
 [package]
 name          = "mars-rover-health"
-version       = { workspace = true }
+version       = "2.3.0"
 authors       = { workspace = true }
 license       = { workspace = true }
 edition       = { workspace = true }
@@ -35,6 +35,7 @@ cw-vault-standard        = { workspace = true }
 mars-address-provider    = { workspace = true }
 mars-mock-credit-manager = { workspace = true }
 mars-mock-oracle         = { workspace = true }
+mars-mock-red-bank       = { workspace = true }
 mars-mock-vault          = { workspace = true }
 mars-params              = { workspace = true }
 mars-testing             = { workspace = true }

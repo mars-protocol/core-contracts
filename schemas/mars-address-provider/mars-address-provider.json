@@ -110,6 +110,13 @@
             ]
           },
           {
+            "description": "The duality swapper contract on the chain",
+            "type": "string",
+            "enum": [
+              "duality_swapper"
+            ]
+          },
+          {
             "description": "Astroport incentives contract",
             "type": "string",
             "enum": [
@@ -121,6 +128,13 @@
             "type": "string",
             "enum": [
               "perps"
+            ]
+          },
+          {
+            "description": "Health contract",
+            "type": "string",
+            "enum": [
+              "health"
             ]
           },
           {
@@ -335,6 +349,13 @@
             ]
           },
           {
+            "description": "The duality swapper contract on the chain",
+            "type": "string",
+            "enum": [
+              "duality_swapper"
+            ]
+          },
+          {
             "description": "Astroport incentives contract",
             "type": "string",
             "enum": [
@@ -346,6 +367,13 @@
             "type": "string",
             "enum": [
               "perps"
+            ]
+          },
+          {
+            "description": "Health contract",
+            "type": "string",
+            "enum": [
+              "health"
             ]
           },
           {
@@ -428,6 +456,13 @@
               ]
             },
             {
+              "description": "The duality swapper contract on the chain",
+              "type": "string",
+              "enum": [
+                "duality_swapper"
+              ]
+            },
+            {
               "description": "Astroport incentives contract",
               "type": "string",
               "enum": [
@@ -439,6 +474,13 @@
               "type": "string",
               "enum": [
                 "perps"
+              ]
+            },
+            {
+              "description": "Health contract",
+              "type": "string",
+              "enum": [
+                "health"
               ]
             },
             {
@@ -524,6 +566,13 @@
               ]
             },
             {
+              "description": "The duality swapper contract on the chain",
+              "type": "string",
+              "enum": [
+                "duality_swapper"
+              ]
+            },
+            {
               "description": "Astroport incentives contract",
               "type": "string",
               "enum": [
@@ -535,6 +584,13 @@
               "type": "string",
               "enum": [
                 "perps"
+              ]
+            },
+            {
+              "description": "Health contract",
+              "type": "string",
+              "enum": [
+                "health"
               ]
             },
             {
@@ -620,6 +676,13 @@
               ]
             },
             {
+              "description": "The duality swapper contract on the chain",
+              "type": "string",
+              "enum": [
+                "duality_swapper"
+              ]
+            },
+            {
               "description": "Astroport incentives contract",
               "type": "string",
               "enum": [
@@ -631,6 +694,13 @@
               "type": "string",
               "enum": [
                 "perps"
+              ]
+            },
+            {
+              "description": "Health contract",
+              "type": "string",
+              "enum": [
+                "health"
               ]
             },
             {

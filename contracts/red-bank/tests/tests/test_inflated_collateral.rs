@@ -5,7 +5,7 @@ use mars_red_bank::error::ContractError;
 use mars_testing::integration::mock_env::MockEnvBuilder;
 use mars_types::{
     params::{AssetParams, CmSettings, LiquidationBonus, RedBankSettings},
-    red_bank::{InitOrUpdateAssetParams, InterestRateModel},
+    red_bank::InterestRateModel,
 };
 
 use crate::tests::helpers::assert_err;
@@ -24,12 +24,10 @@ fn inflated_collateral() {
     let red_bank = mock_env.red_bank.clone();
     let params = mock_env.params.clone();
 
-    let (atom_market_params, atom_asset_params) = atom_asset_params("uatom");
-    red_bank.init_asset(&mut mock_env, &atom_asset_params.denom, atom_market_params);
+    let atom_asset_params = atom_asset_params("uatom");
     params.init_params(&mut mock_env, atom_asset_params.clone());
 
-    let (osmo_market_params, osmo_asset_params) = osmo_asset_params("uosmo");
-    red_bank.init_asset(&mut mock_env, &osmo_asset_params.denom, osmo_market_params);
+    let osmo_asset_params = osmo_asset_params("uosmo");
     params.init_params(&mut mock_env, osmo_asset_params.clone());
 
     let borrower = Addr::unchecked("borrower");
@@ -132,17 +130,8 @@ fn inflated_collateral() {
     assert!(usd_profit.checked_div(1_000_000).unwrap() < 0);
 }
 
-fn atom_asset_params(denom: &str) -> (InitOrUpdateAssetParams, AssetParams) {
-    let market_params = InitOrUpdateAssetParams {
-        reserve_factor: Some(Decimal::percent(10)),
-        interest_rate_model: Some(InterestRateModel {
-            optimal_utilization_rate: Decimal::percent(80),
-            base: Decimal::percent(0),
-            slope_1: Decimal::percent(20),
-            slope_2: Decimal::percent(300),
-        }),
-    };
-    let asset_params = AssetParams {
+fn atom_asset_params(denom: &str) -> AssetParams {
+    AssetParams {
         denom: denom.to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
@@ -165,21 +154,18 @@ fn atom_asset_params(denom: &str) -> (InitOrUpdateAssetParams, AssetParams) {
         protocol_liquidation_fee: Decimal::percent(25),
         deposit_cap: Uint128::from(700000000000u128),
         close_factor: Decimal::percent(90),
-    };
-    (market_params, asset_params)
+        reserve_factor: Decimal::percent(10),
+        interest_rate_model: InterestRateModel {
+            optimal_utilization_rate: Decimal::percent(10),
+            base: Decimal::percent(0),
+            slope_1: Decimal::percent(20),
+            slope_2: Decimal::percent(300),
+        },
+    }
 }
 
-fn osmo_asset_params(denom: &str) -> (InitOrUpdateAssetParams, AssetParams) {
-    let market_params = InitOrUpdateAssetParams {
-        reserve_factor: Some(Decimal::percent(10)),
-        interest_rate_model: Some(InterestRateModel {
-            optimal_utilization_rate: Decimal::percent(60),
-            base: Decimal::percent(0),
-            slope_1: Decimal::percent(15),
-            slope_2: Decimal::percent(300),
-        }),
-    };
-    let asset_params = AssetParams {
+fn osmo_asset_params(denom: &str) -> AssetParams {
+    AssetParams {
         denom: denom.to_string(),
         credit_manager: CmSettings {
             whitelisted: false,
@@ -202,6 +188,12 @@ fn osmo_asset_params(denom: &str) -> (InitOrUpdateAssetParams, AssetParams) {
         protocol_liquidation_fee: Decimal::percent(25),
         deposit_cap: Uint128::from(10000000000000u128),
         close_factor: Decimal::percent(90),
-    };
-    (market_params, asset_params)
+        reserve_factor: Decimal::percent(10),
+        interest_rate_model: InterestRateModel {
+            optimal_utilization_rate: Decimal::percent(80),
+            base: Decimal::percent(0),
+            slope_1: Decimal::percent(15),
+            slope_2: Decimal::percent(300),
+        },
+    }
 }

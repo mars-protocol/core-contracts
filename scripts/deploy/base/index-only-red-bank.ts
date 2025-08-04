@@ -22,6 +22,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
       'rewardsCollector',
       `mars_rewards_collector_${config.rewardsCollector.name}.wasm`,
     )
+    await deployer.upload('dualitySwapper', `mars_swapper_${config.dualitySwapper?.name}.wasm`)
     await deployer.upload('swapper', `mars_swapper_${config.swapper.name}.wasm`)
     await deployer.upload('params', `mars_params.wasm`)
 
@@ -32,6 +33,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     await deployer.instantiateOracle(config.oracle.customInitParams)
     await deployer.instantiateRewards()
     await deployer.instantiateSwapper()
+    await deployer.instantiateDualitySwapper()
     await deployer.instantiateParams()
     await deployer.saveDeploymentAddrsToFile(label)
 
@@ -40,7 +42,6 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     // setup
     for (const asset of config.assets) {
       await deployer.updateAssetParams(asset)
-      await deployer.initializeMarket(asset)
     }
     for (const vault of config.vaults) {
       await deployer.updateVaultConfig(vault)

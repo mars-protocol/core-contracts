@@ -1,5 +1,8 @@
 import { OsmosisPriceSourceForString } from './generated/mars-oracle-osmosis/MarsOracleOsmosis.types'
-import { OsmosisRoute } from './generated/mars-swapper-osmosis/MarsSwapperOsmosis.types'
+import {
+  DualityRoute,
+  OsmosisRoute,
+} from './generated/mars-swapper-osmosis/MarsSwapperOsmosis.types'
 import { AstroportRoute } from './generated/mars-swapper-astroport/MarsSwapperAstroport.types'
 import {
   WasmOracleCustomInitParams,
@@ -19,21 +22,36 @@ import { RewardConfig } from './generated/mars-rewards-collector-base/MarsReward
 type SwapRoute = {
   denom_in: string
   denom_out: string
-  route: OsmosisRoute | AstroportRoute
+  route: OsmosisRoute | AstroportRoute | DualityRoute
 }
 
 export type SwapperExecuteMsg = {
   set_route: SwapRoute
 }
 
-export function isOsmosisRoute(route: OsmosisRoute | AstroportRoute): route is OsmosisRoute {
+export function isOsmosisRoute(
+  route: OsmosisRoute | AstroportRoute | DualityRoute,
+): route is OsmosisRoute {
   return Array.isArray(route)
 }
 
-export function isAstroportRoute(route: OsmosisRoute | AstroportRoute): route is AstroportRoute {
-  return !isOsmosisRoute(route)
+export function isAstroportRoute(
+  route: OsmosisRoute | AstroportRoute | DualityRoute,
+): route is AstroportRoute {
+  return !isOsmosisRoute(route) && !isDualityRoute(route)
 }
 
+export function isDualityRoute(
+  route: OsmosisRoute | AstroportRoute | DualityRoute,
+): route is DualityRoute {
+  return (
+    typeof route === 'object' &&
+    !Array.isArray(route) &&
+    'from' in route &&
+    'to' in route &&
+    'swap_denoms' in route
+  )
+}
 export interface AstroportConfig {
   factory: string
   router: string
@@ -80,7 +98,12 @@ export interface DeploymentConfig {
     name: string
     routes: SwapRoute[]
   }
+  dualitySwapper?: {
+    name: string
+    routes: SwapRoute[]
+  }
   maxValueForBurn: string
+  maxTriggerOrders: number
   maxUnlockingPositions: string
   maxSlippage: string
   runTests: boolean
@@ -192,6 +215,8 @@ export interface PerpDenom {
   openingFeeRate: string
   liquidationThreshold: string
   maxLoanToValue: string
+  maxLoanToValueUsdc: string | null
+  liquidationThresholdUsdc: string | null
   maxPositionValue?: string
   minPositionValue: string
 }

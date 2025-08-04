@@ -1,6 +1,6 @@
 {
   "contract_name": "mars-params",
-  "contract_version": "2.2.3",
+  "contract_version": "2.3.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -177,11 +177,13 @@
           "credit_manager",
           "denom",
           "deposit_cap",
+          "interest_rate_model",
           "liquidation_bonus",
           "liquidation_threshold",
           "max_loan_to_value",
           "protocol_liquidation_fee",
-          "red_bank"
+          "red_bank",
+          "reserve_factor"
         ],
         "properties": {
           "close_factor": {
@@ -195,6 +197,9 @@
           },
           "deposit_cap": {
             "$ref": "#/definitions/Uint128"
+          },
+          "interest_rate_model": {
+            "$ref": "#/definitions/InterestRateModel"
           },
           "liquidation_bonus": {
             "$ref": "#/definitions/LiquidationBonus"
@@ -210,6 +215,9 @@
           },
           "red_bank": {
             "$ref": "#/definitions/RedBankSettings"
+          },
+          "reserve_factor": {
+            "$ref": "#/definitions/Decimal"
           }
         },
         "additionalProperties": false
@@ -446,6 +454,50 @@
         },
         "additionalProperties": false
       },
+      "InterestRateModel": {
+        "type": "object",
+        "required": [
+          "base",
+          "optimal_utilization_rate",
+          "slope_1",
+          "slope_2"
+        ],
+        "properties": {
+          "base": {
+            "description": "Base rate",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "optimal_utilization_rate": {
+            "description": "Optimal utilization rate",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "slope_1": {
+            "description": "Slope parameter for interest rate model function when utilization_rate <= optimal_utilization_rate",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "slope_2": {
+            "description": "Slope parameter for interest rate model function when utilization_rate > optimal_utilization_rate",
+            "allOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "LiquidationBonus": {
         "description": "The LB will depend on the Health Factor and a couple other parameters as follows: Liquidation Bonus = min( b + (slope * (1 - HF)), max( min(CR - 1, max_lb), min_lb ) )",
         "type": "object",
@@ -492,6 +544,7 @@
         "additionalProperties": false
       },
       "ManagedVaultConfigUpdate": {
+        "description": "Default values for markets in the Red Bank that have not yet been initialized. These values correspond to markets not currently listed in the Red Bank, but are maintained here to ensure consistency between the Red Bank and the Params contract.",
         "oneOf": [
           {
             "type": "object",
@@ -678,19 +731,36 @@
               }
             ]
           },
-          "max_funding_velocity": {
-            "description": "Determines the maximum rate at which funding can be adjusted",
-            "allOf": [
+          "liquidation_threshold_usdc": {
+            "description": "LTV at which a position becomes liquidatable for USDC margin accounts.",
+            "anyOf": [
               {
                 "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
               }
             ]
+          },
+          "max_funding_velocity": {
+            "$ref": "#/definitions/Decimal"
           },
           "max_loan_to_value": {
             "description": "Max loan to position value for the position.",
             "allOf": [
               {
                 "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "max_loan_to_value_usdc": {
+            "description": "Max loan to position value for the position for USDC margin accounts.",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -1314,11 +1384,13 @@
             "credit_manager",
             "denom",
             "deposit_cap",
+            "interest_rate_model",
             "liquidation_bonus",
             "liquidation_threshold",
             "max_loan_to_value",
             "protocol_liquidation_fee",
-            "red_bank"
+            "red_bank",
+            "reserve_factor"
           ],
           "properties": {
             "close_factor": {
@@ -1332,6 +1404,9 @@
             },
             "deposit_cap": {
               "$ref": "#/definitions/Uint128"
+            },
+            "interest_rate_model": {
+              "$ref": "#/definitions/InterestRateModel"
             },
             "liquidation_bonus": {
               "$ref": "#/definitions/LiquidationBonus"
@@ -1347,6 +1422,9 @@
             },
             "red_bank": {
               "$ref": "#/definitions/RedBankSettings"
+            },
+            "reserve_factor": {
+              "$ref": "#/definitions/Decimal"
             }
           },
           "additionalProperties": false
@@ -1447,6 +1525,50 @@
             },
             "max_loan_to_value": {
               "$ref": "#/definitions/Decimal"
+            }
+          },
+          "additionalProperties": false
+        },
+        "InterestRateModel": {
+          "type": "object",
+          "required": [
+            "base",
+            "optimal_utilization_rate",
+            "slope_1",
+            "slope_2"
+          ],
+          "properties": {
+            "base": {
+              "description": "Base rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "optimal_utilization_rate": {
+              "description": "Optimal utilization rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "slope_1": {
+              "description": "Slope parameter for interest rate model function when utilization_rate <= optimal_utilization_rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "slope_2": {
+              "description": "Slope parameter for interest rate model function when utilization_rate > optimal_utilization_rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -1554,11 +1676,13 @@
             "credit_manager",
             "denom",
             "deposit_cap",
+            "interest_rate_model",
             "liquidation_bonus",
             "liquidation_threshold",
             "max_loan_to_value",
             "protocol_liquidation_fee",
-            "red_bank"
+            "red_bank",
+            "reserve_factor"
           ],
           "properties": {
             "close_factor": {
@@ -1572,6 +1696,9 @@
             },
             "deposit_cap": {
               "$ref": "#/definitions/Uint128"
+            },
+            "interest_rate_model": {
+              "$ref": "#/definitions/InterestRateModel"
             },
             "liquidation_bonus": {
               "$ref": "#/definitions/LiquidationBonus"
@@ -1587,6 +1714,9 @@
             },
             "red_bank": {
               "$ref": "#/definitions/RedBankSettings"
+            },
+            "reserve_factor": {
+              "$ref": "#/definitions/Decimal"
             }
           },
           "additionalProperties": false
@@ -1687,6 +1817,50 @@
             },
             "max_loan_to_value": {
               "$ref": "#/definitions/Decimal"
+            }
+          },
+          "additionalProperties": false
+        },
+        "InterestRateModel": {
+          "type": "object",
+          "required": [
+            "base",
+            "optimal_utilization_rate",
+            "slope_1",
+            "slope_2"
+          ],
+          "properties": {
+            "base": {
+              "description": "Base rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "optimal_utilization_rate": {
+              "description": "Optimal utilization rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "slope_1": {
+              "description": "Slope parameter for interest rate model function when utilization_rate <= optimal_utilization_rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "slope_2": {
+              "description": "Slope parameter for interest rate model function when utilization_rate > optimal_utilization_rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -1827,19 +2001,36 @@
                 }
               ]
             },
-            "max_funding_velocity": {
-              "description": "Determines the maximum rate at which funding can be adjusted",
-              "allOf": [
+            "liquidation_threshold_usdc": {
+              "description": "LTV at which a position becomes liquidatable for USDC margin accounts.",
+              "anyOf": [
                 {
                   "$ref": "#/definitions/Decimal"
+                },
+                {
+                  "type": "null"
                 }
               ]
+            },
+            "max_funding_velocity": {
+              "$ref": "#/definitions/Decimal"
             },
             "max_loan_to_value": {
               "description": "Max loan to position value for the position.",
               "allOf": [
                 {
                   "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "max_loan_to_value_usdc": {
+              "description": "Max loan to position value for the position for USDC margin accounts.",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                },
+                {
+                  "type": "null"
                 }
               ]
             },
@@ -1989,19 +2180,36 @@
                 }
               ]
             },
-            "max_funding_velocity": {
-              "description": "Determines the maximum rate at which funding can be adjusted",
-              "allOf": [
+            "liquidation_threshold_usdc": {
+              "description": "LTV at which a position becomes liquidatable for USDC margin accounts.",
+              "anyOf": [
                 {
                   "$ref": "#/definitions/Decimal"
+                },
+                {
+                  "type": "null"
                 }
               ]
+            },
+            "max_funding_velocity": {
+              "$ref": "#/definitions/Decimal"
             },
             "max_loan_to_value": {
               "description": "Max loan to position value for the position.",
               "allOf": [
                 {
                   "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "max_loan_to_value_usdc": {
+              "description": "Max loan to position value for the position for USDC margin accounts.",
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                },
+                {
+                  "type": "null"
                 }
               ]
             },
@@ -2470,11 +2678,13 @@
             "credit_manager",
             "denom",
             "deposit_cap",
+            "interest_rate_model",
             "liquidation_bonus",
             "liquidation_threshold",
             "max_loan_to_value",
             "protocol_liquidation_fee",
-            "red_bank"
+            "red_bank",
+            "reserve_factor"
           ],
           "properties": {
             "close_factor": {
@@ -2488,6 +2698,9 @@
             },
             "deposit_cap": {
               "$ref": "#/definitions/Uint128"
+            },
+            "interest_rate_model": {
+              "$ref": "#/definitions/InterestRateModel"
             },
             "liquidation_bonus": {
               "$ref": "#/definitions/LiquidationBonus"
@@ -2503,6 +2716,9 @@
             },
             "red_bank": {
               "$ref": "#/definitions/RedBankSettings"
+            },
+            "reserve_factor": {
+              "$ref": "#/definitions/Decimal"
             }
           },
           "additionalProperties": false
@@ -2603,6 +2819,50 @@
             },
             "max_loan_to_value": {
               "$ref": "#/definitions/Decimal"
+            }
+          },
+          "additionalProperties": false
+        },
+        "InterestRateModel": {
+          "type": "object",
+          "required": [
+            "base",
+            "optimal_utilization_rate",
+            "slope_1",
+            "slope_2"
+          ],
+          "properties": {
+            "base": {
+              "description": "Base rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "optimal_utilization_rate": {
+              "description": "Optimal utilization rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "slope_1": {
+              "description": "Slope parameter for interest rate model function when utilization_rate <= optimal_utilization_rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
+            },
+            "slope_2": {
+              "description": "Slope parameter for interest rate model function when utilization_rate > optimal_utilization_rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                }
+              ]
             }
           },
           "additionalProperties": false
@@ -2815,19 +3075,36 @@
             }
           ]
         },
-        "max_funding_velocity": {
-          "description": "Determines the maximum rate at which funding can be adjusted",
-          "allOf": [
+        "liquidation_threshold_usdc": {
+          "description": "LTV at which a position becomes liquidatable for USDC margin accounts.",
+          "anyOf": [
             {
               "$ref": "#/definitions/Decimal"
+            },
+            {
+              "type": "null"
             }
           ]
+        },
+        "max_funding_velocity": {
+          "$ref": "#/definitions/Decimal"
         },
         "max_loan_to_value": {
           "description": "Max loan to position value for the position.",
           "allOf": [
             {
               "$ref": "#/definitions/Decimal"
+            }
+          ]
+        },
+        "max_loan_to_value_usdc": {
+          "description": "Max loan to position value for the position for USDC margin accounts.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            },
+            {
+              "type": "null"
             }
           ]
         },

@@ -9,10 +9,12 @@ export interface StorageItems {
     oracle?: number
     params?: number
     swapper?: number
+    dualitySwapper?: number
     redBank?: number
     rewardsCollector?: number
     zapper?: number
     perps?: number
+    vault?: number
   }
 
   addresses: {
@@ -25,6 +27,7 @@ export interface StorageItems {
     oracle?: string
     params?: string
     swapper?: string
+    dualitySwapper?: string
     redBank?: string
     rewardsCollector?: string
     zapper?: string
@@ -43,6 +46,8 @@ export interface StorageItems {
     perpsSet: string[]
     oraclePricesSet: string[]
     routesSet: string[]
+    dualityRoutesSet: string[]
+    dualityLpProvided?: boolean
     healthContractConfigUpdate?: boolean
     creditManagerContractConfigUpdate?: boolean
   }

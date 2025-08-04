@@ -178,3 +178,8 @@ impl TryInto<ParentQueryMsg<Empty>> for QueryMsg {
         }
     }
 }
+
+#[cw_serde]
+pub struct MigrateMsg {
+    pub address_provider: String,
+}

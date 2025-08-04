@@ -134,7 +134,13 @@ export type Action =
       execute_perp_order: {
         denom: string
         order_size: Int128
+        order_type?: ExecutePerpOrderType | null
         reduce_only?: boolean | null
+      }
+    }
+  | {
+      close_perp_position: {
+        denom: string
       }
     }
   | {
@@ -142,6 +148,7 @@ export type Action =
         actions: Action[]
         conditions: Condition[]
         keeper_fee: Coin
+        order_type?: CreateTriggerOrderType | null
       }
     }
   | {
@@ -225,6 +232,7 @@ export type ActionAmount =
       exact: Uint128
     }
 export type Int128 = string
+export type ExecutePerpOrderType = 'default' | 'parent'
 export type Condition =
   | {
       oracle_price: {
@@ -247,7 +255,13 @@ export type Condition =
         threshold: Decimal
       }
     }
+  | {
+      trigger_order_executed: {
+        trigger_order_id: string
+      }
+    }
 export type Comparison = 'greater_than' | 'less_than'
+export type CreateTriggerOrderType = 'default' | 'parent' | 'child'
 export type LiquidateRequestForVaultBaseForString =
   | {
       deposit: string
@@ -268,6 +282,9 @@ export type VaultPositionType = 'u_n_l_o_c_k_e_d' | 'l_o_c_k_e_d' | 'u_n_l_o_c_k
 export type SwapperRoute =
   | {
       astro: AstroRoute
+    }
+  | {
+      duality: DualityRoute
     }
   | {
       osmo: OsmoRoute
@@ -301,6 +318,11 @@ export interface AstroRoute {
 }
 export interface AstroSwap {
   from: string
+  to: string
+}
+export interface DualityRoute {
+  from: string
+  swap_denoms: string[]
   to: string
 }
 export interface OsmoRoute {

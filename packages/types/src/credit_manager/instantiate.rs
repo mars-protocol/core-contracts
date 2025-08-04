@@ -17,6 +17,8 @@ pub struct InstantiateMsg {
     pub red_bank: RedBankUnchecked,
     /// The Mars Protocol oracle contract. We read prices of assets here.
     pub oracle: OracleUnchecked,
+    /// The maximum number of trigger orders an account can have simultaneously.
+    pub max_trigger_orders: u8,
     /// The maximum number of unlocking positions an account can have simultaneously
     /// Note: As health checking requires looping through each, this number must not be too large.
     ///       If so, having too many could prevent the account from being liquidated due to gas constraints.
@@ -25,6 +27,8 @@ pub struct InstantiateMsg {
     pub max_slippage: Decimal,
     /// Helper contract for making swaps
     pub swapper: SwapperUnchecked,
+    /// Helper contract for making swaps
+    pub duality_swapper: SwapperUnchecked,
     /// Helper contract for adding/removing liquidity
     pub zapper: ZapperUnchecked,
     /// Helper contract for calculating health factor
@@ -54,9 +58,11 @@ pub struct ConfigUpdates {
     pub oracle: Option<OracleUnchecked>,
     pub red_bank: Option<RedBankUnchecked>,
     pub incentives: Option<IncentivesUnchecked>,
+    pub max_trigger_orders: Option<u8>,
     pub max_unlocking_positions: Option<Uint128>,
     pub max_slippage: Option<Decimal>,
     pub swapper: Option<SwapperUnchecked>,
+    pub duality_swapper: Option<SwapperUnchecked>,
     pub zapper: Option<ZapperUnchecked>,
     pub health_contract: Option<HealthContractUnchecked>,
     pub params: Option<ParamsUnchecked>,

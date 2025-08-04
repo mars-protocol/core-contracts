@@ -249,6 +249,8 @@ fn update_existing_perp_params() {
                 opening_fee_rate: Decimal::from_str("0.016").unwrap(),
                 liquidation_threshold: Decimal::from_str("0.85").unwrap(),
                 max_loan_to_value: Decimal::from_str("0.8").unwrap(),
+                max_loan_to_value_usdc: Some(Decimal::from_str("0.70").unwrap()),
+                liquidation_threshold_usdc: Some(Decimal::from_str("0.75").unwrap()),
                 max_position_value: None,
                 min_position_value: Uint128::zero(),
                 max_funding_velocity: Decimal::from_str("36").unwrap(),
@@ -277,6 +279,8 @@ fn update_existing_perp_params() {
     assert_eq!(perp_params.opening_fee_rate, Decimal::from_str("0.016").unwrap());
     assert_eq!(perp_params.max_funding_velocity, Decimal::from_str("36").unwrap());
     assert_eq!(perp_params.skew_scale, Uint128::new(7227323000000));
+    assert_eq!(perp_params.liquidation_threshold_usdc, Some(Decimal::from_str("0.75").unwrap()));
+    assert_eq!(perp_params.max_loan_to_value_usdc, Some(Decimal::from_str("0.70").unwrap()));
 }
 
 #[test]

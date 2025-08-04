@@ -1,16 +1,18 @@
 {
   "contract_name": "mars-credit-manager",
-  "contract_version": "2.2.3",
+  "contract_version": "2.3.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "InstantiateMsg",
     "type": "object",
     "required": [
+      "duality_swapper",
       "health_contract",
       "incentives",
       "keeper_fee_config",
       "max_slippage",
+      "max_trigger_orders",
       "max_unlocking_positions",
       "oracle",
       "owner",
@@ -21,6 +23,14 @@
       "zapper"
     ],
     "properties": {
+      "duality_swapper": {
+        "description": "Helper contract for making swaps",
+        "allOf": [
+          {
+            "$ref": "#/definitions/SwapperBase_for_String"
+          }
+        ]
+      },
       "health_contract": {
         "description": "Helper contract for calculating health factor",
         "allOf": [
@@ -52,6 +62,12 @@
             "$ref": "#/definitions/Decimal"
           }
         ]
+      },
+      "max_trigger_orders": {
+        "description": "The maximum number of trigger orders an account can have simultaneously.",
+        "type": "integer",
+        "format": "uint8",
+        "minimum": 0.0
       },
       "max_unlocking_positions": {
         "description": "The maximum number of unlocking positions an account can have simultaneously Note: As health checking requires looping through each, this number must not be too large. If so, having too many could prevent the account from being liquidated due to gas constraints.",
@@ -397,6 +413,7 @@
             "type": "string",
             "enum": [
               "default",
+              "usdc_margin",
               "high_levered_strategy"
             ]
           },
@@ -663,6 +680,16 @@
                   "order_size": {
                     "$ref": "#/definitions/Int128"
                   },
+                  "order_type": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/ExecutePerpOrderType"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "reduce_only": {
                     "type": [
                       "boolean",
@@ -676,7 +703,29 @@
             "additionalProperties": false
           },
           {
-            "description": "Dispatch orders to be triggered under specified conditions",
+            "description": "Executes a perp order against the given market for the current position size to close the position.",
+            "type": "object",
+            "required": [
+              "close_perp_position"
+            ],
+            "properties": {
+              "close_perp_position": {
+                "type": "object",
+                "required": [
+                  "denom"
+                ],
+                "properties": {
+                  "denom": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "description": "Dispatch orders to be triggered under specified conditions.",
             "type": "object",
             "required": [
               "create_trigger_order"
@@ -704,6 +753,16 @@
                   },
                   "keeper_fee": {
                     "$ref": "#/definitions/Coin"
+                  },
+                  "order_type": {
+                    "anyOf": [
+                      {
+                        "$ref": "#/definitions/CreateTriggerOrderType"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "additionalProperties": false
@@ -733,7 +792,7 @@
             "additionalProperties": false
           },
           {
-            "description": "Deposit coins into vault strategy If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault",
+            "description": "Deposit coins into vault strategy. If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault.",
             "type": "object",
             "required": [
               "enter_vault"
@@ -1725,6 +1784,32 @@
             "additionalProperties": false
           },
           {
+            "description": "Executes a perp order against the given market for the current position size.",
+            "type": "object",
+            "required": [
+              "close_perp_position"
+            ],
+            "properties": {
+              "close_perp_position": {
+                "type": "object",
+                "required": [
+                  "account_id",
+                  "denom"
+                ],
+                "properties": {
+                  "account_id": {
+                    "type": "string"
+                  },
+                  "denom": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Requests unlocking of shares for a vault with a lock period",
             "type": "object",
             "required": [
@@ -2297,6 +2382,28 @@
               }
             },
             "additionalProperties": false
+          },
+          {
+            "description": "If the other trigger_order is successfully executed, the condition is met.",
+            "type": "object",
+            "required": [
+              "trigger_order_executed"
+            ],
+            "properties": {
+              "trigger_order_executed": {
+                "type": "object",
+                "required": [
+                  "trigger_order_id"
+                ],
+                "properties": {
+                  "trigger_order_id": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
           }
         ]
       },
@@ -2308,6 +2415,16 @@
             "anyOf": [
               {
                 "$ref": "#/definitions/AccountNftBase_for_String"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "duality_swapper": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/SwapperBase_for_String"
               },
               {
                 "type": "null"
@@ -2353,6 +2470,14 @@
                 "type": "null"
               }
             ]
+          },
+          "max_trigger_orders": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "uint8",
+            "minimum": 0.0
           },
           "max_unlocking_positions": {
             "anyOf": [
@@ -2444,9 +2569,78 @@
         },
         "additionalProperties": false
       },
+      "CreateTriggerOrderType": {
+        "oneOf": [
+          {
+            "description": "Marks the order to have no relation to another trigger order.",
+            "type": "string",
+            "enum": [
+              "default"
+            ]
+          },
+          {
+            "description": "Marks the order to have exactly 1 parent trigger order. This order can only be executed when the parent has been executed prior.",
+            "type": "string",
+            "enum": [
+              "parent"
+            ]
+          },
+          {
+            "description": "Marks the order as a parent order. This means 1+ trigger orders depend on this order to be executed before they are considered executable.",
+            "type": "string",
+            "enum": [
+              "child"
+            ]
+          }
+        ]
+      },
       "Decimal": {
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
+      },
+      "DualityRoute": {
+        "type": "object",
+        "required": [
+          "from",
+          "swap_denoms",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "description": "Entry denom, in other words the asset we are selling",
+            "type": "string"
+          },
+          "swap_denoms": {
+            "description": "The denoms to swap through. For example, For a single swap route e.g A:B, the swap_denoms are [A, B] For a multi-swap route e.g A:B, B:C, C:D, the swap_denoms are [A, B, C]",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "to": {
+            "description": "Exit denom, in other words the asset we are buying",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ExecutePerpOrderType": {
+        "oneOf": [
+          {
+            "description": "Marks the perp order as default, without any trigger orders depending on it.",
+            "type": "string",
+            "enum": [
+              "default"
+            ]
+          },
+          {
+            "description": "Marks the perp order as parent. This means that 1+ trigger orders depend on this perp order to be executed before they are considered executable. A perp order can not be a child, as a perp order is executed directly, since it is NOT a trigger order.",
+            "type": "string",
+            "enum": [
+              "parent"
+            ]
+          }
+        ]
       },
       "Expiration": {
         "description": "Expiration represents a point in time when some event happens. It can compare with a BlockInfo and will return is_expired() == true once the condition is hit (and for every block in the future)",
@@ -2515,9 +2709,13 @@
               "unhealthy": {
                 "type": "object",
                 "required": [
+                  "liquidation_health_factor",
                   "max_ltv_health_factor"
                 ],
                 "properties": {
+                  "liquidation_health_factor": {
+                    "$ref": "#/definitions/Decimal"
+                  },
                   "max_ltv_health_factor": {
                     "$ref": "#/definitions/Decimal"
                   }
@@ -2753,13 +2951,7 @@
       "NftConfigUpdates": {
         "type": "object",
         "properties": {
-          "credit_manager_contract_addr": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "health_contract_addr": {
+          "address_provider_contract_addr": {
             "type": [
               "string",
               "null"
@@ -2950,6 +3142,18 @@
             "properties": {
               "astro": {
                 "$ref": "#/definitions/AstroRoute"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "duality"
+            ],
+            "properties": {
+              "duality": {
+                "$ref": "#/definitions/DualityRoute"
               }
             },
             "additionalProperties": false
@@ -3684,6 +3888,7 @@
           "type": "string",
           "enum": [
             "default",
+            "usdc_margin",
             "high_levered_strategy"
           ]
         },
@@ -3741,6 +3946,7 @@
               "type": "string",
               "enum": [
                 "default",
+                "usdc_margin",
                 "high_levered_strategy"
               ]
             },
@@ -4027,6 +4233,16 @@
                     "order_size": {
                       "$ref": "#/definitions/Int128"
                     },
+                    "order_type": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/ExecutePerpOrderType"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "reduce_only": {
                       "type": [
                         "boolean",
@@ -4040,7 +4256,29 @@
               "additionalProperties": false
             },
             {
-              "description": "Dispatch orders to be triggered under specified conditions",
+              "description": "Executes a perp order against the given market for the current position size to close the position.",
+              "type": "object",
+              "required": [
+                "close_perp_position"
+              ],
+              "properties": {
+                "close_perp_position": {
+                  "type": "object",
+                  "required": [
+                    "denom"
+                  ],
+                  "properties": {
+                    "denom": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Dispatch orders to be triggered under specified conditions.",
               "type": "object",
               "required": [
                 "create_trigger_order"
@@ -4068,6 +4306,16 @@
                     },
                     "keeper_fee": {
                       "$ref": "#/definitions/Coin"
+                    },
+                    "order_type": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/CreateTriggerOrderType"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "additionalProperties": false
@@ -4097,7 +4345,7 @@
               "additionalProperties": false
             },
             {
-              "description": "Deposit coins into vault strategy If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault",
+              "description": "Deposit coins into vault strategy. If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault.",
               "type": "object",
               "required": [
                 "enter_vault"
@@ -4609,12 +4857,103 @@
                 }
               },
               "additionalProperties": false
+            },
+            {
+              "description": "If the other trigger_order is successfully executed, the condition is met.",
+              "type": "object",
+              "required": [
+                "trigger_order_executed"
+              ],
+              "properties": {
+                "trigger_order_executed": {
+                  "type": "object",
+                  "required": [
+                    "trigger_order_id"
+                  ],
+                  "properties": {
+                    "trigger_order_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "CreateTriggerOrderType": {
+          "oneOf": [
+            {
+              "description": "Marks the order to have no relation to another trigger order.",
+              "type": "string",
+              "enum": [
+                "default"
+              ]
+            },
+            {
+              "description": "Marks the order to have exactly 1 parent trigger order. This order can only be executed when the parent has been executed prior.",
+              "type": "string",
+              "enum": [
+                "parent"
+              ]
+            },
+            {
+              "description": "Marks the order as a parent order. This means 1+ trigger orders depend on this order to be executed before they are considered executable.",
+              "type": "string",
+              "enum": [
+                "child"
+              ]
             }
           ]
         },
         "Decimal": {
           "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
+        },
+        "DualityRoute": {
+          "type": "object",
+          "required": [
+            "from",
+            "swap_denoms",
+            "to"
+          ],
+          "properties": {
+            "from": {
+              "description": "Entry denom, in other words the asset we are selling",
+              "type": "string"
+            },
+            "swap_denoms": {
+              "description": "The denoms to swap through. For example, For a single swap route e.g A:B, the swap_denoms are [A, B] For a multi-swap route e.g A:B, B:C, C:D, the swap_denoms are [A, B, C]",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "to": {
+              "description": "Exit denom, in other words the asset we are buying",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ExecutePerpOrderType": {
+          "oneOf": [
+            {
+              "description": "Marks the perp order as default, without any trigger orders depending on it.",
+              "type": "string",
+              "enum": [
+                "default"
+              ]
+            },
+            {
+              "description": "Marks the perp order as parent. This means that 1+ trigger orders depend on this perp order to be executed before they are considered executable. A perp order can not be a child, as a perp order is executed directly, since it is NOT a trigger order.",
+              "type": "string",
+              "enum": [
+                "parent"
+              ]
+            }
+          ]
         },
         "Int128": {
           "description": "An implementation of i128 that is using strings for JSON encoding/decoding, such that the full i128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `i128` to get the value out:\n\n``` # use cosmwasm_std::Int128; let a = Int128::from(258i128); assert_eq!(a.i128(), 258); ```",
@@ -4747,6 +5086,18 @@
               "properties": {
                 "astro": {
                   "$ref": "#/definitions/AstroRoute"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "duality"
+              ],
+              "properties": {
+                "duality": {
+                  "$ref": "#/definitions/DualityRoute"
                 }
               },
               "additionalProperties": false
@@ -5192,6 +5543,16 @@
                     "order_size": {
                       "$ref": "#/definitions/Int128"
                     },
+                    "order_type": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/ExecutePerpOrderType"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
                     "reduce_only": {
                       "type": [
                         "boolean",
@@ -5205,7 +5566,29 @@
               "additionalProperties": false
             },
             {
-              "description": "Dispatch orders to be triggered under specified conditions",
+              "description": "Executes a perp order against the given market for the current position size to close the position.",
+              "type": "object",
+              "required": [
+                "close_perp_position"
+              ],
+              "properties": {
+                "close_perp_position": {
+                  "type": "object",
+                  "required": [
+                    "denom"
+                  ],
+                  "properties": {
+                    "denom": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "description": "Dispatch orders to be triggered under specified conditions.",
               "type": "object",
               "required": [
                 "create_trigger_order"
@@ -5233,6 +5616,16 @@
                     },
                     "keeper_fee": {
                       "$ref": "#/definitions/Coin"
+                    },
+                    "order_type": {
+                      "anyOf": [
+                        {
+                          "$ref": "#/definitions/CreateTriggerOrderType"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
                     }
                   },
                   "additionalProperties": false
@@ -5262,7 +5655,7 @@
               "additionalProperties": false
             },
             {
-              "description": "Deposit coins into vault strategy If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault",
+              "description": "Deposit coins into vault strategy. If `coin.amount: AccountBalance`, Rover attempts to deposit the account's entire balance into the vault.",
               "type": "object",
               "required": [
                 "enter_vault"
@@ -5774,12 +6167,103 @@
                 }
               },
               "additionalProperties": false
+            },
+            {
+              "description": "If the other trigger_order is successfully executed, the condition is met.",
+              "type": "object",
+              "required": [
+                "trigger_order_executed"
+              ],
+              "properties": {
+                "trigger_order_executed": {
+                  "type": "object",
+                  "required": [
+                    "trigger_order_id"
+                  ],
+                  "properties": {
+                    "trigger_order_id": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "CreateTriggerOrderType": {
+          "oneOf": [
+            {
+              "description": "Marks the order to have no relation to another trigger order.",
+              "type": "string",
+              "enum": [
+                "default"
+              ]
+            },
+            {
+              "description": "Marks the order to have exactly 1 parent trigger order. This order can only be executed when the parent has been executed prior.",
+              "type": "string",
+              "enum": [
+                "parent"
+              ]
+            },
+            {
+              "description": "Marks the order as a parent order. This means 1+ trigger orders depend on this order to be executed before they are considered executable.",
+              "type": "string",
+              "enum": [
+                "child"
+              ]
             }
           ]
         },
         "Decimal": {
           "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
+        },
+        "DualityRoute": {
+          "type": "object",
+          "required": [
+            "from",
+            "swap_denoms",
+            "to"
+          ],
+          "properties": {
+            "from": {
+              "description": "Entry denom, in other words the asset we are selling",
+              "type": "string"
+            },
+            "swap_denoms": {
+              "description": "The denoms to swap through. For example, For a single swap route e.g A:B, the swap_denoms are [A, B] For a multi-swap route e.g A:B, B:C, C:D, the swap_denoms are [A, B, C]",
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "to": {
+              "description": "Exit denom, in other words the asset we are buying",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "ExecutePerpOrderType": {
+          "oneOf": [
+            {
+              "description": "Marks the perp order as default, without any trigger orders depending on it.",
+              "type": "string",
+              "enum": [
+                "default"
+              ]
+            },
+            {
+              "description": "Marks the perp order as parent. This means that 1+ trigger orders depend on this perp order to be executed before they are considered executable. A perp order can not be a child, as a perp order is executed directly, since it is NOT a trigger order.",
+              "type": "string",
+              "enum": [
+                "parent"
+              ]
+            }
+          ]
         },
         "Int128": {
           "description": "An implementation of i128 that is using strings for JSON encoding/decoding, such that the full i128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `i128` to get the value out:\n\n``` # use cosmwasm_std::Int128; let a = Int128::from(258i128); assert_eq!(a.i128(), 258); ```",
@@ -5912,6 +6396,18 @@
               "properties": {
                 "astro": {
                   "$ref": "#/definitions/AstroRoute"
+                }
+              },
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "required": [
+                "duality"
+              ],
+              "properties": {
+                "duality": {
+                  "$ref": "#/definitions/DualityRoute"
                 }
               },
               "additionalProperties": false
@@ -6505,6 +7001,7 @@
               "type": "string",
               "enum": [
                 "default",
+                "usdc_margin",
                 "high_levered_strategy"
               ]
             },

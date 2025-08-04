@@ -1,14 +1,14 @@
 {
-  "addressProvider": "neutron17gs9wu3kqsk3au28qpew6d2fdevv6htafjf4apywd92pspngzuvswtvs5w",
-  "redBank": "neutron14zjmuel0t8q9rqezp2vtj706ckl8eqtrkc2cjexsssh8vgpuzxdqjuqydr",
-  "incentives": "neutron1lkk4e6y9pjkev9patc3t6lwey7032f3eqh577v8dvk9ws8awsv4sk0t45a",
-  "oracle": "neutron1hkggq76w07x53z9hu2hhq8kn8n9e77vc0nztrl2h3sn4cgz9v0ps577a53",
-  "rewardsCollector": "neutron140xs4mpefp3zquzp3w3xkervt0n8fdd84a7ce6u8nqrqmv6vtams7dmwcc",
-  "swapper": "neutron1pj9qaxj6wecnpu3yam5kz0mqq9wwjatfk7ssmsaq7uuhxy277atqy4cgwj",
-  "params": "neutron15tdtcemvkj3g7vuuz83twcekg86j3f58jet9lv08u0j7j8ztymsqd47l9z",
-  "zapper": "neutron1rthg6ey22zetm39knlshvp805xrxctu5dvwm92ee5j4e366rd68sklst25",
-  "health": "neutron1z9jkdvwwzrwjkgma0xzrz57jn7gpxclp8cdkwjszktqp2wsu8dsqqe5jmh",
-  "creditManager": "neutron1gtqq647nrkgwxr3anrdty6fqfvfqav9kkwuu7el0gw754yx42dgs0s92zx",
-  "accountNft": "neutron128pgfadzvmck5qccgpcjwew4lgsn5e4ha82cu7rrnyg45rrpxessuqdnmt",
-  "perps": "neutron1mmjd5gz5943s4nnd5929s5hxfzw6lv3jrp3zthkxkanve70qax4qwyyzt5"
+  "addressProvider": "neutron1jwpsthz0ysx2xvk5u2588xffrp92ty3tyn20he32fzafae7xal7ssregzu",
+  "redBank": "neutron1m8lfh9u5jf6738dmpjq5a2mp65lhcun35jmsjqf9dhpkpmu0hzvs4n2aw9",
+  "incentives": "neutron1mvmffgxn00d5fcg8kx95yl3wsn5nqczrcg4nvwf4z583xf00pgwqnx5rtd",
+  "oracle": "neutron18lptg4kvkgseu6teay0pha4tx5alcxrffe4cwx75djcm45yujulsv6d6gp",
+  "rewardsCollector": "neutron1zesu062udnz28cklvjcmhpryw74jam0w8zu4kq978qd29sltsg2sj7mtun",
+  "swapper": "neutron1skac2da8xum9nd4xw6w2vy32ukf2yj87yfjhscmle4st7vk7px6sxyv0j0",
+  "params": "neutron1uq7gxlfw8mu0g8e094lt6czflnfl5xvc2s6hk8lln5grfplk5mls4u6efv",
+  "zapper": "neutron19s26fwfhm34qettwm6mvsy5y8n89yrzyf6j95flfe6ye40j59a8q2upcuc",
+  "health": "neutron1gyvt5sny5vfy8a6gzw8cf0rml6uzn5x4ms8zuuq2r8wsyeu0xytqqfy0zs",
+  "creditManager": "neutron1vuy8j6lwldmqzvdhx2jsdxqrs4hfjxu23lqfz4te43t4u0cpj07qrh40tq",
+  "accountNft": "neutron1llxs4xmj9d7kddccl7402wxa2nnxkw8v2k70hn6qj7h67hk0j7wqfrktf8",
+  "perps": "neutron1wt2gv93pafewu8m7jh9dnqtz6xqkrvjeueehkeepqmzqc0nfqdqsjrkn8r"
 }

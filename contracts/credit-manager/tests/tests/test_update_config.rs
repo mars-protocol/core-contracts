@@ -28,9 +28,11 @@ fn only_owner_can_update_config() {
             oracle: None,
             red_bank: None,
             incentives: None,
+            max_trigger_orders: None,
             max_unlocking_positions: None,
             max_slippage: None,
             swapper: None,
+            duality_swapper: None,
             zapper: None,
             health_contract: None,
             rewards_collector: None,
@@ -90,10 +92,12 @@ fn update_config_works_with_full_config() {
     let new_red_bank = deploy_new_red_bank(&mut mock.app);
     let new_incentives = IncentivesUnchecked::new("new_incentives".to_string());
     let new_zapper = ZapperBase::new("new_zapper".to_string());
+    let new_max_trigger_orders = 50u8;
     let new_unlocking_max = Uint128::new(321);
     let new_max_slippage = Decimal::percent(12);
     let new_perps_lb_ratio = Decimal::percent(39);
     let new_swapper = SwapperBase::new("new_swapper".to_string());
+    let new_duality_swapper = SwapperBase::new("new_duality_swapper".to_string());
     let new_health_contract = HealthContractUnchecked::new("new_health_contract".to_string());
     let new_rewards_collector = "rewards_collector_contract_new".to_string();
     let new_params_contract = ParamsUnchecked::new("new_params_contract".to_string());
@@ -109,9 +113,11 @@ fn update_config_works_with_full_config() {
             oracle: Some(new_oracle.clone()),
             red_bank: Some(new_red_bank.clone()),
             incentives: Some(new_incentives.clone()),
+            max_trigger_orders: Some(new_max_trigger_orders),
             max_unlocking_positions: Some(new_unlocking_max),
             max_slippage: Some(new_max_slippage),
             swapper: Some(new_swapper.clone()),
+            duality_swapper: Some(new_duality_swapper.clone()),
             zapper: Some(new_zapper.clone()),
             health_contract: Some(new_health_contract.clone()),
             rewards_collector: Some(new_rewards_collector.clone()),

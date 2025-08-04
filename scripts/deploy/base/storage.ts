@@ -29,6 +29,7 @@ export class Storage implements StorageItems {
         addresses: {},
         codeIds: {},
         actions: {
+          dualityRoutesSet: [],
           addressProviderSet: {},
           redBankMarketsSet: [],
           assetsSet: [],

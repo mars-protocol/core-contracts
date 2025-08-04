@@ -33,14 +33,9 @@ pub fn execute(
         ExecuteMsg::UpdateConfig {
             config,
         } => config::update_config(deps, info, config),
-        ExecuteMsg::InitAsset {
-            denom,
-            params,
-        } => asset::init_asset(deps, env, info, denom, params),
-        ExecuteMsg::UpdateAsset {
-            denom,
-            params,
-        } => asset::update_asset(deps, env, info, denom, params),
+        ExecuteMsg::UpdateMarketParams(update) => {
+            asset::update_market_params(deps, env, info, update)
+        }
         ExecuteMsg::Deposit {
             account_id,
             on_behalf_of,
@@ -239,5 +234,5 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
-    migrations::v2_2_0::migrate(deps)
+    migrations::v2_3_0::migrate(deps)
 }

@@ -13,7 +13,7 @@ use super::{
     },
     hls::HlsParamsBase,
 };
-use crate::error::MarsError;
+use crate::{error::MarsError, red_bank::InterestRateModel};
 
 #[cw_serde]
 pub struct CmSettings<T> {
@@ -74,6 +74,8 @@ pub struct AssetParamsBase<T> {
     pub protocol_liquidation_fee: Decimal,
     pub deposit_cap: Uint128,
     pub close_factor: Decimal,
+    pub reserve_factor: Decimal,
+    pub interest_rate_model: InterestRateModel,
 }
 
 pub type AssetParams = AssetParamsBase<Addr>;
@@ -95,6 +97,8 @@ impl From<AssetParams> for AssetParamsUnchecked {
             protocol_liquidation_fee: p.protocol_liquidation_fee,
             deposit_cap: p.deposit_cap,
             close_factor: p.close_factor,
+            reserve_factor: p.reserve_factor,
+            interest_rate_model: p.interest_rate_model,
         }
     }
 }
@@ -134,6 +138,8 @@ impl AssetParamsUnchecked {
             protocol_liquidation_fee: self.protocol_liquidation_fee,
             deposit_cap: self.deposit_cap,
             close_factor: self.close_factor,
+            reserve_factor: self.reserve_factor,
+            interest_rate_model: self.interest_rate_model.clone(),
         })
     }
 }

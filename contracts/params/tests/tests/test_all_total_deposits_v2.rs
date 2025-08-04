@@ -24,13 +24,11 @@ fn should_return_total_deposits() {
     let osmo_denom = "uosmo";
     let uusdc_denom = "uusdc";
 
-    let (market_params, asset_params) = osmo_asset_params();
+    let asset_params = osmo_asset_params();
     oracle.set_price_source_fixed(&mut mock_env, &asset_params.denom, Decimal::one());
-    red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
     params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = usdc_asset_params();
+    let asset_params = usdc_asset_params();
     oracle.set_price_source_fixed(&mut mock_env, &asset_params.denom, Decimal::one());
-    red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
     params.init_params(&mut mock_env, asset_params);
 
     mock_env.fund_accounts(&[&provider], funded_amount.u128(), &[osmo_denom, uusdc_denom]);

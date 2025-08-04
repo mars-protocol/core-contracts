@@ -259,6 +259,7 @@ export const neutronMainnetConfig: DeploymentConfig = {
     routes: [],
   },
   maxValueForBurn: '10000',
+  maxTriggerOrders: 50,
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',
   zapperContractName: 'mars_zapper_astroport',

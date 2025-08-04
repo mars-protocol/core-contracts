@@ -16,7 +16,7 @@ use crate::{
     borrow::borrow,
     claim_astro_lp_rewards::claim_lp_rewards,
     claim_rewards::claim_rewards,
-    deposit::{assert_deposit_caps, deposit, update_or_reset_denom_deposits},
+    deposit::{assert_deposit_caps, deposit, update_or_reset_denom_deposits, validate_deposit},
     error::{ContractError, ContractResult},
     health::{assert_max_ltv, query_health_state},
     hls::assert_hls_rules,
@@ -25,7 +25,7 @@ use crate::{
     liquidate_astro_lp::liquidate_astro_lp,
     liquidate_deposit::liquidate_deposit,
     liquidate_lend::liquidate_lend,
-    perp::{close_all_perps, execute_perp_order},
+    perp::{close_all_perps, close_perp_position, execute_perp_order},
     perp_vault::{deposit_to_perp_vault, unlock_from_perp_vault, withdraw_from_perp_vault},
     reclaim::reclaim,
     refund::refund_coin_balances,
@@ -33,12 +33,14 @@ use crate::{
     stake_astro_lp::stake_lp,
     state::{ACCOUNT_KINDS, ACCOUNT_NFT, REENTRANCY_GUARD, VAULTS},
     swap::swap_exact_in,
-    trigger::{create_trigger_order, delete_trigger_order},
+    trigger::{
+        check_order_relations_and_set_parent_id, create_trigger_order, delete_trigger_order,
+    },
     unstake_astro_lp::unstake_lp,
     update_coin_balances::{update_coin_balance, update_coin_balance_after_vault_liquidation},
     utils::{
         assert_allowed_managed_vault_code_ids, assert_is_authorized, assert_is_not_blacklisted,
-        assert_vault_has_no_admin, get_account_kind,
+        assert_vault_has_no_admin, extract_action_names, get_account_kind,
     },
     vault::{
         enter_vault, exit_vault, exit_vault_unlocked, liquidate_vault, request_vault_unlock,
@@ -107,24 +109,23 @@ pub fn dispatch_actions(
     info: MessageInfo,
     account_id: Option<String>,
     account_kind: Option<AccountKind>,
-    actions: Vec<Action>,
+    mut actions: Vec<Action>,
     enforce_ownership: bool,
 ) -> ContractResult<Response> {
     let mut response = Response::new();
 
-    let account_id = match account_id {
+    let (account_id, account_kind) = match account_id {
         Some(acc_id) => {
             validate_account(&deps, &info, &acc_id, &actions, enforce_ownership)?;
-            acc_id
+            let kind = get_account_kind(deps.storage, &acc_id)?;
+            (acc_id, kind)
         }
         None => {
-            let (acc_id, res) = create_credit_account(
-                &mut deps,
-                info.sender.clone(),
-                account_kind.unwrap_or(AccountKind::Default),
-            )?;
+            let account_kind = account_kind.unwrap_or(AccountKind::Default);
+            let (acc_id, res) =
+                create_credit_account(&mut deps, info.sender.clone(), account_kind.clone())?;
             response = res;
-            acc_id
+            (acc_id, account_kind)
         }
     };
     let account_id = &account_id;
@@ -156,6 +157,10 @@ pub fn dispatch_actions(
         None
     };
 
+    // Check the actions and ensure that ExecutePerpOrder and CreateTriggerOrder relation conditions
+    // are met. Fill in the relational `trigger_order_id` of child orders when needed.
+    check_order_relations_and_set_parent_id(deps.storage, account_id, &mut actions)?;
+
     // We use a Map to record all denoms whose deposited amount may go up as the
     // result of any action. We invoke the AssertDepositCaps callback in the end
     // to make sure that none of the deposit cap is exceeded.
@@ -181,6 +186,7 @@ pub fn dispatch_actions(
     for action in actions {
         match action {
             Action::Deposit(coin) => {
+                validate_deposit(deps.as_ref(), &account_kind, &coin)?;
                 response = deposit(&mut deps, response, account_id, &coin, &mut received_coins)?;
                 // add the denom to the map to check the deposit cap in the end of the TX
                 update_or_reset_denom_deposits(
@@ -260,16 +266,24 @@ pub fn dispatch_actions(
                 denom,
                 order_size: size,
                 reduce_only,
+                ..
             } => callbacks.push(CallbackMsg::ExecutePerpOrder {
                 account_id: account_id.to_string(),
                 denom,
                 size,
                 reduce_only,
             }),
+            Action::ClosePerpPosition {
+                denom,
+            } => callbacks.push(CallbackMsg::ClosePerpPosition {
+                denom,
+                account_id: account_id.to_string(),
+            }),
             Action::CreateTriggerOrder {
                 actions,
                 conditions,
                 keeper_fee,
+                ..
             } => callbacks.push(CallbackMsg::CreateTriggerOrder {
                 account_id: account_id.to_string(),
                 actions,
@@ -280,7 +294,7 @@ pub fn dispatch_actions(
                 trigger_order_id,
             } => callbacks.push(CallbackMsg::DeleteTriggerOrder {
                 account_id: account_id.to_string(),
-                trigger_order_id: trigger_order_id.to_string(),
+                trigger_order_id,
             }),
             Action::EnterVault {
                 vault,
@@ -529,6 +543,23 @@ fn validate_account(
 
             assert_is_not_blacklisted(deps, &deps.api.addr_validate(&vault_addr)?)?;
         }
+        AccountKind::UsdcMargin => {
+            if enforce_ownership {
+                assert_is_authorized(deps, &info.sender, acc_id)?;
+            }
+
+            let actions_not_allowed: Vec<&Action> =
+                actions.iter().filter(|action| !action.is_allowed_for_usdc_margin()).collect();
+
+            if !actions_not_allowed.is_empty() {
+                let action = extract_action_names(&actions_not_allowed);
+
+                return Err(ContractError::IllegalAction {
+                    user: acc_id.to_string(),
+                    action,
+                });
+            }
+        }
         // Fund manager vault can interact with the account managed by the fund manager wallet.
         // This vault can use the account without any restrictions.
         AccountKind::FundManager {
@@ -615,6 +646,10 @@ pub fn execute_callback(
             account_id,
             trigger_order_id,
         } => delete_trigger_order(deps, &account_id, &trigger_order_id),
+        CallbackMsg::ClosePerpPosition {
+            denom,
+            account_id,
+        } => close_perp_position(deps, &account_id, &denom),
         CallbackMsg::CloseAllPerps {
             account_id,
         } => close_all_perps(deps, &account_id, ActionKind::Liquidation),
