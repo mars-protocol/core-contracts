@@ -1283,6 +1283,32 @@
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
       },
+      "DualityRoute": {
+        "type": "object",
+        "required": [
+          "from",
+          "swap_denoms",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "description": "Entry denom, in other words the asset we are selling",
+            "type": "string"
+          },
+          "swap_denoms": {
+            "description": "The denoms to swap through. For example, For a single swap route e.g A:B, the swap_denoms are [A, B] For a multi-swap route e.g A:B, B:C, C:D, the swap_denoms are [A, B, C]",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "to": {
+            "description": "Exit denom, in other words the asset we are buying",
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "ExecutePerpOrderType": {
         "oneOf": [
           {
@@ -1525,6 +1551,18 @@
             "properties": {
               "astro": {
                 "$ref": "#/definitions/AstroRoute"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "duality"
+            ],
+            "properties": {
+              "duality": {
+                "$ref": "#/definitions/DualityRoute"
               }
             },
             "additionalProperties": false

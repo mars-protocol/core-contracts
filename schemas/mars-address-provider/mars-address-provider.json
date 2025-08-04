@@ -110,6 +110,13 @@
             ]
           },
           {
+            "description": "The duality swapper contract on the chain",
+            "type": "string",
+            "enum": [
+              "duality_swapper"
+            ]
+          },
+          {
             "description": "Astroport incentives contract",
             "type": "string",
             "enum": [
@@ -342,6 +349,13 @@
             ]
           },
           {
+            "description": "The duality swapper contract on the chain",
+            "type": "string",
+            "enum": [
+              "duality_swapper"
+            ]
+          },
+          {
             "description": "Astroport incentives contract",
             "type": "string",
             "enum": [
@@ -439,6 +453,13 @@
               "type": "string",
               "enum": [
                 "swapper"
+              ]
+            },
+            {
+              "description": "The duality swapper contract on the chain",
+              "type": "string",
+              "enum": [
+                "duality_swapper"
               ]
             },
             {
@@ -545,6 +566,13 @@
               ]
             },
             {
+              "description": "The duality swapper contract on the chain",
+              "type": "string",
+              "enum": [
+                "duality_swapper"
+              ]
+            },
+            {
               "description": "Astroport incentives contract",
               "type": "string",
               "enum": [
@@ -645,6 +673,13 @@
               "type": "string",
               "enum": [
                 "swapper"
+              ]
+            },
+            {
+              "description": "The duality swapper contract on the chain",
+              "type": "string",
+              "enum": [
+                "duality_swapper"
               ]
             },
             {

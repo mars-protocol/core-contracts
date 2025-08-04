@@ -83,5 +83,5 @@ pub fn query_config(deps: Deps) -> HealthResult<ConfigResponse> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> HealthResult<Response> {
-    migrations::v2_2_0::migrate(deps)
+    migrations::v2_3_0::migrate(deps)
 }
