@@ -1,10 +1,15 @@
 use mars_testing::multitest::helpers::MockEnv;
 
+use crate::tests::helpers::delta_neutral_helpers::{
+    deploy_active_delta_neutral_contract, query_active_delta_neutral_config,
+};
+
 #[test]
 fn test_config_is_created_on_instantiate() {
-    let mock = MockEnv::new().build().unwrap();
+    let mut mock = MockEnv::new().build().unwrap();
+    let active_delta_neutral = deploy_active_delta_neutral_contract(&mut mock);
     // query Config - it should be created by default
-    let config = mock.query_active_delta_neutral_config();
+    let config = query_active_delta_neutral_config(&mock, &active_delta_neutral);
 
     assert_eq!(config.owner, "owner");
     assert_eq!(config.credit_account_id, Some("2".to_string()));

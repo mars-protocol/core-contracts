@@ -77,4 +77,9 @@ pub enum ContractError {
 
     #[error("Credit account not initialized")]
     CreditAccountNotInitialized {},
+
+    #[error("No collateral found for denom: {denom}")]
+    NoCollateralForDenom {
+        denom: String,
+    },
 }

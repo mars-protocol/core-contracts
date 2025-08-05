@@ -50,7 +50,8 @@ pub fn buy(
 ) -> Result<Response, ContractError> {
     let config: Config = CONFIG.load(deps.storage)?;
     let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, market_id)?;
-    let credit_account_id = config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
+    let credit_account_id =
+        config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
     validate_swapper_route(swapper_route, &market_config.spot_denom, &market_config.perp_denom)?;
 
     let credit_manager = CreditManager::new(config.credit_manager_addr);
@@ -73,8 +74,7 @@ pub fn buy(
         swapper_route,
     );
 
-    let execute_spot_swap =
-        credit_manager.execute_actions_msg(credit_account_id, actions)?;
+    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions)?;
 
     let complete_hedge = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
@@ -125,7 +125,8 @@ pub fn sell(
 ) -> Result<Response, ContractError> {
     let config: Config = CONFIG.load(deps.storage)?;
     let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, market_id)?;
-    let credit_account_id = config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
+    let credit_account_id =
+        config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
     validate_swapper_route(swapper_route, &market_config.spot_denom, &market_config.perp_denom)?;
 
     let credit_manager = CreditManager::new(config.credit_manager_addr);
@@ -148,8 +149,7 @@ pub fn sell(
         swapper_route,
     );
 
-    let execute_spot_swap =
-        credit_manager.execute_actions_msg(credit_account_id, actions)?;
+    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions)?;
 
     // Complete the hedge by calling an internal hedge function
     let complete_hedge = CosmosMsg::Wasm(WasmMsg::Execute {
@@ -211,16 +211,15 @@ pub fn hedge(
     let config: Config = CONFIG.load(deps.storage)?;
     let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, market_id)?;
     let mut position_state: Position = POSITION.load(deps.storage, market_id)?;
-    let credit_account_id = config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
-
+    let credit_account_id =
+        config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
 
     // Contract adapters
     let credit_manager = CreditManager::new(config.credit_manager_addr.clone());
     let params = Params::new(deps.api.addr_validate(&market_config.perp_denom)?);
 
     // Fresh state info
-    let mars_positions =
-        credit_manager.query_positions(&deps.querier, credit_account_id)?;
+    let mars_positions = credit_manager.query_positions(&deps.querier, credit_account_id)?;
 
     let PositionDeltas {
         funding_delta,
