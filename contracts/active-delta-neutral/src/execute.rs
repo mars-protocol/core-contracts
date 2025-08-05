@@ -44,19 +44,20 @@ use crate::{
 pub fn buy(
     deps: DepsMut,
     env: Env,
-    denom: &str,
+    market_id: &str,
     amount: Uint128,
     swapper_route: &SwapperRoute,
 ) -> Result<Response, ContractError> {
     let config: Config = CONFIG.load(deps.storage)?;
-    let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, denom)?;
-
+    let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, market_id)?;
+    let credit_account_id =
+        config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
     validate_swapper_route(swapper_route, &market_config.spot_denom, &market_config.perp_denom)?;
 
     let credit_manager = CreditManager::new(config.credit_manager_addr);
 
     let stable_balance = combined_balance(
-        &credit_manager.query_positions(&deps.querier, &config.credit_account_id)?,
+        &credit_manager.query_positions(&deps.querier, credit_account_id)?,
         &market_config.usdc_denom,
     )?;
 
@@ -73,14 +74,13 @@ pub fn buy(
         swapper_route,
     );
 
-    let execute_spot_swap =
-        credit_manager.execute_actions_msg(&config.credit_account_id, actions)?;
+    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions)?;
 
     let complete_hedge = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
-        msg: to_json_binary(&ExecuteMsg::CompleteHedge {
+        msg: to_json_binary(&ExecuteMsg::Hedge {
             swap_exact_in_amount: amount,
-            denom: market_config.spot_denom.clone(),
+            market_id: market_config.spot_denom.clone(),
             increasing: true,
         })?,
         funds: vec![],
@@ -120,18 +120,19 @@ pub fn sell(
     env: Env,
     _info: MessageInfo,
     amount: Uint128,
-    denom: &str,
+    market_id: &str,
     swapper_route: &SwapperRoute,
 ) -> Result<Response, ContractError> {
     let config: Config = CONFIG.load(deps.storage)?;
-    let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, denom)?;
-
+    let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, market_id)?;
+    let credit_account_id =
+        config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
     validate_swapper_route(swapper_route, &market_config.spot_denom, &market_config.perp_denom)?;
 
     let credit_manager = CreditManager::new(config.credit_manager_addr);
 
     let spot_balance = combined_balance(
-        &credit_manager.query_positions(&deps.querier, &config.credit_account_id)?,
+        &credit_manager.query_positions(&deps.querier, credit_account_id)?,
         &market_config.spot_denom,
     )?;
 
@@ -148,15 +149,14 @@ pub fn sell(
         swapper_route,
     );
 
-    let execute_spot_swap =
-        credit_manager.execute_actions_msg(&config.credit_account_id, actions)?;
+    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions)?;
 
     // Complete the hedge by calling an internal hedge function
     let complete_hedge = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
-        msg: to_json_binary(&ExecuteMsg::CompleteHedge {
+        msg: to_json_binary(&ExecuteMsg::Hedge {
             swap_exact_in_amount: amount,
-            denom: market_config.spot_denom.clone(),
+            market_id: market_config.spot_denom.clone(),
             increasing: false,
         })?,
         funds: vec![],
@@ -200,7 +200,7 @@ pub fn hedge(
     env: Env,
     info: MessageInfo,
     swap_in_amount: Uint128,
-    denom: &str,
+    market_id: &str,
     increasing: bool,
 ) -> ContractResult<Response> {
     if info.sender != env.contract.address {
@@ -209,16 +209,17 @@ pub fn hedge(
 
     // State variables
     let config: Config = CONFIG.load(deps.storage)?;
-    let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, denom)?;
-    let mut position_state: Position = POSITION.load(deps.storage, denom)?;
+    let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, market_id)?;
+    let mut position_state: Position = POSITION.load(deps.storage, market_id)?;
+    let credit_account_id =
+        config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
 
     // Contract adapters
     let credit_manager = CreditManager::new(config.credit_manager_addr.clone());
     let params = Params::new(deps.api.addr_validate(&market_config.perp_denom)?);
 
     // Fresh state info
-    let mars_positions =
-        credit_manager.query_positions(&deps.querier, &market_config.spot_denom)?;
+    let mars_positions = credit_manager.query_positions(&deps.querier, credit_account_id)?;
 
     let PositionDeltas {
         funding_delta,
@@ -265,7 +266,7 @@ pub fn hedge(
         ),
     }?;
 
-    POSITION.save(deps.storage, denom, &position_state)?;
+    POSITION.save(deps.storage, market_id, &position_state)?;
 
     // TODO execute perp order of amount that we bought or sold.
     // If we are selling volatile we need to long perp size by the amount that we sold.

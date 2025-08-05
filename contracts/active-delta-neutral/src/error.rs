@@ -74,4 +74,12 @@ pub enum ContractError {
 
     #[error("{0}")]
     ValidationError(#[from] ValidationError),
+
+    #[error("Credit account not initialized")]
+    CreditAccountNotInitialized {},
+
+    #[error("No collateral found for denom: {denom}")]
+    NoCollateralForDenom {
+        denom: String,
+    },
 }

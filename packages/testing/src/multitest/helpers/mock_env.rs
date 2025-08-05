@@ -25,14 +25,8 @@ use mars_types::{
         ExecuteMsg as NftExecuteMsg, InstantiateMsg as NftInstantiateMsg, NftConfigUpdates,
         QueryMsg as NftQueryMsg, UncheckedNftConfig,
     },
-    active_delta_neutral::{
-        execute::ExecuteMsg as ActiveDeltaNeutralExecuteMsg,
-        instantiate::InstantiateMsg as ActiveDeltaNeutralInstantiateMsg,
-        query::{MarketConfig, QueryMsg as ActiveDeltaNeutralQueryMsg},
-    },
     adapters::{
         account_nft::AccountNftUnchecked,
-        active_delta_neutral::ActiveDeltaNeutral,
         health::HealthContract,
         incentives::{Incentives, IncentivesUnchecked},
         oracle::{Oracle, OracleBase, OracleUnchecked},
@@ -100,10 +94,7 @@ use super::{
 };
 use crate::{
     integration::mock_contracts::mock_rewards_collector_osmosis_contract,
-    multitest::{
-        helpers::active_delta_neutral_contract,
-        modules::token_factory::{CustomApp, TokenFactory},
-    },
+    multitest::modules::token_factory::{CustomApp, TokenFactory},
 };
 
 pub const DEFAULT_RED_BANK_COIN_BALANCE: Uint128 = Uint128::new(100_000_000);
@@ -117,7 +108,6 @@ pub struct MockEnv {
     pub params: Params,
     pub perps: Perps,
     pub address_provider: Addr,
-    pub active_delta_neutral: ActiveDeltaNeutral,
 }
 
 pub struct MockEnvBuilder {
@@ -258,21 +248,6 @@ impl MockEnv {
                 actions,
             },
             send_funds,
-        )
-    }
-
-    pub fn add_active_delta_neutral_market(
-        &mut self,
-        sender: &Addr,
-        market_config: MarketConfig,
-    ) -> AnyResult<AppResponse> {
-        self.app.execute_contract(
-            sender.clone(),
-            self.active_delta_neutral.address().clone(),
-            &ActiveDeltaNeutralExecuteMsg::AddMarket {
-                config: market_config,
-            },
-            &[],
         )
     }
 
@@ -964,35 +939,6 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_active_delta_neutral_market(&self, market_id: &str) -> MarketConfig {
-        self.app
-            .wrap()
-            .query_wasm_smart(
-                self.active_delta_neutral.address(),
-                &ActiveDeltaNeutralQueryMsg::MarketConfig {
-                    market_id: market_id.to_string(),
-                },
-            )
-            .unwrap()
-    }
-
-    pub fn query_all_active_delta_neutral_markets(
-        &self,
-        start_after: Option<String>,
-        limit: Option<u32>,
-    ) -> PaginationResponse<MarketConfig> {
-        self.app
-            .wrap()
-            .query_wasm_smart(
-                self.active_delta_neutral.address(),
-                &ActiveDeltaNeutralQueryMsg::MarketConfigs {
-                    start_after,
-                    limit,
-                },
-            )
-            .unwrap()
-    }
-
     pub fn query_preview_redeem(&self, vault: &VaultUnchecked, shares: Uint128) -> Uint128 {
         vault
             .check(&MockApi::default())
@@ -1276,7 +1222,6 @@ impl MockEnvBuilder {
         }
 
         let perps = self.deploy_perps_contract();
-        let active_delta_neutral = self.deploy_active_delta_neutral_contract();
         self.update_config(
             &rover,
             ConfigUpdates {
@@ -1299,7 +1244,6 @@ impl MockEnvBuilder {
             params,
             perps,
             address_provider: addr_provider,
-            active_delta_neutral,
         })
     }
 
@@ -1336,7 +1280,7 @@ impl MockEnvBuilder {
         }
     }
 
-    fn set_address(&mut self, address_type: MarsAddressType, address: Addr) {
+    pub fn set_address(&mut self, address_type: MarsAddressType, address: Addr) {
         let address_provider_addr = self.get_address_provider();
         self.app
             .execute_contract(
@@ -1617,30 +1561,6 @@ impl MockEnvBuilder {
         Perps::new(addr)
     }
 
-    pub fn deploy_active_delta_neutral_contract(&mut self) -> ActiveDeltaNeutral {
-        let contract_code_id = self.app.store_code(active_delta_neutral_contract());
-        let owner = self.get_owner();
-        let address_provider = self.get_address_provider();
-
-        let addr = self
-            .app
-            .instantiate_contract(
-                contract_code_id,
-                owner.clone(),
-                &ActiveDeltaNeutralInstantiateMsg {
-                    address_provider: address_provider.into(),
-                },
-                &[],
-                "mock-active-delta-neutral-contract",
-                Some(owner.to_string()),
-            )
-            .unwrap();
-
-        self.set_address(MarsAddressType::ActiveDeltaNeutral, addr.clone());
-
-        ActiveDeltaNeutral::new(addr)
-    }
-
     fn get_health_contract(&mut self) -> HealthContract {
         if self.health_contract.is_none() {
             let hc = self.deploy_health_contract();
@@ -1667,6 +1587,8 @@ impl MockEnvBuilder {
                 Some(owner.to_string()),
             )
             .unwrap();
+
+        self.set_address(MarsAddressType::Health, addr.clone());
 
         HealthContract::new(addr)
     }

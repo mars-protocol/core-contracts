@@ -9,7 +9,7 @@ use mars_types::{
 };
 use mars_utils::helpers::uint128_to_int128;
 
-use crate::error::ContractResult;
+use crate::error::{ContractError, ContractResult};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PositionDeltas {
@@ -116,7 +116,17 @@ pub fn validate_swapper_route(
 /// # Returns
 /// * `ContractResult<Uint128>` - The sum of deposit and lend amounts for the given denom, or an error if either is missing.
 pub fn combined_balance(positions: &Positions, denom: &str) -> ContractResult<Uint128> {
-    let deposit = positions.deposits.iter().find(|deposit| deposit.denom == denom).unwrap();
-    let lend = positions.lends.iter().find(|lend| lend.denom == denom).unwrap();
-    Ok(deposit.amount.checked_add(lend.amount)?)
+    let deposit = positions.deposits.iter().find(|deposit| deposit.denom == denom);
+    let lend = positions.lends.iter().find(|lend| lend.denom == denom);
+
+    if deposit.is_none() && lend.is_none() {
+        return Err(ContractError::NoCollateralForDenom {
+            denom: denom.to_string(),
+        });
+    }
+
+    let deposit = deposit.map(|d| d.amount).unwrap_or_default();
+    let lend = lend.map(|l| l.amount).unwrap_or_default();
+
+    Ok(deposit.checked_add(lend)?)
 }
