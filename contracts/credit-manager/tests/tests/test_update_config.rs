@@ -40,6 +40,7 @@ fn only_owner_can_update_config() {
             perps: None,
             keeper_fee_config: None,
             perps_liquidation_bonus_ratio: None,
+            swap_fee: None,
         },
     );
 
@@ -105,6 +106,7 @@ fn update_config_works_with_full_config() {
     let keeper_fee_config = KeeperFeeConfig {
         min_fee: coin(100000, "uusdc"),
     };
+    let new_swap_fee = Decimal::percent(1);
 
     mock.update_config(
         &Addr::unchecked(original_config.ownership.owner.clone().unwrap()),
@@ -125,6 +127,7 @@ fn update_config_works_with_full_config() {
             perps: Some(new_perps_contract.clone()),
             keeper_fee_config: Some(keeper_fee_config.clone()),
             perps_liquidation_bonus_ratio: Some(new_perps_lb_ratio),
+            swap_fee: Some(new_swap_fee),
         },
     )
     .unwrap();
@@ -174,6 +177,9 @@ fn update_config_works_with_full_config() {
 
     assert_eq!(new_config.keeper_fee_config, keeper_fee_config);
     assert_ne!(new_config.keeper_fee_config, original_config.keeper_fee_config);
+
+    assert_eq!(new_config.swap_fee, new_swap_fee);
+    assert_ne!(new_config.swap_fee, original_config.swap_fee);
 
     let rc_accounts = mock.query_accounts(&new_rewards_collector, None, None);
     let rc_account = rc_accounts.first().unwrap();

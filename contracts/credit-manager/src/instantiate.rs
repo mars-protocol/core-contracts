@@ -5,9 +5,7 @@ use mars_types::credit_manager::InstantiateMsg;
 use crate::{
     error::ContractResult,
     state::{
-        DUALITY_SWAPPER, HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE,
-        MAX_TRIGGER_ORDERS, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS_LB_RATIO,
-        RED_BANK, SWAPPER, ZAPPER,
+        DUALITY_SWAPPER, HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE, MAX_TRIGGER_ORDERS, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS_LB_RATIO, RED_BANK, SWAPPER, SWAP_FEE, ZAPPER
     },
     utils::{assert_max_slippage, assert_perps_lb_ratio},
 };
@@ -39,6 +37,7 @@ pub fn store_config(deps: DepsMut, env: Env, msg: &InstantiateMsg) -> ContractRe
     PARAMS.save(deps.storage, &msg.params.check(deps.api)?)?;
     INCENTIVES.save(deps.storage, &msg.incentives.check(deps.api, env.contract.address)?)?;
     KEEPER_FEE_CONFIG.save(deps.storage, &msg.keeper_fee_config)?;
+    SWAP_FEE.save(deps.storage, &msg.swap_fee)?;
 
     Ok(())
 }

@@ -101,6 +101,15 @@ pub fn assert_perps_lb_ratio(perps_lb_ratio: Decimal) -> ContractResult<()> {
     Ok(())
 }
 
+pub fn assert_swap_fee(swap_fee: Decimal) -> ContractResult<()> {
+    if swap_fee < Decimal::zero() || swap_fee >= Decimal::one() {
+        return Err(ContractError::InvalidConfig {
+            reason: "Swap fee must be greater than 0 and less than 1".to_string(),
+        });
+    }
+    Ok(())
+}   
+
 pub fn assert_withdraw_enabled(
     storage: &dyn Storage,
     querier: &QuerierWrapper,
