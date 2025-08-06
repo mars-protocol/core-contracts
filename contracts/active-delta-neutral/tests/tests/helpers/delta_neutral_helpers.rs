@@ -123,6 +123,7 @@ pub fn deploy_active_delta_neutral_contract(mock_env: &mut MockEnv) -> ActiveDel
             owner.clone(),
             &InstantiateMsg {
                 address_provider: mock_env.address_provider.clone().into(),
+                base_denom: "uusdc".to_string(),
             },
             &[],
             "mock-active-delta-neutral-contract",

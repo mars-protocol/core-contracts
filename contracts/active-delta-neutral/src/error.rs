@@ -4,6 +4,7 @@ use cosmwasm_std::{
     SignedDecimalRangeExceeded, StdError,
 };
 use mars_delta_neutral_position::types::Side;
+use mars_owner::OwnerError;
 use mars_utils::error::ValidationError;
 use thiserror::Error;
 
@@ -19,6 +20,9 @@ pub enum ContractError {
 
     #[error("Account ID not owned by this contract")]
     NotOwned {},
+
+    #[error("{0}")]
+    Owner(#[from] OwnerError),
 
     #[error("Profitability validation failed")]
     ProfitabilityValidationFailed {},
@@ -82,4 +86,18 @@ pub enum ContractError {
     NoCollateralForDenom {
         denom: String,
     },
+
+    #[error("Invalid funds: Received multiple coins. May only send one coin of denom: {denom}")]
+    ExcessAssets {
+        denom: String,
+    },
+
+    #[error("Invalid funds. Received {denom} but contract may only receive {base_denom}")]
+    IncorrectDenom {
+        denom: String,
+        base_denom: String,
+    },
+
+    #[error("This msg cannot receive funds")]
+    IllegalFundsSent {},
 }

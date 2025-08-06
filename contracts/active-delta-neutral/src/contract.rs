@@ -50,14 +50,19 @@ pub fn execute(
 
         ExecuteMsg::AddMarket {
             config,
-        } => execute::add_market(deps, env, config),
+        } => execute::add_market(deps, config),
 
         // For internal operations
         ExecuteMsg::Hedge {
             swap_exact_in_amount,
             market_id,
             increasing,
-        } => execute::hedge(deps, env, info, swap_exact_in_amount, &market_id, increasing), // Add additional routes like Withdraw etc. here
+        } => execute::hedge(deps, env, info, swap_exact_in_amount, &market_id, increasing),
+        ExecuteMsg::Deposit {} => execute::deposit(deps, info),
+        ExecuteMsg::Withdraw {
+            amount,
+            recipient,
+        } => execute::withdraw(deps, info, amount, recipient),
     }
 }
 

@@ -7,13 +7,14 @@ use mars_utils::{
 
 #[cw_serde]
 pub struct Config {
-    pub owner: Addr,
+    pub owner: Addr, // TODO remove me
     pub credit_account_id: Option<String>,
     pub credit_manager_addr: Addr,
     pub oracle_addr: Addr,
     pub perps_addr: Addr,
     pub health_addr: Addr,
     pub red_bank_addr: Addr,
+    pub base_denom: String,
 }
 
 #[cw_serde]

@@ -30,6 +30,7 @@ mars-utils      = { workspace = true }
 schemars        = { workspace = true }
 serde           = { workspace = true }
 cw-paginate     = { workspace = true }
+mars-owner      = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test       = { workspace = true, features = ["cosmwasm_1_1"] }
@@ -37,6 +38,7 @@ proptest            = { workspace = true }
 test-case           = { workspace = true }
 mars-credit-manager = { workspace = true }
 mars-testing        = { workspace = true }
+
 
 
 

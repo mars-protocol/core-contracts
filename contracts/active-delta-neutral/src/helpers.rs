@@ -1,5 +1,5 @@
 // Extracts spot balance, debt, and funding delta from Mars positions
-use cosmwasm_std::{Decimal, Int128, Uint128};
+use cosmwasm_std::{Coin, Decimal, Int128, MessageInfo, Uint128};
 use mars_delta_neutral_position::types::Position;
 use mars_types::{
     active_delta_neutral::query::MarketConfig,
@@ -129,4 +129,29 @@ pub fn combined_balance(positions: &Positions, denom: &str) -> ContractResult<Ui
     let lend = lend.map(|l| l.amount).unwrap_or_default();
 
     Ok(deposit.checked_add(lend)?)
+}
+
+pub fn assert_deposit_funds_valid(funds: &Vec<Coin>, denom: &str) -> ContractResult<()> {
+    if funds.len() != 1 {
+        return Err(ContractError::ExcessAssets {
+            denom: denom.to_string()
+        });
+    }
+
+    let fund_denom = &funds[0].denom;
+
+    if fund_denom != denom {
+        return Err(ContractError::IncorrectDenom {
+            denom: fund_denom.to_string(),
+            base_denom: denom.to_string()
+        });
+    }
+    Ok(())
+}
+
+pub fn assert_no_funds(funds: Vec<Coin>) -> ContractResult<()> {
+    if !funds.is_empty() {
+        return Err(ContractError::IllegalFundsSent {});
+    }
+    Ok(())
 }

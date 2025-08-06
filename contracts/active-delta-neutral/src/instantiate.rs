@@ -7,6 +7,7 @@ use mars_types::{
     address_provider::{self, MarsAddressType},
     health::AccountKind,
 };
+use mars_utils::helpers::validate_native_denom;
 
 use crate::{error::ContractResult, state::CONFIG};
 
@@ -16,16 +17,20 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> ContractResult<Response> {
-    // load the addresses we need
+    // validate inputs
     let address_provider = deps.api.addr_validate(&msg.address_provider)?;
-    let required_addresses = vec![
+    validate_native_denom(&msg.base_denom)?;
+    let base_denom = msg.base_denom;
+    let owner = info.sender;
+
+    // load the addresses we need
+    let required_addresses: Vec<MarsAddressType> = vec![
         MarsAddressType::CreditManager,
         MarsAddressType::Oracle,
         MarsAddressType::Perps,
         MarsAddressType::Health,
         MarsAddressType::RedBank,
     ];
-
     let addresses = address_provider::helpers::query_contract_addrs(
         deps.as_ref(),
         &address_provider,
@@ -38,7 +43,6 @@ pub fn instantiate(
     let health_addr = &addresses[&MarsAddressType::Health];
     let red_bank_addr = &addresses[&MarsAddressType::RedBank];
 
-    let owner = info.sender.clone();
     let credit_manager = credit_manager::CreditManager::new(cm_addr.clone());
     let create_credit_account_msg = credit_manager.create_credit_account(AccountKind::Default)?;
     let config: Config = Config {
@@ -49,9 +53,10 @@ pub fn instantiate(
         perps_addr: perps_addr.clone(),
         health_addr: health_addr.clone(),
         red_bank_addr: red_bank_addr.clone(),
+        base_denom,
     };
 
-    let submsg = SubMsg {
+    let create_credit_account_sub_msg = SubMsg {
         msg: create_credit_account_msg,
         gas_limit: None,
         id: INSTANTIATE_CREDIT_ACCOUNT_REPLY_ID,
@@ -60,7 +65,7 @@ pub fn instantiate(
 
     CONFIG.save(deps.storage, &config)?;
     Ok(Response::new()
-        .add_submessage(submsg)
+        .add_submessage(create_credit_account_sub_msg)
         .add_attribute("method", "instantiate")
         .add_attribute("contract_name", env.contract.address)
         .add_attribute("contract_version", "0.1.0")
