@@ -7,7 +7,9 @@ use mars_types::{
 use crate::{
     error::{ContractError, ContractResult},
     state::{COIN_BALANCES, DUALITY_SWAPPER, REWARDS_COLLECTOR, SWAPPER, SWAP_FEE},
-    utils::{assert_withdraw_enabled, decrement_coin_balance, increment_coin_balance, update_balance_msg},
+    utils::{
+        assert_withdraw_enabled, decrement_coin_balance, increment_coin_balance, update_balance_msg,
+    },
 };
 
 pub fn swap_exact_in(

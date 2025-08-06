@@ -425,23 +425,24 @@ fn swap_fee_deducted() {
             to: coin_out.denom.clone(),
         }],
     });
-    
+
     let account_id = mock.create_credit_account(&user).unwrap();
-    let res = mock.update_credit_account(
-        &account_id,
-        &user,
-        vec![
-            Deposit(coin_in.to_coin(10_000)),
-            SwapExactIn {
-                coin_in: coin_in.to_action_coin_full_balance(),
-                denom_out: coin_out.denom.clone(),
-                min_receive: MOCK_SWAP_RESULT - Uint128::one(),
-                route: Some(route),
-            },
-        ],
-        &[coin_in.to_coin(10_000)],
-    )
-    .unwrap();
+    let res = mock
+        .update_credit_account(
+            &account_id,
+            &user,
+            vec![
+                Deposit(coin_in.to_coin(10_000)),
+                SwapExactIn {
+                    coin_in: coin_in.to_action_coin_full_balance(),
+                    denom_out: coin_out.denom.clone(),
+                    min_receive: MOCK_SWAP_RESULT - Uint128::one(),
+                    route: Some(route),
+                },
+            ],
+            &[coin_in.to_coin(10_000)],
+        )
+        .unwrap();
 
     // Prove we swapped amount in with the fee deducted
     let event = &res.events[3];
@@ -461,11 +462,10 @@ fn swap_fee_deducted() {
     assert_eq!(rewards_positions.deposits.len(), 1);
     assert_eq!(rewards_positions.deposits.first().unwrap().denom, coin_in.denom);
     assert_eq!(rewards_positions.deposits.first().unwrap().amount, Uint128::from(100u128));
-    
+
     // User balance will still be mock_swap_result because it is mocked
     let user_positions = mock.query_positions(&account_id);
     assert_eq!(user_positions.deposits.len(), 1);
     assert_eq!(user_positions.deposits.first().unwrap().denom, coin_out.denom);
     assert_eq!(user_positions.deposits.first().unwrap().amount, MOCK_SWAP_RESULT);
 }
-

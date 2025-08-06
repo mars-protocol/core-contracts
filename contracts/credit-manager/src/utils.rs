@@ -108,7 +108,7 @@ pub fn assert_swap_fee(swap_fee: Decimal) -> ContractResult<()> {
         });
     }
     Ok(())
-}   
+}
 
 pub fn assert_withdraw_enabled(
     storage: &dyn Storage,
