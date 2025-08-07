@@ -102,9 +102,9 @@ pub fn assert_perps_lb_ratio(perps_lb_ratio: Decimal) -> ContractResult<()> {
 }
 
 pub fn assert_swap_fee(swap_fee: Decimal) -> ContractResult<()> {
-    if swap_fee < Decimal::zero() || swap_fee >= Decimal::one() {
+    if swap_fee >= Decimal::one() {
         return Err(ContractError::InvalidConfig {
-            reason: "Swap fee must be greater than 0 and less than 1".to_string(),
+            reason: "Swap fee must be less than 1".to_string(),
         });
     }
     Ok(())
