@@ -4,27 +4,37 @@ use anyhow::Result as AnyResult;
 use cosmwasm_std::{Addr, Decimal, Empty};
 use cw_multi_test::{App, AppResponse, BasicApp, Executor};
 use cw_paginate::PaginationResponse;
+use mars_oracle_osmosis::OsmosisPriceSourceUnchecked;
 use mars_owner::{OwnerResponse, OwnerUpdate};
 use mars_types::{
     address_provider::{self, AddressResponseItem, MarsAddressType},
-    oracle,
+    incentives, oracle,
     params::{
         AssetParams, AssetParamsUpdate, ConfigResponse, EmergencyUpdate, ExecuteMsg,
-        InstantiateMsg, PerpParams, PerpParamsUpdate, QueryMsg, VaultConfig, VaultConfigUpdate,
+        InstantiateMsg, ManagedVaultConfigResponse, ManagedVaultConfigUpdate, PerpParams,
+        PerpParamsUpdate, QueryMsg, VaultConfig, VaultConfigUpdate,
     },
     perps::{self, Config},
+    red_bank::{self, Market},
+    rewards_collector::{self, RewardConfig, TransferType},
 };
 
 use super::contracts::{
-    mock_address_provider_contract, mock_oracle_contract, mock_params_contract, mock_perps_contract,
+    mock_address_provider_contract, mock_incentives_contract, mock_oracle_contract,
+    mock_params_contract, mock_perps_contract, mock_red_bank_contract,
+    mock_rewards_collector_osmosis_contract,
 };
 
 pub struct MockEnv {
     pub app: BasicApp,
+    pub deployer: Addr,
     pub params_contract: Addr,
     pub address_provider_contract: Addr,
+    pub red_bank_contract: Addr,
+    pub oracle: Addr,
 }
 
+#[allow(dead_code)]
 pub struct MockEnvBuilder {
     pub app: BasicApp,
     pub deployer: Addr,
@@ -138,6 +148,19 @@ impl MockEnv {
         )
     }
 
+    pub fn update_managed_vault_config(
+        &mut self,
+        sender: &Addr,
+        update: ManagedVaultConfigUpdate,
+    ) -> AnyResult<AppResponse> {
+        self.app.execute_contract(
+            sender.clone(),
+            self.params_contract.clone(),
+            &ExecuteMsg::UpdateManagedVaultConfig(update),
+            &[],
+        )
+    }
+
     pub fn emergency_update(
         &mut self,
         sender: &Addr,
@@ -149,6 +172,22 @@ impl MockEnv {
             &ExecuteMsg::EmergencyUpdate(update),
             &[],
         )
+    }
+
+    pub fn set_price_source_fixed(&mut self, denom: &str, price: Decimal) {
+        self.app
+            .execute_contract(
+                self.deployer.clone(),
+                self.oracle.clone(),
+                &oracle::ExecuteMsg::<_, Empty>::SetPriceSource {
+                    denom: denom.to_string(),
+                    price_source: OsmosisPriceSourceUnchecked::Fixed {
+                        price,
+                    },
+                },
+                &[],
+            )
+            .unwrap();
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -318,6 +357,13 @@ impl MockEnv {
             .unwrap()
     }
 
+    pub fn query_managed_vault_config(&self) -> ManagedVaultConfigResponse {
+        self.app
+            .wrap()
+            .query_wasm_smart(self.params_contract.clone(), &QueryMsg::ManagedVaultConfig {})
+            .unwrap()
+    }
+
     pub fn query_perp_config(&self) -> Config<Addr> {
         let perps_address: AddressResponseItem = self
             .app
@@ -333,6 +379,18 @@ impl MockEnv {
             .query_wasm_smart(perps_address.address, &perps::QueryMsg::Config {})
             .unwrap()
     }
+
+    pub fn query_red_bank_market(&self, denom: &str) -> Option<Market> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.red_bank_contract.clone(),
+                &red_bank::QueryMsg::Market {
+                    denom: denom.to_string(),
+                },
+            )
+            .unwrap()
+    }
 }
 
 impl MockEnvBuilder {
@@ -343,7 +401,10 @@ impl MockEnvBuilder {
     pub fn build_with_risk_manager(&mut self, risk_manager: Option<String>) -> AnyResult<MockEnv> {
         let address_provider_contract = self.get_address_provider();
         self.deploy_perps(address_provider_contract.as_str());
-        self.deploy_oracle();
+        let oracle_contract = self.deploy_oracle();
+        let red_bank_contract = self.deploy_red_bank(address_provider_contract.as_str());
+        self.deploy_incentives(&address_provider_contract);
+        self.deploy_rewards_collector_osmosis(&address_provider_contract);
 
         let code_id = self.app.store_code(mock_params_contract());
 
@@ -369,8 +430,11 @@ impl MockEnvBuilder {
 
         Ok(MockEnv {
             app: take(&mut self.app),
+            deployer: self.deployer.clone(),
             params_contract,
             address_provider_contract,
+            red_bank_contract,
+            oracle: oracle_contract,
         })
     }
 
@@ -443,6 +507,96 @@ impl MockEnvBuilder {
             .unwrap();
 
         self.set_address(MarsAddressType::Oracle, addr.clone());
+
+        addr
+    }
+
+    fn deploy_red_bank(&mut self, address_provider: &str) -> Addr {
+        let code_id = self.app.store_code(mock_red_bank_contract());
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &red_bank::InstantiateMsg {
+                    owner: self.deployer.to_string(),
+                    config: red_bank::CreateOrUpdateConfig {
+                        address_provider: Some(address_provider.to_string()),
+                    },
+                },
+                &[],
+                "red-bank",
+                None,
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::RedBank, addr.clone());
+
+        addr
+    }
+
+    fn deploy_incentives(&mut self, address_provider_addr: &Addr) -> Addr {
+        let code_id = self.app.store_code(mock_incentives_contract());
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &incentives::InstantiateMsg {
+                    owner: self.deployer.to_string(),
+                    address_provider: address_provider_addr.to_string(),
+                    epoch_duration: 604800,
+                    max_whitelisted_denoms: 10,
+                },
+                &[],
+                "incentives",
+                None,
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::Incentives, addr.clone());
+
+        addr
+    }
+
+    fn deploy_rewards_collector_osmosis(&mut self, address_provider_addr: &Addr) -> Addr {
+        let code_id = self.app.store_code(mock_rewards_collector_osmosis_contract());
+
+        let addr = self
+            .app
+            .instantiate_contract(
+                code_id,
+                self.deployer.clone(),
+                &rewards_collector::InstantiateMsg {
+                    owner: self.deployer.to_string(),
+                    address_provider: address_provider_addr.to_string(),
+                    safety_tax_rate: Decimal::percent(50),
+                    revenue_share_tax_rate: Decimal::percent(50),
+                    safety_fund_config: RewardConfig {
+                        target_denom: "uusdc".to_string(),
+                        transfer_type: TransferType::Bank,
+                    },
+                    revenue_share_config: RewardConfig {
+                        target_denom: "uusdc".to_string(),
+                        transfer_type: TransferType::Bank,
+                    },
+                    fee_collector_config: RewardConfig {
+                        target_denom: "umars".to_string(),
+                        transfer_type: TransferType::Bank,
+                    },
+                    channel_id: "0".to_string(),
+                    timeout_seconds: 900,
+                    slippage_tolerance: Decimal::percent(10),
+                },
+                &[],
+                "rewards-collector",
+                None,
+            )
+            .unwrap();
+
+        self.set_address(MarsAddressType::RewardsCollector, addr.clone());
 
         addr
     }

@@ -4,7 +4,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use mars_types::{
     adapters::vault::VAULT_REQUEST_REPLY_ID,
-    credit_manager::{ExecuteMsg, InstantiateMsg, QueryMsg},
+    credit_manager::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     oracle::ActionKind,
 };
 
@@ -12,6 +12,7 @@ use crate::{
     error::{ContractError, ContractResult},
     execute::{create_credit_account, dispatch_actions, execute_callback},
     instantiate::store_config,
+    migrations,
     perp::update_balance_after_deleverage,
     query::{
         query_accounts, query_all_coin_balances, query_all_debt_shares,
@@ -173,4 +174,14 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         } => to_json_binary(&query_vault_bindings(deps, start_after, limit)?),
     };
     res.map_err(Into::into)
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    match msg {
+        MigrateMsg::V2_2_3ToV2_3_0 {
+            max_trigger_orders,
+        } => migrations::v2_3_0::migrate(deps, max_trigger_orders),
+        MigrateMsg::V2_2_0ToV2_2_3 {} => migrations::v2_2_3::migrate(deps),
+    }
 }

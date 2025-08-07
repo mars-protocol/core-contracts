@@ -12,10 +12,10 @@ import {
   CreateOrUpdateConfig,
   ExecuteMsg,
   OwnerUpdate,
+  MarketParamsUpdate,
   Decimal,
   Uint128,
-  MigrateV1ToV2,
-  InitOrUpdateAssetParams,
+  MarketParams,
   InterestRateModel,
   QueryMsg,
   ConfigResponse,
@@ -385,26 +385,8 @@ export interface MarsRedBankInterface extends MarsRedBankReadOnlyInterface {
     memo?: string,
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
-  initAsset: (
-    {
-      denom,
-      params,
-    }: {
-      denom: string
-      params: InitOrUpdateAssetParams
-    },
-    fee?: number | StdFee | 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ) => Promise<ExecuteResult>
-  updateAsset: (
-    {
-      denom,
-      params,
-    }: {
-      denom: string
-      params: InitOrUpdateAssetParams
-    },
+  updateMarketParams: (
+    marketParamsUpdate: MarketParamsUpdate,
     fee?: number | StdFee | 'auto',
     memo?: string,
     _funds?: Coin[],
@@ -489,12 +471,6 @@ export interface MarsRedBankInterface extends MarsRedBankReadOnlyInterface {
     memo?: string,
     _funds?: Coin[],
   ) => Promise<ExecuteResult>
-  migrate: (
-    migrateV1ToV2: MigrateV1ToV2,
-    fee?: number | StdFee | 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ) => Promise<ExecuteResult>
 }
 export class MarsRedBankClient extends MarsRedBankQueryClient implements MarsRedBankInterface {
   client: SigningCosmWasmClient
@@ -507,15 +483,13 @@ export class MarsRedBankClient extends MarsRedBankQueryClient implements MarsRed
     this.contractAddress = contractAddress
     this.updateOwner = this.updateOwner.bind(this)
     this.updateConfig = this.updateConfig.bind(this)
-    this.initAsset = this.initAsset.bind(this)
-    this.updateAsset = this.updateAsset.bind(this)
+    this.updateMarketParams = this.updateMarketParams.bind(this)
     this.deposit = this.deposit.bind(this)
     this.withdraw = this.withdraw.bind(this)
     this.borrow = this.borrow.bind(this)
     this.repay = this.repay.bind(this)
     this.liquidate = this.liquidate.bind(this)
     this.updateAssetCollateralStatus = this.updateAssetCollateralStatus.bind(this)
-    this.migrate = this.migrate.bind(this)
   }
   updateOwner = async (
     ownerUpdate: OwnerUpdate,
@@ -557,14 +531,8 @@ export class MarsRedBankClient extends MarsRedBankQueryClient implements MarsRed
       _funds,
     )
   }
-  initAsset = async (
-    {
-      denom,
-      params,
-    }: {
-      denom: string
-      params: InitOrUpdateAssetParams
-    },
+  updateMarketParams = async (
+    marketParamsUpdate: MarketParamsUpdate,
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,
     _funds?: Coin[],
@@ -573,36 +541,7 @@ export class MarsRedBankClient extends MarsRedBankQueryClient implements MarsRed
       this.sender,
       this.contractAddress,
       {
-        init_asset: {
-          denom,
-          params,
-        },
-      },
-      fee,
-      memo,
-      _funds,
-    )
-  }
-  updateAsset = async (
-    {
-      denom,
-      params,
-    }: {
-      denom: string
-      params: InitOrUpdateAssetParams
-    },
-    fee: number | StdFee | 'auto' = 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ): Promise<ExecuteResult> => {
-    return await this.client.execute(
-      this.sender,
-      this.contractAddress,
-      {
-        update_asset: {
-          denom,
-          params,
-        },
+        update_market_params: marketParamsUpdate,
       },
       fee,
       memo,
@@ -771,23 +710,6 @@ export class MarsRedBankClient extends MarsRedBankQueryClient implements MarsRed
           denom,
           enable,
         },
-      },
-      fee,
-      memo,
-      _funds,
-    )
-  }
-  migrate = async (
-    migrateV1ToV2: MigrateV1ToV2,
-    fee: number | StdFee | 'auto' = 'auto',
-    memo?: string,
-    _funds?: Coin[],
-  ): Promise<ExecuteResult> => {
-    return await this.client.execute(
-      this.sender,
-      this.contractAddress,
-      {
-        migrate: migrateV1ToV2,
       },
       fee,
       memo,

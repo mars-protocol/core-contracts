@@ -24,6 +24,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
       wasmFile(`mars_rewards_collector_${config.rewardsCollector.name}`),
     )
     await deployer.upload('swapper', wasmFile(`mars_swapper_${config.swapper.name}`))
+    await deployer.upload('dualitySwapper', `mars_swapper_${config.dualitySwapper?.name}.wasm`)
     await deployer.upload('params', wasmFile(`mars_params`))
     await deployer.upload('accountNft', wasmFile('mars_account_nft'))
     await deployer.upload('mockVault', wasmFile('mars_mock_vault'))
@@ -31,6 +32,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     await deployer.upload('creditManager', wasmFile('mars_credit_manager'))
     await deployer.upload('health', wasmFile('mars_rover_health'))
     await deployer.upload('perps', wasmFile('mars_perps'))
+    await deployer.upload('vault', wasmFile('mars_vault'))
 
     // Instantiate contracts
     await deployer.instantiateAddressProvider()
@@ -39,6 +41,7 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
     await deployer.instantiateOracle(config.oracle.customInitParams)
     await deployer.instantiateRewards()
     await deployer.instantiateSwapper()
+    await deployer.instantiateDualitySwapper()
     await deployer.instantiateParams()
     await deployer.instantiateMockVault()
     await deployer.instantiateZapper()
@@ -58,10 +61,19 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
       await deployer.setAstroportIncentivesAddress(config.astroportConfig!.incentives!)
     }
 
+    if (config.dualitySwapper) {
+      // Set up LP
+      await deployer.setDualityRoutes()
+      await deployer.setDualitySwapperLP()
+    }
     // setup
+
+    for (const oracleConfig of config.oracleConfigs) {
+      await deployer.setOracle(oracleConfig)
+    }
+
     for (const asset of config.assets) {
       await deployer.updateAssetParams(asset)
-      await deployer.initializeMarket(asset)
     }
     for (const vault of config.vaults) {
       await deployer.updateVaultConfig(vault)
@@ -70,9 +82,6 @@ export const taskRunner = async ({ config, label }: TaskRunnerProps) => {
       for (const perp of config.perps?.denoms) {
         await deployer.initializePerpDenom(perp)
       }
-    }
-    for (const oracleConfig of config.oracleConfigs) {
-      await deployer.setOracle(oracleConfig)
     }
 
     // Test basic user flows

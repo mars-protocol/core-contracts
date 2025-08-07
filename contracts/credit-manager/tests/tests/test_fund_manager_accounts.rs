@@ -1,10 +1,50 @@
-use cosmwasm_std::{coin, coins, Addr, Coin, Uint128};
+use cosmwasm_std::{coin, coins, Addr, Coin, Int128, Uint128};
 use cw_multi_test::{BankSudo, SudoMsg};
 use cw_paginate::{Metadata, PaginationResponse};
 use mars_credit_manager::error::ContractError;
-use mars_types::credit_manager::{Action, ActionAmount, ActionCoin, VaultBinding};
+use mars_testing::multitest::helpers::deploy_vault_with_admin;
+use mars_types::{
+    credit_manager::{Action, ActionAmount, ActionCoin, VaultBinding},
+    params::ManagedVaultConfigUpdate,
+};
 
 use super::helpers::{assert_err, deploy_managed_vault, uosmo_info, AccountToFund, MockEnv};
+
+#[test]
+fn not_allowed_vault_code_id_does_not_work() {
+    let coin_info = uosmo_info();
+
+    let random_addr = Addr::unchecked("random_addr");
+    let fund_manager_wallet = Addr::unchecked("fund_manager_wallet");
+    let funded_amt = Uint128::new(10000);
+    let mut mock = MockEnv::new()
+        .set_params(&[coin_info.clone()])
+        .fund_account(AccountToFund {
+            addr: random_addr.clone(),
+            funds: vec![coin(funded_amt.u128(), coin_info.denom.clone())],
+        })
+        .fund_account(AccountToFund {
+            addr: fund_manager_wallet.clone(),
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
+        })
+        .build()
+        .unwrap();
+
+    let credit_manager = mock.rover.clone();
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager_wallet,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
+
+    let error =
+        mock.create_fund_manager_account_with_error(&fund_manager_wallet, &managed_vault_addr);
+    assert_err(error, ContractError::InvalidVaultCodeId {});
+}
 
 #[test]
 fn fund_manager_wallet_cannot_deposit_and_withdraw() {
@@ -15,14 +55,24 @@ fn fund_manager_wallet_cannot_deposit_and_withdraw() {
         .set_params(&[coin_info.clone()])
         .fund_account(AccountToFund {
             addr: fund_manager_wallet.clone(),
-            funds: vec![coin(1_000_000_000, "untrn"), coin(300, coin_info.denom.clone())],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(300, coin_info.denom.clone()),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
         })
         .build()
         .unwrap();
 
     let credit_manager = mock.rover.clone();
-    let managed_vault_addr =
-        deploy_managed_vault(&mut mock.app, &fund_manager_wallet, &credit_manager);
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager_wallet,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     let account_id = mock.create_fund_manager_account(&fund_manager_wallet, &managed_vault_addr);
 
@@ -163,14 +213,23 @@ fn addr_not_connected_to_fund_manager_acc_does_not_work() {
         })
         .fund_account(AccountToFund {
             addr: fund_manager_wallet.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
         })
         .build()
         .unwrap();
 
     let credit_manager = mock.rover.clone();
-    let managed_vault_addr =
-        deploy_managed_vault(&mut mock.app, &fund_manager_wallet, &credit_manager);
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager_wallet,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
 
     let account_id = mock.create_fund_manager_account(&fund_manager_wallet, &managed_vault_addr);
 
@@ -204,14 +263,21 @@ fn fund_manager_wallet_can_work_on_behalf_of_vault() {
             funds: vec![
                 coin(1_000_000_000, "untrn"),
                 coin(funded_amt.u128(), coin_info.denom.clone()),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
             ],
         })
         .build()
         .unwrap();
 
     let credit_manager = mock.rover.clone();
-    let managed_vault_addr =
-        deploy_managed_vault(&mut mock.app, &fund_manager_wallet, &credit_manager);
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager_wallet,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
     mock.app
         .sudo(SudoMsg::Bank(BankSudo::Mint {
             to_address: managed_vault_addr.to_string(),
@@ -302,14 +368,24 @@ fn vault_bindings() {
     let mut mock = MockEnv::new()
         .fund_account(AccountToFund {
             addr: fund_manager_wallet.clone(),
-            funds: vec![coin(1_000_000_000, "untrn")],
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD * 3, "uusdc"),
+            ],
         })
         .build()
         .unwrap();
 
     let credit_manager = mock.rover.clone();
 
-    let vault_addr_1 = deploy_managed_vault(&mut mock.app, &fund_manager_wallet, &credit_manager);
+    let vault_addr_1 = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager_wallet,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
+    let code_id_1 = mock.query_code_id(&vault_addr_1);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id_1));
     let fund_acc_id_1 = mock.create_fund_manager_account(&fund_manager_wallet, &vault_addr_1);
 
     let res = mock.query_vault_bindings(None, None).unwrap();
@@ -326,9 +402,24 @@ fn vault_bindings() {
         }
     );
 
-    let vault_addr_2 = deploy_managed_vault(&mut mock.app, &fund_manager_wallet, &credit_manager);
+    let vault_addr_2 = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager_wallet,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
+    let code_id_2 = mock.query_code_id(&vault_addr_2);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id_2));
     let fund_acc_id_2 = mock.create_fund_manager_account(&fund_manager_wallet, &vault_addr_2);
-    let vault_addr_3 = deploy_managed_vault(&mut mock.app, &fund_manager_wallet, &credit_manager);
+
+    let vault_addr_3 = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager_wallet,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
+    let code_id_3 = mock.query_code_id(&vault_addr_3);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id_3));
     let fund_acc_id_3 = mock.create_fund_manager_account(&fund_manager_wallet, &vault_addr_3);
 
     let res = mock.query_vault_bindings(None, None).unwrap();
@@ -368,4 +459,116 @@ fn vault_bindings() {
             }
         }
     );
+}
+
+#[test]
+fn vault_cannot_be_used_after_being_blacklisted() {
+    let coin_info = uosmo_info();
+
+    let random_addr = Addr::unchecked("random_addr");
+    let fund_manager_wallet = Addr::unchecked("fund_manager_wallet");
+    let funded_amt = Uint128::new(10000);
+    let mut mock = MockEnv::new()
+        .set_params(&[coin_info.clone()])
+        .fund_account(AccountToFund {
+            addr: random_addr.clone(),
+            funds: vec![coin(funded_amt.u128(), coin_info.denom.clone())],
+        })
+        .fund_account(AccountToFund {
+            addr: fund_manager_wallet.clone(),
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
+        })
+        .build()
+        .unwrap();
+
+    let credit_manager = mock.rover.clone();
+    let managed_vault_addr = deploy_managed_vault(
+        &mut mock.app,
+        &fund_manager_wallet,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+    );
+
+    let code_id = mock.query_code_id(&managed_vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
+
+    // Create a credit account
+    let account_id = mock.create_fund_manager_account(&fund_manager_wallet, &managed_vault_addr);
+
+    mock.app
+        .sudo(SudoMsg::Bank(BankSudo::Mint {
+            to_address: managed_vault_addr.to_string(),
+            amount: coins(funded_amt.u128(), coin_info.denom.clone()),
+        }))
+        .unwrap();
+
+    // Deposit into the credit account
+    mock.update_credit_account(
+        &account_id,
+        &managed_vault_addr,
+        vec![Action::Deposit(Coin {
+            denom: coin_info.denom.clone(),
+            amount: Uint128::new(100),
+        })],
+        &[Coin::new(100, coin_info.denom.clone())],
+    )
+    .unwrap();
+
+    // Blacklist the vault
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddVaultToBlacklist(
+        managed_vault_addr.to_string(),
+    ));
+
+    // Try to trade on the vault (should fail)
+    let res = mock.update_credit_account(
+        &account_id,
+        &managed_vault_addr,
+        vec![Action::ExecutePerpOrder {
+            denom: coin_info.denom.clone(),
+            order_size: Int128::from(-100),
+            reduce_only: None,
+            order_type: None,
+        }],
+        &[],
+    );
+
+    assert_err(
+        res,
+        ContractError::BlacklistedVault {
+            vault: managed_vault_addr.to_string(),
+        },
+    );
+}
+
+#[test]
+fn vault_with_admin_rejects_binding() {
+    let fund_manager_wallet = Addr::unchecked("fund_manager_wallet");
+    let mut mock = MockEnv::new()
+        .fund_account(AccountToFund {
+            addr: fund_manager_wallet.clone(),
+            funds: vec![
+                coin(1_000_000_000, "untrn"),
+                coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc"),
+            ],
+        })
+        .build()
+        .unwrap();
+
+    let credit_manager = mock.rover.clone();
+    let vault_addr = deploy_vault_with_admin(
+        &mut mock.app,
+        &fund_manager_wallet,
+        &credit_manager,
+        Some(coin(mars_testing::MIN_VAULT_FEE_CREATION_IN_UUSD, "uusdc")),
+        "uusdc",
+    );
+
+    let code_id = mock.query_code_id(&vault_addr);
+    mock.update_managed_vault_config(ManagedVaultConfigUpdate::AddCodeId(code_id));
+
+    let res = mock.create_fund_manager_account_with_error(&fund_manager_wallet, &vault_addr);
+    assert_err(res, ContractError::VaultHasAdmin {});
 }

@@ -19,17 +19,15 @@ fn deposit_and_withdraw_for_credit_account_works() {
     let credit_manager = mock_env.credit_manager.clone();
     let account_id = "111".to_string();
 
-    // setup red-bank
-    let (market_params, asset_params) = osmo_asset_params();
-    red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
-    params.init_params(&mut mock_env, asset_params);
-    let (market_params, asset_params) = usdc_asset_params();
-    red_bank.init_asset(&mut mock_env, &asset_params.denom, market_params);
-    params.init_params(&mut mock_env, asset_params);
-
     // setup oracle
     oracle.set_price_source_fixed(&mut mock_env, "uosmo", Decimal::one());
     oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::from_ratio(2u128, 1u128));
+
+    // setup red-bank
+    let asset_params = osmo_asset_params();
+    params.init_params(&mut mock_env, asset_params);
+    let asset_params = usdc_asset_params();
+    params.init_params(&mut mock_env, asset_params);
 
     // fund accounts
     mock_env.fund_accounts(&[&provider, &credit_manager], funded_amt, &["uosmo", "uusdc"]);

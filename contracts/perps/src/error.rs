@@ -3,6 +3,7 @@ use cosmwasm_std::{
     ConversionOverflowError, Decimal, DecimalRangeExceeded, DivideByZeroError, OverflowError,
     SignedDecimalRangeExceeded, StdError, Uint128,
 };
+use cw2::VersionError;
 use cw_utils::PaymentError;
 use mars_owner::OwnerError;
 use mars_types::{error::MarsError, perps::PerpsError};
@@ -11,6 +12,9 @@ use mars_types::{error::MarsError, perps::PerpsError};
 pub enum ContractError {
     #[error(transparent)]
     Std(#[from] StdError),
+
+    #[error("{0}")]
+    Version(#[from] VersionError),
 
     #[error(transparent)]
     Overflow(#[from] OverflowError),

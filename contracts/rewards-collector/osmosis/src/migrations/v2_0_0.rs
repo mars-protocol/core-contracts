@@ -3,7 +3,10 @@ use cw2::{assert_contract_version, set_contract_version};
 use mars_owner::OwnerInit;
 use mars_rewards_collector_base::ContractError;
 
-use crate::entry::{OsmosisCollector, CONTRACT_NAME, CONTRACT_VERSION};
+use crate::{
+    entry::{CONTRACT_NAME, CONTRACT_VERSION},
+    OsmosisCollector,
+};
 
 const FROM_VERSION: &str = "1.0.0";
 

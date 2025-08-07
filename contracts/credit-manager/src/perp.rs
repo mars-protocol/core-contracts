@@ -4,14 +4,16 @@ use cosmwasm_std::{
     coin, ensure_eq, BankMsg, Coin, CosmosMsg, DepsMut, Env, Int128, MessageInfo, Response, Uint128,
 };
 use mars_types::{
+    adapters::perps::Perps,
     oracle::ActionKind,
-    perps::{PnL, PnlAmounts},
+    perps::{PerpPosition, PnL, PnlAmounts},
 };
 
 use crate::{
     borrow,
     error::{ContractError, ContractResult},
     state::{COIN_BALANCES, PERPS, RED_BANK},
+    trigger::remove_invalid_trigger_orders,
     utils::{decrement_coin_balance, increment_coin_balance},
 };
 
@@ -92,37 +94,27 @@ pub fn execute_perp_order(
 
     let mut response = Response::new();
 
-    // query the perp position PnL so that we know whether funds needs to be
+    // Query the perp position PnL so that we know whether funds needs to be
     // sent to the perps contract
     //
     // NOTE: This implementation is not gas efficient, because we have to query
-    // the position PnL first here in the credit manager (so that it know how
+    // the position PnL first here in the credit manager (so that it knows how
     // much funds to send to the perps contract), then in the perps contract it
     // computes the PnL **again** to assert the amount is correct.
     let position =
         perps.query_position(&deps.querier, account_id, denom, Some(order_size), reduce_only)?;
+
     Ok(match position {
-        Some(position) => {
-            // Modify existing position
-            let pnl = position.unrealized_pnl.to_coins(&position.base_denom).pnl;
-            let pnl_string = position.unrealized_pnl.pnl.to_string();
-            let (funds, response) =
-                update_state_based_on_pnl(&mut deps, account_id, pnl, None, response)?;
-            let funds = funds.map_or_else(Vec::new, |c| vec![c]);
-
-            let msg =
-                perps.execute_perp_order(account_id, denom, order_size, reduce_only, funds)?;
-
-            response
-                .add_message(msg)
-                .add_attribute("action", "execute_perp_order")
-                .add_attribute("account_id", account_id)
-                .add_attribute("denom", denom)
-                .add_attribute("realized_pnl", pnl_string)
-                .add_attribute("reduce_only", reduce_only.unwrap_or(false).to_string())
-                .add_attribute("order_size", order_size.to_string())
-                .add_attribute("new_size", position.size.checked_add(order_size)?.to_string())
-        }
+        Some(position) => modify_existing_position(
+            deps,
+            response,
+            &perps,
+            account_id,
+            denom,
+            position,
+            order_size,
+            reduce_only,
+        )?,
         None => {
             // Open new position
             let opening_fee = perps.query_opening_fee(&deps.querier, denom, order_size)?;
@@ -148,6 +140,46 @@ pub fn execute_perp_order(
                 .add_attribute("opening_fee", fee.to_string())
         }
     })
+}
+
+pub fn close_perp_position(
+    deps: DepsMut,
+    account_id: &str,
+    denom: &str,
+) -> ContractResult<Response> {
+    let perps = PERPS.load(deps.storage)?;
+
+    // Query the perp position PnL so that we know whether funds needs to be
+    // sent to the perps contract
+    //
+    // NOTE: This implementation is not gas efficient, because we have to query
+    // the position PnL first here in the credit manager (so that it knows how
+    // much funds to send to the perps contract), then in the perps contract it
+    // computes the PnL **again** to assert the amount is correct.
+    let position = perps.query_position(&deps.querier, account_id, denom, None, None)?;
+
+    let response = Response::new();
+
+    match position {
+        Some(position) => {
+            // Flip the position size in order to close it.
+            let order_size = -position.size;
+
+            Ok(modify_existing_position(
+                deps,
+                response,
+                &perps,
+                account_id,
+                denom,
+                position,
+                order_size,
+                Some(true),
+            )?)
+        }
+        None => Err(ContractError::NoPerpPosition {
+            denom: denom.to_string(),
+        }),
+    }
 }
 
 /// Check if liquidatee has any perp positions.
@@ -193,10 +225,46 @@ pub fn close_all_perps(
         .add_attribute("number_of_positions", perp_positions.len().to_string()))
 }
 
+fn modify_existing_position(
+    mut deps: DepsMut,
+    response: Response,
+    perps: &Perps,
+    account_id: &str,
+    denom: &str,
+    position: PerpPosition,
+    order_size: Int128,
+    reduce_only: Option<bool>,
+) -> ContractResult<Response> {
+    let pnl = position.unrealized_pnl.to_coins(&position.base_denom).pnl;
+    let pnl_string = position.unrealized_pnl.pnl.to_string();
+    let (funds, response) = update_state_based_on_pnl(&mut deps, account_id, pnl, None, response)?;
+    let funds = funds.map_or_else(Vec::new, |c| vec![c]);
+
+    let msg = perps.execute_perp_order(account_id, denom, order_size, reduce_only, funds)?;
+
+    let new_size = position.size.checked_add(order_size)?;
+
+    // When size is 0 or positions flips, any active (order is a default or parent, or child order
+    // with parent being executed) with reduce_only should be removed.
+    if new_size.is_zero() || (new_size.is_negative() != position.size.is_negative()) {
+        remove_invalid_trigger_orders(deps.storage, account_id, &position.denom)?;
+    }
+
+    Ok(response
+        .add_message(msg)
+        .add_attribute("action", "execute_perp_order")
+        .add_attribute("account_id", account_id)
+        .add_attribute("denom", denom)
+        .add_attribute("realized_pnl", pnl_string)
+        .add_attribute("reduce_only", reduce_only.unwrap_or(false).to_string())
+        .add_attribute("order_size", order_size.to_string())
+        .add_attribute("new_size", new_size.to_string()))
+}
+
 /// Prepare the necessary messages and funds to be sent to the perps contract based on the PnL.
 /// - If PnL is negative, we need to send funds to the perps contract, and
-/// decrement the internally tracked user coin balance. If no enough usdc in the user's account,
-/// we need to borrow from the Red Bank.
+///   decrement the internally tracked user coin balance. If no enough usdc in the user's account,
+///   we need to borrow from the Red Bank.
 /// - If PnL is positive, we need to increment the internally tracked user coin.
 /// - Otherwise, no action is needed.
 fn update_state_based_on_pnl(

@@ -114,6 +114,25 @@ impl<'a> WasmOracleTestRobot<'a> {
                 None
             };
 
+        // Ensure astroport factory has the pair type for concentrated_duality_orderbook
+        let pair_type = PairType::Custom("concentrated_duality_orderbook".to_string());
+        let factory_address = astroport_contracts.factory.address.clone();
+
+        // Add the pair config for the concentrated_duality_orderbook pair type
+        let update_pair_config_msg = astroport::factory::ExecuteMsg::UpdatePairConfig {
+            config: astroport::factory::PairConfig {
+                // Cw-it doesn't support instantiating the concentrated_duality_orderbook yet, so we use the
+                // concentrated code id instead
+                code_id: code_ids["astroport_pair_concentrated"],
+                pair_type,
+                total_fee_bps: 5,
+                maker_fee_bps: 5,
+                is_disabled: false,
+                is_generator_disabled: false,
+            },
+        };
+        wasm.execute(&factory_address, &update_pair_config_msg, &[], admin).unwrap();
+
         (astroport_contracts, oracle_contract_addr, stride_contract_addr)
     }
 
@@ -462,22 +481,26 @@ pub fn astro_init_params(pair_type: &PairType) -> Option<Binary> {
             })
             .unwrap(),
         ),
-        PairType::Custom(custom) if custom == "concentrated" => Some(
-            // {"amp":"500","gamma":"0.000001","mid_fee":"0.003","out_fee":"0.0045","fee_gamma":"0.01","repeg_profit_threshold":"0.00000001","min_price_scale_delta":"0.0000055","price_scale":"1.198144288063828944","ma_half_time":600,"track_asset_balances":false}
-            to_json_binary(&ConcentratedPoolParams {
-                amp: Decimal::from_atomics(500u128, 0).unwrap(),
-                gamma: Decimal::from_atomics(1u128, 6).unwrap(),
-                mid_fee: Decimal::from_atomics(3u128, 3).unwrap(),
-                out_fee: Decimal::from_atomics(45u128, 4).unwrap(),
-                fee_gamma: Decimal::from_atomics(1u128, 2).unwrap(),
-                repeg_profit_threshold: Decimal::from_atomics(1u128, 8).unwrap(),
-                min_price_scale_delta: Decimal::from_atomics(55u128, 7).unwrap(),
-                price_scale: Decimal::from_str("1.198144288063828944").unwrap(),
-                ma_half_time: 600u64,
-                track_asset_balances: Some(false),
-            })
-            .unwrap(),
-        ),
+        PairType::Custom(custom)
+            if custom == "concentrated" || custom == "concentrated_duality_orderbook" =>
+        {
+            Some(
+                // {"amp":"500","gamma":"0.000001","mid_fee":"0.003","out_fee":"0.0045","fee_gamma":"0.01","repeg_profit_threshold":"0.00000001","min_price_scale_delta":"0.0000055","price_scale":"1.198144288063828944","ma_half_time":600,"track_asset_balances":false}
+                to_json_binary(&ConcentratedPoolParams {
+                    amp: Decimal::from_atomics(500u128, 0).unwrap(),
+                    gamma: Decimal::from_atomics(1u128, 6).unwrap(),
+                    mid_fee: Decimal::from_atomics(3u128, 3).unwrap(),
+                    out_fee: Decimal::from_atomics(45u128, 4).unwrap(),
+                    fee_gamma: Decimal::from_atomics(1u128, 2).unwrap(),
+                    repeg_profit_threshold: Decimal::from_atomics(1u128, 8).unwrap(),
+                    min_price_scale_delta: Decimal::from_atomics(55u128, 7).unwrap(),
+                    price_scale: Decimal::from_str("1.198144288063828944").unwrap(),
+                    ma_half_time: 600u64,
+                    track_asset_balances: Some(false),
+                })
+                .unwrap(),
+            )
+        }
         _ => panic!("Unsupported pair type"),
     }
 }

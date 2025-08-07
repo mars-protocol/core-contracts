@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     CheckedFromRatioError, CheckedMultiplyFractionError, CheckedMultiplyRatioError,
-    DecimalRangeExceeded, OverflowError, StdError,
+    DecimalRangeExceeded, DivideByZeroError, OverflowError, StdError,
 };
 use mars_owner::OwnerError;
 use thiserror::Error;
@@ -30,6 +30,9 @@ pub enum ContractError {
     #[error("{0}")]
     CheckedMultiplyFractionError(#[from] CheckedMultiplyFractionError),
 
+    #[error("{0}")]
+    DivideByZeroError(#[from] DivideByZeroError),
+
     #[error("{denom_a:?}-{denom_b:?} is not an available pool")]
     PoolNotFound {
         denom_a: String,
@@ -53,6 +56,11 @@ pub enum ContractError {
 
     #[error("{0}")]
     Version(#[from] cw2::VersionError),
+
+    #[error("Invalid input: {reason}")]
+    InvalidInput {
+        reason: String,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

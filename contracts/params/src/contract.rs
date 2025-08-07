@@ -1,11 +1,11 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
-use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response};
+use cosmwasm_std::{to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response};
 use cw2::set_contract_version;
 use mars_owner::OwnerInit::SetInitialOwner;
 use mars_types::params::{
-    CmEmergencyUpdate, EmergencyUpdate, ExecuteMsg, InstantiateMsg, PerpsEmergencyUpdate, QueryMsg,
-    RedBankEmergencyUpdate,
+    CmEmergencyUpdate, EmergencyUpdate, ExecuteMsg, InstantiateMsg, MigrateMsg,
+    PerpsEmergencyUpdate, QueryMsg, RedBankEmergencyUpdate,
 };
 
 use crate::{
@@ -16,14 +16,15 @@ use crate::{
     },
     error::{ContractError, ContractResult},
     execute::{
-        reset_risk_manager, update_asset_params, update_config, update_perp_params,
-        update_vault_config,
+        reset_risk_manager, update_asset_params, update_config, update_managed_vault_config,
+        update_perp_params, update_vault_config,
     },
     migrations,
     query::{
         query_all_asset_params, query_all_asset_params_v2, query_all_perp_params,
         query_all_perp_params_v2, query_all_total_deposits_v2, query_all_vault_configs,
-        query_all_vault_configs_v2, query_config, query_total_deposit, query_vault_config,
+        query_all_vault_configs_v2, query_config, query_managed_vault_config, query_total_deposit,
+        query_vault_config,
     },
     state::{ADDRESS_PROVIDER, ASSET_PARAMS, MAX_PERP_PARAMS, OWNER, PERP_PARAMS, RISK_MANAGER},
 };
@@ -111,6 +112,9 @@ pub fn execute(
                 }
             },
         },
+        ExecuteMsg::UpdateManagedVaultConfig(managed_vault_config_update) => {
+            update_managed_vault_config(deps, info, managed_vault_config_update)
+        }
     }
 }
 
@@ -120,6 +124,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::Owner {} => to_json_binary(&OWNER.query(deps.storage)?),
         QueryMsg::RiskManager {} => to_json_binary(&RISK_MANAGER.query(deps.storage)?),
         QueryMsg::Config {} => to_json_binary(&query_config(deps)?),
+        QueryMsg::ManagedVaultConfig {} => to_json_binary(&query_managed_vault_config(deps)?),
         QueryMsg::AssetParams {
             denom,
         } => to_json_binary(&ASSET_PARAMS.may_load(deps.storage, &denom)?),
@@ -165,6 +170,12 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
-    migrations::v2_2_0::migrate(deps)
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    match msg {
+        MigrateMsg::V2_2_3 {} => migrations::v2_2_3::migrate(deps),
+        MigrateMsg::V2_3_0 {
+            reserve_factor,
+            interest_rate_model,
+        } => migrations::v2_3_0::migrate(deps, reserve_factor, interest_rate_model),
+    }
 }

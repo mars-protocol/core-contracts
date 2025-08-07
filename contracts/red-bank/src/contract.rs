@@ -5,7 +5,7 @@ use mars_types::red_bank::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 use crate::{
     asset, borrow, collateral, config, deposit, error::ContractError, instantiate, liquidate,
-    migrations, query, repay, state::MIGRATION_GUARD, withdraw,
+    migrations, query, repay, withdraw,
 };
 
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -33,19 +33,13 @@ pub fn execute(
         ExecuteMsg::UpdateConfig {
             config,
         } => config::update_config(deps, info, config),
-        ExecuteMsg::InitAsset {
-            denom,
-            params,
-        } => asset::init_asset(deps, env, info, denom, params),
-        ExecuteMsg::UpdateAsset {
-            denom,
-            params,
-        } => asset::update_asset(deps, env, info, denom, params),
+        ExecuteMsg::UpdateMarketParams(update) => {
+            asset::update_market_params(deps, env, info, update)
+        }
         ExecuteMsg::Deposit {
             account_id,
             on_behalf_of,
         } => {
-            MIGRATION_GUARD.assert_unlocked(deps.storage)?;
             let sent_coin = cw_utils::one_coin(&info)?;
             deposit::deposit(
                 deps,
@@ -64,7 +58,6 @@ pub fn execute(
             account_id,
             liquidation_related,
         } => {
-            MIGRATION_GUARD.assert_unlocked(deps.storage)?;
             cw_utils::nonpayable(&info)?;
             withdraw::withdraw(
                 deps,
@@ -82,14 +75,12 @@ pub fn execute(
             amount,
             recipient,
         } => {
-            MIGRATION_GUARD.assert_unlocked(deps.storage)?;
             cw_utils::nonpayable(&info)?;
             borrow::borrow(deps, env, info, denom, amount, recipient)
         }
         ExecuteMsg::Repay {
             on_behalf_of,
         } => {
-            MIGRATION_GUARD.assert_unlocked(deps.storage)?;
             let sent_coin = cw_utils::one_coin(&info)?;
             repay::repay(deps, env, info, on_behalf_of, sent_coin.denom, sent_coin.amount)
         }
@@ -98,7 +89,6 @@ pub fn execute(
             collateral_denom,
             recipient,
         } => {
-            MIGRATION_GUARD.assert_unlocked(deps.storage)?;
             let user_addr = deps.api.addr_validate(&user)?;
             let sent_coin = cw_utils::one_coin(&info)?;
             liquidate::liquidate(
@@ -116,13 +106,8 @@ pub fn execute(
             denom,
             enable,
         } => {
-            MIGRATION_GUARD.assert_unlocked(deps.storage)?;
             cw_utils::nonpayable(&info)?;
             collateral::update_asset_collateral_status(deps, env, info, denom, enable)
-        }
-        ExecuteMsg::Migrate(msg) => {
-            cw_utils::nonpayable(&info)?;
-            migrations::v2_0_0::execute_migration(deps, info, msg)
         }
     }
 }
@@ -249,5 +234,5 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, ContractErro
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
-    migrations::v2_0_0::migrate(deps)
+    migrations::v2_3_0::migrate(deps)
 }

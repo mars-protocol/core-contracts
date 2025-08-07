@@ -1,6 +1,6 @@
 {
   "contract_name": "mars-address-provider",
-  "contract_version": "2.2.0",
+  "contract_version": "2.2.2",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -110,6 +110,13 @@
             ]
           },
           {
+            "description": "The duality swapper contract on the chain",
+            "type": "string",
+            "enum": [
+              "duality_swapper"
+            ]
+          },
+          {
             "description": "Astroport incentives contract",
             "type": "string",
             "enum": [
@@ -121,6 +128,20 @@
             "type": "string",
             "enum": [
               "perps"
+            ]
+          },
+          {
+            "description": "Health contract",
+            "type": "string",
+            "enum": [
+              "health"
+            ]
+          },
+          {
+            "description": "The address that shall receive the revenue share given to neutron (10%)",
+            "type": "string",
+            "enum": [
+              "revenue_share"
             ]
           }
         ]
@@ -328,6 +349,13 @@
             ]
           },
           {
+            "description": "The duality swapper contract on the chain",
+            "type": "string",
+            "enum": [
+              "duality_swapper"
+            ]
+          },
+          {
             "description": "Astroport incentives contract",
             "type": "string",
             "enum": [
@@ -339,6 +367,20 @@
             "type": "string",
             "enum": [
               "perps"
+            ]
+          },
+          {
+            "description": "Health contract",
+            "type": "string",
+            "enum": [
+              "health"
+            ]
+          },
+          {
+            "description": "The address that shall receive the revenue share given to neutron (10%)",
+            "type": "string",
+            "enum": [
+              "revenue_share"
             ]
           }
         ]
@@ -414,6 +456,13 @@
               ]
             },
             {
+              "description": "The duality swapper contract on the chain",
+              "type": "string",
+              "enum": [
+                "duality_swapper"
+              ]
+            },
+            {
               "description": "Astroport incentives contract",
               "type": "string",
               "enum": [
@@ -425,6 +474,20 @@
               "type": "string",
               "enum": [
                 "perps"
+              ]
+            },
+            {
+              "description": "Health contract",
+              "type": "string",
+              "enum": [
+                "health"
+              ]
+            },
+            {
+              "description": "The address that shall receive the revenue share given to neutron (10%)",
+              "type": "string",
+              "enum": [
+                "revenue_share"
               ]
             }
           ]
@@ -503,6 +566,13 @@
               ]
             },
             {
+              "description": "The duality swapper contract on the chain",
+              "type": "string",
+              "enum": [
+                "duality_swapper"
+              ]
+            },
+            {
               "description": "Astroport incentives contract",
               "type": "string",
               "enum": [
@@ -514,6 +584,20 @@
               "type": "string",
               "enum": [
                 "perps"
+              ]
+            },
+            {
+              "description": "Health contract",
+              "type": "string",
+              "enum": [
+                "health"
+              ]
+            },
+            {
+              "description": "The address that shall receive the revenue share given to neutron (10%)",
+              "type": "string",
+              "enum": [
+                "revenue_share"
               ]
             }
           ]
@@ -592,6 +676,13 @@
               ]
             },
             {
+              "description": "The duality swapper contract on the chain",
+              "type": "string",
+              "enum": [
+                "duality_swapper"
+              ]
+            },
+            {
               "description": "Astroport incentives contract",
               "type": "string",
               "enum": [
@@ -603,6 +694,20 @@
               "type": "string",
               "enum": [
                 "perps"
+              ]
+            },
+            {
+              "description": "Health contract",
+              "type": "string",
+              "enum": [
+                "health"
+              ]
+            },
+            {
+              "description": "The address that shall receive the revenue share given to neutron (10%)",
+              "type": "string",
+              "enum": [
+                "revenue_share"
               ]
             }
           ]

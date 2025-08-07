@@ -137,13 +137,19 @@ pub fn query_market(
     let base_denom_price =
         oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
     let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+
+    let long_oi_value = ms.long_oi.checked_mul_floor(denom_price)?;
+    let short_oi_value = ms.short_oi.checked_mul_floor(denom_price)?;
+
     let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
 
     Ok(MarketResponse {
         denom: denom.clone(),
         enabled: ms.enabled,
         long_oi: ms.long_oi,
+        long_oi_value,
         short_oi: ms.short_oi,
+        short_oi_value,
         current_funding_rate: curr_funding.last_funding_rate,
     })
 }
@@ -170,13 +176,19 @@ pub fn query_markets(
 
     paginate_map_query(&MARKET_STATES, deps.storage, start, Some(limit), |denom, ms| {
         let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
+
+        let long_oi_value = ms.long_oi.checked_mul_floor(denom_price)?;
+        let short_oi_value = ms.short_oi.checked_mul_floor(denom_price)?;
+
         let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
 
         Ok(MarketResponse {
             denom: denom.clone(),
             enabled: ms.enabled,
             long_oi: ms.long_oi,
+            long_oi_value,
             short_oi: ms.short_oi,
+            short_oi_value,
             current_funding_rate: curr_funding.last_funding_rate,
         })
     })

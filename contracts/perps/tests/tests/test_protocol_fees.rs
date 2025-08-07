@@ -42,6 +42,8 @@ fn protocol_fee_sent_to_rewards_collector(
     )
     .unwrap();
 
+    mock.set_price(&owner, "uosmo", Decimal::from_str("1.25").unwrap()).unwrap();
+
     // init denoms
     mock.update_perp_params(
         &owner,
@@ -55,8 +57,6 @@ fn protocol_fee_sent_to_rewards_collector(
             },
         },
     );
-
-    mock.set_price(&owner, "uosmo", Decimal::from_str("1.25").unwrap()).unwrap();
 
     let vault_state_before_opening = mock.query_vault().total_liquidity;
 

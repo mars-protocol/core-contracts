@@ -264,9 +264,20 @@ export const osmosisTestnetConfig: DeploymentConfig = {
     name: 'osmosis',
     timeoutSeconds: 600,
     channelId: 'channel-2083',
-    safetyFundFeeShare: '0.5',
-    feeCollectorDenom: mars,
-    safetyFundDenom: aUSDC,
+    safetyFundFeeShare: '0.45',
+    revenueShare: '0.1',
+    feeCollectorConfig: {
+      target_denom: mars,
+      transfer_type: 'ibc',
+    },
+    revenueShareConfig: {
+      target_denom: aUSDC,
+      transfer_type: 'bank',
+    },
+    safetyFundConfig: {
+      target_denom: aUSDC,
+      transfer_type: 'bank',
+    },
     slippageTolerance: '0.01',
   },
   keeperFeeConfig: {
@@ -286,6 +297,7 @@ export const osmosisTestnetConfig: DeploymentConfig = {
     ],
   },
   maxValueForBurn: '10000',
+  maxTriggerOrders: 50,
   maxUnlockingPositions: '1',
   maxSlippage: '0.2',
   zapperContractName: 'mars_zapper_osmosis',

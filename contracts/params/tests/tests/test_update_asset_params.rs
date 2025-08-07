@@ -18,6 +18,8 @@ fn only_owner_can_init_asset_params() {
     let mut mock =
         MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
 
+    mock.set_price_source_fixed("xyz", Decimal::one());
+
     let bad_guy = Addr::unchecked("doctor_otto_983");
     let mut res = mock.update_asset_params(
         &bad_guy,
@@ -55,6 +57,8 @@ fn only_owner_can_init_asset_params() {
 fn only_owner_and_risk_manager_can_update_asset_params() {
     let mut mock =
         MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    mock.set_price_source_fixed("xyz", Decimal::one());
 
     // Add asset param as owner
     mock.update_asset_params(
@@ -100,6 +104,8 @@ fn only_owner_and_risk_manager_can_update_asset_params() {
 fn only_owner_can_update_asset_params_liquidation_threshold() {
     let mut mock =
         MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    mock.set_price_source_fixed("xyz", Decimal::one());
 
     // Add asset param as owner
     let mut params = default_asset_params("xyz");
@@ -149,6 +155,59 @@ fn only_owner_can_update_asset_params_liquidation_threshold() {
 }
 
 #[test]
+fn only_owner_can_update_asset_params_reserve_factor() {
+    let mut mock =
+        MockEnv::new().build_with_risk_manager(Some("risk_manager_123".to_string())).unwrap();
+
+    // Add asset param as owner
+    let mut params = default_asset_params("xyz");
+    mock.set_price_source_fixed("xyz", Decimal::one());
+    mock.update_asset_params(
+        &mock.query_owner(),
+        AssetParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    )
+    .unwrap();
+
+    // Update the reserve factor from 0.1 to 0.99
+    params.reserve_factor = Decimal::from_str("0.99").unwrap();
+
+    // Fail updating as baddie
+    let bad_guy = Addr::unchecked("doctor_otto_983");
+    let res = mock.update_asset_params(
+        &bad_guy,
+        AssetParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    );
+    assert_err(res, ContractError::NotOwnerOrRiskManager {});
+
+    // Fail updating as risk mananger if changing reserve factor
+    let res = mock.update_asset_params(
+        &mock.query_risk_manager(),
+        AssetParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    );
+    assert_err(
+        res,
+        ContractError::RiskManagerUnauthorized {
+            reason: "market param reserve factor".to_string(),
+        },
+    );
+
+    // Succeed updating as owner if changing reserve factor
+    mock.update_asset_params(
+        &mock.query_owner(),
+        AssetParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    )
+    .unwrap();
+}
+
+#[test]
 fn initializing_asset_param() {
     let mut mock = MockEnv::new().build().unwrap();
     let owner = mock.query_owner();
@@ -156,6 +215,9 @@ fn initializing_asset_param() {
     let denom1 = "osmo".to_string();
 
     let params = default_asset_params(&denom0);
+
+    mock.set_price_source_fixed(&denom0, Decimal::one());
+    mock.set_price_source_fixed(&denom1, Decimal::one());
 
     mock.update_asset_params(
         &owner,
@@ -192,6 +254,7 @@ fn add_same_denom_multiple_times() {
     let owner = mock.query_owner();
     let denom0 = "atom".to_string();
 
+    mock.set_price_source_fixed(&denom0, Decimal::one());
     mock.update_asset_params(
         &owner,
         AssetParamsUpdate::AddOrUpdate {
@@ -234,6 +297,8 @@ fn update_existing_asset_params() {
 
     let mut params = default_asset_params(&denom0);
 
+    mock.set_price_source_fixed(&denom0, Decimal::one());
+
     mock.update_asset_params(
         &owner,
         AssetParamsUpdate::AddOrUpdate {
@@ -265,6 +330,10 @@ fn update_existing_asset_params() {
     assert!(asset_params.credit_manager.whitelisted);
     assert!(!asset_params.red_bank.deposit_enabled);
     assert_eq!(asset_params.close_factor, Decimal::percent(16));
+
+    let market = mock.query_red_bank_market(&denom0).unwrap();
+    assert_eq!(market.reserve_factor, asset_params.reserve_factor);
+    assert_eq!(market.interest_rate_model, asset_params.interest_rate_model);
 }
 
 #[test]
@@ -274,6 +343,10 @@ fn removing_from_asset_params() {
     let denom0 = "atom".to_string();
     let denom1 = "osmo".to_string();
     let denom2 = "juno".to_string();
+
+    mock.set_price_source_fixed(&denom0, Decimal::one());
+    mock.set_price_source_fixed(&denom1, Decimal::one());
+    mock.set_price_source_fixed(&denom2, Decimal::one());
 
     mock.update_asset_params(
         &owner,
@@ -321,6 +394,7 @@ fn pagination_query() {
     ];
 
     for denom in denoms.iter() {
+        mock.set_price_source_fixed(denom, Decimal::one());
         mock.update_asset_params(
             &owner,
             AssetParamsUpdate::AddOrUpdate {
@@ -370,6 +444,7 @@ fn pagination_query_v2() {
     denoms.sort();
 
     for denom in denoms.iter() {
+        mock.set_price_source_fixed(denom, Decimal::one());
         mock.update_asset_params(
             &owner,
             AssetParamsUpdate::AddOrUpdate {
@@ -406,4 +481,26 @@ fn pagination_query_v2() {
 
     assert_eq!(combined.len(), 6);
     assert_eq!(&denoms, combined.as_slice());
+}
+
+#[test]
+fn can_not_update_asset_param_if_price_source_is_not_set() {
+    let mut mock = MockEnv::new().build().unwrap();
+    let owner = mock.query_owner();
+    let denom0 = "atom".to_string();
+
+    let params = default_asset_params(&denom0);
+
+    let res = mock.update_asset_params(
+        &owner,
+        AssetParamsUpdate::AddOrUpdate {
+            params: params.clone(),
+        },
+    );
+    assert_err(
+        res,
+        ContractError::PriceSourceNotFound {
+            denom: denom0.clone(),
+        },
+    );
 }

@@ -23,6 +23,7 @@ use mars_types::{
 
 use super::MockEnvBuilder;
 
+#[allow(dead_code)]
 pub struct MockEnv {
     pub app: BasicApp,
     pub deployer: Addr,
@@ -31,6 +32,8 @@ pub struct MockEnv {
     pub vault_contract: Addr,
     pub oracle: Addr,
     pub params: Addr,
+    pub address_provider: Addr,
+    pub red_bank: Addr,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -45,6 +48,8 @@ impl MockEnv {
             vault_contract: None,
             oracle: None,
             params: None,
+            address_provider: None,
+            red_bank: None,
         }
     }
 

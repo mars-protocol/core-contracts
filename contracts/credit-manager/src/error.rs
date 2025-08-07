@@ -35,6 +35,12 @@ pub enum ContractError {
         maximum: String,
     },
 
+    #[error("Illegal deposit of {denom:?}. Expected: {expected_denom:?}")]
+    IllegalDepositDenom {
+        denom: String,
+        expected_denom: String,
+    },
+
     #[error("{0}")]
     Owner(#[from] OwnerError),
 
@@ -88,6 +94,14 @@ pub enum ContractError {
         new_hf: String,
     },
 
+    #[error(
+        "Actions result in a lower liquidation health factor: before: {prev_hf:?}, after: {new_hf:?}"
+    )]
+    UnhealthyLiquidationHfDecrease {
+        prev_hf: String,
+        new_hf: String,
+    },
+
     #[error("{reason:?}")]
     HLS {
         reason: String,
@@ -108,6 +122,11 @@ pub enum ContractError {
     LiquidationNotProfitable {
         debt_coin: Coin,
         request_coin: Coin,
+    },
+
+    #[error("Maximum number of trigger orders reached. Unable to create more than {max_trigger_orders:?} trigger orders.")]
+    MaxTriggerOrdersReached {
+        max_trigger_orders: u8,
     },
 
     #[error("No coin amount set for action")]
@@ -168,6 +187,12 @@ pub enum ContractError {
 
     #[error("{user:?} is not authorized to {action:?}")]
     Unauthorized {
+        user: String,
+        action: String,
+    },
+
+    #[error("{user:?} is not allowed to {action:?}")]
+    IllegalAction {
         user: String,
         action: String,
     },
@@ -238,4 +263,38 @@ pub enum ContractError {
         "Illegal trigger action. Trigger actions may only contain execute_perp_order and lend"
     )]
     IllegalTriggerAction,
+
+    #[error("Trigger conditions may only have one OrderExecuted")]
+    MultipleOrderExecutedConditions,
+
+    #[error("Unable to find a valid parent order")]
+    NoValidParentOrderFound,
+
+    #[error("No child orders found for parent order")]
+    NoChildOrdersFound,
+
+    #[error("Invalid order conditions. Reason: {reason}")]
+    InvalidOrderConditions {
+        reason: String,
+    },
+
+    #[error("Cannot have a default and parent/child CreateTriggerOrder in the same transaction")]
+    InvalidCreateTriggerOrderType,
+
+    #[error("Parent order has to be the first order in the transaction")]
+    InvalidParentOrderPosition,
+
+    #[error("Perp position not found for denom {denom:?}")]
+    NoPerpPosition {
+        denom: String,
+    },
+    #[error("Invalid vault code id. Allowed code ids configured in params")]
+    InvalidVaultCodeId {},
+
+    #[error("Vault {vault:?} is blacklisted. No actions can be performed on this vault")]
+    BlacklistedVault {
+        vault: String,
+    },
+    #[error("Vault has an admin; vaults cannot be managed with an admin set.")]
+    VaultHasAdmin {},
 }

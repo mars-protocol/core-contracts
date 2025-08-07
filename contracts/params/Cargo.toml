@@ -1,7 +1,7 @@
 [package]
 name          = "mars-params"
 description   = "Contract storing the asset params for Credit Manager and Red Bank."
-version       = { workspace = true }
+version       = "2.3.0"
 authors       = { workspace = true }
 license       = { workspace = true }
 edition       = { workspace = true }
@@ -34,10 +34,13 @@ mars-utils         = { workspace = true }
 thiserror          = { workspace = true }
 
 [dev-dependencies]
-mars-address-provider = { workspace = true }
-mars-oracle-osmosis   = { workspace = true }
-anyhow                = { workspace = true }
-cw-multi-test         = { workspace = true }
-mars-testing          = { workspace = true }
-mars-perps            = { workspace = true }
-test-case             = { workspace = true }
+mars-address-provider          = { workspace = true }
+mars-oracle-osmosis            = { workspace = true }
+mars-red-bank                  = { workspace = true }
+mars-rewards-collector-osmosis = { workspace = true }
+mars-incentives                = { workspace = true }
+anyhow                         = { workspace = true }
+cw-multi-test                  = { workspace = true }
+mars-testing                   = { workspace = true }
+mars-perps                     = { workspace = true }
+test-case                      = { workspace = true }

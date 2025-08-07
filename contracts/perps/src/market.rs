@@ -284,6 +284,8 @@ impl MarketStateExt for MarketState {
         let mut long_oi = self.long_oi;
         let mut short_oi = self.short_oi;
 
+        let original_net_oi = long_oi.abs_diff(short_oi);
+
         // Remove old_size from OI
         if !old_size.is_negative() {
             long_oi = long_oi.checked_sub(old_size.unsigned_abs())?;
@@ -300,7 +302,7 @@ impl MarketStateExt for MarketState {
 
         // Validate OI long
         let long_oi_value = long_oi.checked_mul_floor(denom_price)?;
-        if long_oi_value > param.max_long_oi_value {
+        if long_oi_value > param.max_long_oi_value && long_oi > self.long_oi {
             return Err(ContractError::LongOpenInterestReached {
                 max: param.max_long_oi_value,
                 found: long_oi_value,
@@ -309,7 +311,7 @@ impl MarketStateExt for MarketState {
 
         // Validate OI short
         let short_oi_value = short_oi.checked_mul_floor(denom_price)?;
-        if short_oi_value > param.max_short_oi_value {
+        if short_oi_value > param.max_short_oi_value && short_oi > self.short_oi {
             return Err(ContractError::ShortOpenInterestReached {
                 max: param.max_short_oi_value,
                 found: short_oi_value,
@@ -319,7 +321,7 @@ impl MarketStateExt for MarketState {
         let net_oi = long_oi.abs_diff(short_oi);
 
         let net_oi_value = net_oi.checked_mul_floor(denom_price)?;
-        if net_oi_value > param.max_net_oi_value {
+        if net_oi_value > param.max_net_oi_value && net_oi > original_net_oi {
             return Err(ContractError::NetOpenInterestReached {
                 max: param.max_net_oi_value,
                 found: net_oi_value,

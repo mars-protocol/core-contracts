@@ -398,7 +398,7 @@
         ],
         "properties": {
           "migrate": {
-            "$ref": "#/definitions/MigrateV2ToV2_0_1"
+            "$ref": "#/definitions/MigrateV2_1_0ToV2_2_0"
           }
         },
         "additionalProperties": false
@@ -469,8 +469,8 @@
           "perp_vault"
         ]
       },
-      "MigrateV2ToV2_0_1": {
-        "description": "Migrate from V2 to V2_0_1, only owner can call",
+      "MigrateV2_1_0ToV2_2_0": {
+        "description": "Migrate from V2_1_0 to V2_2_0, only owner can call",
         "oneOf": [
           {
             "description": "Migrate users unclaimed rewards",

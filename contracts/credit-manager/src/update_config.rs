@@ -12,9 +12,9 @@ use crate::{
     error::ContractResult,
     execute::create_credit_account,
     state::{
-        ACCOUNT_NFT, HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE,
-        MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS, PERPS_LB_RATIO, RED_BANK,
-        REWARDS_COLLECTOR, SWAPPER, ZAPPER,
+        ACCOUNT_NFT, DUALITY_SWAPPER, HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE,
+        MAX_TRIGGER_ORDERS, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS, PERPS_LB_RATIO,
+        RED_BANK, REWARDS_COLLECTOR, SWAPPER, ZAPPER,
     },
     utils::{assert_max_slippage, assert_perps_lb_ratio},
 };
@@ -64,10 +64,24 @@ pub fn update_config(
             response.add_attribute("key", "swapper").add_attribute("value", unchecked.address());
     }
 
+    if let Some(unchecked) = updates.duality_swapper {
+        DUALITY_SWAPPER.save(deps.storage, &unchecked.check(deps.api)?)?;
+        response = response
+            .add_attribute("key", "duality_swapper")
+            .add_attribute("value", unchecked.address());
+    }
+
     if let Some(unchecked) = updates.zapper {
         ZAPPER.save(deps.storage, &unchecked.check(deps.api)?)?;
         response =
             response.add_attribute("key", "zapper").add_attribute("value", unchecked.address());
+    }
+
+    if let Some(num) = updates.max_trigger_orders {
+        MAX_TRIGGER_ORDERS.save(deps.storage, &num)?;
+        response = response
+            .add_attribute("key", "max_trigger_orders")
+            .add_attribute("value", num.to_string());
     }
 
     if let Some(num) = updates.max_unlocking_positions {

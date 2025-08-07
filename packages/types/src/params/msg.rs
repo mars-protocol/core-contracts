@@ -1,8 +1,9 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Uint128;
+use cosmwasm_std::{Decimal, Uint128};
 use mars_owner::OwnerUpdate;
 
 use super::{asset::AssetParamsUnchecked, vault::VaultConfigUnchecked, PerpParams};
+use crate::red_bank::InterestRateModel;
 
 #[cw_serde]
 pub struct InstantiateMsg {
@@ -29,6 +30,7 @@ pub enum ExecuteMsg {
     UpdateVaultConfig(VaultConfigUpdate),
     UpdatePerpParams(PerpParamsUpdate),
     EmergencyUpdate(EmergencyUpdate),
+    UpdateManagedVaultConfig(ManagedVaultConfigUpdate),
 }
 
 #[cw_serde]
@@ -42,6 +44,9 @@ pub enum QueryMsg {
 
     #[returns(super::msg::ConfigResponse)]
     Config {},
+
+    #[returns(super::msg::ManagedVaultConfigResponse)]
+    ManagedVaultConfig {},
 
     #[returns(Option<super::asset::AssetParams>)]
     AssetParams {
@@ -120,6 +125,16 @@ pub struct ConfigResponse {
 }
 
 #[cw_serde]
+pub struct ManagedVaultConfigResponse {
+    /// Minimum creation fee in uusd for managed vaults
+    pub min_creation_fee_in_uusd: u128,
+    /// List of code ids for managed vaults
+    pub code_ids: Vec<u64>,
+    /// List of blacklisted vaults
+    pub blacklisted_vaults: Vec<String>,
+}
+
+#[cw_serde]
 pub struct TotalDepositResponse {
     pub denom: String,
     pub cap: Uint128,
@@ -173,4 +188,25 @@ pub enum EmergencyUpdate {
     CreditManager(CmEmergencyUpdate),
     RedBank(RedBankEmergencyUpdate),
     Perps(PerpsEmergencyUpdate),
+}
+
+/// Default values for markets in the Red Bank that have not yet been initialized.
+/// These values correspond to markets not currently listed in the Red Bank,
+/// but are maintained here to ensure consistency between the Red Bank and the Params contract.
+#[cw_serde]
+pub enum ManagedVaultConfigUpdate {
+    AddCodeId(u64),
+    RemoveCodeId(u64),
+    SetMinCreationFeeInUusd(u128),
+    AddVaultToBlacklist(String),
+    RemoveVaultFromBlacklist(String),
+}
+
+#[cw_serde]
+pub enum MigrateMsg {
+    V2_2_3 {},
+    V2_3_0 {
+        reserve_factor: Decimal,
+        interest_rate_model: InterestRateModel,
+    },
 }

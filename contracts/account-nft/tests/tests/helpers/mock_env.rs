@@ -1,27 +1,36 @@
 use anyhow::Result as AnyResult;
-use cosmwasm_std::{Addr, Empty};
+use cosmwasm_std::{Addr, Coin, Empty, Uint128};
 use cw721::OwnerOfResponse;
 use cw721_base::{
     Action::{AcceptOwnership, TransferOwnership},
     ExecuteMsg::UpdateOwnership,
     Ownership,
 };
-use cw_multi_test::{App, AppResponse, BasicApp, Executor};
+use cw_multi_test::{App, AppResponse, BankSudo, BasicApp, Executor, SudoMsg};
 use mars_mock_rover_health::msg::ExecuteMsg::SetHealthResponse;
 use mars_types::{
     account_nft::{
-        ExecuteMsg, ExecuteMsg::UpdateConfig, NftConfigUpdates, QueryMsg, UncheckedNftConfig,
+        ExecuteMsg::{self, UpdateConfig},
+        NftConfigUpdates, QueryMsg, UncheckedNftConfig,
     },
     health::HealthValuesResponse,
+    perps::VaultPositionResponse,
 };
 
 use super::MockEnvBuilder;
 
+#[allow(dead_code)]
 pub struct MockEnv {
     pub app: BasicApp,
     pub minter: Addr,
     pub nft_contract: Addr,
     pub cm_contract: Addr,
+    pub health_contract: Addr,
+    pub ap_contract: Addr,
+    pub oracle: Addr,
+    pub params: Addr,
+    pub incentives: Addr,
+    pub perps: Addr,
     pub deployer: Addr,
 }
 
@@ -35,7 +44,11 @@ impl MockEnv {
             nft_contract: None,
             health_contract: None,
             cm_contract: None,
-            set_health_contract: true,
+            ap_contract: None,
+            oracle: None,
+            params: None,
+            incentives: None,
+            perps: None,
         }
     }
 
@@ -81,12 +94,12 @@ impl MockEnv {
         account_id: &str,
         response: &HealthValuesResponse,
     ) -> AppResponse {
-        let config = self.query_config();
+        let health_addr = self.health_contract.clone();
 
         self.app
             .execute_contract(
                 sender.clone(),
-                Addr::unchecked(config.health_contract_addr.unwrap()),
+                Addr::unchecked(health_addr),
                 &SetHealthResponse {
                     account_id: account_id.to_string(),
                     response: response.clone(),
@@ -167,5 +180,55 @@ impl MockEnv {
             },
             &[],
         )
+    }
+
+    pub fn fund_user(&mut self, user: &Addr, funds: &[Coin]) {
+        self.app
+            .sudo(SudoMsg::Bank(BankSudo::Mint {
+                to_address: user.to_string(),
+                amount: funds.to_vec(),
+            }))
+            .unwrap();
+    }
+
+    pub fn query_perp_vault_position(&mut self, account_id: &str) -> Option<VaultPositionResponse> {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.perps.clone(),
+                &mars_types::perps::QueryMsg::VaultPosition {
+                    user_address: self.cm_contract.to_string(),
+                    account_id: Some(account_id.to_string()),
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn deposit_to_perp_vault(&mut self, account_id: &str, funds: &[Coin]) {
+        self.app
+            .execute_contract(
+                self.cm_contract.clone(),
+                self.perps.clone(),
+                &mars_types::perps::ExecuteMsg::Deposit {
+                    account_id: Some(account_id.to_string()),
+                    max_shares_receivable: None,
+                },
+                funds,
+            )
+            .unwrap();
+    }
+
+    pub fn unlock_from_perp_vault(&mut self, account_id: &str, shares: Uint128) {
+        self.app
+            .execute_contract(
+                self.cm_contract.clone(),
+                self.perps.clone(),
+                &mars_types::perps::ExecuteMsg::Unlock {
+                    account_id: Some(account_id.to_string()),
+                    shares,
+                },
+                &[],
+            )
+            .unwrap();
     }
 }

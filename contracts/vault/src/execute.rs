@@ -7,6 +7,7 @@ use cosmwasm_std::{
 use mars_types::{
     adapters::{account_nft::AccountNftBase, health::HealthContractBase, oracle::OracleBase},
     credit_manager::{self, Action, ActionAmount, ActionCoin, ConfigResponse, Positions, QueryMsg},
+    health::AccountValuation,
     oracle::ActionKind,
 };
 
@@ -14,8 +15,9 @@ use crate::{
     error::ContractError,
     msg::UnlockState,
     performance_fee::PerformanceFeeConfig,
+    pnl,
     state::{
-        BASE_TOKEN, COOLDOWN_PERIOD, CREDIT_MANAGER, OWNER, PERFORMANCE_FEE_CONFIG,
+        BASE_TOKEN, COOLDOWN_PERIOD, CREDIT_MANAGER, LAST_NET_WORTH, OWNER, PERFORMANCE_FEE_CONFIG,
         PERFORMANCE_FEE_STATE, UNLOCKS, VAULT_ACC_ID, VAULT_TOKEN,
     },
     vault_token::{calculate_base_tokens, calculate_vault_tokens},
@@ -88,6 +90,20 @@ pub fn deposit(
     let vault_tokens =
         calculate_vault_tokens(amount, total_base_tokens_without_fee, vault_token_supply)?;
 
+    // update PNL tracking
+    let (vault_pnl_index, updated_vault_pnl) = pnl::update_vault_pnl_index(
+        deps.storage,
+        total_base_tokens_without_fee,
+        vault_token_supply,
+    )?;
+
+    // record entry PNL for the user
+    let user_pnl =
+        pnl::update_user_pnl(deps.storage, &vault_token_recipient, vault_tokens, vault_pnl_index)?;
+
+    // update last net worth to include deposit amount
+    LAST_NET_WORTH.save(deps.storage, &total_base_tokens_without_fee.checked_add(amount)?)?;
+
     let coin_deposited = Coin {
         denom: base_token,
         amount,
@@ -107,6 +123,9 @@ pub fn deposit(
         attr("action", "mint_vault_tokens"),
         attr("recipient", vault_token_recipient.to_string()),
         attr("vault_tokens_minted", vault_tokens),
+        attr("vault_pnl", updated_vault_pnl),
+        attr("user_pnl", user_pnl),
+        attr("user", vault_token_recipient.to_string()),
     ]);
 
     Ok(vault_token
@@ -225,6 +244,7 @@ pub fn redeem(
     vault_tokens = min(vault_tokens, total_unlocked_vault_tokens);
 
     let total_base_tokens = total_base_tokens_in_account(deps.as_ref())?;
+    let vault_token_supply = vault_token.query_total_supply(deps.as_ref())?;
 
     let mut performance_fee_state = PERFORMANCE_FEE_STATE.load(deps.storage)?;
     let performance_fee_config = PERFORMANCE_FEE_CONFIG.load(deps.storage)?;
@@ -237,8 +257,21 @@ pub fn redeem(
     let total_base_tokens_without_fee =
         total_base_tokens.checked_sub(performance_fee_state.accumulated_fee)?;
 
+    // update PNL tracking before processing redemption
+    let (vault_pnl_index, updated_vault_pnl) = pnl::update_vault_pnl_index(
+        deps.storage,
+        total_base_tokens_without_fee,
+        vault_token_supply,
+    )?;
+
+    let user_vault_tokens =
+        vault_token.query_balance(deps.as_ref(), &info.sender)?.checked_add(vault_tokens)?;
+
+    // update user's PNL record
+    let updated_user_pnl =
+        pnl::update_user_pnl(deps.storage, &info.sender, user_vault_tokens, vault_pnl_index)?;
+
     // calculate base tokens based on the given amount of vault tokens
-    let vault_token_supply = vault_token.query_total_supply(deps.as_ref())?;
     let base_tokens_to_redeem =
         calculate_base_tokens(vault_tokens, total_base_tokens_without_fee, vault_token_supply)?;
 
@@ -246,6 +279,10 @@ pub fn redeem(
         .update_base_tokens_after_redeem(total_base_tokens, base_tokens_to_redeem)?;
 
     PERFORMANCE_FEE_STATE.save(deps.storage, &performance_fee_state)?;
+
+    // update last net worth to deduct redeemed amount
+    LAST_NET_WORTH
+        .save(deps.storage, &total_base_tokens_without_fee.checked_sub(base_tokens_to_redeem)?)?;
 
     let withdraw_from_cm = prepare_credit_manager_msg(
         deps.as_ref(),
@@ -262,6 +299,9 @@ pub fn redeem(
         attr("recipient", recipient.clone()),
         attr("vault_tokens_burned", vault_tokens),
         attr("base_tokens_redeemed", base_tokens_to_redeem),
+        attr("vault_pnl", updated_vault_pnl),
+        attr("user_pnl", updated_user_pnl),
+        attr("user", info.sender.to_string()),
     ]);
 
     if !refund_vault_tokens.is_zero() {
@@ -383,18 +423,21 @@ pub fn total_base_tokens_in_account(deps: Deps) -> Result<Uint128, ContractError
     let base_token = BASE_TOKEN.load(deps.storage)?;
 
     let config: ConfigResponse = deps.querier.query_wasm_smart(cm_addr, &QueryMsg::Config {})?;
-
     let health = HealthContractBase::new(deps.api.addr_validate(&config.health_contract)?);
     let health_values =
         health.query_health_values(&deps.querier, &vault_acc_id, ActionKind::Default)?;
-    let net_value =
-        health_values.total_collateral_value.checked_sub(health_values.total_debt_value)?;
+    let net_value = health_values.net_value()?;
+
+    if net_value.is_negative() {
+        return Err(ContractError::VaultBankrupt {
+            vault_account_id: vault_acc_id,
+        });
+    }
 
     let oracle = OracleBase::new(deps.api.addr_validate(&config.oracle)?);
     let base_token_price =
         oracle.query_price(&deps.querier, &base_token, ActionKind::Default)?.price;
-
-    let base_token_in_account = net_value.checked_div_floor(base_token_price)?;
+    let base_token_in_account = net_value.unsigned_abs().checked_div_floor(base_token_price)?;
     Ok(base_token_in_account)
 }
 

@@ -15,11 +15,11 @@ use mars_types::{
     oracle::{ExecuteMsg, InstantiateMsg, PriceResponse, QueryMsg},
     params::AssetParamsUpdate,
     red_bank::{
-        CreateOrUpdateConfig, ExecuteMsg as ExecuteRedBank,
+        CreateOrUpdateConfig,
         ExecuteMsg::{Borrow, Deposit},
         InstantiateMsg as InstantiateRedBank,
     },
-    rewards_collector::InstantiateMsg as InstantiateRewards,
+    rewards_collector::{InstantiateMsg as InstantiateRewards, RewardConfig, TransferType},
 };
 use osmosis_std::types::osmosis::{
     downtimedetector::v1beta1::Downtime,
@@ -1279,12 +1279,22 @@ fn setup_redbank(wasm: &Wasm<OsmosisTestApp>, signer: &SigningAccount) -> (Strin
             owner: (signer.address()),
             address_provider: addr_provider_addr.clone(),
             safety_tax_rate: Decimal::percent(25),
-            safety_fund_denom: "uosmo".to_string(),
-            fee_collector_denom: "uosmo".to_string(),
+            safety_fund_config: RewardConfig {
+                target_denom: "uusdc".to_string(),
+                transfer_type: TransferType::Bank,
+            },
+            revenue_share_tax_rate: Decimal::percent(10),
+            revenue_share_config: RewardConfig {
+                target_denom: "uusdc".to_string(),
+                transfer_type: TransferType::Bank,
+            },
+            fee_collector_config: RewardConfig {
+                target_denom: "umars".to_string(),
+                transfer_type: TransferType::Ibc,
+            },
             channel_id: "channel-1".to_string(),
             timeout_seconds: 60,
             slippage_tolerance: Decimal::new(Uint128::from(1u128)),
-            neutron_ibc_config: None,
         },
     );
 
@@ -1379,18 +1389,22 @@ fn setup_redbank(wasm: &Wasm<OsmosisTestApp>, signer: &SigningAccount) -> (Strin
     )
     .unwrap();
 
-    let (market_params, asset_params) = default_asset_params("uosmo");
+    let asset_params = default_asset_params("uosmo");
 
+    // Set price source for uosmo to 1 to satisfy params setup
     wasm.execute(
-        &red_bank_addr,
-        &ExecuteRedBank::InitAsset {
+        &oracle_addr,
+        &ExecuteMsg::<_, Empty>::SetPriceSource {
             denom: "uosmo".to_string(),
-            params: market_params,
+            price_source: OsmosisPriceSourceUnchecked::Fixed {
+                price: Decimal::one(),
+            },
         },
         &[],
         signer,
     )
     .unwrap();
+
     wasm.execute(
         &params_addr,
         &mars_types::params::ExecuteMsg::UpdateAssetParams(AssetParamsUpdate::AddOrUpdate {
@@ -1401,13 +1415,16 @@ fn setup_redbank(wasm: &Wasm<OsmosisTestApp>, signer: &SigningAccount) -> (Strin
     )
     .unwrap();
 
-    let (market_params, asset_params) = default_asset_params("uatom");
+    let asset_params = default_asset_params("uatom");
 
+    // Set price source for uatom to 1 to satisfy params setup
     wasm.execute(
-        &red_bank_addr,
-        &ExecuteRedBank::InitAsset {
+        &oracle_addr,
+        &ExecuteMsg::<_, Empty>::SetPriceSource {
             denom: "uatom".to_string(),
-            params: market_params,
+            price_source: OsmosisPriceSourceUnchecked::Fixed {
+                price: Decimal::one(),
+            },
         },
         &[],
         signer,

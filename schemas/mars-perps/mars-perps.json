@@ -1,6 +1,6 @@
 {
   "contract_name": "mars-perps",
-  "contract_version": "2.2.0",
+  "contract_version": "2.3.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -537,19 +537,36 @@
               }
             ]
           },
-          "max_funding_velocity": {
-            "description": "Determines the maximum rate at which funding can be adjusted",
-            "allOf": [
+          "liquidation_threshold_usdc": {
+            "description": "LTV at which a position becomes liquidatable for USDC margin accounts.",
+            "anyOf": [
               {
                 "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
               }
             ]
+          },
+          "max_funding_velocity": {
+            "$ref": "#/definitions/Decimal"
           },
           "max_loan_to_value": {
             "description": "Max loan to position value for the position.",
             "allOf": [
               {
                 "$ref": "#/definitions/Decimal"
+              }
+            ]
+          },
+          "max_loan_to_value_usdc": {
+            "description": "Max loan to position value for the position for USDC margin accounts.",
+            "anyOf": [
+              {
+                "$ref": "#/definitions/Decimal"
+              },
+              {
+                "type": "null"
               }
             ]
           },
@@ -1120,23 +1137,58 @@
         "denom",
         "enabled",
         "long_oi",
-        "short_oi"
+        "long_oi_value",
+        "short_oi",
+        "short_oi_value"
       ],
       "properties": {
         "current_funding_rate": {
-          "$ref": "#/definitions/SignedDecimal"
+          "description": "Current funding rate",
+          "allOf": [
+            {
+              "$ref": "#/definitions/SignedDecimal"
+            }
+          ]
         },
         "denom": {
+          "description": "Denomination of the asset",
           "type": "string"
         },
         "enabled": {
+          "description": "Enabled status of the market",
           "type": "boolean"
         },
         "long_oi": {
-          "$ref": "#/definitions/Uint128"
+          "description": "Total LONG open interest in utokens",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "long_oi_value": {
+          "description": "Total LONG open interest in oracle base currency (uusd)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
         },
         "short_oi": {
-          "$ref": "#/definitions/Uint128"
+          "description": "Total SHORT open interest in utokens",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
+        },
+        "short_oi_value": {
+          "description": "Total SHORT open interest in oracle base currency (uusd)",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Uint128"
+            }
+          ]
         }
       },
       "additionalProperties": false,
@@ -1546,23 +1598,58 @@
             "denom",
             "enabled",
             "long_oi",
-            "short_oi"
+            "long_oi_value",
+            "short_oi",
+            "short_oi_value"
           ],
           "properties": {
             "current_funding_rate": {
-              "$ref": "#/definitions/SignedDecimal"
+              "description": "Current funding rate",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/SignedDecimal"
+                }
+              ]
             },
             "denom": {
+              "description": "Denomination of the asset",
               "type": "string"
             },
             "enabled": {
+              "description": "Enabled status of the market",
               "type": "boolean"
             },
             "long_oi": {
-              "$ref": "#/definitions/Uint128"
+              "description": "Total LONG open interest in utokens",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
+            },
+            "long_oi_value": {
+              "description": "Total LONG open interest in oracle base currency (uusd)",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
             },
             "short_oi": {
-              "$ref": "#/definitions/Uint128"
+              "description": "Total SHORT open interest in utokens",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
+            },
+            "short_oi_value": {
+              "description": "Total SHORT open interest in oracle base currency (uusd)",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Uint128"
+                }
+              ]
             }
           },
           "additionalProperties": false

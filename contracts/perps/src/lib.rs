@@ -6,6 +6,7 @@ pub mod error;
 pub mod initialize;
 pub mod market;
 pub mod market_management;
+pub mod migrations;
 pub mod position;
 pub mod position_management;
 pub mod query;
