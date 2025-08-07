@@ -14,9 +14,9 @@ use crate::{
     state::{
         ACCOUNT_NFT, DUALITY_SWAPPER, HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE,
         MAX_TRIGGER_ORDERS, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS, PERPS_LB_RATIO,
-        RED_BANK, REWARDS_COLLECTOR, SWAPPER, ZAPPER,
+        RED_BANK, REWARDS_COLLECTOR, SWAPPER, SWAP_FEE, ZAPPER,
     },
-    utils::{assert_max_slippage, assert_perps_lb_ratio},
+    utils::{assert_max_slippage, assert_perps_lb_ratio, assert_swap_fee},
 };
 
 pub fn update_config(
@@ -103,6 +103,13 @@ pub fn update_config(
         PERPS_LB_RATIO.save(deps.storage, &num)?;
         response =
             response.add_attribute("key", "perps_lb_ratio").add_attribute("value", num.to_string());
+    }
+
+    if let Some(num) = updates.swap_fee {
+        assert_swap_fee(num)?;
+        SWAP_FEE.save(deps.storage, &num)?;
+        response =
+            response.add_attribute("key", "swap_fee").add_attribute("value", num.to_string());
     }
 
     if let Some(unchecked) = updates.health_contract {

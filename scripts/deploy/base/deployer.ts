@@ -209,6 +209,7 @@ export class Deployer {
       incentives: this.storage.addresses.incentives!,
       keeper_fee_config: this.config.keeperFeeConfig,
       perps_liquidation_bonus_ratio: this.config.perpsLiquidationBonusRatio,
+      swap_fee: this.config.swapFee,
     }
 
     await this.instantiate('creditManager', this.storage.codeIds.creditManager!, msg)

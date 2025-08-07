@@ -308,4 +308,5 @@ export const osmosisTestnetConfig: DeploymentConfig = {
   oracleConfigs: [osmoOracle, atomOracle, USDCOracle, atomOsmoOracle, usdcOsmoOracle],
   maxPerpParams: 20,
   perpsLiquidationBonusRatio: '0.6',
+  swapFee: '0.0005',
 }
