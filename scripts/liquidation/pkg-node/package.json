@@ -7,16 +7,17 @@
     "Gabe R. <gabe.r@delphilabs.io>",
     "Larry Engineer <larry@delphidigital.io>",
     "Spike Spiegel <spikeonmars@protonmail.com>",
+    "Subham Singh <subham@marsprotocol.foundation>",
     "Brianna M. <brianna@delphilabs.io>",
     "Ahmad Kaouk",
     "Harry Scholes"
   ],
   "description": "Helper functions to calculate liquidation amounts",
-  "version": "1.0.0",
+  "version": "2.3.0",
   "license": "FSL-1.1-Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mars-protocol/contracts"
+    "url": "https://github.com/mars-protocol/core-contracts"
   },
   "files": [
     "index_bg.wasm",

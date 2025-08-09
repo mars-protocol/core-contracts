@@ -1,5 +1,5 @@
 {
-  "name": "mars-rover-health-computer",
+  "name": "mars-rover-health-computer-node",
   "collaborators": [
     "Piotr B. <piotr@marsprotocol.foundation>",
     "Bob v.d. H. <bob@marsprotocol.foundation>",
@@ -7,11 +7,12 @@
     "Gabe R. <gabe.r@delphilabs.io>",
     "Larry Engineer <larry@delphidigital.io>",
     "Spike Spiegel <spikeonmars@protonmail.com>",
+    "Subham Singh <subham@marsprotocol.foundation>",
     "Brianna M. <brianna@delphilabs.io>",
     "Ahmad Kaouk",
     "Harry Scholes"
   ],
-  "version": "2.2.0",
+  "version": "2.3.0-node",
   "files": [
     "index_bg.wasm",
     "index.js",

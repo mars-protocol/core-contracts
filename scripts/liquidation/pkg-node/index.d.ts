@@ -20,8 +20,8 @@ export interface LiquidationAmountInputs {
 }
 
 export interface LiquidationAmounts {
-  debt_amount: Uint128
-  collateral_amount: Uint128
+  debt_amount_to_repay: Uint128
+  collateral_amount_to_liquidate: Uint128
   collateral_amount_received_by_liquidator: Uint128
 }
 
