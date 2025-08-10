@@ -1,11 +1,14 @@
 use cosmwasm_std::{
     coin,
-    testing::{mock_dependencies, mock_env, mock_info},
-    Addr, Coin, Response, Uint128,
+    testing::{mock_dependencies, mock_info},
+    Addr, Coin
 };
 use mars_active_delta_neutral::{error::ContractError, execute, state::{CONFIG, OWNER}};
-use mars_types::active_delta_neutral::query::Config;
+use mars_owner::OwnerInit;
+use mars_testing::multitest::helpers::{AccountToFund, MockEnv};
+use mars_types::active_delta_neutral::query::{Config, MarketConfig};
 use test_case::test_case;
+use crate::tests::helpers::delta_neutral_helpers::{add_active_delta_neutral_market, deploy_active_delta_neutral_contract, deposit, assert_err};
 
 // Helper to setup contract config
 fn setup_config(
@@ -16,7 +19,6 @@ fn setup_config(
     credit_account_id: Option<String>,
 ) {
     let config = Config {
-        owner: Addr::unchecked(owner),
         base_denom: base_denom.to_string(),
         credit_manager_addr: Addr::unchecked(credit_manager_addr),
         credit_account_id,
@@ -25,7 +27,7 @@ fn setup_config(
         health_addr: Addr::unchecked("health"),
         red_bank_addr: Addr::unchecked("red_bank"),
     };
-    OWNER.update(deps.storage, &config.owner).unwrap();
+    OWNER.initialize(deps.storage, deps.api, OwnerInit::SetInitialOwner { owner: owner.to_string() }).unwrap();
     CONFIG.save(deps.storage, &config).unwrap();
 }
 
@@ -41,7 +43,7 @@ fn setup_config(
     "not_owner", 
     vec![coin(1000, "uusdc")], 
     Some("1"),
-    Err(ContractError::Unauthorized {}),
+    Err(ContractError::Owner(mars_owner::OwnerError::NotOwner {})),
     "unauthorized"
     ; "unauthorized sender"
 )]
@@ -96,3 +98,64 @@ fn test_deposit(
         }
     }
 }
+
+
+#[test_case(
+    vec![coin(1000, "uusdc")],
+    true,
+    None;
+    "success multitest"
+)]
+#[test_case(
+    vec![coin(1000, "uusdc"), coin(100, "uatom")],
+    false,
+    Some(ContractError::ExcessAssets { denom: "uusdc".to_string() })
+    ;
+    "excess assets multitest"
+)]
+fn test_deposit_multitest(
+    funds: Vec<Coin>,
+    should_succeed: bool,
+    expected_err: Option<ContractError>,
+) {
+    let owner = Addr::unchecked("owner");
+    let mut mock = MockEnv::new().fund_account(AccountToFund { addr: owner.clone(), funds: funds.clone() }).build().unwrap();
+
+    // Add a market
+    let market_config = MarketConfig {
+        market_id: "market_1".to_string(),
+        usdc_denom: "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81"
+            .to_string(),
+        spot_denom: "ibc/0000000000000000000000000000000000000000000000000000000000000000"
+            .to_string(),
+        perp_denom: "perps/ubtc".to_string(),
+        k: 300u64,
+    };
+    let active_delta_neutral = deploy_active_delta_neutral_contract(&mut mock);
+    let res = add_active_delta_neutral_market(
+        &owner,
+        market_config.clone(),
+        &mut mock,
+        &active_delta_neutral,
+    );
+    assert!(res.is_ok());
+
+    let deposit_res = deposit(&owner, funds.clone(), &mut mock, &active_delta_neutral);
+
+    if should_succeed {
+        let resp = deposit_res.expect("should succeed");
+        let attrs = &resp.events.iter().flat_map(|e| &e.attributes).collect::<Vec<_>>();
+        assert!(attrs.iter().any(|a| a.key == "action" && a.value == "deposit"));
+        assert!(attrs.iter().any(|a| a.key == "amount" && a.value == funds[0].amount.clone().to_string()));
+        assert!(attrs.iter().any(|a| a.key == "denom" && a.value == funds[0].denom.clone()));
+        // Optionally, check that credit manager received funds (if observable in multitest)
+    } else {
+        if let Some(expected) = expected_err {
+            assert_err(deposit_res, expected);
+        } else {
+            panic!("Expected failure but no expected error provided");
+        }
+    }
+}
+
+

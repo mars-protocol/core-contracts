@@ -1,4 +1,5 @@
 use cosmwasm_std::{DepsMut, Env, MessageInfo, ReplyOn, Response, SubMsg};
+use mars_owner::OwnerInit;
 use mars_types::{
     active_delta_neutral::{
         instantiate::InstantiateMsg, query::Config, reply::INSTANTIATE_CREDIT_ACCOUNT_REPLY_ID,
@@ -9,7 +10,7 @@ use mars_types::{
 };
 use mars_utils::helpers::validate_native_denom;
 
-use crate::{error::ContractResult, state::CONFIG};
+use crate::{error::ContractResult, state::{CONFIG, OWNER}};
 
 pub fn instantiate(
     deps: DepsMut,
@@ -46,7 +47,6 @@ pub fn instantiate(
     let credit_manager = credit_manager::CreditManager::new(cm_addr.clone());
     let create_credit_account_msg = credit_manager.create_credit_account(AccountKind::Default)?;
     let config: Config = Config {
-        owner: owner.clone(),
         credit_account_id: None,
         credit_manager_addr: cm_addr.clone(),
         oracle_addr: oracle_addr.clone(),
@@ -63,6 +63,7 @@ pub fn instantiate(
         reply_on: ReplyOn::Success,
     };
 
+    OWNER.initialize(deps.storage, deps.api, OwnerInit::SetInitialOwner { owner: owner.to_string() })?;
     CONFIG.save(deps.storage, &config)?;
     Ok(Response::new()
         .add_submessage(create_credit_account_sub_msg)

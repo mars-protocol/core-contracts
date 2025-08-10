@@ -10,7 +10,7 @@ use thiserror::Error;
 
 pub type ContractResult<T> = Result<T, ContractError>;
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),

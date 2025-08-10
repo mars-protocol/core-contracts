@@ -1,6 +1,7 @@
-use cosmwasm_std::{Addr, Uint128};
+use cosmwasm_std::{Addr, Coin, Uint128};
 use cw_multi_test::{error::AnyResult, AppResponse, Executor};
 use cw_paginate::PaginationResponse;
+use mars_active_delta_neutral::error::ContractError;
 use mars_testing::multitest::helpers::{active_delta_neutral_contract, MockEnv};
 use mars_types::{
     active_delta_neutral::{
@@ -71,6 +72,20 @@ pub fn add_active_delta_neutral_market(
     )
 }
 
+pub fn deposit(
+    sender: &Addr,
+    funds: Vec<Coin>,
+    mock_env: &mut MockEnv,
+    delta_neutral: &ActiveDeltaNeutral,
+) -> AnyResult<AppResponse> {
+    mock_env.app.execute_contract(
+        sender.clone(),
+        delta_neutral.address().clone(),
+        &ExecuteMsg::Deposit {},
+        &funds,
+    )
+}
+
 #[allow(dead_code)] // TODO remove me once used
 pub fn buy_delta_neutral_market(
     sender: &Addr,
@@ -112,6 +127,17 @@ pub fn sell_delta_neutral_market(
         &[],
     )
 }
+
+pub fn assert_err(res: AnyResult<AppResponse>, err: ContractError) {
+    match res {
+        Ok(_) => panic!("Result was not an error"),
+        Err(generic_err) => {
+            let contract_err: ContractError = generic_err.downcast().unwrap();
+            assert_eq!(contract_err, err);
+        }
+    }
+}
+
 pub fn deploy_active_delta_neutral_contract(mock_env: &mut MockEnv) -> ActiveDeltaNeutral {
     let contract_code_id = mock_env.app.store_code(active_delta_neutral_contract());
     let owner = Addr::unchecked("owner");

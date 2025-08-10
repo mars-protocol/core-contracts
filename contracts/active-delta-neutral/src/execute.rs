@@ -1,9 +1,7 @@
 use cosmwasm_std::{
-    to_json_binary, Coin, CosmosMsg, Decimal, DepsMut, Env, Int128, MessageInfo, Response,
-    StdError, Uint128, WasmMsg,
+    to_json_binary, CosmosMsg, Decimal, DepsMut, Env, Int128, MessageInfo, Response, Uint128, WasmMsg
 };
 use mars_delta_neutral_position::types::Position;
-use mars_owner::Owner;
 use mars_types::{
     active_delta_neutral::{
         execute::ExecuteMsg,
@@ -76,7 +74,7 @@ pub fn buy(
         swapper_route,
     );
 
-    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions)?;
+    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions, &vec![])?;
 
     let complete_hedge = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
@@ -151,7 +149,7 @@ pub fn sell(
         swapper_route,
     );
 
-    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions)?;
+    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions, &vec![])?;
 
     // Complete the hedge by calling an internal hedge function
     let complete_hedge = CosmosMsg::Wasm(WasmMsg::Execute {
@@ -292,24 +290,23 @@ pub fn deposit(deps: DepsMut, info: MessageInfo) -> ContractResult<Response> {
     let config: Config = CONFIG.load(deps.storage)?;
     OWNER.assert_owner(deps.storage, &info.sender)?;
 
+    let credit_manager = CreditManager::new(config.credit_manager_addr);
     let funds = info.funds;
 
     assert_deposit_funds_valid(&funds, &config.base_denom)?;
 
-    println!("config: {config:?}");
     let credit_account_id =
-        config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
-    let credit_manager = CreditManager::new(config.credit_manager_addr);
-    let actions = vec![credit_manager::Action::Deposit(Coin {
-        denom: config.base_denom,
-        amount: funds[0].amount,
-    })];
+    config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
+    let coin = &funds[0];
+    let actions = vec![credit_manager::Action::Deposit(coin.clone())];
 
-    let execute_credit_account: CosmosMsg = credit_manager.execute_actions_msg(credit_account_id, actions)?;
+    let execute_credit_account: CosmosMsg = credit_manager.execute_actions_msg(credit_account_id, actions, &funds)?;
 
     Ok(Response::new()
         .add_message(execute_credit_account)
-        .add_attribute("action", "deposit"))
+        .add_attribute("action", "deposit")
+        .add_attribute("amount", coin.amount.to_string())
+        .add_attribute("denom", &coin.denom))
 }
 
 pub fn withdraw(
@@ -338,7 +335,7 @@ pub fn withdraw(
         recipient: recipient.clone(),
     }];
 
-    let execute_credit_account = credit_manager.execute_actions_msg(credit_account_id, actions)?;
+    let execute_credit_account = credit_manager.execute_actions_msg(credit_account_id, actions, &vec![])?;
 
     Ok(Response::new()
         .add_message(execute_credit_account)

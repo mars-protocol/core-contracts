@@ -11,7 +11,6 @@ fn test_config_is_created_on_instantiate() {
     // query Config - it should be created by default
     let config = query_active_delta_neutral_config(&mock, &active_delta_neutral);
 
-    assert_eq!(config.owner, "owner");
     assert_eq!(config.credit_account_id, Some("2".to_string()));
     // TODO should we query from mock? This will fail when new contracts added to mock or order of deployment changed
     assert_eq!(config.credit_manager_addr, "contract11");

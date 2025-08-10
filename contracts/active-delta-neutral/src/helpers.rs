@@ -1,5 +1,5 @@
 // Extracts spot balance, debt, and funding delta from Mars positions
-use cosmwasm_std::{Coin, Decimal, Int128, MessageInfo, Uint128};
+use cosmwasm_std::{Coin, Decimal, Int128, Uint128};
 use mars_delta_neutral_position::types::Position;
 use mars_types::{
     active_delta_neutral::query::MarketConfig,
