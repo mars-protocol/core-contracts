@@ -86,6 +86,24 @@ pub fn deposit(
     )
 }
 
+pub fn withdraw(
+    sender: &Addr,
+    amount: Uint128,
+    recipient: Option<String>,
+    mock_env: &mut MockEnv,
+    delta_neutral: &ActiveDeltaNeutral,
+) -> AnyResult<AppResponse> {
+    mock_env.app.execute_contract(
+        sender.clone(),
+        delta_neutral.address().clone(),
+        &ExecuteMsg::Withdraw {
+            amount,
+            recipient,
+        },
+        &[],
+    )
+}
+
 #[allow(dead_code)] // TODO remove me once used
 pub fn buy_delta_neutral_market(
     sender: &Addr,
