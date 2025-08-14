@@ -52,7 +52,7 @@ fn setup_config(
     Uint128::new(1000),
     None,
     Ok(()),
-    "success"
+    true
     ; "success case"
 )]
 #[test_case(
@@ -60,7 +60,7 @@ fn setup_config(
     Uint128::new(1000),
     None,
     Err(ContractError::Owner(mars_owner::OwnerError::NotOwner {})),
-    "unauthorized"
+    true
     ; "unauthorized sender"
 )]
 #[test_case(
@@ -68,7 +68,7 @@ fn setup_config(
     Uint128::new(1000),
     None,
     Err(ContractError::CreditAccountNotInitialized {}),
-    "credit account not initialized"
+    false
     ; "credit account not initialized"
 )]
 fn test_withdraw(
@@ -76,16 +76,16 @@ fn test_withdraw(
     amount: Uint128,
     recipient: Option<&str>,
     expected: Result<(), ContractError>,
-    _case: &str,
+    credit_account_initialized: bool,
 ) {
     let mut deps = mock_dependencies();
     let owner = "owner";
     let base_denom = "uusdc";
     let credit_manager_addr = "credit_mgr";
-    let credit_account_id = if _case == "credit account not initialized" {
-        None
-    } else {
+    let credit_account_id = if credit_account_initialized {
         Some("1".to_string())
+    } else {
+        None
     };
     setup_config(&mut deps.as_mut(), owner, base_denom, credit_manager_addr, credit_account_id);
 

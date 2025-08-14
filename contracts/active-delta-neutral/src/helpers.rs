@@ -131,6 +131,16 @@ pub fn combined_balance(positions: &Positions, denom: &str) -> ContractResult<Ui
     Ok(deposit.checked_add(lend)?)
 }
 
+/// Validates that the provided funds contain exactly one coin of the specified denomination.
+///
+/// # Arguments
+/// * `funds` - Slice of `Coin` objects to validate.
+/// * `denom` - The expected denomination for the coin.
+///
+/// # Returns
+/// * `ContractResult<()>` - Returns `Ok(())` if there is exactly one coin and its denomination matches `denom`.
+///   Returns `ContractError::ExcessAssets` if there are zero or more than one coins,
+///   or `ContractError::IncorrectDenom` if the coin's denomination does not match.
 pub fn assert_deposit_funds_valid(funds: &[Coin], denom: &str) -> ContractResult<()> {
     if funds.len() != 1 {
         return Err(ContractError::ExcessAssets {
@@ -148,6 +158,14 @@ pub fn assert_deposit_funds_valid(funds: &[Coin], denom: &str) -> ContractResult
     }
     Ok(())
 }
+
+/// Validates that no funds were sent.
+///
+/// # Arguments
+/// * `funds` - Slice of `Coin` objects to validate.
+///
+/// # Returns
+/// * `ContractResult<()>` - Returns `Ok(())` if there are zero coins, returns `ContractError::IllegalFundsSent` otherwise.
 
 pub fn assert_no_funds(funds: &[Coin]) -> ContractResult<()> {
     if !funds.is_empty() {
