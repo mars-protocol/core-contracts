@@ -24,4 +24,9 @@ pub enum ExecuteMsg {
     AddMarket {
         config: MarketConfig,
     },
+    Deposit {},
+    Withdraw {
+        amount: Uint128,
+        recipient: Option<String>,
+    },
 }

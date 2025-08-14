@@ -9,6 +9,7 @@ use mars_types::{
         query::{Config, MarketConfig},
     },
     adapters::{credit_manager::CreditManager, params::Params},
+    credit_manager::{self, ActionAmount, ActionCoin},
     swapper::SwapperRoute,
 };
 use mars_utils::helpers::uint128_to_int128;
@@ -16,10 +17,12 @@ use mars_utils::helpers::uint128_to_int128;
 use super::{error::ContractError, helpers::validate_swapper_route, state::MARKET_CONFIG};
 use crate::{
     error::ContractResult,
-    helpers::{self, combined_balance, PositionDeltas},
+    helpers::{
+        self, assert_deposit_funds_valid, assert_no_funds, combined_balance, PositionDeltas,
+    },
     order_creation::build_trade_actions,
     order_validation,
-    state::{CONFIG, POSITION},
+    state::{CONFIG, OWNER, POSITION},
 };
 /// # Execute Increase Position
 ///
@@ -74,7 +77,7 @@ pub fn buy(
         swapper_route,
     );
 
-    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions)?;
+    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions, &[])?;
 
     let complete_hedge = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
@@ -149,7 +152,7 @@ pub fn sell(
         swapper_route,
     );
 
-    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions)?;
+    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions, &[])?;
 
     // Complete the hedge by calling an internal hedge function
     let complete_hedge = CosmosMsg::Wasm(WasmMsg::Execute {
@@ -279,8 +282,69 @@ pub fn hedge(
         .add_attribute("borrow_delta", borrow_delta.to_string()))
 }
 
-pub fn add_market(deps: DepsMut, _env: Env, config: MarketConfig) -> ContractResult<Response> {
+pub fn add_market(deps: DepsMut, config: MarketConfig) -> ContractResult<Response> {
     config.validate()?;
     MARKET_CONFIG.save(deps.storage, &config.market_id, &config)?;
     Ok(Response::new().add_attribute("action", "add_market"))
+}
+
+// Currently just a simple deposit owned by the owner
+pub fn deposit(deps: DepsMut, info: MessageInfo) -> ContractResult<Response> {
+    let config: Config = CONFIG.load(deps.storage)?;
+    OWNER.assert_owner(deps.storage, &info.sender)?;
+
+    let credit_manager = CreditManager::new(config.credit_manager_addr);
+    let funds = info.funds;
+
+    assert_deposit_funds_valid(&funds, &config.base_denom)?;
+
+    let credit_account_id =
+        config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
+    let coin = &funds[0];
+    let actions = vec![credit_manager::Action::Deposit(coin.clone())];
+
+    let execute_credit_account: CosmosMsg =
+        credit_manager.execute_actions_msg(credit_account_id, actions, &funds)?;
+
+    Ok(Response::new()
+        .add_message(execute_credit_account)
+        .add_attribute("action", "deposit")
+        .add_attribute("amount", coin.amount.to_string())
+        .add_attribute("denom", &coin.denom))
+}
+
+pub fn withdraw(
+    deps: DepsMut,
+    info: MessageInfo,
+    amount: Uint128,
+    recipient: Option<String>,
+) -> ContractResult<Response> {
+    let config: Config = CONFIG.load(deps.storage)?;
+    let sender = info.sender;
+    OWNER.assert_owner(deps.storage, &sender)?;
+
+    // Prevent potentially expensive mistakes
+    assert_no_funds(&info.funds)?;
+
+    let recipient = recipient.unwrap_or(sender.to_string());
+
+    let credit_account_id =
+        config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
+    let credit_manager = CreditManager::new(config.credit_manager_addr);
+    let actions = vec![credit_manager::Action::WithdrawToWallet {
+        coin: ActionCoin {
+            denom: config.base_denom,
+            amount: ActionAmount::Exact(amount),
+        },
+        recipient: recipient.clone(),
+    }];
+
+    let execute_credit_account =
+        credit_manager.execute_actions_msg(credit_account_id, actions, &[])?;
+
+    Ok(Response::new()
+        .add_message(execute_credit_account)
+        .add_attribute("action", "withdraw")
+        .add_attribute("amount", amount.to_string())
+        .add_attribute("recipient", recipient))
 }

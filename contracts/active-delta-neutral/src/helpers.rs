@@ -1,5 +1,5 @@
 // Extracts spot balance, debt, and funding delta from Mars positions
-use cosmwasm_std::{Decimal, Int128, Uint128};
+use cosmwasm_std::{Coin, Decimal, Int128, Uint128};
 use mars_delta_neutral_position::types::Position;
 use mars_types::{
     active_delta_neutral::query::MarketConfig,
@@ -129,4 +129,47 @@ pub fn combined_balance(positions: &Positions, denom: &str) -> ContractResult<Ui
     let lend = lend.map(|l| l.amount).unwrap_or_default();
 
     Ok(deposit.checked_add(lend)?)
+}
+
+/// Validates that the provided funds contain exactly one coin of the specified denomination.
+///
+/// # Arguments
+/// * `funds` - Slice of `Coin` objects to validate.
+/// * `denom` - The expected denomination for the coin.
+///
+/// # Returns
+/// * `ContractResult<()>` - Returns `Ok(())` if there is exactly one coin and its denomination matches `denom`.
+///   Returns `ContractError::ExcessAssets` if there are zero or more than one coins,
+///   or `ContractError::IncorrectDenom` if the coin's denomination does not match.
+pub fn assert_deposit_funds_valid(funds: &[Coin], denom: &str) -> ContractResult<()> {
+    if funds.len() != 1 {
+        return Err(ContractError::ExcessAssets {
+            denom: denom.to_string(),
+        });
+    }
+
+    let fund_denom = &funds[0].denom;
+
+    if fund_denom != denom {
+        return Err(ContractError::IncorrectDenom {
+            denom: fund_denom.to_string(),
+            base_denom: denom.to_string(),
+        });
+    }
+    Ok(())
+}
+
+/// Validates that no funds were sent.
+///
+/// # Arguments
+/// * `funds` - Slice of `Coin` objects to validate.
+///
+/// # Returns
+/// * `ContractResult<()>` - Returns `Ok(())` if there are zero coins, returns `ContractError::IllegalFundsSent` otherwise.
+
+pub fn assert_no_funds(funds: &[Coin]) -> ContractResult<()> {
+    if !funds.is_empty() {
+        return Err(ContractError::IllegalFundsSent {});
+    }
+    Ok(())
 }

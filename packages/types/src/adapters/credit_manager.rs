@@ -1,6 +1,6 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    to_json_binary, Addr, Api, CosmosMsg, QuerierWrapper, QueryRequest, StdResult, WasmMsg,
+    to_json_binary, Addr, Api, Coin, CosmosMsg, QuerierWrapper, QueryRequest, StdResult, WasmMsg,
     WasmQuery,
 };
 
@@ -59,6 +59,7 @@ impl CreditManager {
         &self,
         account_id: &str,
         actions: Vec<credit_manager::Action>,
+        funds: &[Coin],
     ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.addr.to_string(),
@@ -67,7 +68,7 @@ impl CreditManager {
                 account_kind: Some(AccountKind::Default),
                 actions,
             })?,
-            funds: vec![],
+            funds: funds.to_vec(),
         }))
     }
 
