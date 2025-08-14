@@ -77,8 +77,7 @@ pub fn buy(
         swapper_route,
     );
 
-    let execute_spot_swap =
-        credit_manager.execute_actions_msg(credit_account_id, actions, &[])?;
+    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions, &[])?;
 
     let complete_hedge = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: env.contract.address.to_string(),
@@ -153,8 +152,7 @@ pub fn sell(
         swapper_route,
     );
 
-    let execute_spot_swap =
-        credit_manager.execute_actions_msg(credit_account_id, actions, &[])?;
+    let execute_spot_swap = credit_manager.execute_actions_msg(credit_account_id, actions, &[])?;
 
     // Complete the hedge by calling an internal hedge function
     let complete_hedge = CosmosMsg::Wasm(WasmMsg::Execute {
