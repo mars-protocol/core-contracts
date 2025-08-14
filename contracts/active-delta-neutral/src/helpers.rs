@@ -131,10 +131,10 @@ pub fn combined_balance(positions: &Positions, denom: &str) -> ContractResult<Ui
     Ok(deposit.checked_add(lend)?)
 }
 
-pub fn assert_deposit_funds_valid(funds: &Vec<Coin>, denom: &str) -> ContractResult<()> {
+pub fn assert_deposit_funds_valid(funds: &[Coin], denom: &str) -> ContractResult<()> {
     if funds.len() != 1 {
         return Err(ContractError::ExcessAssets {
-            denom: denom.to_string()
+            denom: denom.to_string(),
         });
     }
 
@@ -143,13 +143,13 @@ pub fn assert_deposit_funds_valid(funds: &Vec<Coin>, denom: &str) -> ContractRes
     if fund_denom != denom {
         return Err(ContractError::IncorrectDenom {
             denom: fund_denom.to_string(),
-            base_denom: denom.to_string()
+            base_denom: denom.to_string(),
         });
     }
     Ok(())
 }
 
-pub fn assert_no_funds(funds: Vec<Coin>) -> ContractResult<()> {
+pub fn assert_no_funds(funds: &[Coin]) -> ContractResult<()> {
     if !funds.is_empty() {
         return Err(ContractError::IllegalFundsSent {});
     }

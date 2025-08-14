@@ -1,6 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    to_json_binary, Addr, Api, Coin, CosmosMsg, QuerierWrapper, QueryRequest, StdResult, WasmMsg, WasmQuery
+    to_json_binary, Addr, Api, Coin, CosmosMsg, QuerierWrapper, QueryRequest, StdResult, WasmMsg,
+    WasmQuery,
 };
 
 use crate::{
@@ -58,7 +59,7 @@ impl CreditManager {
         &self,
         account_id: &str,
         actions: Vec<credit_manager::Action>,
-        funds: &Vec<Coin>,
+        funds: &[Coin],
     ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.addr.to_string(),

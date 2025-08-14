@@ -1,14 +1,21 @@
 use cosmwasm_std::{
     coin,
     testing::{mock_dependencies, mock_info},
-    Addr, Coin
+    Addr, Coin,
 };
-use mars_active_delta_neutral::{error::ContractError, execute, state::{CONFIG, OWNER}};
+use mars_active_delta_neutral::{
+    error::ContractError,
+    execute,
+    state::{CONFIG, OWNER},
+};
 use mars_owner::OwnerInit;
 use mars_testing::multitest::helpers::{AccountToFund, MockEnv};
 use mars_types::active_delta_neutral::query::{Config, MarketConfig};
 use test_case::test_case;
-use crate::tests::helpers::delta_neutral_helpers::{add_active_delta_neutral_market, deploy_active_delta_neutral_contract, deposit, assert_err};
+
+use crate::tests::helpers::delta_neutral_helpers::{
+    add_active_delta_neutral_market, assert_err, deploy_active_delta_neutral_contract, deposit,
+};
 
 // Helper to setup contract config
 fn setup_config(
@@ -27,7 +34,15 @@ fn setup_config(
         health_addr: Addr::unchecked("health"),
         red_bank_addr: Addr::unchecked("red_bank"),
     };
-    OWNER.initialize(deps.storage, deps.api, OwnerInit::SetInitialOwner { owner: owner.to_string() }).unwrap();
+    OWNER
+        .initialize(
+            deps.storage,
+            deps.api,
+            OwnerInit::SetInitialOwner {
+                owner: owner.to_string(),
+            },
+        )
+        .unwrap();
     CONFIG.save(deps.storage, &config).unwrap();
 }
 
@@ -99,7 +114,6 @@ fn test_deposit(
     }
 }
 
-
 #[test_case(
     vec![coin(1000, "uusdc")],
     true,
@@ -119,7 +133,13 @@ fn test_deposit_multitest(
     expected_err: Option<ContractError>,
 ) {
     let owner = Addr::unchecked("owner");
-    let mut mock = MockEnv::new().fund_account(AccountToFund { addr: owner.clone(), funds: funds.clone() }).build().unwrap();
+    let mut mock = MockEnv::new()
+        .fund_account(AccountToFund {
+            addr: owner.clone(),
+            funds: funds.clone(),
+        })
+        .build()
+        .unwrap();
 
     // Add a market
     let market_config = MarketConfig {
@@ -146,16 +166,13 @@ fn test_deposit_multitest(
         let resp = deposit_res.expect("should succeed");
         let attrs = &resp.events.iter().flat_map(|e| &e.attributes).collect::<Vec<_>>();
         assert!(attrs.iter().any(|a| a.key == "action" && a.value == "deposit"));
-        assert!(attrs.iter().any(|a| a.key == "amount" && a.value == funds[0].amount.clone().to_string()));
+        assert!(attrs
+            .iter()
+            .any(|a| a.key == "amount" && a.value == funds[0].amount.clone().to_string()));
         assert!(attrs.iter().any(|a| a.key == "denom" && a.value == funds[0].denom.clone()));
-        // Optionally, check that credit manager received funds (if observable in multitest)
+    } else if let Some(expected) = expected_err {
+        assert_err(deposit_res, expected);
     } else {
-        if let Some(expected) = expected_err {
-            assert_err(deposit_res, expected);
-        } else {
-            panic!("Expected failure but no expected error provided");
-        }
+        panic!("Expected failure but no expected error provided");
     }
 }
-
-

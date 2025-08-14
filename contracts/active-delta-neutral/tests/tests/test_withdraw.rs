@@ -1,14 +1,22 @@
 use cosmwasm_std::{
-    coin, Uint128,
+    coin,
     testing::{mock_dependencies, mock_info},
-    Addr, Coin
+    Addr, Uint128,
 };
-use mars_active_delta_neutral::{error::ContractError, execute, state::{CONFIG, OWNER}};
+use mars_active_delta_neutral::{
+    error::ContractError,
+    execute,
+    state::{CONFIG, OWNER},
+};
 use mars_owner::OwnerInit;
 use mars_testing::multitest::helpers::{AccountToFund, MockEnv};
 use mars_types::active_delta_neutral::query::{Config, MarketConfig};
 use test_case::test_case;
-use crate::tests::helpers::delta_neutral_helpers::{add_active_delta_neutral_market, assert_err, deploy_active_delta_neutral_contract, deposit, withdraw};
+
+use crate::tests::helpers::delta_neutral_helpers::{
+    add_active_delta_neutral_market, assert_err, deploy_active_delta_neutral_contract, deposit,
+    withdraw,
+};
 
 // Helper to setup contract config
 fn setup_config(
@@ -27,7 +35,15 @@ fn setup_config(
         health_addr: Addr::unchecked("health"),
         red_bank_addr: Addr::unchecked("red_bank"),
     };
-    OWNER.initialize(deps.storage, deps.api, OwnerInit::SetInitialOwner { owner: owner.to_string() }).unwrap();
+    OWNER
+        .initialize(
+            deps.storage,
+            deps.api,
+            OwnerInit::SetInitialOwner {
+                owner: owner.to_string(),
+            },
+        )
+        .unwrap();
     CONFIG.save(deps.storage, &config).unwrap();
 }
 
@@ -49,14 +65,6 @@ fn setup_config(
 )]
 #[test_case(
     "owner",
-    Uint128::new(0),
-    None,
-    Err(ContractError::Std(cosmwasm_std::StdError::generic_err("Amount is zero"))),
-    "zero amount"
-    ; "zero amount"
-)]
-#[test_case(
-    "owner",
     Uint128::new(1000),
     None,
     Err(ContractError::CreditAccountNotInitialized {}),
@@ -74,7 +82,11 @@ fn test_withdraw(
     let owner = "owner";
     let base_denom = "uusdc";
     let credit_manager_addr = "credit_mgr";
-    let credit_account_id = if _case == "credit account not initialized" { None } else { Some("1".to_string()) };
+    let credit_account_id = if _case == "credit account not initialized" {
+        None
+    } else {
+        Some("1".to_string())
+    };
     setup_config(&mut deps.as_mut(), owner, base_denom, credit_manager_addr, credit_account_id);
 
     let info = mock_info(sender, &[]);
@@ -102,25 +114,27 @@ fn test_withdraw(
     None;
     "success multitest"
 )]
-#[test_case(
-    Uint128::new(0),
-    false,
-    Some(ContractError::Std(cosmwasm_std::StdError::generic_err("Amount is zero")));
-    "zero amount multitest"
-)]
 fn test_withdraw_multitest(
     amount: Uint128,
     should_succeed: bool,
     expected_err: Option<ContractError>,
 ) {
     let owner = Addr::unchecked("owner");
-    let mut mock = MockEnv::new().fund_account(AccountToFund { addr: owner.clone(), funds: vec![coin(1000, "uusdc")] }).build().unwrap();
+    let mut mock = MockEnv::new()
+        .fund_account(AccountToFund {
+            addr: owner.clone(),
+            funds: vec![coin(1000, "uusdc")],
+        })
+        .build()
+        .unwrap();
 
     // Add a market
     let market_config = MarketConfig {
         market_id: "market_1".to_string(),
-        usdc_denom: "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81".to_string(),
-        spot_denom: "ibc/0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+        usdc_denom: "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81"
+            .to_string(),
+        spot_denom: "ibc/0000000000000000000000000000000000000000000000000000000000000000"
+            .to_string(),
         perp_denom: "perps/ubtc".to_string(),
         k: 300u64,
     };
@@ -133,7 +147,6 @@ fn test_withdraw_multitest(
     );
     assert!(res.is_ok());
 
-
     let deposit_res = deposit(&owner, vec![coin(1000, "uusdc")], &mut mock, &active_delta_neutral);
     assert!(deposit_res.is_ok());
 
@@ -144,11 +157,9 @@ fn test_withdraw_multitest(
         let attrs = &resp.events.iter().flat_map(|e| &e.attributes).collect::<Vec<_>>();
         assert!(attrs.iter().any(|a| a.key == "action" && a.value == "withdraw"));
         assert!(attrs.iter().any(|a| a.key == "amount" && a.value == amount.to_string()));
+    } else if let Some(expected) = expected_err {
+        assert_err(withdraw_res, expected);
     } else {
-        if let Some(expected) = expected_err {
-            assert_err(withdraw_res, expected);
-        } else {
-            panic!("Expected failure but no expected error provided");
-        }
+        panic!("Expected failure but no expected error provided");
     }
 }

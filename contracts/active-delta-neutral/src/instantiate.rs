@@ -10,7 +10,10 @@ use mars_types::{
 };
 use mars_utils::helpers::validate_native_denom;
 
-use crate::{error::ContractResult, state::{CONFIG, OWNER}};
+use crate::{
+    error::ContractResult,
+    state::{CONFIG, OWNER},
+};
 
 pub fn instantiate(
     deps: DepsMut,
@@ -63,7 +66,13 @@ pub fn instantiate(
         reply_on: ReplyOn::Success,
     };
 
-    OWNER.initialize(deps.storage, deps.api, OwnerInit::SetInitialOwner { owner: owner.to_string() })?;
+    OWNER.initialize(
+        deps.storage,
+        deps.api,
+        OwnerInit::SetInitialOwner {
+            owner: owner.to_string(),
+        },
+    )?;
     CONFIG.save(deps.storage, &config)?;
     Ok(Response::new()
         .add_submessage(create_credit_account_sub_msg)
