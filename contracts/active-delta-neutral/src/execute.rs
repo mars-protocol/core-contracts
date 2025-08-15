@@ -55,7 +55,7 @@ pub fn buy(
     let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, market_id)?;
     let credit_account_id =
         config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
-    validate_swapper_route(swapper_route, &market_config.spot_denom, &market_config.perp_denom)?;
+    validate_swapper_route(swapper_route, &market_config.usdc_denom, &market_config.spot_denom)?;
 
     let credit_manager = CreditManager::new(config.credit_manager_addr);
 
@@ -83,7 +83,7 @@ pub fn buy(
         contract_addr: env.contract.address.to_string(),
         msg: to_json_binary(&ExecuteMsg::Hedge {
             swap_exact_in_amount: amount,
-            market_id: market_config.spot_denom.clone(),
+            market_id: market_config.market_id.clone(),
             increasing: true,
         })?,
         funds: vec![],
@@ -212,6 +212,7 @@ pub fn hedge(
 
     // State variables
     let config: Config = CONFIG.load(deps.storage)?;
+    println!("market_id: {}", market_id);
     let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, market_id)?;
     let mut position_state: Position = POSITION.load(deps.storage, market_id)?;
     let credit_account_id =
