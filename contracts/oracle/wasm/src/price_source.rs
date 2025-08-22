@@ -20,7 +20,6 @@ use mars_types::oracle::{ActionKind, AstroportTwapSnapshot, Config};
 use pyth_sdk_cw::PriceIdentifier;
 
 use crate::{
-    redemption_rate::query_redemption_rate as query_slinky_lst_redemption_rate,
     helpers::{
         adjust_precision, astro_native_asset, get_astroport_pair_denoms,
         get_other_astroport_pair_denom, normalize_price, period_diff, query_astroport_config,
@@ -28,10 +27,7 @@ use crate::{
         query_astroport_pcl_curve_invariant, query_astroport_pool,
         query_astroport_ss_curve_invariant, query_token_precision,
         validate_astroport_lp_pool_for_type, validate_astroport_pair_price_source,
-    },
-    lp_pricing::{query_pcl_lp_price, query_stable_swap_lp_price},
-    slinky::{assert_slinky, query_slinky_price},
-    state::{ASTROPORT_FACTORY, ASTROPORT_TWAP_SNAPSHOTS},
+    }, lp_pricing::{query_pcl_lp_price, query_stable_swap_lp_price}, redemption_rate::{query_redemption_rate as query_slinky_lst_redemption_rate, query_slinky_lst_denom}, slinky::{assert_slinky, query_slinky_price}, state::{ASTROPORT_FACTORY, ASTROPORT_TWAP_SNAPSHOTS}
 };
 
 pub const PRICE_PRECISION: Uint128 = Uint128::new(10_u128.pow(TWAP_PRECISION as u32));
@@ -389,7 +385,13 @@ impl PriceSourceUnchecked<WasmPriceSourceChecked, Empty> for WasmPriceSourceUnch
             } => {
                 let contract_addr = deps.api.addr_validate(&contract_addr)?;
                
-                // TODO: query config, ensure that contract is referring to the denom we expect
+                // Ensure that the contract is using to the denom we expect
+                let lst_denom = query_slinky_lst_denom(&deps.querier, &contract_addr)?;
+                if lst_denom != denom {
+                    return Err(ContractError::InvalidPriceSource {
+                        reason: format!("lst denom does not match. Lst denom returned by contract: {}, expected: {}", lst_denom, denom),
+                    });
+                }
 
                 if !price_sources.has(deps.storage, &transitive_denom) {
                     return Err(ContractError::InvalidPriceSource {
