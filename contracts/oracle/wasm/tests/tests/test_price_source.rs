@@ -931,6 +931,86 @@ pub fn validate_and_query_lsd_price_source(
         .assert_price_almost_equal(primary_ibc_denom, expected_price, Decimal::percent(1));
 }
 
+#[test_case(
+    "slinky_contract", "uluna", "uusd", Some(Decimal::from_ratio(2u128, 1u128)), "uluna", true;
+    "Success: correct contract and transitive denom"
+)]
+#[test_case(
+    "slinky_contract", "uluna", "uusd", Some(Decimal::from_ratio(2u128, 1u128)), "uatom", true
+    => panics "lst denom does not match";
+    "Error: contract returns wrong denom"
+)]
+#[test_case(
+    "slinky_contract", "uluna", "uusd", Some(Decimal::from_ratio(2u128, 1u128)), "uluna", false
+    => panics "missing price source for";
+    "Error: missing transitive denom"
+)]
+#[test_case(
+    "slinky_contract", "uluna", "uusd", Some(Decimal::from_ratio(2u128, 1u128)), "uatom", false
+    => panics "lst denom does not match";
+    "Error: wrong denom and missing transitive denom"
+)]
+pub fn validate_and_query_slinky_lsd_price_source(
+    contract_addr: &str,
+    expected_lst_denom: &str,
+    transitive_denom: &str,
+    transitive_price: Option<Decimal>,
+    contract_lst_denom: &str, // what the mock contract actually returns
+    transitive_denom_present: bool,
+) {
+
+    let owned_runner = get_test_runner();
+    let runner = owned_runner.as_ref();
+    let admin = &runner
+        .init_account(&[
+            coin(DEFAULT_COIN_AMOUNT, expected_lst_denom),
+            coin(DEFAULT_COIN_AMOUNT, transitive_denom),
+        ])
+        .unwrap();
+    let robot = WasmOracleTestRobot::new(&runner, get_contracts(&runner), admin, Some("uusd"));
+
+    // Set up the mock contract to return `contract_lst_denom` for its denom query
+    robot.set_mock_slinky_lst_denom(contract_addr, contract_lst_denom);
+
+    // Optionally set the transitive denom price source
+    if transitive_denom_present {
+        robot.set_price_source(
+            transitive_denom,
+            WasmPriceSourceUnchecked::Fixed {
+                price: transitive_price.unwrap_or_else(Decimal::one),
+            },
+            admin,
+        );
+    }
+
+    let price_source = WasmPriceSourceUnchecked::SlinkyLsd {
+        contract_addr: contract_addr.to_string(),
+        transitive_denom: transitive_denom.to_string(),
+    };
+
+    let result = robot.validate_and_query_price_source(expected_lst_denom, &price_source);
+
+    if contract_lst_denom != expected_lst_denom {
+        assert!(matches!(
+            result,
+            Err(ContractError::InvalidPriceSource { reason })
+            if reason.contains("lst denom does not match")
+        ));
+    } else if !transitive_denom_present {
+        assert!(matches!(
+            result,
+            Err(ContractError::InvalidPriceSource { reason })
+            if reason.contains("missing price source for")
+        ));
+    } else {
+        assert!(matches!(
+            result,
+            Ok(WasmPriceSourceChecked::SlinkyLsd { contract_addr: addr, transitive_denom: tdenom })
+            if addr == Addr::unchecked(contract_addr) && tdenom == transitive_denom
+        ));
+    }
+}
+
 #[test_case(PairType::Xyk {}, &["uatom","untrn"], Some(Decimal::from_str("8.86506356").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [1171210862745u128, 12117922358503u128], &[6,6]; "XYK, 6:6 decimals")]
 #[test_case(PairType::Xyk {}, &["untrn","ueth"], Some(Decimal::from_str("0.85676231").unwrap()), Some(Decimal::from_str("0.000000003192778061").unwrap()), [291397962796u128, 65345494060528260316u128], &[6,18]; "XYK, 6:18 decimals")]
 #[test_case(PairType::Xyk {}, &["ueth","udydx"], Some(Decimal::from_str("0.000000003195385").unwrap()), Some(Decimal::from_str("0.00000000000238175").unwrap()), DEFAULT_LIQ, &[18,18]; "XYK, 18:18 decimals")]
