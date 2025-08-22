@@ -3,6 +3,7 @@ use cosmwasm_std::{
     WasmMsg,
 };
 use mars_delta_neutral_position::types::Position;
+use mars_perps_common::pricing::{closing_execution_price, opening_execution_price};
 use mars_types::{
     active_delta_neutral::{
         execute::ExecuteMsg,
@@ -240,8 +241,6 @@ pub fn hedge(
 
     let amount = spot_delta.unsigned_abs();
     let spot_execution_price = Decimal::from_ratio(swap_in_amount, amount);
-    // TODO calculate perp execution price
-    let perp_execution_price = Decimal::zero();
 
     let perp_trading_fee_amount = amount.checked_mul_floor(trading_fee_rate)?;
 
@@ -251,24 +250,30 @@ pub fn hedge(
 
     // Update Position
     let position_state = match increasing {
-        true => position_state.increase(
-            amount,
-            spot_execution_price,
-            perp_execution_price,
-            Int128::zero(), // todo add fees
-            env.block.time.nanos(),
-            funding_delta,
-            uint128_to_int128(borrow_delta)?,
-        ),
-        false => position_state.decrease(
-            amount,
-            spot_execution_price,
-            perp_execution_price,
-            uint128_to_int128(perp_trading_fee_amount)?,
-            env.block.time.nanos(),
-            funding_delta,
-            uint128_to_int128(borrow_delta)?,
-        ),
+        true => {
+            let perp_execution_price = opening_execution_price(&deps.querier, &market_config, &position_state)?;
+            position_state.increase(
+                amount,
+                spot_execution_price,
+                perp_execution_price,
+                Int128::zero(), // todo add fees
+                env.block.time.nanos(),
+                funding_delta,
+                uint128_to_int128(borrow_delta)?,
+            )?
+        },
+        false => {
+            let perp_execution_price = closing_execution_price(&deps.querier, &market_config, &position_state)?;
+            position_state.decrease(
+                amount,
+                spot_execution_price,
+                perp_execution_price,
+                uint128_to_int128(perp_trading_fee_amount)?,
+                env.block.time.nanos(),
+                funding_delta,
+                uint128_to_int128(borrow_delta)?,
+            )?
+        },
     }?;
 
     POSITION.save(deps.storage, market_id, &position_state)?;

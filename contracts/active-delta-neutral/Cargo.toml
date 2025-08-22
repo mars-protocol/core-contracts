@@ -1,6 +1,6 @@
 [package]
 name          = "mars-active-delta-neutral"
-description   = "Delta-neutral MM contract"
+description   = "Delta-neutral Market Making contract"
 version       = { workspace = true }
 authors       = { workspace = true }
 edition       = { workspace = true }
@@ -30,7 +30,8 @@ mars-utils      = { workspace = true }
 schemars        = { workspace = true }
 serde           = { workspace = true }
 cw-paginate     = { workspace = true }
-mars-owner      = { workspace = true }
+mars-owner        = { workspace = true }
+mars-perps-common = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test       = { workspace = true, features = ["cosmwasm_1_1"] }

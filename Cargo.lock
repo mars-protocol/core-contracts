@@ -2667,6 +2667,7 @@ dependencies = [
  "mars-delta-neutral-position",
  "mars-mock-oracle",
  "mars-owner",
+ "mars-perps-common",
  "mars-testing",
  "mars-types",
  "mars-utils",
