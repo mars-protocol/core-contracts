@@ -21,15 +21,11 @@ pub fn query_redemption_rate(querier: &QuerierWrapper, contract_addr: Addr) -> S
     }))
 }
 
-pub fn query_slinky_lst_denom(
-    querier: &QuerierWrapper,
-    contract_addr: &Addr,
-) -> StdResult<String> {
-    let response: String =
-        querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-            contract_addr: contract_addr.to_string(),
-            msg: to_json_binary(&NeutronQueryMsg::GetLstAssetDenom {})?,
-        }))?;
+pub fn query_slinky_lst_denom(querier: &QuerierWrapper, contract_addr: &Addr) -> StdResult<String> {
+    let response: String = querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+        contract_addr: contract_addr.to_string(),
+        msg: to_json_binary(&NeutronQueryMsg::GetLstAssetDenom {})?,
+    }))?;
 
     Ok(response)
 }

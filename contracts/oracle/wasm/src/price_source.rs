@@ -15,7 +15,6 @@ use mars_oracle_base::{
     redemption_rate::{assert_rr_not_too_old, query_redemption_rate, RedemptionRate},
     ContractError, ContractResult, PriceSourceChecked, PriceSourceUnchecked, USD_DENOM,
 };
-
 use mars_types::oracle::{ActionKind, AstroportTwapSnapshot, Config};
 use pyth_sdk_cw::PriceIdentifier;
 
@@ -27,7 +26,13 @@ use crate::{
         query_astroport_pcl_curve_invariant, query_astroport_pool,
         query_astroport_ss_curve_invariant, query_token_precision,
         validate_astroport_lp_pool_for_type, validate_astroport_pair_price_source,
-    }, lp_pricing::{query_pcl_lp_price, query_stable_swap_lp_price}, redemption_rate::{query_redemption_rate as query_slinky_lst_redemption_rate, query_slinky_lst_denom}, slinky::{assert_slinky, query_slinky_price}, state::{ASTROPORT_FACTORY, ASTROPORT_TWAP_SNAPSHOTS}
+    },
+    lp_pricing::{query_pcl_lp_price, query_stable_swap_lp_price},
+    redemption_rate::{
+        query_redemption_rate as query_slinky_lst_redemption_rate, query_slinky_lst_denom,
+    },
+    slinky::{assert_slinky, query_slinky_price},
+    state::{ASTROPORT_FACTORY, ASTROPORT_TWAP_SNAPSHOTS},
 };
 
 pub const PRICE_PRECISION: Uint128 = Uint128::new(10_u128.pow(TWAP_PRECISION as u32));
@@ -384,7 +389,7 @@ impl PriceSourceUnchecked<WasmPriceSourceChecked, Empty> for WasmPriceSourceUnch
                 transitive_denom,
             } => {
                 let contract_addr = deps.api.addr_validate(&contract_addr)?;
-               
+
                 // Ensure that the contract is using to the denom we expect
                 let lst_denom = query_slinky_lst_denom(&deps.querier, &contract_addr)?;
                 if lst_denom != denom {
@@ -883,11 +888,7 @@ fn query_slinky_lsd_price(
     price_sources: &Map<&str, WasmPriceSourceChecked>,
     kind: ActionKind,
 ) -> ContractResult<Decimal> {
-
-    let rr = query_slinky_lst_redemption_rate(
-        &deps.querier,
-        contract_addr.clone(),
-    )?;
+    let rr = query_slinky_lst_redemption_rate(&deps.querier, contract_addr.clone())?;
 
     // We don't do any staleness checks here as slinky LST contract does not provide that.
 
@@ -900,7 +901,7 @@ fn query_slinky_lsd_price(
         price_sources,
         kind,
     )?;
-    
+
     price.checked_mul(rr).map_err(Into::into)
 }
 

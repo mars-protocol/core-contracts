@@ -1,7 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{
-    to_json_binary, Addr, QuerierWrapper, QueryRequest, StdResult, WasmQuery,
-};
+use cosmwasm_std::{to_json_binary, Addr, QuerierWrapper, QueryRequest, StdResult, WasmQuery};
 use ica_oracle::msg::{QueryMsg, RedemptionRateResponse};
 
 use crate::{ContractError, ContractError::InvalidPrice};
