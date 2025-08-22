@@ -28,7 +28,7 @@ impl Default for Position {
             avg_spot_price: Decimal::zero(),
             avg_perp_price: Decimal::zero(),
             entry_value: Int128::zero(),
-            direction: Side::LongSpotShortPerp,
+            direction: Side::Flat,
             net_funding_balance: Int128::zero(),
             net_borrow_balance: Int128::zero(),
             net_realized_funding: Int128::zero(),
@@ -54,6 +54,7 @@ pub struct DecreaseResult {
 pub enum Side {
     LongSpotShortPerp,
     ShortSpotLongPerp,
+    Flat,
 }
 
 impl Side {
@@ -61,6 +62,7 @@ impl Side {
         match self {
             Self::LongSpotShortPerp => "LongSpotShortPerp".to_string(),
             Self::ShortSpotLongPerp => "ShortSpotLongPerp".to_string(),
+            Self::Flat => "Flat".to_string(),
         }
     }
 }

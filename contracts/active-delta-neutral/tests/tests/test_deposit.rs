@@ -33,6 +33,7 @@ fn setup_config(
         perps_addr: Addr::unchecked("perps"),
         health_addr: Addr::unchecked("health"),
         red_bank_addr: Addr::unchecked("red_bank"),
+        params_addr: Addr::unchecked("params"),
     };
     OWNER
         .initialize(

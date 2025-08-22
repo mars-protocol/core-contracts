@@ -206,21 +206,22 @@ pub fn hedge(
     market_id: &str,
     increasing: bool,
 ) -> ContractResult<Response> {
+    // Internal method only
     if info.sender != env.contract.address {
         return Err(ContractError::Unauthorized {});
     }
 
     // State variables
     let config: Config = CONFIG.load(deps.storage)?;
-    println!("market_id: {}", market_id);
     let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, market_id)?;
-    let mut position_state: Position = POSITION.load(deps.storage, market_id)?;
+    let mut position_state: Position =
+        POSITION.may_load(deps.storage, market_id)?.unwrap_or_default();
     let credit_account_id =
         config.credit_account_id.as_ref().ok_or(ContractError::CreditAccountNotInitialized {})?;
 
     // Contract adapters
-    let credit_manager = CreditManager::new(config.credit_manager_addr.clone());
-    let params = Params::new(deps.api.addr_validate(&market_config.perp_denom)?);
+    let credit_manager = CreditManager::new(config.credit_manager_addr);
+    let params = Params::new(config.params_addr.clone());
 
     // Fresh state info
     let mars_positions = credit_manager.query_positions(&deps.querier, credit_account_id)?;

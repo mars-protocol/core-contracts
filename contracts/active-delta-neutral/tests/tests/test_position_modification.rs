@@ -1,8 +1,10 @@
-use cosmwasm_std::Addr;
+use std::str::FromStr;
+
+use cosmwasm_std::{Addr, Decimal, Uint128};
+use mars_mock_oracle::msg::CoinPrice;
 use mars_testing::multitest::helpers::MockEnv;
 use mars_types::{
-    active_delta_neutral::query::MarketConfig,
-    swapper::{DualityRoute, SwapperRoute},
+    active_delta_neutral::query::MarketConfig, oracle::ActionKind, params::{PerpParams, PerpParamsUpdate}, swapper::{DualityRoute, SwapperRoute}
 };
 
 use crate::tests::helpers::delta_neutral_helpers::{
@@ -35,6 +37,34 @@ fn test_position_modification() {
         },
     ];
     let mut mock = MockEnv::new().fund_accounts(addrs, coins).build().unwrap();
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: perp_denom.to_string(),
+        price: Decimal::from_str("1.000").unwrap(),
+    });
+    mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
+        params: PerpParams {
+            opening_fee_rate: Decimal::permille(1),
+            closing_fee_rate: Decimal::permille(1),
+            denom: perp_denom.to_string(),
+            enabled: true,
+            max_net_oi_value: Uint128::new(1_000_000_000),
+            max_long_oi_value: Uint128::new(1_000_000_000),
+            max_short_oi_value: Uint128::new(1_000_000_000),
+            min_position_value: Uint128::new(1_000_000_000),
+            max_position_value: None,
+            max_loan_to_value: Decimal::percent(85),
+            liquidation_threshold: Decimal::percent(87),
+            max_funding_velocity: Decimal::from_atomics(32u128, 0).unwrap(),
+            skew_scale: Uint128::new(10000000000),
+            max_loan_to_value_usdc: None,
+            liquidation_threshold_usdc: None,
+        },
+    });
+
+    let params = mock.query_perp_params(perp_denom);
+    println!("params: {:#?}", params);
 
     let active_delta_neutral = deploy_active_delta_neutral_contract(&mut mock);
     add_active_delta_neutral_market(

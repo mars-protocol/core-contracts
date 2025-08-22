@@ -2665,6 +2665,7 @@ dependencies = [
  "cw-storage-plus 1.2.0",
  "mars-credit-manager",
  "mars-delta-neutral-position",
+ "mars-mock-oracle",
  "mars-owner",
  "mars-testing",
  "mars-types",

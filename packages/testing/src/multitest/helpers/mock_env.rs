@@ -57,14 +57,9 @@ use mars_types::{
     },
     oracle::{ActionKind, PriceResponse, QueryMsg::Price as OraclePrice},
     params::{
-        AssetParams,
-        AssetParamsUpdate::{self, AddOrUpdate},
-        ExecuteMsg::{
+        AssetParams, AssetParamsUpdate::{self, AddOrUpdate}, ExecuteMsg::{
             UpdateAssetParams, UpdateManagedVaultConfig, UpdatePerpParams, UpdateVaultConfig,
-        },
-        InstantiateMsg as ParamsInstantiateMsg, ManagedVaultConfigResponse,
-        ManagedVaultConfigUpdate, PerpParamsUpdate, QueryMsg as ParamsQueryMsg, VaultConfig,
-        VaultConfigUnchecked, VaultConfigUpdate,
+        }, InstantiateMsg as ParamsInstantiateMsg, ManagedVaultConfigResponse, ManagedVaultConfigUpdate, PerpParams, PerpParamsUpdate, QueryMsg as ParamsQueryMsg, VaultConfig, VaultConfigUnchecked, VaultConfigUpdate
     },
     perps::{
         self, Config, InstantiateMsg as PerpsInstantiateMsg, PnL, PositionResponse, TradingFee,
@@ -784,6 +779,18 @@ impl MockEnv {
             .query_wasm_smart(
                 self.params.address(),
                 &ParamsQueryMsg::AssetParams {
+                    denom: denom.to_string(),
+                },
+            )
+            .unwrap()
+    }
+
+    pub fn query_perp_params(&self, denom: &str) -> PerpParams {
+        self.app
+            .wrap()
+            .query_wasm_smart(
+                self.params.address(),
+                &ParamsQueryMsg::PerpParams {
                     denom: denom.to_string(),
                 },
             )

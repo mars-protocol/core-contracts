@@ -34,6 +34,7 @@ pub fn instantiate(
         MarsAddressType::Perps,
         MarsAddressType::Health,
         MarsAddressType::RedBank,
+        MarsAddressType::Params,
     ];
     let addresses = address_provider::helpers::query_contract_addrs(
         deps.as_ref(),
@@ -46,6 +47,7 @@ pub fn instantiate(
     let perps_addr = &addresses[&MarsAddressType::Perps];
     let health_addr = &addresses[&MarsAddressType::Health];
     let red_bank_addr = &addresses[&MarsAddressType::RedBank];
+    let params_addr = &addresses[&MarsAddressType::Params];
 
     let credit_manager = credit_manager::CreditManager::new(cm_addr.clone());
     let create_credit_account_msg = credit_manager.create_credit_account(AccountKind::Default)?;
@@ -56,6 +58,7 @@ pub fn instantiate(
         perps_addr: perps_addr.clone(),
         health_addr: health_addr.clone(),
         red_bank_addr: red_bank_addr.clone(),
+        params_addr: params_addr.clone(),
         base_denom,
     };
 

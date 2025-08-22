@@ -21,8 +21,10 @@ pub struct Config {
     pub perps_addr: Addr,
     /// Address of the Health contract for risk checks.
     pub health_addr: Addr,
-    /// Address of the Red Bank contract for asset management.
+    /// Address of the Red Bank contract.
     pub red_bank_addr: Addr,
+    /// Address of the Params contract.
+    pub params_addr: Addr,
     /// The base denomination used for this strategy (e.g., "umars").
     pub base_denom: String,
 }
