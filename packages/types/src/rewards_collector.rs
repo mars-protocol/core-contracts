@@ -30,8 +30,6 @@ pub struct InstantiateMsg {
     pub channel_id: String,
     /// Number of seconds after which an IBC transfer is to be considered failed, if no acknowledgement is received
     pub timeout_seconds: u64,
-    /// Maximum percentage of price movement (minimum amount you accept to receive during swap)
-    pub slippage_tolerance: Decimal,
     /// List of addresses that are allowed to execute the rewards distribution
     pub whitelisted_distributors: Vec<String>,
 }

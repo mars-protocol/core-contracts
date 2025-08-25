@@ -836,7 +836,6 @@ pub struct MockEnvBuilder {
     safety_fund_config: RewardConfig,
     revenue_share_config: RewardConfig,
     fee_collector_config: RewardConfig,
-    slippage_tolerance: Decimal,
 
     pyth_contract_addr: String,
 
@@ -875,7 +874,6 @@ impl MockEnvBuilder {
                 target_denom: "umars".to_string(),
                 transfer_type: rewards_collector::TransferType::Ibc,
             },
-            slippage_tolerance: Decimal::percent(5),
             pyth_contract_addr: "osmo1svg55quy7jjee6dn0qx85qxxvx5cafkkw4tmqpcjr9dx99l0zrhs4usft5"
                 .to_string(), // correct bech32 addr to pass validation
             credit_manager_contract_addr:
@@ -920,11 +918,6 @@ impl MockEnvBuilder {
 
     pub fn fee_collector_config(&mut self, config: RewardConfig) -> &mut Self {
         self.fee_collector_config = config;
-        self
-    }
-
-    pub fn slippage_tolerance(&mut self, percentage: Decimal) -> &mut Self {
-        self.slippage_tolerance = percentage;
         self
     }
 
@@ -1099,7 +1092,6 @@ impl MockEnvBuilder {
                     channel_id: "0".to_string(),
                     timeout_seconds: 900,
                     whitelisted_distributors: vec![],
-                    slippage_tolerance: self.slippage_tolerance,
                 },
                 &[],
                 "rewards-collector",
