@@ -390,7 +390,7 @@ export const neutronMainnetConfig: DeploymentConfig = {
       target_denom: marsDenom,
       transfer_type: 'ibc',
     },
-    whitelistedDistributors: []
+    whitelistedDistributors: [],
   },
   incentives: {
     epochDuration: 604800, // 1 week
