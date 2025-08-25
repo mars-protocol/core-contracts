@@ -411,4 +411,5 @@ export const neutronMainnetConfig: DeploymentConfig = {
   oracleConfigs: [usdOracle, axlUSDCOracle, marsOracle, atomOracle, ntrnOracle],
   maxPerpParams: 20,
   perpsLiquidationBonusRatio: '0.6',
+  swapFee: '0.0005',
 }
