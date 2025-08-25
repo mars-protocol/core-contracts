@@ -753,7 +753,7 @@ export const neutronTestnetConfig: DeploymentConfig = {
       target_denom: marsDenom,
       transfer_type: 'ibc',
     },
-    slippageTolerance: '0.01',
+    whitelistedDistributors: [],
   },
   incentives: {
     epochDuration: 604800, // 1 week
