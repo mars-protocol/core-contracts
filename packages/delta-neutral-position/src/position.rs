@@ -17,7 +17,7 @@ impl Position {
         amount: Uint128,
         spot_price: Decimal,
         perp_price: Decimal,
-        _perp_trading_fee_amount: Int128,
+        perp_trading_fee_amount: Int128,
         now: u64,
         funding_delta: Int128,
         borrow_delta: Int128,

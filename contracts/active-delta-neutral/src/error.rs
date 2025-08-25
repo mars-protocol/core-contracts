@@ -5,6 +5,7 @@ use cosmwasm_std::{
 };
 use mars_delta_neutral_position::types::Side;
 use mars_owner::OwnerError;
+use mars_types::perps::PerpsError;
 use mars_utils::error::ValidationError;
 use thiserror::Error;
 
@@ -100,4 +101,8 @@ pub enum ContractError {
 
     #[error("This msg cannot receive funds")]
     IllegalFundsSent {},
+
+    #[error("{0}")]
+    PerpsError(#[from] PerpsError),
+    
 }
