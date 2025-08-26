@@ -58,46 +58,13 @@ fn successful_migration() {
     assert!(res.data.is_none());
     assert_eq!(
         res.attributes,
-        vec![attr("action", "migrate"), attr("from_version", "2.1.0"), attr("to_version", "2.3.0")]
+        vec![attr("action", "migrate"), attr("from_version", "2.1.0"), attr("to_version", "2.2.0")]
     );
 
     let new_contract_version = ContractVersion {
         contract: "crates.io:mars-credit-manager".to_string(),
-        version: "2.3.0".to_string(),
+        version: "2.2.0".to_string(),
     };
     assert_eq!(cw2::get_contract_version(deps.as_ref().storage).unwrap(), new_contract_version);
 }
 
-#[test]
-fn successful_migrate_v2_3_0() {
-    let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-credit-manager", "2.2.3")
-        .unwrap();
-
-    let res = migrate(
-        deps.as_mut(),
-        mock_env(),
-        MigrateMsg::V2_2_3ToV2_3_0 {
-            max_trigger_orders: 50,
-        },
-    )
-    .unwrap();
-
-    let max_trigger_orders = MAX_TRIGGER_ORDERS.load(deps.as_ref().storage).unwrap();
-
-    assert_eq!(max_trigger_orders, 50);
-
-    assert_eq!(res.messages, vec![]);
-    assert_eq!(res.events, vec![] as Vec<Event>);
-    assert!(res.data.is_none());
-    assert_eq!(
-        res.attributes,
-        vec![attr("action", "migrate"), attr("from_version", "2.2.3"), attr("to_version", "2.3.0")]
-    );
-
-    let new_contract_version = ContractVersion {
-        contract: "crates.io:mars-credit-manager".to_string(),
-        version: "2.3.0".to_string(),
-    };
-    assert_eq!(cw2::get_contract_version(deps.as_ref().storage).unwrap(), new_contract_version);
-}

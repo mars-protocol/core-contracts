@@ -252,4 +252,5 @@ pub enum OsmosisMigrateMsg {
 pub enum NeutronMigrateMsg {
     V2_1_0ToV2_2_0 {},
     V2_2_0ToV2_2_2 {},
+    V2_2_2ToV2_3_1 {},
 }
