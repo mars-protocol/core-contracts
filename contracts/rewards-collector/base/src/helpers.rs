@@ -33,14 +33,17 @@ pub(crate) fn ensure_distributor_whitelisted(
     owner: &Owner,
     sender: &Addr,
 ) -> ContractResult<()> {
-    if !cfg.whitelisted_distributors.is_empty() && !cfg.whitelisted_distributors.contains(sender) {
-        // Owner can always distribute rewards
-        if !owner.is_owner(deps.storage, sender)? {
-            return Err(ContractError::UnauthorizedDistributor {
-                sender: sender.to_string(),
-            });
-        }
+    // Owner can always distribute rewards
+    if owner.is_owner(deps.storage, sender)? {
+        return Ok(());
     }
+
+    if !cfg.whitelisted_distributors.is_empty() && !cfg.whitelisted_distributors.contains(sender) {
+        return Err(ContractError::UnauthorizedDistributor {
+            sender: sender.to_string(),
+        });
+    }
+
     Ok(())
 }
 
