@@ -285,3 +285,106 @@ fn owner_can_swap_asset() {
     let result = execute(deps.as_mut(), mock_env(), info, msg);
     assert!(result.is_ok());
 }
+
+#[test]
+fn owner_can_add_multiple_to_whitelist() {
+    let mut deps = helpers::setup_test();
+    // Owner adds alice and bob
+    let info = mock_info("owner");
+    let msg = ExecuteMsg::UpdateConfig {
+        new_cfg: UpdateConfig {
+            whitelist_actions: Some(vec![
+                WhitelistAction::AddAddress {
+                    address: "alice".to_string(),
+                },
+                WhitelistAction::AddAddress {
+                    address: "bob".to_string(),
+                },
+            ]),
+            ..Default::default()
+        },
+    };
+    execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    let cfg: ConfigResponse = helpers::query(deps.as_ref(), QueryMsg::Config {});
+    assert!(cfg.whitelisted_distributors.contains(&"alice".to_string()));
+    assert!(cfg.whitelisted_distributors.contains(&"bob".to_string()));
+}
+
+#[test]
+fn owner_can_remove_multiple_from_whitelist() {
+    let mut deps = helpers::setup_test();
+    // Owner adds alice and bob
+    let info = mock_info("owner");
+    let msg = ExecuteMsg::UpdateConfig {
+        new_cfg: UpdateConfig {
+            whitelist_actions: Some(vec![
+                WhitelistAction::AddAddress {
+                    address: "alice".to_string(),
+                },
+                WhitelistAction::AddAddress {
+                    address: "bob".to_string(),
+                },
+            ]),
+            ..Default::default()
+        },
+    };
+    execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+    // Owner removes alice and bob
+    let msg = ExecuteMsg::UpdateConfig {
+        new_cfg: UpdateConfig {
+            whitelist_actions: Some(vec![
+                WhitelistAction::RemoveAddress {
+                    address: "alice".to_string(),
+                },
+                WhitelistAction::RemoveAddress {
+                    address: "bob".to_string(),
+                },
+            ]),
+            ..Default::default()
+        },
+    };
+    execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    let cfg: ConfigResponse = helpers::query(deps.as_ref(), QueryMsg::Config {});
+    assert!(!cfg.whitelisted_distributors.contains(&"alice".to_string()));
+    assert!(!cfg.whitelisted_distributors.contains(&"bob".to_string()));
+}
+
+#[test]
+fn owner_can_add_and_remove_in_same_tx() {
+    let mut deps = helpers::setup_test();
+    // Owner adds alice
+    let info = mock_info("owner");
+    let msg = ExecuteMsg::UpdateConfig {
+        new_cfg: UpdateConfig {
+            whitelist_actions: Some(vec![WhitelistAction::AddAddress {
+                address: "alice".to_string(),
+            }]),
+            ..Default::default()
+        },
+    };
+    execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
+
+    // Ensure alice is there
+    let cfg: ConfigResponse = helpers::query(deps.as_ref(), QueryMsg::Config {});
+    assert!(cfg.whitelisted_distributors.contains(&"alice".to_string()));
+
+    // Owner adds bob and removes alice in the same tx
+    let msg = ExecuteMsg::UpdateConfig {
+        new_cfg: UpdateConfig {
+            whitelist_actions: Some(vec![
+                WhitelistAction::AddAddress {
+                    address: "bob".to_string(),
+                },
+                WhitelistAction::RemoveAddress {
+                    address: "alice".to_string(),
+                },
+            ]),
+            ..Default::default()
+        },
+    };
+    execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    let cfg: ConfigResponse = helpers::query(deps.as_ref(), QueryMsg::Config {});
+    assert!(cfg.whitelisted_distributors.contains(&"bob".to_string()));
+    assert!(!cfg.whitelisted_distributors.contains(&"alice".to_string()));
+}

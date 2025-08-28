@@ -38,7 +38,7 @@ pub(crate) fn ensure_distributor_whitelisted(
         return Ok(());
     }
 
-    if !cfg.whitelisted_distributors.is_empty() && !cfg.whitelisted_distributors.contains(sender) {
+    if cfg.whitelisted_distributors.is_empty() || !cfg.whitelisted_distributors.contains(sender) {
         return Err(ContractError::UnauthorizedDistributor {
             sender: sender.to_string(),
         });
