@@ -50,6 +50,7 @@ pub mod entry {
         match msg {
             NeutronMigrateMsg::V2_1_0ToV2_2_0 {} => migrations::v2_2_0::migrate(deps),
             NeutronMigrateMsg::V2_2_0ToV2_2_2 {} => migrations::v2_2_2::migrate(deps),
+            NeutronMigrateMsg::V2_2_2ToV2_3_1 {} => migrations::v2_3_1::migrate(deps),
         }
     }
 }

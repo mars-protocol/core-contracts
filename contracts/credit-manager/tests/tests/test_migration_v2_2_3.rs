@@ -5,7 +5,7 @@ use mars_testing::mock_dependencies;
 use mars_types::credit_manager::MigrateMsg;
 
 const CONTRACT_NAME: &str = "crates.io:mars-credit-manager";
-const CONTRACT_VERSION: &str = "2.3.0";
+const CONTRACT_VERSION: &str = "2.2.3";
 
 #[test]
 fn wrong_contract_name() {
