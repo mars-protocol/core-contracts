@@ -278,7 +278,7 @@ export const osmosisTestnetConfig: DeploymentConfig = {
       target_denom: aUSDC,
       transfer_type: 'bank',
     },
-    slippageTolerance: '0.01',
+    whitelistedDistributors: [],
   },
   keeperFeeConfig: {
     min_fee: { amount: '1000000', denom: aUSDC },

@@ -1770,7 +1770,7 @@ impl MockEnvBuilder {
                     },
                     channel_id: "".to_string(),
                     timeout_seconds: 1,
-                    slippage_tolerance: Default::default(),
+                    whitelisted_distributors: vec![],
                 },
                 &[],
                 "mock-rewards-collector",
