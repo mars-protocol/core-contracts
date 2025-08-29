@@ -751,6 +751,9 @@ export type QueryMsg =
         start_after?: string | null
       }
     }
+  | {
+      swap_fee_rate: {}
+    }
 export type ActionKind = 'default' | 'liquidation'
 export type VaultPositionAmount =
   | {
@@ -840,7 +843,6 @@ export interface ConfigResponse {
   perps_liquidation_bonus_ratio: Decimal
   red_bank: string
   rewards_collector?: RewardsCollector | null
-  swap_fee: Decimal
   swapper: string
   zapper: string
 }
