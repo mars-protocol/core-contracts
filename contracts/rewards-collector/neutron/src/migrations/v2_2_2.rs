@@ -41,7 +41,7 @@ pub mod previous_state {
 }
 
 const FROM_VERSION: &str = "2.2.0";
-// We use a hardcoded version of the contract version here 
+// We use a hardcoded version of the contract version here
 // in order to preserve the original test
 const CONTRACT_VERSION: &str = "2.2.2";
 pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {

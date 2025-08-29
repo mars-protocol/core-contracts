@@ -1,10 +1,7 @@
 use cosmwasm_std::{DepsMut, Response};
 use cw2::{assert_contract_version, set_contract_version};
 
-use crate::{
-    contract::{CONTRACT_NAME},
-    error::ContractError,
-};
+use crate::{contract::CONTRACT_NAME, error::ContractError};
 
 const FROM_VERSION: &str = "2.2.0";
 

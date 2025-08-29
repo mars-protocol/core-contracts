@@ -10,7 +10,7 @@ fn test_successful_migration() {
     let mut deps = mock_dependencies(&[]);
 
     // Set the contract version to the old version
-    cw2::set_contract_version(&mut deps.storage, &format!("crates.io:{}", CONTRACT_NAME), "2.2.2")
+    cw2::set_contract_version(&mut deps.storage, format!("crates.io:{}", CONTRACT_NAME), "2.2.2")
         .unwrap();
 
     // Perform the migration
@@ -31,7 +31,8 @@ fn test_unsuccessful_migration_from_wrong_version() {
     let mut deps = mock_dependencies(&[]);
 
     // Set the contract version to a wrong version
-    cw2::set_contract_version(&mut deps.storage, &format!("crates.io:{}", CONTRACT_NAME), "2.0.0").unwrap();
+    cw2::set_contract_version(&mut deps.storage, format!("crates.io:{}", CONTRACT_NAME), "2.0.0")
+        .unwrap();
 
     // Perform the migration and expect an error
     let msg = NeutronMigrateMsg::V2_2_2ToV2_3_1 {};

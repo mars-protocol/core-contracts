@@ -1,13 +1,7 @@
-use cosmwasm_std::{attr, testing::mock_env, Event};
+use cosmwasm_std::{attr, Event};
 use cw2::{ContractVersion, VersionError};
-use mars_credit_manager::{
-    contract::migrate,
-    error::ContractError,
-    migrations,
-    state::{MAX_TRIGGER_ORDERS, NEXT_TRIGGER_ID},
-};
+use mars_credit_manager::{error::ContractError, migrations, state::NEXT_TRIGGER_ID};
 use mars_testing::mock_dependencies;
-use mars_types::credit_manager::MigrateMsg;
 
 #[test]
 fn wrong_contract_name() {
@@ -67,4 +61,3 @@ fn successful_migration() {
     };
     assert_eq!(cw2::get_contract_version(deps.as_ref().storage).unwrap(), new_contract_version);
 }
-
