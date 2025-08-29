@@ -23,7 +23,7 @@ fn test_query_market_config() {
         perp_denom: "perps/ubtc".to_string(),
         k: 300u64,
     };
-    let active_delta_neutral = deploy_active_delta_neutral_contract(&mut mock);
+    let active_delta_neutral = deploy_active_delta_neutral_contract(&mut mock, "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81");
     let res = add_active_delta_neutral_market(
         &owner,
         market_config.clone(),
@@ -43,7 +43,7 @@ fn test_query_market_config() {
 fn test_query_all_market_configs() {
     let owner = Addr::unchecked("owner");
     let mut mock = MockEnv::new().build().unwrap();
-    let active_delta_neutral = deploy_active_delta_neutral_contract(&mut mock);
+    let active_delta_neutral = deploy_active_delta_neutral_contract(&mut mock, "uusdc");
 
     // Add a market
     let market_config = valid_config();

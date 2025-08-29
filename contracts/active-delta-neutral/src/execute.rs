@@ -10,9 +10,12 @@ use mars_types::{
     active_delta_neutral::{
         execute::ExecuteMsg,
         query::{Config, MarketConfig},
-    }, adapters::{credit_manager::CreditManager, oracle::Oracle, params::Params, perps::Perps}, credit_manager::{self, Action, ActionAmount, ActionCoin}, oracle::ActionKind, swapper::SwapperRoute
+    },
+    adapters::{credit_manager::CreditManager, oracle::Oracle, params::Params, perps::Perps},
+    credit_manager::{self, Action, ActionAmount, ActionCoin},
+    oracle::ActionKind,
+    swapper::SwapperRoute,
 };
-use mars_utils::helpers::uint128_to_int128;
 
 use super::{error::ContractError, helpers::validate_swapper_route, state::MARKET_CONFIG};
 use crate::{
@@ -241,8 +244,10 @@ pub fn hedge(
     let required_hedge_size = Int128::neg(spot_delta);
     let required_hedge_size_unsigned = required_hedge_size.unsigned_abs();
     let spot_execution_price = Decimal::from_ratio(swap_in_amount, spot_delta.unsigned_abs());
-    let oracle_price = oracle.query_price(&deps.querier, &market_config.perp_denom, ActionKind::Default)?.price;
-    let skew = Int128::try_from(perps_market.long_oi)?.checked_sub(perps_market.short_oi.try_into()?)?;
+    let oracle_price =
+        oracle.query_price(&deps.querier, &market_config.perp_denom, ActionKind::Default)?.price;
+    let skew =
+        Int128::try_from(perps_market.long_oi)?.checked_sub(perps_market.short_oi.try_into()?)?;
 
     // Validate position entry
     // TODO : return the right data from this
@@ -261,12 +266,14 @@ pub fn hedge(
                 required_hedge_size.unsigned_abs(),
                 spot_execution_price,
                 perp_execution_price,
-                Int128::try_from(required_hedge_size_unsigned.checked_mul_floor(perp_params.opening_fee_rate)?)?,
+                Int128::try_from(
+                    required_hedge_size_unsigned.checked_mul_floor(perp_params.opening_fee_rate)?,
+                )?,
                 env.block.time.nanos(),
                 funding_delta,
                 Int128::try_from(borrow_delta)?,
             )
-        },
+        }
         false => {
             let perp_execution_price = closing_execution_price(
                 skew,
@@ -279,17 +286,19 @@ pub fn hedge(
                 spot_execution_price,
                 perp_execution_price,
                 // TODO can probably make this nicer with little helpers rather than litter this through the codebase
-                Int128::try_from(required_hedge_size_unsigned.checked_mul_floor(perp_params.closing_fee_rate)?)?, // todo add fees
+                Int128::try_from(
+                    required_hedge_size_unsigned.checked_mul_floor(perp_params.closing_fee_rate)?,
+                )?, // todo add fees
                 env.block.time.nanos(),
                 funding_delta,
                 // TODO tidy
                 Int128::try_from(borrow_delta)?,
             )
-        },
+        }
     }?;
 
     POSITION.save(deps.storage, market_id, &position_state)?;
-    
+
     // Create the perp order
     let action = Action::ExecutePerpOrder {
         denom: market_config.perp_denom.clone(),
@@ -298,7 +307,8 @@ pub fn hedge(
         order_type: None,
     };
     let actions = vec![action];
-    let execute_credit_account = credit_manager.execute_actions_msg(credit_account_id, actions, &[])?;
+    let execute_credit_account =
+        credit_manager.execute_actions_msg(credit_account_id, actions, &[])?;
 
     Ok(Response::new()
         .add_message(execute_credit_account)

@@ -104,5 +104,4 @@ pub enum ContractError {
 
     #[error("{0}")]
     PerpsError(#[from] PerpsError),
-    
 }

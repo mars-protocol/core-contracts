@@ -41,16 +41,19 @@ pub fn execute(
             market_id,
             swapper_route,
         } => execute::buy(deps, env, &market_id, amount, &swapper_route),
-
         ExecuteMsg::Sell {
             amount,
             market_id,
             swapper_route,
         } => execute::sell(deps, env, info, amount, &market_id, &swapper_route),
-
         ExecuteMsg::AddMarket {
             config,
         } => execute::add_market(deps, config),
+        ExecuteMsg::Deposit {} => execute::deposit(deps, info),
+        ExecuteMsg::Withdraw {
+            amount,
+            recipient,
+        } => execute::withdraw(deps, info, amount, recipient),
 
         // For internal operations
         ExecuteMsg::Hedge {
@@ -58,11 +61,6 @@ pub fn execute(
             market_id,
             increasing,
         } => execute::hedge(deps, env, info, swap_exact_in_amount, &market_id, increasing),
-        ExecuteMsg::Deposit {} => execute::deposit(deps, info),
-        ExecuteMsg::Withdraw {
-            amount,
-            recipient,
-        } => execute::withdraw(deps, info, amount, recipient),
     }
 }
 

@@ -7,7 +7,7 @@ use crate::tests::helpers::delta_neutral_helpers::{
 #[test]
 fn test_config_is_created_on_instantiate() {
     let mut mock = MockEnv::new().build().unwrap();
-    let active_delta_neutral = deploy_active_delta_neutral_contract(&mut mock);
+    let active_delta_neutral = deploy_active_delta_neutral_contract(&mut mock, "uusdc");
     // query Config - it should be created by default
     let config = query_active_delta_neutral_config(&mock, &active_delta_neutral);
 

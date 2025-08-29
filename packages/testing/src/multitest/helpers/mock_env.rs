@@ -57,9 +57,14 @@ use mars_types::{
     },
     oracle::{ActionKind, PriceResponse, QueryMsg::Price as OraclePrice},
     params::{
-        AssetParams, AssetParamsUpdate::{self, AddOrUpdate}, ExecuteMsg::{
+        AssetParams,
+        AssetParamsUpdate::{self, AddOrUpdate},
+        ExecuteMsg::{
             UpdateAssetParams, UpdateManagedVaultConfig, UpdatePerpParams, UpdateVaultConfig,
-        }, InstantiateMsg as ParamsInstantiateMsg, ManagedVaultConfigResponse, ManagedVaultConfigUpdate, PerpParams, PerpParamsUpdate, QueryMsg as ParamsQueryMsg, VaultConfig, VaultConfigUnchecked, VaultConfigUpdate
+        },
+        InstantiateMsg as ParamsInstantiateMsg, ManagedVaultConfigResponse,
+        ManagedVaultConfigUpdate, PerpParams, PerpParamsUpdate, QueryMsg as ParamsQueryMsg,
+        VaultConfig, VaultConfigUnchecked, VaultConfigUpdate,
     },
     perps::{
         self, Config, InstantiateMsg as PerpsInstantiateMsg, PnL, PositionResponse, TradingFee,

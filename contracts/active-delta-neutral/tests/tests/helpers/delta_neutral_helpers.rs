@@ -8,8 +8,10 @@ use mars_types::{
         execute::ExecuteMsg,
         instantiate::InstantiateMsg,
         query::{Config, MarketConfig, QueryMsg},
-    }, adapters::{active_delta_neutral::ActiveDeltaNeutral, credit_manager::CreditManager}, credit_manager::Positions, swapper::SwapperRoute,
-    credit_manager::QueryMsg as CreditManagerQueryMsg
+    },
+    adapters::active_delta_neutral::ActiveDeltaNeutral,
+    credit_manager::{Positions, QueryMsg as CreditManagerQueryMsg},
+    swapper::SwapperRoute,
 };
 
 pub fn query_active_delta_neutral_market(
@@ -153,7 +155,7 @@ pub fn assert_err(res: AnyResult<AppResponse>, err: ContractError) {
     }
 }
 
-pub fn deploy_active_delta_neutral_contract(mock_env: &mut MockEnv) -> ActiveDeltaNeutral {
+pub fn deploy_active_delta_neutral_contract(mock_env: &mut MockEnv, base_denom: &str) -> ActiveDeltaNeutral {
     let contract_code_id = mock_env.app.store_code(active_delta_neutral_contract());
     let owner = Addr::unchecked("owner");
 
@@ -164,7 +166,8 @@ pub fn deploy_active_delta_neutral_contract(mock_env: &mut MockEnv) -> ActiveDel
             owner.clone(),
             &InstantiateMsg {
                 address_provider: mock_env.address_provider.clone().into(),
-                base_denom: "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81".to_string(),
+                base_denom: 
+                    base_denom.to_string(),
             },
             &[],
             "mock-active-delta-neutral-contract",
@@ -172,22 +175,29 @@ pub fn deploy_active_delta_neutral_contract(mock_env: &mut MockEnv) -> ActiveDel
         )
         .unwrap();
 
-    // mock_env.set_address(MarsAddressType::ActiveDeltaNeutral, addr.clone());
-
     ActiveDeltaNeutral::new(addr)
 }
 
-pub fn query_contract_credit_manager_positions(mock_env: &MockEnv, delta_neutral: &ActiveDeltaNeutral) -> Positions {
+pub fn query_contract_credit_manager_positions(
+    mock_env: &MockEnv,
+    delta_neutral: &ActiveDeltaNeutral,
+) -> Positions {
     // query the contract config to get the credit manager address
     let config = query_active_delta_neutral_config(mock_env, delta_neutral);
 
-    
     let credit_account_id = config.credit_account_id.as_ref().unwrap();
 
-    let positions: Positions = mock_env.app.wrap().query_wasm_smart(config.credit_manager_addr, &CreditManagerQueryMsg::Positions {
-        account_id: credit_account_id.clone(),
-        action: None,
-    }).unwrap();
+    let positions: Positions = mock_env
+        .app
+        .wrap()
+        .query_wasm_smart(
+            config.credit_manager_addr,
+            &CreditManagerQueryMsg::Positions {
+                account_id: credit_account_id.clone(),
+                action: None,
+            },
+        )
+        .unwrap();
 
     positions
 }

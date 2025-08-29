@@ -81,7 +81,9 @@ pub fn swap_exact_in(
     min_receive: Uint128,
     _route: Option<SwapperRoute>,
 ) -> StdResult<Response> {
-    let denom_in_balance = deps.querier.query_balance(env.contract.address, coin_in.denom)?;
+    let denom_in_balance = deps.querier.query_balance(env.contract.address.clone(), coin_in.denom)?;
+    println!("addr: {:?}", env.contract.address.clone());
+    println!("coin out {:?}", deps.querier.query_balance(env.contract.address, denom_out.clone())?);
     if denom_in_balance.amount < coin_in.amount {
         return Err(StdError::generic_err("Did not send funds"));
     }

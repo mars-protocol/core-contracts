@@ -1,19 +1,26 @@
-use cosmwasm_std::{Coin, Uint128, Int128, Decimal};
+use cosmwasm_std::{Coin, Int128, Uint128};
 use mars_active_delta_neutral::helpers::calculate_deltas;
+use mars_delta_neutral_position::types::Position;
 use mars_types::{
     active_delta_neutral::query::MarketConfig,
-    credit_manager::{Positions, DebtAmount},
+    credit_manager::{DebtAmount, Positions},
     health::AccountKind,
 };
-use mars_delta_neutral_position::types::Position;
 
 #[test]
 fn test_calculate_deltas_basic() {
     let mars_positions = Positions {
         account_id: "acct1".to_string(),
         account_kind: AccountKind::Default,
-        deposits: vec![Coin { denom: "ATOM".to_string(), amount: Uint128::new(1000) }],
-        debts: vec![DebtAmount { denom: "USDC".to_string(), amount: Uint128::new(500), shares: Uint128::zero() }],
+        deposits: vec![Coin {
+            denom: "ATOM".to_string(),
+            amount: Uint128::new(1000),
+        }],
+        debts: vec![DebtAmount {
+            denom: "USDC".to_string(),
+            amount: Uint128::new(500),
+            shares: Uint128::zero(),
+        }],
         lends: vec![],
         vaults: vec![],
         staked_astro_lps: vec![],
@@ -38,7 +45,10 @@ fn test_calculate_deltas_missing_debt() {
     let mars_positions = Positions {
         account_id: "acct2".to_string(),
         account_kind: AccountKind::Default,
-        deposits: vec![Coin { denom: "ATOM".to_string(), amount: Uint128::new(1000) }],
+        deposits: vec![Coin {
+            denom: "ATOM".to_string(),
+            amount: Uint128::new(1000),
+        }],
         debts: vec![],
         lends: vec![],
         vaults: vec![],
