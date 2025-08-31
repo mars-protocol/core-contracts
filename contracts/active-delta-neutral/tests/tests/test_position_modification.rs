@@ -12,7 +12,7 @@ use mars_types::{
 
 use crate::tests::helpers::delta_neutral_helpers::{
     add_active_delta_neutral_market, buy_delta_neutral_market,
-    deploy_active_delta_neutral_contract, deposit, query_contract_credit_manager_positions,
+    deploy_active_delta_neutral_contract, deposit, query_contract_credit_manager_positions, sell_delta_neutral_market,
 };
 
 #[test]
@@ -54,7 +54,7 @@ fn test_position_modification() {
         price: Decimal::from_str("1.000").unwrap(),
     });
 
-    // TODO add 
+    // todo - add this to the mock setup
     mock.update_perp_params(PerpParamsUpdate::AddOrUpdate {
         params: PerpParams {
             opening_fee_rate: Decimal::permille(1),
@@ -97,11 +97,9 @@ fn test_position_modification() {
 
     let deposit_res = deposit(&owner, deposit_coins, &mut mock, &active_delta_neutral);
 
-    println!("deposit_res: {:#?}", deposit_res);
     assert!(deposit_res.is_ok());
 
     let positions = query_contract_credit_manager_positions(&mock, &active_delta_neutral);
-    println!("postions: {:#?}", positions);
 
     let res = buy_delta_neutral_market(
         &owner,
@@ -118,10 +116,24 @@ fn test_position_modification() {
     assert!(res.is_ok());
 
     let positions = query_contract_credit_manager_positions(&mock, &active_delta_neutral);
-    println!("postions: {:#?}", positions);
 
-    // query position state from contract
-    
+    assert_eq!(positions.deposits[0].amount, Uint128::new(100_000_000));
+    assert_eq!(positions.debts[0].amount, Uint128::new(95217)); // Debt from perp position
     // Now decrease by 50%
-
+    let res = sell_delta_neutral_market(
+        &owner,
+        "btc",
+        Uint128::new(50_000_000),
+        SwapperRoute::Duality(DualityRoute {
+            from: spot_denom.to_string(),
+            to: usdc_denom.to_string(),
+            swap_denoms: vec![spot_denom.to_string(), usdc_denom.to_string()],
+        }),
+        &mut mock,
+        &active_delta_neutral,
+    );
+    assert!(res.is_ok());
+    let positions = query_contract_credit_manager_positions(&mock, &active_delta_neutral);
+    assert_eq!(positions.deposits[0].amount, Uint128::new(50_000_000));
+    assert_eq!(positions.debts[0].amount, Uint128::new(95217));
 }
