@@ -9,7 +9,7 @@ This document describes a simple entry/exit model for delta-neutral trading stra
   - **Short Position**: Short spot - long Perp (positive when spot is higher).
 
 - **Net yield**: The net cost or yield after considering all funding rates and borrow/supply rates.
-- **`K`** A constant that controls the sensitivity of the entry/exit model. The higher the value of `K`, the less sensitive the model is to price pnl. A higher `K` means that the .
+- **`K`** A constant that controls the sensitivity of the entry/exit model. The higher the value of `K`, the less sensitive the model is to price impact. 
 
 ## Entry and Exit Criteria
 

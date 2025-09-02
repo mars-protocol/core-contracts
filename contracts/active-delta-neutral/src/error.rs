@@ -19,6 +19,9 @@ pub enum ContractError {
     #[error("Unauthorized")]
     Unauthorized {},
 
+    #[error("Not implemented")]
+    NotImplemented {},
+
     #[error("Account ID not owned by this contract")]
     NotOwned {},
 
