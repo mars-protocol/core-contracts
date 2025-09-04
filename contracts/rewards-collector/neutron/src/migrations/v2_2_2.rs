@@ -56,7 +56,6 @@ pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
     let new_config = Config {
         // old, unchanged values
         address_provider: existing_config.address_provider,
-        slippage_tolerance: existing_config.slippage_tolerance,
         timeout_seconds: existing_config.timeout_seconds,
 
         // set as empty so any ibc transfers error. This prevents mistakenly sending funds somewhere
@@ -84,6 +83,9 @@ pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
             target_denom: existing_config.fee_collector_denom,
             transfer_type: TransferType::Bank,
         },
+
+        // set to empty list
+        whitelisted_distributors: vec![],
     };
 
     // ensure our new config is legal

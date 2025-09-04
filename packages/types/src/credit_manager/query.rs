@@ -127,6 +127,9 @@ pub enum QueryMsg {
         account_id: String,
         market_type: MarketType,
     },
+
+    #[returns(Decimal)]
+    SwapFeeRate {},
 }
 
 #[cw_serde]
@@ -258,7 +261,6 @@ pub struct ConfigResponse {
     pub rewards_collector: Option<RewardsCollector>,
     pub keeper_fee_config: KeeperFeeConfig,
     pub perps_liquidation_bonus_ratio: Decimal,
-    pub swap_fee: Decimal,
 }
 
 #[cw_serde]
