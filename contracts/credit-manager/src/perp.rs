@@ -236,11 +236,6 @@ pub fn close_all_perps(
     let (tier, discount_pct, voting_power) =
         get_account_tier_and_discount(deps.as_ref(), account_id)?;
 
-    // // Get base and effective fees for logging (using a sample denom for reference)
-    // let sample_denom = perp_positions.first().unwrap().denom.clone();
-    // let base_opening_fee = perps.query_opening_fee(&deps.querier, &sample_denom, Int128::new(1000), None)?;
-    // let effective_opening_fee = perps.query_opening_fee(&deps.querier, &sample_denom, Int128::new(1000), Some(discount_pct))?;
-
     // Close all perp positions at once
     let close_msg = perps.close_all_msg(account_id, funds, action, Some(discount_pct))?;
 
@@ -249,8 +244,6 @@ pub fn close_all_perps(
         .add_attribute("action", "close_all_perps")
         .add_attribute("account_id", account_id)
         .add_attribute("number_of_positions", perp_positions.len().to_string())
-        // .add_attribute("base_opening_fee", base_opening_fee.fee.to_string())
-        // .add_attribute("effective_opening_fee", effective_opening_fee.fee.to_string())
         .add_attribute("voting_power", voting_power.to_string())
         .add_attribute("tier_id", tier.id)
         .add_attribute("discount_pct", discount_pct.to_string()))
