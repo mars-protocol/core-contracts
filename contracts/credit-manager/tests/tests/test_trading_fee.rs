@@ -1,8 +1,11 @@
-use super::helpers::{default_perp_params, uosmo_info, MockEnv};
 use cosmwasm_std::{Addr, Decimal, Uint128};
-use mars_types::credit_manager::{MarketType, TradingFeeResponse};
-use mars_types::params::PerpParamsUpdate;
+use mars_types::{
+    credit_manager::{MarketType, TradingFeeResponse},
+    params::PerpParamsUpdate,
+};
 use test_case::test_case;
+
+use super::helpers::{default_perp_params, uosmo_info, MockEnv};
 
 #[test_case(
     Uint128::new(200_000),
@@ -56,9 +59,10 @@ fn test_trading_fee_query_spot(
     // Verify the response
     assert_eq!(response.base_fee_pct, expected_base_fee);
     assert_eq!(response.discount_pct, expected_discount);
-    
+
     // Calculate the expected effective fee based on the actual response
-    let calculated_effective = response.base_fee_pct.checked_mul(Decimal::one() - expected_discount).unwrap();
+    let calculated_effective =
+        response.base_fee_pct.checked_mul(Decimal::one() - expected_discount).unwrap();
     assert_eq!(response.effective_fee_pct, calculated_effective);
     assert_eq!(response.tier_id, expected_tier_id);
 }
@@ -124,10 +128,8 @@ fn test_trading_fee_query_perp(
     assert_eq!(response.tier_id, expected_tier_id);
 
     // The effective fee should be base_fee * (1 - discount)
-    let expected_effective = response
-        .base_fee_pct
-        .checked_mul(Decimal::one() - expected_discount)
-        .unwrap();
+    let expected_effective =
+        response.base_fee_pct.checked_mul(Decimal::one() - expected_discount).unwrap();
     assert_eq!(response.effective_fee_pct, expected_effective);
 }
 
@@ -156,9 +158,10 @@ fn test_trading_fee_query_edge_cases() {
 
     assert_eq!(response.tier_id, "tier_1");
     assert_eq!(response.discount_pct, Decimal::percent(75));
-    
+
     // Calculate the expected effective fee based on the actual response
-    let calculated_effective = response.base_fee_pct.checked_mul(Decimal::one() - Decimal::percent(75)).unwrap();
+    let calculated_effective =
+        response.base_fee_pct.checked_mul(Decimal::one() - Decimal::percent(75)).unwrap();
     assert_eq!(response.effective_fee_pct, calculated_effective);
 
     // Test tier 10 (no discount - 0%)
@@ -178,8 +181,9 @@ fn test_trading_fee_query_edge_cases() {
 
     assert_eq!(response.tier_id, "tier_10");
     assert_eq!(response.discount_pct, Decimal::percent(0));
-    
+
     // Calculate the expected effective fee based on the actual response
-    let calculated_effective = response.base_fee_pct.checked_mul(Decimal::one() - Decimal::percent(0)).unwrap();
+    let calculated_effective =
+        response.base_fee_pct.checked_mul(Decimal::one() - Decimal::percent(0)).unwrap();
     assert_eq!(response.effective_fee_pct, calculated_effective);
 }

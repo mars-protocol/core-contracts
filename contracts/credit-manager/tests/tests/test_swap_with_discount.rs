@@ -1,9 +1,11 @@
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
-use mars_types::credit_manager::Action::{Deposit, SwapExactIn};
-use mars_types::swapper::{OsmoRoute, OsmoSwap, SwapperRoute};
+use cw_multi_test::AppResponse;
+use mars_types::{
+    credit_manager::Action::{Deposit, SwapExactIn},
+    swapper::{OsmoRoute, OsmoSwap, SwapperRoute},
+};
 
 use super::helpers::{uatom_info, uosmo_info, AccountToFund, MockEnv};
-use cw_multi_test::AppResponse;
 
 fn setup_env_with_swap_fee() -> (MockEnv, Addr, String) {
     let atom = uatom_info();

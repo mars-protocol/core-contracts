@@ -60,8 +60,10 @@ mod mock_credit_manager {
     #[cfg(not(feature = "library"))]
     use cosmwasm_std::entry_point;
     use cosmwasm_std::{Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult};
-    use mars_types::credit_manager::{ExecuteMsg, QueryMsg, Positions, Account};
-    use mars_types::health::AccountKind;
+    use mars_types::{
+        credit_manager::{Account, ExecuteMsg, Positions, QueryMsg},
+        health::AccountKind,
+    };
 
     #[cfg_attr(not(feature = "library"), entry_point)]
     pub fn instantiate(
@@ -86,12 +88,17 @@ mod mock_credit_manager {
     #[cfg_attr(not(feature = "library"), entry_point)]
     pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
         match msg {
-            QueryMsg::AccountKind { account_id: _ } => {
+            QueryMsg::AccountKind {
+                account_id: _,
+            } => {
                 // Return a mock account kind
                 let account_kind = AccountKind::Default;
                 cosmwasm_std::to_json_binary(&account_kind)
             }
-            QueryMsg::Positions { account_id: _, action: _ } => {
+            QueryMsg::Positions {
+                account_id: _,
+                action: _,
+            } => {
                 // Return empty positions
                 let positions = Positions {
                     account_id: "1".to_string(),
@@ -105,7 +112,11 @@ mod mock_credit_manager {
                 };
                 cosmwasm_std::to_json_binary(&positions)
             }
-            QueryMsg::Accounts { owner: _, start_after: _, limit: _ } => {
+            QueryMsg::Accounts {
+                owner: _,
+                start_after: _,
+                limit: _,
+            } => {
                 // Return a mock account
                 let account = Account {
                     id: "1".to_string(),
@@ -113,7 +124,9 @@ mod mock_credit_manager {
                 };
                 cosmwasm_std::to_json_binary(&vec![account])
             }
-            QueryMsg::GetAccountTierAndDiscount { account_id: _ } => {
+            QueryMsg::GetAccountTierAndDiscount {
+                account_id: _,
+            } => {
                 // Return a mock tier and discount response
                 let response = mars_types::credit_manager::AccountTierAndDiscountResponse {
                     tier_id: "default".to_string(),

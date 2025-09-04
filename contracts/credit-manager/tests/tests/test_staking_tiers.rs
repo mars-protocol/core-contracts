@@ -287,7 +287,9 @@ fn test_validate_fee_tier_config_empty() {
     let result = manager.validate();
     assert!(result.is_err());
     match result.unwrap_err() {
-        StdError::GenericErr { msg } => {
+        StdError::GenericErr {
+            msg,
+        } => {
             assert!(msg.contains("Fee tier config cannot be empty"));
         }
         _ => panic!("Expected StdError::GenericErr"),
@@ -315,7 +317,9 @@ fn test_validate_fee_tier_config_unsorted() {
     let result = manager.validate();
     assert!(result.is_err());
     match result.unwrap_err() {
-        StdError::GenericErr { msg } => {
+        StdError::GenericErr {
+            msg,
+        } => {
             assert!(msg.contains("Tiers must be sorted in descending order"));
         }
         _ => panic!("Expected StdError::GenericErr"),
@@ -343,7 +347,9 @@ fn test_validate_fee_tier_config_duplicate_thresholds() {
     let result = manager.validate();
     assert!(result.is_err());
     match result.unwrap_err() {
-        StdError::GenericErr { msg } => {
+        StdError::GenericErr {
+            msg,
+        } => {
             assert!(msg.contains("Duplicate voting power thresholds"));
         }
         _ => panic!("Expected StdError::GenericErr"),
@@ -364,7 +370,9 @@ fn test_validate_fee_tier_config_invalid_discount() {
     let result = manager.validate();
     assert!(result.is_err());
     match result.unwrap_err() {
-        StdError::GenericErr { msg } => {
+        StdError::GenericErr {
+            msg,
+        } => {
             assert!(msg.contains("Discount percentage must be less than 100%"));
         }
         _ => panic!("Expected StdError::GenericErr"),
@@ -431,20 +439,12 @@ fn test_get_default_tier() {
     Decimal::percent(0);
     "tier 10: no discount"
 )]
-fn test_discount_calculation_examples(
-    voting_power: Uint128,
-    expected_discount: Decimal,
-) {
+fn test_discount_calculation_examples(voting_power: Uint128, expected_discount: Decimal) {
     let config = create_test_fee_tier_config();
     let manager = StakingTierManager::new(config);
 
     let tier = manager.find_applicable_tier(voting_power).unwrap();
-    assert_eq!(
-        tier.discount_pct,
-        expected_discount,
-        "Failed for voting power: {}",
-        voting_power
-    );
+    assert_eq!(tier.discount_pct, expected_discount, "Failed for voting power: {}", voting_power);
 }
 
 #[test]

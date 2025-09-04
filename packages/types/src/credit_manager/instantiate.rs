@@ -2,11 +2,14 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Decimal, Uint128};
 
 use super::KeeperFeeConfig;
-use crate::adapters::{
-    account_nft::AccountNftUnchecked, health::HealthContractUnchecked,
-    incentives::IncentivesUnchecked, oracle::OracleUnchecked, params::ParamsUnchecked,
-    perps::PerpsUnchecked, red_bank::RedBankUnchecked, swapper::SwapperUnchecked,
-    zapper::ZapperUnchecked,
+use crate::{
+    adapters::{
+        account_nft::AccountNftUnchecked, health::HealthContractUnchecked,
+        incentives::IncentivesUnchecked, oracle::OracleUnchecked, params::ParamsUnchecked,
+        perps::PerpsUnchecked, red_bank::RedBankUnchecked, swapper::SwapperUnchecked,
+        zapper::ZapperUnchecked,
+    },
+    fee_tiers::FeeTierConfig,
 };
 
 #[cw_serde]
@@ -77,6 +80,6 @@ pub struct ConfigUpdates {
     pub perps_liquidation_bonus_ratio: Option<Decimal>,
     pub swap_fee: Option<Decimal>,
     // Staking-based fee tiers
-    pub fee_tier_config: Option<crate::fee_tiers::FeeTierConfig>,
+    pub fee_tier_config: Option<FeeTierConfig>,
     pub dao_staking_address: Option<String>,
 }

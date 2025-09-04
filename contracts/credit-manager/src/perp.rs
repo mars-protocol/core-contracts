@@ -124,8 +124,10 @@ pub fn execute_perp_order(
         )?,
         None => {
             // Open new position
-            let base_opening_fee = perps.query_opening_fee(&deps.querier, denom, order_size, None)?;
-            let opening_fee = perps.query_opening_fee(&deps.querier, denom, order_size, Some(discount_pct))?;
+            let base_opening_fee =
+                perps.query_opening_fee(&deps.querier, denom, order_size, None)?;
+            let opening_fee =
+                perps.query_opening_fee(&deps.querier, denom, order_size, Some(discount_pct))?;
             let fee = opening_fee.fee;
 
             let funds = if !fee.amount.is_zero() {
@@ -135,8 +137,14 @@ pub fn execute_perp_order(
                 vec![]
             };
 
-            let msg =
-                perps.execute_perp_order(account_id, denom, order_size, reduce_only, funds, Some(discount_pct))?;
+            let msg = perps.execute_perp_order(
+                account_id,
+                denom,
+                order_size,
+                reduce_only,
+                funds,
+                Some(discount_pct),
+            )?;
 
             response
                 .add_message(msg)
@@ -267,9 +275,17 @@ fn modify_existing_position(
 
     // Get base and effective fees for logging
     let base_opening_fee = perps.query_opening_fee(&deps.querier, denom, order_size, None)?;
-    let effective_opening_fee = perps.query_opening_fee(&deps.querier, denom, order_size, Some(discount_pct))?;
+    let effective_opening_fee =
+        perps.query_opening_fee(&deps.querier, denom, order_size, Some(discount_pct))?;
 
-    let msg = perps.execute_perp_order(account_id, denom, order_size, reduce_only, funds, Some(discount_pct))?;
+    let msg = perps.execute_perp_order(
+        account_id,
+        denom,
+        order_size,
+        reduce_only,
+        funds,
+        Some(discount_pct),
+    )?;
 
     let new_size = position.size.checked_add(order_size)?;
 

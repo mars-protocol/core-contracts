@@ -1,12 +1,16 @@
 use cosmwasm_std::{Addr, Coin, Decimal, Int128, Uint128};
 use cw_multi_test::AppResponse;
-use mars_types::credit_manager::Action::{Deposit, ExecutePerpOrder};
-use mars_types::credit_manager::ExecutePerpOrderType;
+use mars_types::{
+    credit_manager::{
+        Action::{Deposit, ExecutePerpOrder},
+        ExecutePerpOrderType,
+    },
+    params::PerpParamsUpdate,
+};
 use test_case::test_case;
 
 use super::helpers::{coin_info, uatom_info, AccountToFund, MockEnv};
 use crate::tests::helpers::default_perp_params;
-use mars_types::params::PerpParamsUpdate;
 
 fn setup_env() -> (MockEnv, Addr, String) {
     let atom = uatom_info();

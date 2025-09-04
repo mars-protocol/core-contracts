@@ -524,9 +524,12 @@ impl MockEnv {
     pub fn query_perp_params(&self, denom: &str) -> PerpParams {
         self.app
             .wrap()
-            .query_wasm_smart(self.params.clone(), &params::QueryMsg::PerpParams {
-                denom: denom.to_string(),
-            })
+            .query_wasm_smart(
+                self.params.clone(),
+                &params::QueryMsg::PerpParams {
+                    denom: denom.to_string(),
+                },
+            )
             .unwrap()
     }
 

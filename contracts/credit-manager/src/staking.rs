@@ -1,9 +1,15 @@
-use crate::state::{DAO_STAKING_ADDRESS, FEE_TIER_CONFIG};
-use crate::utils::query_nft_token_owner;
-use cosmwasm_std::{Decimal, Deps, StdError, StdResult, Uint128};
-use mars_types::adapters::dao_staking::DaoStaking;
-use mars_types::fee_tiers::{FeeTier, FeeTierConfig};
 use std::str::FromStr;
+
+use cosmwasm_std::{Decimal, Deps, StdError, StdResult, Uint128};
+use mars_types::{
+    adapters::dao_staking::DaoStaking,
+    fee_tiers::{FeeTier, FeeTierConfig},
+};
+
+use crate::{
+    state::{DAO_STAKING_ADDRESS, FEE_TIER_CONFIG},
+    utils::query_nft_token_owner,
+};
 
 pub struct StakingTierManager {
     pub config: FeeTierConfig,

@@ -18,7 +18,9 @@ use crate::{
     error::{ContractError, ContractResult},
     market::MarketStateExt,
     position::{calculate_new_size, PositionExt, PositionModification},
-    state::{CONFIG, MARKET_STATES, POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW, ACCOUNT_OPENING_FEE_RATES},
+    state::{
+        ACCOUNT_OPENING_FEE_RATES, CONFIG, MARKET_STATES, POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW,
+    },
     utils::{
         ensure_max_position, ensure_min_position, get_oracle_adapter, get_params_adapter,
         update_position_attributes,
@@ -444,7 +446,11 @@ fn modify_position(
 
         // Update the opening fee rate if this was a position flip (new opening fee charged)
         if is_position_flip {
-            ACCOUNT_OPENING_FEE_RATES.save(deps.storage, (&account_id, &denom), &opening_fee_rate)?;
+            ACCOUNT_OPENING_FEE_RATES.save(
+                deps.storage,
+                (&account_id, &denom),
+                &opening_fee_rate,
+            )?;
         }
 
         "modify_position"

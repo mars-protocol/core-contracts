@@ -21,8 +21,8 @@ use crate::{
     position_management::apply_pnl_and_fees,
     query,
     state::{
-        DeleverageRequestTempStorage, CONFIG, DELEVERAGE_REQUEST_TEMP_STORAGE, MARKET_STATES,
-        POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW, ACCOUNT_OPENING_FEE_RATES,
+        DeleverageRequestTempStorage, ACCOUNT_OPENING_FEE_RATES, CONFIG,
+        DELEVERAGE_REQUEST_TEMP_STORAGE, MARKET_STATES, POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW,
     },
     utils::{get_oracle_adapter, get_params_adapter, update_position_attributes},
 };
@@ -115,8 +115,9 @@ pub fn deleverage(
     ms.close_position(current_time, denom_price, base_denom_price, &position)?;
 
     // Check if we have a stored opening fee rate for this position
-    let stored_opening_fee_rate = ACCOUNT_OPENING_FEE_RATES.may_load(deps.storage, (&account_id, &denom))?;
-    
+    let stored_opening_fee_rate =
+        ACCOUNT_OPENING_FEE_RATES.may_load(deps.storage, (&account_id, &denom))?;
+
     let (opening_fee_rate, closing_fee_rate) = if let Some(stored_rate) = stored_opening_fee_rate {
         // Use the stored opening fee rate (what was actually paid) for historical accuracy
         // Use current closing fee rate (fair for current operations)
