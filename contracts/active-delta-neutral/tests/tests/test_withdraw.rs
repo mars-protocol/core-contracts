@@ -133,8 +133,7 @@ fn test_withdraw_multitest(
     // Add a market
     let market_config = MarketConfig {
         market_id: "market_1".to_string(),
-        usdc_denom:
-            uusdc_denom.to_string(),
+        usdc_denom: uusdc_denom.to_string(),
         spot_denom: "ibc/0000000000000000000000000000000000000000000000000000000000000000"
             .to_string(),
         perp_denom: "perps/ubtc".to_string(),

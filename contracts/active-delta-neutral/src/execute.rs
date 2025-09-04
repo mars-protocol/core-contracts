@@ -24,8 +24,8 @@ use crate::{
         self, assert_deposit_funds_valid, assert_no_funds, combined_balance, PositionDeltas,
     },
     order_creation::build_trade_actions,
-    order_validation,
-    state::{CONFIG, OWNER, POSITION},
+    order_validation::{self, DynamicValidator},
+    state::{CONFIG, OWNER, POSITION}, traits::Validator,
 };
 /// # Execute Increase Position
 ///
@@ -250,8 +250,7 @@ pub fn hedge(
         Int128::try_from(perps_market.long_oi)?.checked_sub(perps_market.short_oi.try_into()?)?;
 
     // Validate position entry
-    // TODO : return the right data from this
-    order_validation::validate_entry()?;
+    // validate risk conditions
 
     // Update Position
     let position_state = match increasing {
@@ -318,9 +317,9 @@ pub fn hedge(
         .add_attribute("borrow_delta", borrow_delta.to_string()))
 }
 
-pub fn add_market(deps: DepsMut, config: MarketConfig) -> ContractResult<Response> {
-    config.validate()?;
-    MARKET_CONFIG.save(deps.storage, &config.market_id, &config)?;
+pub fn add_market(deps: DepsMut, market_config: MarketConfig) -> ContractResult<Response> {
+    market_config.validate()?;
+    MARKET_CONFIG.save(deps.storage, &market_config.market_id, &market_config)?;
     Ok(Response::new().add_attribute("action", "add_market"))
 }
 

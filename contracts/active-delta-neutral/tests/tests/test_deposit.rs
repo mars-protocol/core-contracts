@@ -152,7 +152,10 @@ fn test_deposit_multitest(
         perp_denom: "perps/ubtc".to_string(),
         k: 300u64,
     };
-    let active_delta_neutral = deploy_active_delta_neutral_contract(&mut mock, "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81");
+    let active_delta_neutral = deploy_active_delta_neutral_contract(
+        &mut mock,
+        "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81",
+    );
     let res = add_active_delta_neutral_market(
         &owner,
         market_config.clone(),

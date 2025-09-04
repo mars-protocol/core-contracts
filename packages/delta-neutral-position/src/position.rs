@@ -54,7 +54,8 @@ impl Position {
         self.spot_amount = new_size;
         self.perp_amount = new_size;
         self.last_updated = now;
-        self.net_realized_perp_trading_fees = self.net_realized_perp_trading_fees.checked_add(perp_trading_fee_amount)?;
+        self.net_realized_perp_trading_fees =
+            self.net_realized_perp_trading_fees.checked_add(perp_trading_fee_amount)?;
 
         Ok(self.clone())
     }

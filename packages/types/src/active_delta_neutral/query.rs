@@ -68,7 +68,7 @@ pub struct MarketConfig {
     pub spot_denom: String,
     /// Denomination of the perps asset for this market (must start with "perps/").
     pub perp_denom: String,
-    /// Market parameter controlling the AMM curve (must be > 0).
+    /// Market parameter controlling the  sensitivity of the model (must be > 0).
     pub k: u64,
 }
 
@@ -80,7 +80,7 @@ impl MarketConfig {
     /// * `usdc_denom` - Denomination of the USDC token.
     /// * `spot_denom` - Denomination of the spot asset.
     /// * `perp_denom` - Denomination of the perps asset (must start with "perps/").
-    /// * `k` - AMM curve parameter (must be > 0).
+    /// * `k` - model sensitivity controller (must be > 0).
     pub fn new(
         market_id: String,
         usdc_denom: String,

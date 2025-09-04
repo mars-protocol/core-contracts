@@ -155,7 +155,10 @@ pub fn assert_err(res: AnyResult<AppResponse>, err: ContractError) {
     }
 }
 
-pub fn deploy_active_delta_neutral_contract(mock_env: &mut MockEnv, base_denom: &str) -> ActiveDeltaNeutral {
+pub fn deploy_active_delta_neutral_contract(
+    mock_env: &mut MockEnv,
+    base_denom: &str,
+) -> ActiveDeltaNeutral {
     let contract_code_id = mock_env.app.store_code(active_delta_neutral_contract());
     let owner = Addr::unchecked("owner");
 
@@ -166,8 +169,7 @@ pub fn deploy_active_delta_neutral_contract(mock_env: &mut MockEnv, base_denom: 
             owner.clone(),
             &InstantiateMsg {
                 address_provider: mock_env.address_provider.clone().into(),
-                base_denom: 
-                    base_denom.to_string(),
+                base_denom: base_denom.to_string(),
             },
             &[],
             "mock-active-delta-neutral-contract",

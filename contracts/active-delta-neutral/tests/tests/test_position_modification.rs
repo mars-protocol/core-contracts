@@ -12,7 +12,8 @@ use mars_types::{
 
 use crate::tests::helpers::delta_neutral_helpers::{
     add_active_delta_neutral_market, buy_delta_neutral_market,
-    deploy_active_delta_neutral_contract, deposit, query_contract_credit_manager_positions, sell_delta_neutral_market,
+    deploy_active_delta_neutral_contract, deposit, query_contract_credit_manager_positions,
+    sell_delta_neutral_market,
 };
 
 #[test]
@@ -119,7 +120,7 @@ fn test_position_modification() {
 
     assert_eq!(positions.deposits[0].amount, Uint128::new(100_000_000));
     assert_eq!(positions.debts[0].amount, Uint128::new(95217)); // Debt from perp position
-    // Now decrease by 50%
+                                                                // Now decrease by 50%
     let res = sell_delta_neutral_market(
         &owner,
         "btc",

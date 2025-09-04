@@ -28,13 +28,13 @@ This document describes a simple entry/exit model for delta-neutral trading stra
 ## Funding Rate Calculations
 
 - **Long (No Leverage):**  
-  `Total Funding Rate = Funding Rate - USDC Supply Rate`
+  `net_yield = funding_rate - usdc_borrow_rate + spot_supply_rate`
 - **Long (With Leverage):**  
-  `Total Funding Rate = Funding Rate - USDC Borrow Rate`
+  `net_yield = funding_rate - usdc_borrow_rate + spot_supply_rate`
 - **Short: (No Leverage)**  
-  `Total Funding Rate = |Funding Rate| - Spot supply Rate`
+  `net_yield = |funding_rate| - spot_supply_rate + usdc_borrow_rate`
 - **Short: (With Leverage)**  
-  `Total Funding Rate = |Funding Rate| - Spot Borrow Rate`
+  `net_yield = |funding_rate| - spot_supply_rate + usdc_borrow_rate`
 
 No leverage trades occur when we have the spot asset in our account to sell, while leverage trades occur when we borrow the asset to sell it.
 
@@ -59,7 +59,7 @@ A positive net yield means the position is expected to generate income over time
 
 ## Model Example
 
-In the following chart we can see how the model works. Everything above the line when the yield rate is above 0 , is a signal to long.
+In the following chart we can see how the model works. Everything above the line when the net yield is above 0 , is a signal to long.
 
 Everything below the trend line when the yield rate is below 0 is a signal to short.
 
