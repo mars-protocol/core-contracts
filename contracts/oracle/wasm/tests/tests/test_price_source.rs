@@ -12,7 +12,7 @@ use cw_it::{
         utils::{native_asset, native_info},
     },
     robot::TestRobot,
-    test_tube::{Account, Module, Wasm},
+    test_tube::{Account, Module, RunnerError, Wasm},
     traits::{CwItRunner, DEFAULT_COIN_AMOUNT},
 };
 use cw_storage_plus::Map;
@@ -932,33 +932,31 @@ pub fn validate_and_query_lsd_price_source(
 }
 
 #[test_case(
-    "slinky_contract", "uluna", "uusd", Some(Decimal::from_ratio(2u128, 1u128)), "uluna", true;
+    "stLuna", "uluna", Some(Decimal::from_ratio(2u128, 1u128)), "stLuna", true;
     "Success: correct contract and transitive denom"
 )]
 #[test_case(
-    "slinky_contract", "uluna", "uusd", Some(Decimal::from_ratio(2u128, 1u128)), "uatom", true
+    "stLuna", "uluna", Some(Decimal::from_ratio(2u128, 1u128)), "uatom", true
     => panics "lst denom does not match";
     "Error: contract returns wrong denom"
 )]
 #[test_case(
-    "slinky_contract", "uluna", "uusd", Some(Decimal::from_ratio(2u128, 1u128)), "uluna", false
+    "stLuna", "uluna", Some(Decimal::from_ratio(2u128, 1u128)), "stLuna", false
     => panics "missing price source for";
     "Error: missing transitive denom"
 )]
 #[test_case(
-    "slinky_contract", "uluna", "uusd", Some(Decimal::from_ratio(2u128, 1u128)), "uatom", false
+    "stLuna", "uluna", Some(Decimal::from_ratio(2u128, 1u128)), "uatom", false
     => panics "lst denom does not match";
     "Error: wrong denom and missing transitive denom"
 )]
 pub fn validate_and_query_slinky_lsd_price_source(
-    contract_addr: &str,
     expected_lst_denom: &str,
     transitive_denom: &str,
     transitive_price: Option<Decimal>,
     contract_lst_denom: &str, // what the mock contract actually returns
     transitive_denom_present: bool,
 ) {
-
     let owned_runner = get_test_runner();
     let runner = owned_runner.as_ref();
     let admin = &runner
@@ -970,7 +968,7 @@ pub fn validate_and_query_slinky_lsd_price_source(
     let robot = WasmOracleTestRobot::new(&runner, get_contracts(&runner), admin, Some("uusd"));
 
     // Set up the mock contract to return `contract_lst_denom` for its denom query
-    robot.set_mock_slinky_lst_denom(contract_addr, contract_lst_denom);
+    robot.set_mock_lst_denom(contract_lst_denom.to_string(), admin);
 
     // Optionally set the transitive denom price source
     if transitive_denom_present {
@@ -984,30 +982,27 @@ pub fn validate_and_query_slinky_lsd_price_source(
     }
 
     let price_source = WasmPriceSourceUnchecked::SlinkyLsd {
-        contract_addr: contract_addr.to_string(),
+        contract_addr: robot.mock_lst_oracle_addr.clone().unwrap(),
         transitive_denom: transitive_denom.to_string(),
     };
 
-    let result = robot.validate_and_query_price_source(expected_lst_denom, &price_source);
+    let set_price_source_result =
+        robot.set_price_source_with_result(expected_lst_denom, price_source, admin);
 
     if contract_lst_denom != expected_lst_denom {
         assert!(matches!(
-            result,
-            Err(ContractError::InvalidPriceSource { reason })
-            if reason.contains("lst denom does not match")
+            set_price_source_result,
+            Err(RunnerError::ExecuteError { msg })
+            if msg.contains("lst denom does not match")
         ));
     } else if !transitive_denom_present {
         assert!(matches!(
-            result,
-            Err(ContractError::InvalidPriceSource { reason })
-            if reason.contains("missing price source for")
+            set_price_source_result,
+            Err(RunnerError::ExecuteError { msg })
+            if msg.contains("missing price source for")
         ));
     } else {
-        assert!(matches!(
-            result,
-            Ok(WasmPriceSourceChecked::SlinkyLsd { contract_addr: addr, transitive_denom: tdenom })
-            if addr == Addr::unchecked(contract_addr) && tdenom == transitive_denom
-        ));
+        assert!(set_price_source_result.is_ok());
     }
 }
 

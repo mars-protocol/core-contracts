@@ -131,7 +131,7 @@ pub enum WasmPriceSource<A> {
         /// Transitive denom for which we query price in USD. It refers to 'Asset' in the equation:
         /// stAsset/USD = stAsset/Asset * Asset/USD
         transitive_denom: String,
-
+        /// Contract address of the oracle
         contract_addr: A,
     },
 
