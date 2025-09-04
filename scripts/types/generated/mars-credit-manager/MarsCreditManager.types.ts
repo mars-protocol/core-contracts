@@ -619,7 +619,9 @@ export interface OsmoSwap {
 }
 export interface ConfigUpdates {
   account_nft?: AccountNftBaseForString | null
+  dao_staking_address?: string | null
   duality_swapper?: SwapperBaseForString | null
+  fee_tier_config?: FeeTierConfig | null
   health_contract?: HealthContractBaseForString | null
   incentives?: IncentivesUnchecked | null
   keeper_fee_config?: KeeperFeeConfig | null
@@ -635,6 +637,14 @@ export interface ConfigUpdates {
   swap_fee?: Decimal | null
   swapper?: SwapperBaseForString | null
   zapper?: ZapperBaseForString | null
+}
+export interface FeeTierConfig {
+  tiers: FeeTier[]
+}
+export interface FeeTier {
+  discount_pct: Decimal
+  id: string
+  min_voting_power: string
 }
 export interface NftConfigUpdates {
   address_provider_contract_addr?: string | null
@@ -752,6 +762,17 @@ export type QueryMsg =
       }
     }
   | {
+      get_account_tier_and_discount: {
+        account_id: string
+      }
+    }
+  | {
+      trading_fee: {
+        account_id: string
+        market_type: MarketType
+      }
+    }
+  | {
       swap_fee_rate: {}
     }
 export type ActionKind = 'default' | 'liquidation'
@@ -765,6 +786,13 @@ export type VaultPositionAmount =
 export type VaultAmount = string
 export type VaultAmount1 = string
 export type UnlockingPositions = VaultUnlockingPosition[]
+export type MarketType =
+  | 'spot'
+  | {
+      perp: {
+        denom: string
+      }
+    }
 export interface VaultPosition {
   amount: VaultPositionAmount
   vault: VaultBaseForAddr
@@ -858,6 +886,11 @@ export interface RewardsCollector {
   address: string
 }
 export type ArrayOfCoin = Coin[]
+export interface AccountTierAndDiscountResponse {
+  discount_pct: Decimal
+  tier_id: string
+  voting_power: Uint128
+}
 export interface Positions {
   account_id: string
   account_kind: AccountKind
@@ -890,6 +923,12 @@ export interface PnlAmounts {
   opening_fee: Int128
   pnl: Int128
   price_pnl: Int128
+}
+export interface TradingFeeResponse {
+  base_fee_pct: Decimal
+  discount_pct: Decimal
+  effective_fee_pct: Decimal
+  tier_id: string
 }
 export type ArrayOfVaultBinding = VaultBinding[]
 export interface VaultBinding {

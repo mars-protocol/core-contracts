@@ -364,9 +364,6 @@ pub fn query_account_tier_and_discount(
     })
 }
 
-/// Queries the trading fee for a specific account and market type.
-/// For spot markets, returns a default fee structure.
-/// For perp markets, calculates the opening fee based on the denom and applies any applicable discounts.
 pub fn query_trading_fee(
     deps: Deps,
     account_id: &str,
@@ -374,14 +371,11 @@ pub fn query_trading_fee(
 ) -> ContractResult<mars_types::credit_manager::TradingFeeResponse> {
     use crate::staking::get_account_tier_and_discount;
 
-    // Get staking tier discount for this account
     let (tier, discount_pct, _) = get_account_tier_and_discount(deps, account_id)?;
 
     match market_type {
         mars_types::credit_manager::MarketType::Spot => {
-            // For spot markets, use a default fee structure
-            // You can customize this based on your spot trading requirements
-            let base_fee_pct = cosmwasm_std::Decimal::percent(25); // 0.25% base fee
+            let base_fee_pct = SWAP_FEE.load(deps.storage)?;
             let effective_fee_pct =
                 base_fee_pct.checked_mul(cosmwasm_std::Decimal::one() - discount_pct)?;
 
@@ -395,10 +389,8 @@ pub fn query_trading_fee(
         mars_types::credit_manager::MarketType::Perp {
             denom,
         } => {
-            // For perp markets, get the opening fee rate and apply discount
-            let params = crate::state::PARAMS.load(deps.storage)?;
+            let params = PARAMS.load(deps.storage)?;
 
-            // Query the params contract to get the opening fee rate for this denom
             let perp_params = params.query_perp_params(&deps.querier, denom)?;
             let base_fee_pct = perp_params.opening_fee_rate;
             let effective_fee_pct =

@@ -53,6 +53,8 @@ import {
   OsmoRoute,
   OsmoSwap,
   ConfigUpdates,
+  FeeTierConfig,
+  FeeTier,
   NftConfigUpdates,
   VaultBaseForAddr,
   HealthValuesResponse,
@@ -62,6 +64,7 @@ import {
   VaultAmount,
   VaultAmount1,
   UnlockingPositions,
+  MarketType,
   VaultPosition,
   LockingVaultAmount,
   VaultUnlockingPosition,
@@ -85,10 +88,12 @@ import {
   OwnerResponse,
   RewardsCollector,
   ArrayOfCoin,
+  AccountTierAndDiscountResponse,
   Positions,
   DebtAmount,
   PerpPosition,
   PnlAmounts,
+  TradingFeeResponse,
   ArrayOfVaultBinding,
   VaultBinding,
   VaultPositionValue,
@@ -187,6 +192,18 @@ export interface MarsCreditManagerReadOnlyInterface {
     limit?: number
     startAfter?: string
   }) => Promise<ArrayOfVaultBinding>
+  getAccountTierAndDiscount: ({
+    accountId,
+  }: {
+    accountId: string
+  }) => Promise<AccountTierAndDiscountResponse>
+  tradingFee: ({
+    accountId,
+    marketType,
+  }: {
+    accountId: string
+    marketType: MarketType
+  }) => Promise<TradingFeeResponse>
   swapFeeRate: () => Promise<Decimal>
 }
 export class MarsCreditManagerQueryClient implements MarsCreditManagerReadOnlyInterface {
@@ -212,6 +229,8 @@ export class MarsCreditManagerQueryClient implements MarsCreditManagerReadOnlyIn
     this.allTriggerOrders = this.allTriggerOrders.bind(this)
     this.allAccountTriggerOrders = this.allAccountTriggerOrders.bind(this)
     this.vaultBindings = this.vaultBindings.bind(this)
+    this.getAccountTierAndDiscount = this.getAccountTierAndDiscount.bind(this)
+    this.tradingFee = this.tradingFee.bind(this)
     this.swapFeeRate = this.swapFeeRate.bind(this)
   }
   accountKind = async ({ accountId }: { accountId: string }): Promise<AccountKind> => {
@@ -417,6 +436,31 @@ export class MarsCreditManagerQueryClient implements MarsCreditManagerReadOnlyIn
       vault_bindings: {
         limit,
         start_after: startAfter,
+      },
+    })
+  }
+  getAccountTierAndDiscount = async ({
+    accountId,
+  }: {
+    accountId: string
+  }): Promise<AccountTierAndDiscountResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      get_account_tier_and_discount: {
+        account_id: accountId,
+      },
+    })
+  }
+  tradingFee = async ({
+    accountId,
+    marketType,
+  }: {
+    accountId: string
+    marketType: MarketType
+  }): Promise<TradingFeeResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      trading_fee: {
+        account_id: accountId,
+        market_type: marketType,
       },
     })
   }

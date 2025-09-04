@@ -76,6 +76,14 @@ fn test_swap_with_discount() {
             .collect::<std::collections::HashMap<_, _>>()
     };
 
+    // Helper to extract and parse fee values
+    let extract_fees = |res: &AppResponse| {
+        let attrs = extract(res);
+        let base_fee = attrs.get("base_swap_fee").unwrap().parse::<Decimal>().unwrap();
+        let effective_fee = attrs.get("effective_swap_fee").unwrap().parse::<Decimal>().unwrap();
+        (base_fee, effective_fee)
+    };
+
     // Tier 10 (min power 0) → 0% discount
     mock.set_voting_power(&user, Uint128::new(0));
     let res = do_swap(&mut mock, &account_id, &user, 10_000, "uatom", "uosmo");
@@ -83,6 +91,11 @@ fn test_swap_with_discount() {
     assert_eq!(attrs.get("voting_power").unwrap(), "0");
     assert_eq!(attrs.get("tier_id").unwrap(), "tier_10");
     assert_eq!(attrs.get("discount_pct").unwrap(), &Decimal::percent(0).to_string());
+
+    // Verify fees: no discount means base_fee == effective_fee
+    let (base_fee, effective_fee) = extract_fees(&res);
+    assert_eq!(base_fee, Decimal::percent(1)); // 1% base fee
+    assert_eq!(effective_fee, Decimal::percent(1)); // No discount applied
 
     // Tier 7 (>= 5_000) → 10% discount
     mock.set_voting_power(&user, Uint128::new(5_000));
@@ -92,6 +105,11 @@ fn test_swap_with_discount() {
     assert_eq!(attrs.get("tier_id").unwrap(), "tier_7");
     assert_eq!(attrs.get("discount_pct").unwrap(), &Decimal::percent(10).to_string());
 
+    // Verify fees: 10% discount means effective_fee = base_fee * (1 - 0.1) = base_fee * 0.9
+    let (base_fee, effective_fee) = extract_fees(&res);
+    assert_eq!(base_fee, Decimal::percent(1)); // 1% base fee
+    assert_eq!(effective_fee, Decimal::percent(1) * (Decimal::one() - Decimal::percent(10))); // 0.9% effective fee
+
     // Tier 3 (>= 100_000) → 45% discount
     mock.set_voting_power(&user, Uint128::new(100_000));
     let res = do_swap(&mut mock, &account_id, &user, 10_000, "uatom", "uosmo");
@@ -100,10 +118,11 @@ fn test_swap_with_discount() {
     assert_eq!(attrs.get("tier_id").unwrap(), "tier_3");
     assert_eq!(attrs.get("discount_pct").unwrap(), &Decimal::percent(45).to_string());
 
-    // Assertions are based on event attributes of last swap to validate effective fee applied
-    // (Simple smoke check: ensure the action attribute is present and swapper ran.)
-    // Detailed per-fee verification can be added by inspecting event attributes similarly to existing swap tests.
-    // Sanity check that swapper action exists in last response
+    // Verify fees: 45% discount means effective_fee = base_fee * (1 - 0.45) = base_fee * 0.55
+    let (base_fee, effective_fee) = extract_fees(&res);
+    assert_eq!(base_fee, Decimal::percent(1)); // 1% base fee
+    assert_eq!(effective_fee, Decimal::percent(1) * (Decimal::one() - Decimal::percent(45))); // 0.55% effective fee
+
     assert!(res
         .events
         .iter()

@@ -226,8 +226,8 @@ export function useMarsPerpsPositionFeesQuery<TData = PositionFeesResponse>({
 export interface MarsPerpsOpeningFeeQuery<TData> extends MarsPerpsReactQuery<TradingFee, TData> {
   args: {
     denom: string
-    size: Int128
     discountPct?: Decimal
+    size: Int128
   }
 }
 export function useMarsPerpsOpeningFeeQuery<TData = TradingFee>({
@@ -241,6 +241,7 @@ export function useMarsPerpsOpeningFeeQuery<TData = TradingFee>({
       client
         ? client.openingFee({
             denom: args.denom,
+            discountPct: args.discountPct,
             size: args.size,
           })
         : Promise.reject(new Error('Invalid client')),
@@ -631,6 +632,7 @@ export interface MarsPerpsCloseAllPositionsMutation {
   msg: {
     accountId: string
     action?: ActionKind
+    discountPct?: Decimal
   }
   args?: {
     fee?: number | StdFee | 'auto'
@@ -655,6 +657,7 @@ export interface MarsPerpsExecuteOrderMutation {
   msg: {
     accountId: string
     denom: string
+    discountPct?: Decimal
     reduceOnly?: boolean
     size: Int128
   }

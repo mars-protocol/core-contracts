@@ -2430,10 +2430,26 @@
               }
             ]
           },
+          "dao_staking_address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "duality_swapper": {
             "anyOf": [
               {
                 "$ref": "#/definitions/SwapperBase_for_String"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "fee_tier_config": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/FeeTierConfig"
               },
               {
                 "type": "null"
@@ -2707,6 +2723,41 @@
             "additionalProperties": false
           }
         ]
+      },
+      "FeeTier": {
+        "type": "object",
+        "required": [
+          "discount_pct",
+          "id",
+          "min_voting_power"
+        ],
+        "properties": {
+          "discount_pct": {
+            "$ref": "#/definitions/Decimal"
+          },
+          "id": {
+            "type": "string"
+          },
+          "min_voting_power": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "FeeTierConfig": {
+        "type": "object",
+        "required": [
+          "tiers"
+        ],
+        "properties": {
+          "tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/FeeTier"
+            }
+          }
+        },
+        "additionalProperties": false
       },
       "HealthContractBase_for_String": {
         "type": "string"
@@ -3745,6 +3796,54 @@
         "additionalProperties": false
       },
       {
+        "description": "Get the staking tier and discount percentage for an account based on their voting power",
+        "type": "object",
+        "required": [
+          "get_account_tier_and_discount"
+        ],
+        "properties": {
+          "get_account_tier_and_discount": {
+            "type": "object",
+            "required": [
+              "account_id"
+            ],
+            "properties": {
+              "account_id": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Query the trading fee for a specific account and market type.",
+        "type": "object",
+        "required": [
+          "trading_fee"
+        ],
+        "properties": {
+          "trading_fee": {
+            "type": "object",
+            "required": [
+              "account_id",
+              "market_type"
+            ],
+            "properties": {
+              "account_id": {
+                "type": "string"
+              },
+              "market_type": {
+                "$ref": "#/definitions/MarketType"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
         "type": "object",
         "required": [
           "swap_fee_rate"
@@ -3801,6 +3900,37 @@
           }
         },
         "additionalProperties": false
+      },
+      "MarketType": {
+        "oneOf": [
+          {
+            "type": "string",
+            "enum": [
+              "spot"
+            ]
+          },
+          {
+            "type": "object",
+            "required": [
+              "perp"
+            ],
+            "properties": {
+              "perp": {
+                "type": "object",
+                "required": [
+                  "denom"
+                ],
+                "properties": {
+                  "denom": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
       },
       "Uint128": {
         "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
@@ -6967,6 +7097,38 @@
         }
       }
     },
+    "get_account_tier_and_discount": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AccountTierAndDiscountResponse",
+      "type": "object",
+      "required": [
+        "discount_pct",
+        "tier_id",
+        "voting_power"
+      ],
+      "properties": {
+        "discount_pct": {
+          "$ref": "#/definitions/Decimal"
+        },
+        "tier_id": {
+          "type": "string"
+        },
+        "voting_power": {
+          "$ref": "#/definitions/Uint128"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+          "type": "string"
+        },
+        "Uint128": {
+          "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
     "positions": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Positions",
@@ -7334,6 +7496,38 @@
       "definitions": {
         "Uint128": {
           "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
+          "type": "string"
+        }
+      }
+    },
+    "trading_fee": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "TradingFeeResponse",
+      "type": "object",
+      "required": [
+        "base_fee_pct",
+        "discount_pct",
+        "effective_fee_pct",
+        "tier_id"
+      ],
+      "properties": {
+        "base_fee_pct": {
+          "$ref": "#/definitions/Decimal"
+        },
+        "discount_pct": {
+          "$ref": "#/definitions/Decimal"
+        },
+        "effective_fee_pct": {
+          "$ref": "#/definitions/Decimal"
+        },
+        "tier_id": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Decimal": {
+          "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
           "type": "string"
         }
       }

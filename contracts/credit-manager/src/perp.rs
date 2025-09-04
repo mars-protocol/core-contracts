@@ -238,7 +238,6 @@ pub fn close_all_perps(
     let (funds, response) =
         update_state_based_on_pnl(&mut deps, account_id, pnl, Some(action.clone()), response)?;
     let funds = funds.map_or_else(Vec::new, |c| vec![c]);
-    println!("funds : {:?}", funds);
 
     // Get staking tier discount for this account
     let (tier, discount_pct, voting_power) =

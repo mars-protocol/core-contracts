@@ -54,6 +54,8 @@ import {
   OsmoRoute,
   OsmoSwap,
   ConfigUpdates,
+  FeeTierConfig,
+  FeeTier,
   NftConfigUpdates,
   VaultBaseForAddr,
   HealthValuesResponse,
@@ -63,6 +65,7 @@ import {
   VaultAmount,
   VaultAmount1,
   UnlockingPositions,
+  MarketType,
   VaultPosition,
   LockingVaultAmount,
   VaultUnlockingPosition,
@@ -86,10 +89,12 @@ import {
   OwnerResponse,
   RewardsCollector,
   ArrayOfCoin,
+  AccountTierAndDiscountResponse,
   Positions,
   DebtAmount,
   PerpPosition,
   PnlAmounts,
+  TradingFeeResponse,
   ArrayOfVaultBinding,
   VaultBinding,
   VaultPositionValue,
@@ -248,6 +253,25 @@ export const marsCreditManagerQueryKeys = {
         args,
       },
     ] as const,
+  getAccountTierAndDiscount: (
+    contractAddress: string | undefined,
+    args?: Record<string, unknown>,
+  ) =>
+    [
+      {
+        ...marsCreditManagerQueryKeys.address(contractAddress)[0],
+        method: 'get_account_tier_and_discount',
+        args,
+      },
+    ] as const,
+  tradingFee: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+    [
+      {
+        ...marsCreditManagerQueryKeys.address(contractAddress)[0],
+        method: 'trading_fee',
+        args,
+      },
+    ] as const,
   swapFeeRate: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
     [
       {
@@ -275,6 +299,56 @@ export function useMarsCreditManagerSwapFeeRateQuery<TData = Decimal>({
   return useQuery<Decimal, Error, TData>(
     marsCreditManagerQueryKeys.swapFeeRate(client?.contractAddress),
     () => (client ? client.swapFeeRate() : Promise.reject(new Error('Invalid client'))),
+    {
+      ...options,
+      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
+    },
+  )
+}
+export interface MarsCreditManagerTradingFeeQuery<TData>
+  extends MarsCreditManagerReactQuery<TradingFeeResponse, TData> {
+  args: {
+    accountId: string
+    marketType: MarketType
+  }
+}
+export function useMarsCreditManagerTradingFeeQuery<TData = TradingFeeResponse>({
+  client,
+  args,
+  options,
+}: MarsCreditManagerTradingFeeQuery<TData>) {
+  return useQuery<TradingFeeResponse, Error, TData>(
+    marsCreditManagerQueryKeys.tradingFee(client?.contractAddress, args),
+    () =>
+      client
+        ? client.tradingFee({
+            accountId: args.accountId,
+            marketType: args.marketType,
+          })
+        : Promise.reject(new Error('Invalid client')),
+    {
+      ...options,
+      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
+    },
+  )
+}
+export interface MarsCreditManagerGetAccountTierAndDiscountQuery<TData>
+  extends MarsCreditManagerReactQuery<AccountTierAndDiscountResponse, TData> {
+  args: {
+    accountId: string
+  }
+}
+export function useMarsCreditManagerGetAccountTierAndDiscountQuery<
+  TData = AccountTierAndDiscountResponse,
+>({ client, args, options }: MarsCreditManagerGetAccountTierAndDiscountQuery<TData>) {
+  return useQuery<AccountTierAndDiscountResponse, Error, TData>(
+    marsCreditManagerQueryKeys.getAccountTierAndDiscount(client?.contractAddress, args),
+    () =>
+      client
+        ? client.getAccountTierAndDiscount({
+            accountId: args.accountId,
+          })
+        : Promise.reject(new Error('Invalid client')),
     {
       ...options,
       enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
