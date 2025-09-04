@@ -64,7 +64,7 @@ fn random_user_cannot_modify_position() {
     );
 
     let size = Int128::from_str("-125").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
 
@@ -155,7 +155,7 @@ fn cannot_modify_position_for_disabled_denom() {
     );
 
     let size = Int128::from_str("-125").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
 
@@ -240,7 +240,7 @@ fn only_close_position_possible_for_disabled_denom() {
     );
 
     let size = Int128::from_str("125").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
 
@@ -466,7 +466,7 @@ fn reduced_position_cannot_be_too_small() {
 
     // create valid position
     let size = Int128::from_str("200").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
 
@@ -572,7 +572,7 @@ fn increased_position_cannot_be_too_big() {
     // position size is too big
     // 100 * 12.5 = 1250
     let size = Int128::from_str("50").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
 
@@ -794,7 +794,7 @@ fn error_when_new_size_equals_old_size() {
 
     // Test with positive size
     let size = Int128::from_str("12").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
     // Try to modify position of 12 to 12
@@ -809,7 +809,7 @@ fn error_when_new_size_equals_old_size() {
 
     // Test with negative size
     let size = Int128::from_str("-3").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(
         &credit_manager,
         "2",
@@ -885,11 +885,11 @@ fn error_when_oi_limits_exceeded() {
     // Short OI = (0) -40 = -40
     // Net OI = (0) + 30 - 40 = -10
     let size = Int128::from_str("30").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
     let size = Int128::from_str("-40").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "2", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
 
@@ -1056,7 +1056,7 @@ fn modify_position_realises_pnl() {
 
     // prepare some OI
     let size = Int128::from_str("300").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
         .unwrap();
 
@@ -1065,7 +1065,7 @@ fn modify_position_realises_pnl() {
 
     // how much opening fee we will pay for increase from 300 to 400
     let atom_opening_fee_for_increase =
-        mock.query_opening_fee("uatom", Int128::from_str("100").unwrap()).fee;
+        mock.query_opening_fee("uatom", Int128::from_str("100").unwrap(), None).fee;
 
     // modify and verify that our pnl is realized
     mock.execute_perp_order(
@@ -1163,7 +1163,7 @@ fn shouldnt_open_when_reduce_only() {
     );
 
     let size = Int128::from_str("50").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     let res = mock.execute_perp_order(
         &credit_manager,
         "2",
@@ -1220,7 +1220,7 @@ fn should_open_when_reduce_only_false_or_none() {
     );
 
     let size = Int128::from_str("50").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(
         &credit_manager,
         "2",
@@ -1286,7 +1286,7 @@ fn should_reduce_when_reduce_only_true() {
     let size_long_position = Int128::from_str("50").unwrap();
     let size_short_position = Int128::from_str("-50").unwrap();
 
-    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
+    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position, None).fee;
 
     mock.execute_perp_order(
         &credit_manager,
@@ -1419,7 +1419,7 @@ fn shouldnt_increase_when_reduce_only_true() {
     let size_long_position = Int128::from_str("500").unwrap();
     let size_short_position = Int128::from_str("-500").unwrap();
 
-    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
+    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position, None).fee;
     mock.execute_perp_order(
         &credit_manager,
         "2",
@@ -1430,7 +1430,7 @@ fn shouldnt_increase_when_reduce_only_true() {
     )
     .unwrap();
 
-    let atom_opening_fee = mock.query_opening_fee(denom, size_short_position).fee;
+    let atom_opening_fee = mock.query_opening_fee(denom, size_short_position, None).fee;
     mock.execute_perp_order(
         &credit_manager,
         "3",
@@ -1553,7 +1553,7 @@ fn increase_when_reduce_only_false() {
     let size_long_position = Int128::from_str("50").unwrap();
     let size_short_position = Int128::from_str("-50").unwrap();
 
-    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
+    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position, None).fee;
 
     mock.execute_perp_order(
         &credit_manager,
@@ -1665,7 +1665,7 @@ fn flip_position_when_reduce_only_true() {
     let size_long_position = Int128::from_str("50").unwrap();
     let size_short_position = Int128::from_str("-50").unwrap();
 
-    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
+    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position, None).fee;
 
     mock.execute_perp_order(
         &credit_manager,
@@ -1798,7 +1798,7 @@ fn flip_position_when_reduce_only_false() {
     let size_long_position = Int128::from_str("50").unwrap();
     let size_short_position = Int128::from_str("-50").unwrap();
 
-    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position).fee;
+    let atom_opening_fee = mock.query_opening_fee(denom, size_long_position, None).fee;
 
     mock.execute_perp_order(
         &credit_manager,
@@ -2028,12 +2028,12 @@ fn query_position_fees(
 
     // open a position to change skew
     let size = Int128::from_str("10000").unwrap();
-    let opening_fee = mock.query_opening_fee("uosmo", size).fee;
+    let opening_fee = mock.query_opening_fee("uosmo", size, None).fee;
     mock.execute_perp_order(&credit_manager, "2", "uosmo", size, None, &[opening_fee]).unwrap();
 
     // open a position if specified
     if let Some(old_size) = old_size {
-        let opening_fee = mock.query_opening_fee("uosmo", old_size).fee;
+        let opening_fee = mock.query_opening_fee("uosmo", old_size, None).fee;
         mock.execute_perp_order(&credit_manager, "1", "uosmo", old_size, None, &[opening_fee])
             .unwrap();
     }
@@ -2133,17 +2133,17 @@ fn close_all_positions(
 
     // open few positions
     let size = Int128::from_str("300").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
         .unwrap();
 
     let size = Int128::from_str("-500").unwrap();
-    let ntrn_opening_fee = mock.query_opening_fee("untrn", size).fee;
+    let ntrn_opening_fee = mock.query_opening_fee("untrn", size, None).fee;
     mock.execute_perp_order(&credit_manager, "1", "untrn", size, None, &[ntrn_opening_fee.clone()])
         .unwrap();
 
     let size = Int128::from_str("100").unwrap();
-    let osmo_opening_fee = mock.query_opening_fee("uosmo", size).fee;
+    let osmo_opening_fee = mock.query_opening_fee("uosmo", size, None).fee;
     mock.execute_perp_order(&credit_manager, "1", "uosmo", size, None, &[osmo_opening_fee.clone()])
         .unwrap();
 
@@ -2294,7 +2294,7 @@ fn open_very_small_position_with_zero_opening_fee() {
 
     // openining fee is zero
     let size = Int128::from_str("1").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     assert!(atom_opening_fee.amount.is_zero());
 
     // open a very small position where opening fee is zero but opening_fee_rate is not zero
@@ -2339,7 +2339,7 @@ fn global_realized_pnl_matches_positions_realized_pnl() {
 
     // Open a LONG position
     let size = Int128::from_str("300000").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
         .unwrap();
 
@@ -2364,7 +2364,7 @@ fn global_realized_pnl_matches_positions_realized_pnl() {
 
     // Open a SHORT position
     let size = Int128::from_str("-300000").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
         .unwrap();
 

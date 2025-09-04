@@ -1,6 +1,7 @@
 mod helpers;
 
 mod test_accounting;
+mod test_accounting_with_discount;
 mod test_instantiate;
 mod test_managing_markets;
 mod test_migration_v2;

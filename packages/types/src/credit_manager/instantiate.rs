@@ -76,4 +76,7 @@ pub struct ConfigUpdates {
     pub keeper_fee_config: Option<KeeperFeeConfig>,
     pub perps_liquidation_bonus_ratio: Option<Decimal>,
     pub swap_fee: Option<Decimal>,
+    // Staking-based fee tiers
+    pub fee_tier_config: Option<crate::fee_tiers::FeeTierConfig>,
+    pub dao_staking_address: Option<String>,
 }

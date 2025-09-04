@@ -60,7 +60,8 @@ mod mock_credit_manager {
     #[cfg(not(feature = "library"))]
     use cosmwasm_std::entry_point;
     use cosmwasm_std::{Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult};
-    use mars_types::credit_manager::{ExecuteMsg, QueryMsg};
+    use mars_types::credit_manager::{ExecuteMsg, QueryMsg, Positions, Account};
+    use mars_types::health::AccountKind;
 
     #[cfg_attr(not(feature = "library"), entry_point)]
     pub fn instantiate(
@@ -83,7 +84,45 @@ mod mock_credit_manager {
     }
 
     #[cfg_attr(not(feature = "library"), entry_point)]
-    pub fn query(_deps: Deps, _env: Env, _msg: QueryMsg) -> StdResult<Binary> {
-        unimplemented!("query not supported")
+    pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+        match msg {
+            QueryMsg::AccountKind { account_id: _ } => {
+                // Return a mock account kind
+                let account_kind = AccountKind::Default;
+                cosmwasm_std::to_json_binary(&account_kind)
+            }
+            QueryMsg::Positions { account_id: _, action: _ } => {
+                // Return empty positions
+                let positions = Positions {
+                    account_id: "1".to_string(),
+                    account_kind: AccountKind::Default,
+                    deposits: vec![],
+                    debts: vec![],
+                    lends: vec![],
+                    vaults: vec![],
+                    staked_astro_lps: vec![],
+                    perps: vec![],
+                };
+                cosmwasm_std::to_json_binary(&positions)
+            }
+            QueryMsg::Accounts { owner: _, start_after: _, limit: _ } => {
+                // Return a mock account
+                let account = Account {
+                    id: "1".to_string(),
+                    kind: AccountKind::Default,
+                };
+                cosmwasm_std::to_json_binary(&vec![account])
+            }
+            QueryMsg::GetAccountTierAndDiscount { account_id: _ } => {
+                // Return a mock tier and discount response
+                let response = mars_types::credit_manager::AccountTierAndDiscountResponse {
+                    tier_id: "default".to_string(),
+                    discount_pct: cosmwasm_std::Decimal::zero(),
+                    voting_power: cosmwasm_std::Uint128::zero(),
+                };
+                cosmwasm_std::to_json_binary(&response)
+            }
+            _ => unimplemented!("query not supported: {:?}", msg),
+        }
     }
 }

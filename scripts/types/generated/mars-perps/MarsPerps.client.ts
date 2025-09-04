@@ -101,7 +101,7 @@ export interface MarsPerpsReadOnlyInterface {
   }) => Promise<PnlAmounts>
   marketAccounting: ({ denom }: { denom: string }) => Promise<AccountingResponse>
   totalAccounting: () => Promise<AccountingResponse>
-  openingFee: ({ denom, size }: { denom: string; size: Int128 }) => Promise<TradingFee>
+  openingFee: ({ denom, size, discountPct }: { denom: string; size: Int128; discountPct?: Decimal }) => Promise<TradingFee>
   positionFees: ({
     accountId,
     denom,
@@ -267,11 +267,12 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
       total_accounting: {},
     })
   }
-  openingFee = async ({ denom, size }: { denom: string; size: Int128 }): Promise<TradingFee> => {
+  openingFee = async ({ denom, size, discountPct }: { denom: string; size: Int128; discountPct?: Decimal }) => {
     return this.client.queryContractSmart(this.contractAddress, {
       opening_fee: {
         denom,
         size,
+        discount_pct: discountPct,
       },
     })
   }
@@ -283,7 +284,7 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
     accountId: string
     denom: string
     newSize: Int128
-  }): Promise<PositionFeesResponse> => {
+  }) => Promise<PositionFeesResponse> => {
     return this.client.queryContractSmart(this.contractAddress, {
       position_fees: {
         account_id: accountId,

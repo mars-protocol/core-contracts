@@ -183,7 +183,7 @@ fn verify_accounting_with_input_actions() {
                         vec![]
                     }
                 } else {
-                    let opening_fee = mock.query_opening_fee(denom, *order_size).fee;
+                    let opening_fee = mock.query_opening_fee(denom, *order_size, None).fee;
                     vec![opening_fee]
                 };
 

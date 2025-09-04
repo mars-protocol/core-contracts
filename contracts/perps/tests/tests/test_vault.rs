@@ -501,7 +501,7 @@ fn unlock_and_withdraw_if_zero_withdrawal_balance() {
 
     // open a position
     let size = Int128::from_str("50").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
 
@@ -583,7 +583,7 @@ fn calculate_shares_correctly_after_zero_withdrawal_balance() {
 
     // open a position
     let size = Int128::from_str("100").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee])
         .unwrap();
 
@@ -902,7 +902,7 @@ fn withdraw_profits_for_depositors() {
 
     // open a position
     let size = Int128::from_str("100").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     assert_eq!(atom_opening_fee, coin(23, "uusdc"));
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
         .unwrap();
@@ -1047,7 +1047,7 @@ fn cannot_withdraw_if_cr_decreases_below_threshold() {
 
     // open a position
     let size = Int128::from_str("100").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", size, None).fee;
     mock.execute_perp_order(&credit_manager, "1", "uatom", size, None, &[atom_opening_fee.clone()])
         .unwrap();
 

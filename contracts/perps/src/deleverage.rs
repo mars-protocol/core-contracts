@@ -22,7 +22,7 @@ use crate::{
     query,
     state::{
         DeleverageRequestTempStorage, CONFIG, DELEVERAGE_REQUEST_TEMP_STORAGE, MARKET_STATES,
-        POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW,
+        POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW, ACCOUNT_OPENING_FEE_RATES,
     },
     utils::{get_oracle_adapter, get_params_adapter, update_position_attributes},
 };
@@ -114,14 +114,26 @@ pub fn deleverage(
     let initial_skew = ms.skew()?;
     ms.close_position(current_time, denom_price, base_denom_price, &position)?;
 
+    // Check if we have a stored opening fee rate for this position
+    let stored_opening_fee_rate = ACCOUNT_OPENING_FEE_RATES.may_load(deps.storage, (&account_id, &denom))?;
+    
+    let (opening_fee_rate, closing_fee_rate) = if let Some(stored_rate) = stored_opening_fee_rate {
+        // Use the stored opening fee rate (what was actually paid) for historical accuracy
+        // Use current closing fee rate (fair for current operations)
+        (stored_rate, perp_params.closing_fee_rate)
+    } else {
+        // Fallback to current rates for existing positions without stored fee rates
+        (perp_params.opening_fee_rate, perp_params.closing_fee_rate)
+    };
+
     // Compute the position's unrealized PnL
     let pnl_amounts = position.compute_pnl(
         &ms.funding,
         initial_skew,
         denom_price,
         base_denom_price,
-        perp_params.opening_fee_rate,
-        perp_params.closing_fee_rate,
+        opening_fee_rate,
+        closing_fee_rate,
         PositionModification::Decrease(position.size),
     )?;
 
@@ -160,6 +172,10 @@ pub fn deleverage(
 
     // Save updated states
     POSITIONS.remove(deps.storage, (&account_id, &denom));
+
+    // Clean up the stored opening fee rate for this position
+    ACCOUNT_OPENING_FEE_RATES.remove(deps.storage, (&account_id, &denom));
+
     REALIZED_PNL.save(deps.storage, (&account_id, &denom), &realized_pnl)?;
     MARKET_STATES.save(deps.storage, &denom, &ms)?;
     TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;

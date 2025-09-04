@@ -58,6 +58,7 @@ pub struct MockEnvBuilder {
     deleverage_enabled: bool,
     withdraw_enabled: bool,
     max_unlocks: u8,
+    pub dao_staking_addr: Option<Addr>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -77,6 +78,7 @@ impl MockEnv {
             deleverage_enabled: true,
             withdraw_enabled: true,
             max_unlocks: 5,
+            dao_staking_addr: Some(Addr::unchecked("mock-dao-staking")),
         }
     }
 
@@ -223,6 +225,7 @@ impl MockEnv {
                 denom: denom.to_string(),
                 size,
                 reduce_only,
+                discount_pct: None,
             },
             funds,
         )
@@ -240,6 +243,7 @@ impl MockEnv {
             &perps::ExecuteMsg::CloseAllPositions {
                 account_id: account_id.to_string(),
                 action: None,
+                discount_pct: None,
             },
             funds,
         )
@@ -479,7 +483,12 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_opening_fee(&self, denom: &str, size: Int128) -> TradingFee {
+    pub fn query_opening_fee(
+        &self,
+        denom: &str,
+        size: Int128,
+        discount_pct: Option<Decimal>,
+    ) -> TradingFee {
         self.app
             .wrap()
             .query_wasm_smart(
@@ -487,6 +496,7 @@ impl MockEnv {
                 &perps::QueryMsg::OpeningFee {
                     denom: denom.to_string(),
                     size,
+                    discount_pct,
                 },
             )
             .unwrap()
@@ -514,13 +524,24 @@ impl MockEnv {
     pub fn query_perp_params(&self, denom: &str) -> PerpParams {
         self.app
             .wrap()
-            .query_wasm_smart(
-                self.params.clone(),
-                &params::QueryMsg::PerpParams {
-                    denom: denom.to_string(),
-                },
-            )
+            .query_wasm_smart(self.params.clone(), &params::QueryMsg::PerpParams {
+                denom: denom.to_string(),
+            })
             .unwrap()
+    }
+
+    pub fn set_dao_staking_address(&mut self, address: &Addr) {
+        self.app
+            .execute_contract(
+                self.owner.clone(),
+                self.address_provider.clone(),
+                &address_provider::ExecuteMsg::SetAddress {
+                    address_type: MarsAddressType::DaoStaking,
+                    address: address.to_string(),
+                },
+                &[],
+            )
+            .unwrap();
     }
 }
 
@@ -534,6 +555,15 @@ impl MockEnvBuilder {
             self.deploy_rewards_collector(address_provider_contract.as_str());
         let perps_contract = self.deploy_perps(address_provider_contract.as_str());
         let incentives_contract = self.deploy_incentives(&address_provider_contract);
+
+        // Deploy dao staking if provided
+        if let Some(dao_staking_addr) = self.dao_staking_addr.clone() {
+            self.update_address_provider(
+                &address_provider_contract,
+                MarsAddressType::DaoStaking,
+                &dao_staking_addr,
+            );
+        }
 
         self.update_address_provider(
             &address_provider_contract,
@@ -843,5 +873,23 @@ impl MockEnvBuilder {
     pub fn max_unlocks(&mut self, max_unlocks: u8) -> &mut Self {
         self.max_unlocks = max_unlocks;
         self
+    }
+
+    pub fn set_dao_staking_addr(mut self, addr: &Addr) -> Self {
+        self.dao_staking_addr = Some(addr.clone());
+        self
+    }
+
+    pub fn deploy_mock_dao_staking(&mut self) -> &mut Self {
+        let dao_staking_addr = self.deploy_dao_staking();
+        self.dao_staking_addr = Some(dao_staking_addr);
+        self
+    }
+
+    fn deploy_dao_staking(&mut self) -> Addr {
+        // Create a simple mock dao staking contract address
+        let addr = Addr::unchecked("mock-dao-staking");
+        self.set_address(MarsAddressType::DaoStaking, addr.clone());
+        addr
     }
 }

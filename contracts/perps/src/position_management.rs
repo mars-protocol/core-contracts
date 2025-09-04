@@ -18,12 +18,32 @@ use crate::{
     error::{ContractError, ContractResult},
     market::MarketStateExt,
     position::{calculate_new_size, PositionExt, PositionModification},
-    state::{CONFIG, MARKET_STATES, POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW},
+    state::{CONFIG, MARKET_STATES, POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW, ACCOUNT_OPENING_FEE_RATES},
     utils::{
         ensure_max_position, ensure_min_position, get_oracle_adapter, get_params_adapter,
         update_position_attributes,
     },
 };
+
+/// Helper function to compute discounted fee rates
+pub fn compute_discounted_fee_rates(
+    perp_params: &PerpParams,
+    discount_pct: Option<Decimal>,
+) -> (Decimal, Decimal) {
+    let opening_fee_rate = if let Some(discount) = discount_pct {
+        perp_params.opening_fee_rate * (Decimal::one() - discount)
+    } else {
+        perp_params.opening_fee_rate
+    };
+
+    let closing_fee_rate = if let Some(discount) = discount_pct {
+        perp_params.closing_fee_rate * (Decimal::one() - discount)
+    } else {
+        perp_params.closing_fee_rate
+    };
+
+    (opening_fee_rate, closing_fee_rate)
+}
 
 /// Executes a perpetual order for a specific account and denom.
 ///
@@ -37,6 +57,7 @@ pub fn execute_order(
     denom: String,
     size: Int128,
     reduce_only: Option<bool>,
+    discount_pct: Option<Decimal>,
 ) -> ContractResult<Response> {
     let position = POSITIONS.may_load(deps.storage, (&account_id, &denom))?;
     let reduce_only_checked = reduce_only.unwrap_or(false);
@@ -45,14 +66,13 @@ pub fn execute_order(
         None if reduce_only_checked => Err(ContractError::IllegalPositionModification {
             reason: "Cannot open position if reduce_only = true".to_string(),
         }),
-        None => open_position(deps, env, info, account_id, denom, size),
+        None => open_position(deps, env, info, account_id, denom, size, discount_pct),
         Some(position) => {
             let new_size = calculate_new_size(position.size, size, reduce_only_checked)?;
-            modify_position(deps, env, info, position, account_id, denom, new_size)
+            modify_position(deps, env, info, position, account_id, denom, new_size, discount_pct)
         }
     }
 }
-
 /// Opens a new position for a specific account and denom.
 ///
 /// This function checks if the account can open a new position, validates the position parameters,
@@ -64,6 +84,7 @@ fn open_position(
     account_id: String,
     denom: String,
     size: Int128,
+    discount_pct: Option<Decimal>,
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
@@ -120,7 +141,10 @@ fn open_position(
     // Params for the given market
     let perp_params = params.query_perp_params(&deps.querier, &denom)?;
 
-    // Find the opening fee amount
+    // Apply discount to fee rates if provided
+    let (opening_fee_rate, closing_fee_rate) =
+        compute_discounted_fee_rates(&perp_params, discount_pct);
+
     let opening_fee_amt = may_pay(&info, &cfg.base_denom)?;
 
     // Query the asset's price.
@@ -139,8 +163,8 @@ fn open_position(
     ensure_max_position(position_value, &perp_params)?;
 
     let fees = PositionModification::Increase(size).compute_fees(
-        perp_params.opening_fee_rate,
-        perp_params.closing_fee_rate,
+        opening_fee_rate,
+        closing_fee_rate,
         denom_price,
         base_denom_price,
         ms.skew()?,
@@ -219,6 +243,9 @@ fn open_position(
         },
     )?;
 
+    // Save the actual opening fee rate that was applied to this position
+    ACCOUNT_OPENING_FEE_RATES.save(deps.storage, (&account_id, &denom), &opening_fee_rate)?;
+
     Ok(Response::new()
         .add_messages(msgs)
         .add_attribute("action", "open_position")
@@ -247,6 +274,7 @@ fn modify_position(
     account_id: String,
     denom: String,
     new_size: Int128,
+    discount_pct: Option<Decimal>,
 ) -> ContractResult<Response> {
     // Load the contract's configuration
     let cfg = CONFIG.load(deps.storage)?;
@@ -272,6 +300,10 @@ fn modify_position(
 
     // Query the parameters for the given market (denom)
     let perp_params = params.query_perp_params(&deps.querier, &denom)?;
+
+    // Apply discount to fee rates if provided
+    let (opening_fee_rate, closing_fee_rate) =
+        compute_discounted_fee_rates(&perp_params, discount_pct);
 
     // Load relevant state variables
     let mut realized_pnl =
@@ -328,14 +360,17 @@ fn modify_position(
         modification
     };
 
+    // Check if this is a position flip to save the opening fee rate later
+    let is_position_flip = matches!(modification, PositionModification::Flip(_, _));
+
     // Compute the position's unrealized PnL
     let pnl_amounts = position.compute_pnl(
         &ms.funding,
         initial_skew,
         denom_price,
         base_denom_price,
-        perp_params.opening_fee_rate,
-        perp_params.closing_fee_rate,
+        opening_fee_rate,
+        closing_fee_rate,
         modification,
     )?;
 
@@ -382,6 +417,9 @@ fn modify_position(
         // Delete the position if the new size is zero
         POSITIONS.remove(deps.storage, (&account_id, &denom));
 
+        // Clean up the stored opening fee rate for this position
+        ACCOUNT_OPENING_FEE_RATES.remove(deps.storage, (&account_id, &denom));
+
         "close_position"
     } else {
         // Save the updated position state
@@ -403,6 +441,11 @@ fn modify_position(
                 realized_pnl,
             },
         )?;
+
+        // Update the opening fee rate if this was a position flip (new opening fee charged)
+        if is_position_flip {
+            ACCOUNT_OPENING_FEE_RATES.save(deps.storage, (&account_id, &denom), &opening_fee_rate)?;
+        }
 
         "modify_position"
     };
@@ -427,6 +470,7 @@ pub fn close_all_positions(
     info: MessageInfo,
     account_id: String,
     action: ActionKind,
+    discount_pct: Option<Decimal>,
 ) -> ContractResult<Response> {
     let cfg = CONFIG.load(deps.storage)?;
 
@@ -496,14 +540,18 @@ pub fn close_all_positions(
         // Funding rates and index is updated to the current block time (using old size).
         ms.close_position(env.block.time.seconds(), denom_price, base_denom_price, &position)?;
 
+        // Apply discount to fee rates if provided
+        let (opening_fee_rate, closing_fee_rate) =
+            compute_discounted_fee_rates(&perp_params, discount_pct);
+
         // Compute the position's unrealized PnL
         let pnl_amounts = position.compute_pnl(
             &ms.funding,
             initial_skew,
             denom_price,
             base_denom_price,
-            perp_params.opening_fee_rate,
-            perp_params.closing_fee_rate,
+            opening_fee_rate,
+            closing_fee_rate,
             PositionModification::Decrease(position.size),
         )?;
 
@@ -534,6 +582,9 @@ pub fn close_all_positions(
 
         // Remove the position
         POSITIONS.remove(deps.storage, (&account_id, &denom));
+
+        // Clean up the stored opening fee rate for this position
+        ACCOUNT_OPENING_FEE_RATES.remove(deps.storage, (&account_id, &denom));
 
         // Save updated states
         REALIZED_PNL.save(deps.storage, (&account_id, &denom), &realized_pnl)?;

@@ -11,10 +11,12 @@ use mars_types::{
 use crate::{
     error::ContractResult,
     execute::create_credit_account,
+    staking::StakingTierManager,
     state::{
-        ACCOUNT_NFT, DUALITY_SWAPPER, HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE,
-        MAX_TRIGGER_ORDERS, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS, PERPS_LB_RATIO,
-        RED_BANK, REWARDS_COLLECTOR, SWAPPER, SWAP_FEE, ZAPPER,
+        ACCOUNT_NFT, DAO_STAKING_ADDRESS, DUALITY_SWAPPER, FEE_TIER_CONFIG, HEALTH_CONTRACT,
+        INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE, MAX_TRIGGER_ORDERS, MAX_UNLOCKING_POSITIONS,
+        ORACLE, OWNER, PARAMS, PERPS, PERPS_LB_RATIO, RED_BANK, REWARDS_COLLECTOR, SWAPPER,
+        SWAP_FEE, ZAPPER,
     },
     utils::{assert_max_slippage, assert_perps_lb_ratio, assert_swap_fee},
 };
@@ -135,6 +137,23 @@ pub fn update_config(
         PERPS.save(deps.storage, &unchecked.check(deps.api)?)?;
         response =
             response.add_attribute("key", "perps").add_attribute("value", unchecked.address());
+    }
+
+    // Staking tier config and DAO staking address
+    if let Some(cfg) = updates.fee_tier_config {
+        // Validate the staking tier configuration before saving
+        let manager = StakingTierManager::new(cfg.clone());
+        manager.validate()?;
+
+        FEE_TIER_CONFIG.save(deps.storage, &cfg)?;
+        response = response.add_attribute("key", "fee_tier_config");
+    }
+
+    if let Some(addr) = updates.dao_staking_address {
+        let checked = deps.api.addr_validate(&addr)?;
+        DAO_STAKING_ADDRESS.save(deps.storage, &checked)?;
+        response =
+            response.add_attribute("key", "dao_staking_address").add_attribute("value", addr);
     }
 
     if let Some(kfc) = updates.keeper_fee_config {

@@ -75,15 +75,22 @@ pub fn execute(
         ExecuteMsg::CloseAllPositions {
             account_id,
             action,
-        } => {
-            close_all_positions(deps, env, info, account_id, action.unwrap_or(ActionKind::Default))
-        }
+            discount_pct,
+        } => close_all_positions(
+            deps,
+            env,
+            info,
+            account_id,
+            action.unwrap_or(ActionKind::Default),
+            discount_pct,
+        ),
         ExecuteMsg::ExecuteOrder {
             account_id,
             denom,
             size,
             reduce_only,
-        } => execute_order(deps, env, info, account_id, denom, size, reduce_only),
+            discount_pct,
+        } => execute_order(deps, env, info, account_id, denom, size, reduce_only, discount_pct),
         ExecuteMsg::Deleverage {
             account_id,
             denom,
@@ -175,7 +182,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::OpeningFee {
             denom,
             size,
-        } => to_json_binary(&query_opening_fee(deps, &denom, size)?),
+            discount_pct,
+        } => to_json_binary(&query_opening_fee(deps, &denom, size, discount_pct)?),
         QueryMsg::PositionFees {
             account_id,
             denom,

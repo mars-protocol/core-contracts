@@ -76,7 +76,7 @@ fn accounting() {
 
     // open few positions for account 1
     let osmo_size = Int128::from_str("10000000").unwrap();
-    let osmo_opening_fee = mock.query_opening_fee("uosmo", osmo_size).fee;
+    let osmo_opening_fee = mock.query_opening_fee("uosmo", osmo_size, None).fee;
     let osmo_opening_protocol_fee =
         osmo_opening_fee.amount.checked_mul_ceil(protocol_fee_rate).unwrap();
     assert!(!osmo_opening_protocol_fee.is_zero());
@@ -90,7 +90,7 @@ fn accounting() {
     )
     .unwrap();
     let atom_size = Int128::from_str("-260000").unwrap();
-    let atom_opening_fee = mock.query_opening_fee("uatom", atom_size).fee;
+    let atom_opening_fee = mock.query_opening_fee("uatom", atom_size, None).fee;
     let atom_opening_protocol_fee =
         atom_opening_fee.amount.checked_mul_ceil(protocol_fee_rate).unwrap();
     assert!(!atom_opening_protocol_fee.is_zero());
@@ -459,7 +459,7 @@ fn accounting_works_up_to_oi_limits(
 
     loop {
         // Query the opening fee for the given size of the position (eth_size).
-        let eth_opening_fee = mock.query_opening_fee("ueth", eth_size).fee;
+        let eth_opening_fee = mock.query_opening_fee("ueth", eth_size, None).fee;
 
         // Attempt to execute a perpetual order using the credit manager for the current position size.
         let res = mock.execute_perp_order(

@@ -586,6 +586,9 @@ pub enum ExecuteMsg {
         // Reduce Only enforces a position size cannot increase in absolute terms, ensuring a position will never flip
         // from long to short or vice versa
         reduce_only: Option<bool>,
+
+        // Discount percentage to apply to trading fees based on staking tier
+        discount_pct: Option<Decimal>,
     },
 
     /// Close all perp positions. Use this to liquidate a user's credit account.
@@ -595,6 +598,8 @@ pub enum ExecuteMsg {
     CloseAllPositions {
         account_id: String,
         action: Option<ActionKind>,
+        // Discount percentage to apply to trading fees based on staking tier
+        discount_pct: Option<Decimal>,
     },
 
     /// Deleveraging a vault by closing a position for an account.
@@ -714,6 +719,7 @@ pub enum QueryMsg {
     OpeningFee {
         denom: String,
         size: Int128,
+        discount_pct: Option<Decimal>,
     },
 
     /// Query the fees associated with modifying a specific position.
@@ -795,6 +801,28 @@ pub struct PositionFeesResponse {
     /// Closing execution price of the position calculated with:
     /// - entry size if the position is closed or reduced
     pub closing_exec_price: Option<Decimal>,
+}
+
+#[cw_serde]
+pub enum MarketType {
+    Spot,
+    Perp {
+        denom: String,
+    },
+}
+
+#[cw_serde]
+pub struct TradingFeeQuery {
+    pub account_id: String,
+    pub market_type: MarketType,
+}
+
+#[cw_serde]
+pub struct TradingFeeResponse {
+    pub base_fee_pct: Decimal,
+    pub discount_pct: Decimal,
+    pub effective_fee_pct: Decimal,
+    pub tier_id: String,
 }
 
 #[derive(Error, Debug, PartialEq)]

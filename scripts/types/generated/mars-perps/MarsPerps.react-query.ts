@@ -227,6 +227,7 @@ export interface MarsPerpsOpeningFeeQuery<TData> extends MarsPerpsReactQuery<Tra
   args: {
     denom: string
     size: Int128
+    discountPct?: Decimal
   }
 }
 export function useMarsPerpsOpeningFeeQuery<TData = TradingFee>({

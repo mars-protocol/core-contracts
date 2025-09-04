@@ -2807,6 +2807,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mars-mock-dao-staking"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema 1.5.7",
+ "cosmwasm-std 1.5.7",
+ "cw-storage-plus 1.2.0",
+ "mars-types",
+ "thiserror",
+]
+
+[[package]]
 name = "mars-mock-incentives"
 version = "2.2.0"
 dependencies = [
@@ -3240,6 +3251,7 @@ dependencies = [
  "mars-credit-manager",
  "mars-incentives",
  "mars-mock-astroport-incentives",
+ "mars-mock-dao-staking",
  "mars-mock-incentives",
  "mars-mock-oracle",
  "mars-mock-pyth",

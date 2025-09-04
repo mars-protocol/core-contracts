@@ -13,6 +13,7 @@ use cw_vault_standard::{
     extensions::lockup::{LockupQueryMsg, UnlockingPosition},
     msg::{ExtensionQueryMsg, VaultStandardQueryMsg::VaultExtension},
 };
+use mars_mock_dao_staking::ExecMsg as DaoStakingExecMsg;
 use mars_mock_oracle::msg::{
     CoinPrice, ExecuteMsg as OracleExecuteMsg, InstantiateMsg as OracleInstantiateMsg,
 };
@@ -45,6 +46,7 @@ use mars_types::{
         SharesResponseItem, TriggerOrderResponse, VaultBinding, VaultPositionResponseItem,
         VaultUtilizationResponse,
     },
+    fee_tiers::{FeeTier, FeeTierConfig},
     health::{
         AccountKind, ExecuteMsg::UpdateConfig, HealthValuesResponse,
         InstantiateMsg as HealthInstantiateMsg, QueryMsg::HealthValues,
@@ -87,10 +89,11 @@ use mars_zapper_mock::msg::{InstantiateMsg as ZapperInstantiateMsg, LpConfig};
 
 use super::{
     lp_token_info, mock_account_nft_contract, mock_address_provider_contract,
-    mock_astro_incentives_contract, mock_health_contract, mock_incentives_contract,
-    mock_managed_vault_contract, mock_oracle_contract, mock_params_contract, mock_perps_contract,
-    mock_red_bank_contract, mock_rover_contract, mock_swapper_contract, mock_v2_zapper_contract,
-    mock_vault_contract, AccountToFund, CoinInfo, VaultTestInfo, ASTRO_LP_DENOM,
+    mock_astro_incentives_contract, mock_dao_staking_contract, mock_health_contract,
+    mock_incentives_contract, mock_managed_vault_contract, mock_oracle_contract,
+    mock_params_contract, mock_perps_contract, mock_red_bank_contract, mock_rover_contract,
+    mock_swapper_contract, mock_v2_zapper_contract, mock_vault_contract, AccountToFund, CoinInfo,
+    VaultTestInfo, ASTRO_LP_DENOM,
 };
 use crate::{
     integration::mock_contracts::mock_rewards_collector_osmosis_contract,
@@ -136,6 +139,8 @@ pub struct MockEnvBuilder {
     pub perps_liquidation_bonus_ratio: Option<Decimal>,
     pub perps_protocol_fee_ratio: Option<Decimal>,
     pub swap_fee: Option<Decimal>,
+    pub fee_tier_config: Option<mars_types::fee_tiers::FeeTierConfig>,
+    pub dao_staking_addr: Option<Addr>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -170,6 +175,8 @@ impl MockEnv {
             perps_liquidation_bonus_ratio: None,
             perps_protocol_fee_ratio: None,
             swap_fee: None,
+            fee_tier_config: None,
+            dao_staking_addr: None,
         }
     }
 
@@ -1141,7 +1148,12 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_perp_opening_fee(&self, denom: &str, size: Int128) -> TradingFee {
+    pub fn query_perp_opening_fee(
+        &self,
+        denom: &str,
+        size: Int128,
+        discount_pct: Option<Decimal>,
+    ) -> TradingFee {
         self.app
             .wrap()
             .query_wasm_smart(
@@ -1149,6 +1161,7 @@ impl MockEnv {
                 &perps::QueryMsg::OpeningFee {
                     denom: denom.to_string(),
                     size,
+                    discount_pct,
                 },
             )
             .unwrap()
@@ -1192,6 +1205,21 @@ impl MockEnv {
 
         Addr::unchecked(res.address)
     }
+
+    pub fn set_voting_power(&mut self, user: &Addr, power: Uint128) {
+        let dao = self.query_address_provider(MarsAddressType::DaoStaking);
+        self.app
+            .execute_contract(
+                Addr::unchecked("owner"),
+                dao,
+                &DaoStakingExecMsg::SetVotingPower {
+                    address: user.to_string(),
+                    power,
+                },
+                &[],
+            )
+            .unwrap();
+    }
 }
 
 impl MockEnvBuilder {
@@ -1212,6 +1240,8 @@ impl MockEnvBuilder {
         self.update_health_contract_config(&rover);
 
         self.deploy_nft_contract(&rover);
+        self.deploy_dao_staking(&rover);
+        self.set_fee_tiers(&rover);
 
         if self.deploy_nft_contract && self.set_nft_contract_minter {
             self.update_config(
@@ -1247,6 +1277,16 @@ impl MockEnvBuilder {
             perps,
             address_provider: addr_provider,
         })
+    }
+
+    pub fn set_fee_tier_config(mut self, cfg: FeeTierConfig) -> Self {
+        self.fee_tier_config = Some(cfg);
+        self
+    }
+
+    pub fn set_dao_staking_addr(mut self, addr: &Addr) -> Self {
+        self.dao_staking_addr = Some(addr.clone());
+        self
     }
 
     //--------------------------------------------------------------------------------------------------
@@ -1430,6 +1470,98 @@ impl MockEnvBuilder {
                 None,
             )
             .unwrap()
+    }
+
+    fn deploy_dao_staking(&mut self, rover: &Addr) -> Addr {
+        let dao_addr = if let Some(addr) = self.dao_staking_addr.clone() {
+            addr
+        } else {
+            let code_id = self.app.store_code(mock_dao_staking_contract());
+            self.app
+                .instantiate_contract(code_id, self.get_owner(), &(), &[], "mock-dao-staking", None)
+                .unwrap()
+        };
+
+        // Register in address provider for queries that fetch DaoStaking via AP
+        self.set_address(MarsAddressType::DaoStaking, dao_addr.clone());
+
+        // Update CM config with DAO staking address only
+        self.update_config(
+            rover,
+            ConfigUpdates {
+                dao_staking_address: Some(dao_addr.to_string()),
+                ..Default::default()
+            },
+        );
+
+        dao_addr
+    }
+
+    fn set_fee_tiers(&mut self, rover: &Addr) {
+        // Default full 10-tier config if none provided (descending thresholds)
+        let fee_cfg = self.fee_tier_config.clone().unwrap_or(FeeTierConfig {
+            tiers: vec![
+                FeeTier {
+                    id: "tier_1".to_string(),
+                    min_voting_power: "350000".to_string(),
+                    discount_pct: Decimal::percent(75),
+                },
+                FeeTier {
+                    id: "tier_2".to_string(),
+                    min_voting_power: "200000".to_string(),
+                    discount_pct: Decimal::percent(60),
+                },
+                FeeTier {
+                    id: "tier_3".to_string(),
+                    min_voting_power: "100000".to_string(),
+                    discount_pct: Decimal::percent(45),
+                },
+                FeeTier {
+                    id: "tier_4".to_string(),
+                    min_voting_power: "50000".to_string(),
+                    discount_pct: Decimal::percent(35),
+                },
+                FeeTier {
+                    id: "tier_5".to_string(),
+                    min_voting_power: "25000".to_string(),
+                    discount_pct: Decimal::percent(25),
+                },
+                FeeTier {
+                    id: "tier_6".to_string(),
+                    min_voting_power: "10000".to_string(),
+                    discount_pct: Decimal::percent(15),
+                },
+                FeeTier {
+                    id: "tier_7".to_string(),
+                    min_voting_power: "5000".to_string(),
+                    discount_pct: Decimal::percent(10),
+                },
+                FeeTier {
+                    id: "tier_8".to_string(),
+                    min_voting_power: "1000".to_string(),
+                    discount_pct: Decimal::percent(5),
+                },
+                FeeTier {
+                    id: "tier_9".to_string(),
+                    min_voting_power: "100".to_string(),
+                    discount_pct: Decimal::percent(1),
+                },
+                FeeTier {
+                    id: "tier_10".to_string(),
+                    min_voting_power: "0".to_string(),
+                    discount_pct: Decimal::percent(0),
+                },
+            ],
+        });
+
+        // Push into Rover config
+        self.update_config(
+            rover,
+            ConfigUpdates {
+                fee_tier_config: Some(fee_cfg),
+                ..Default::default()
+            },
+        );
     }
 
     fn get_oracle(&mut self) -> Oracle {

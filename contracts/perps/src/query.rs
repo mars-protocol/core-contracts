@@ -23,11 +23,14 @@ use crate::{
     error::ContractResult,
     market::{compute_total_accounting_data, MarketStateExt},
     position::{PositionExt, PositionModification},
+    position_management::compute_discounted_fee_rates,
     state::{
         CONFIG, DEPOSIT_SHARES, MARKET_STATES, POSITIONS, REALIZED_PNL,
-        TOTAL_UNLOCKING_OR_UNLOCKED_SHARES, UNLOCKS, VAULT_STATE,
+        TOTAL_UNLOCKING_OR_UNLOCKED_SHARES, UNLOCKS, VAULT_STATE, ACCOUNT_OPENING_FEE_RATES,
     },
-    utils::{create_user_id_key, get_oracle_adapter, get_params_adapter},
+    utils::{
+        create_user_id_key, get_credit_manager_adapter, get_oracle_adapter, get_params_adapter,
+    },
     vault::shares_to_amount,
 };
 
@@ -277,11 +280,13 @@ pub fn query_position(
     let addresses = query_contract_addrs(
         deps,
         &cfg.address_provider,
-        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+        vec![MarsAddressType::Oracle, MarsAddressType::Params, MarsAddressType::CreditManager],
     )?;
 
     let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
     let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+    let credit_manager = addresses[&MarsAddressType::CreditManager].clone();
+    let credit_manager_adapter = get_credit_manager_adapter(&credit_manager);
 
     let denom_price = oracle.query_price(&deps.querier, &denom, ActionKind::Default)?.price;
     let base_denom_price =
@@ -306,13 +311,29 @@ pub fn query_position(
         None => PositionModification::Decrease(position.size),
     };
 
+    // Query the credit manager to get the discount for this account via adapter
+    let discount_pct = credit_manager_adapter.query_discount_pct(&deps.querier, &account_id)?;
+
+    // Check if we have a stored opening fee rate for this position
+    let stored_opening_fee_rate = ACCOUNT_OPENING_FEE_RATES.may_load(deps.storage, (&account_id, &denom))?;
+    
+    let (discounted_opening_fee_rate, discounted_closing_fee_rate) = if let Some(stored_rate) = stored_opening_fee_rate {
+        // Use the stored opening fee rate (what was actually paid) for historical accuracy
+        // But still use current discount for closing fee rate (fair for current operations)
+        let current_closing_fee_rate = perp_params.closing_fee_rate * (Decimal::one() - discount_pct);
+        (stored_rate, current_closing_fee_rate)
+    } else {
+        // Fallback to current rates for existing positions without stored fee rates
+        compute_discounted_fee_rates(&perp_params, Some(discount_pct))
+    };
+
     let pnl_amounts = position.compute_pnl(
         &curr_funding,
         ms.skew()?,
         denom_price,
         base_denom_price,
-        perp_params.opening_fee_rate,
-        perp_params.closing_fee_rate,
+        discounted_opening_fee_rate,
+        discounted_closing_fee_rate,
         modification,
     )?;
 
@@ -323,7 +344,7 @@ pub fn query_position(
         account_id,
         position: Some(PerpPosition {
             denom,
-            base_denom: cfg.base_denom,
+            base_denom: cfg.base_denom.clone(),
             size: position.size,
             entry_price: position.entry_price,
             current_price: denom_price,
@@ -351,11 +372,13 @@ pub fn query_positions(
     let addresses = query_contract_addrs(
         deps,
         &cfg.address_provider,
-        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+        vec![MarsAddressType::Oracle, MarsAddressType::Params, MarsAddressType::CreditManager],
     )?;
 
     let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
     let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+    let credit_manager = addresses[&MarsAddressType::CreditManager].clone();
+    let credit_manager_adapter = get_credit_manager_adapter(&credit_manager);
 
     let start = start_after
         .as_ref()
@@ -394,13 +417,30 @@ pub fn query_positions(
                 (price, params, curr_funding, skew)
             };
 
+            // Query the credit manager to get the discount for this account via adapter
+            let discount_pct =
+                credit_manager_adapter.query_discount_pct(&deps.querier, &account_id)?;
+
+            // Check if we have a stored opening fee rate for this position
+            let stored_opening_fee_rate = ACCOUNT_OPENING_FEE_RATES.may_load(deps.storage, (&account_id, &denom))?;
+            
+            let (discounted_opening_fee_rate, discounted_closing_fee_rate) = if let Some(stored_rate) = stored_opening_fee_rate {
+                // Use the stored opening fee rate (what was actually paid) for historical accuracy
+                // But still use current discount for closing fee rate (fair for current operations)
+                let current_closing_fee_rate = perp_params.closing_fee_rate * (Decimal::one() - discount_pct);
+                (stored_rate, current_closing_fee_rate)
+            } else {
+                // Fallback to current rates for existing positions without stored fee rates
+                compute_discounted_fee_rates(&perp_params, Some(discount_pct))
+            };
+
             let pnl_amounts = position.compute_pnl(
                 &funding,
                 skew,
                 current_price,
                 base_denom_price,
-                perp_params.opening_fee_rate,
-                perp_params.closing_fee_rate,
+                discounted_opening_fee_rate,
+                discounted_closing_fee_rate,
                 PositionModification::Decrease(position.size),
             )?;
 
@@ -440,7 +480,12 @@ pub fn query_positions_by_account(
     let addresses = query_contract_addrs(
         deps,
         &cfg.address_provider,
-        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+        vec![
+            MarsAddressType::Oracle,
+            MarsAddressType::Params,
+            MarsAddressType::CreditManager,
+            MarsAddressType::DaoStaking,
+        ],
     )?;
 
     let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
@@ -471,13 +516,25 @@ pub fn query_positions_by_account(
             let ms = MARKET_STATES.load(deps.storage, &denom)?;
             let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
 
+            // Check if we have a stored opening fee rate for this position
+            let stored_opening_fee_rate = ACCOUNT_OPENING_FEE_RATES.may_load(deps.storage, (&account_id, &denom))?;
+            
+            let (opening_fee_rate, closing_fee_rate) = if let Some(stored_rate) = stored_opening_fee_rate {
+                // Use the stored opening fee rate (what was actually paid) for historical accuracy
+                // Use current closing fee rate (fair for current operations)
+                (stored_rate, perp_params.closing_fee_rate)
+            } else {
+                // Fallback to current rates for existing positions without stored fee rates
+                (perp_params.opening_fee_rate, perp_params.closing_fee_rate)
+            };
+
             let pnl_amounts = position.compute_pnl(
                 &curr_funding,
                 ms.skew()?,
                 denom_price,
                 base_denom_price,
-                perp_params.opening_fee_rate,
-                perp_params.closing_fee_rate,
+                opening_fee_rate,
+                closing_fee_rate,
                 PositionModification::Decrease(position.size),
             )?;
 
@@ -591,8 +648,14 @@ pub fn query_total_accounting(deps: Deps, current_time: u64) -> ContractResult<A
 /// Calculates the opening fee for a given position size in a specified market.
 /// This function retrieves market and configuration data, including the current prices of the base denomination and the market asset.
 /// It then computes the opening trading fee based on the provided position size and market parameters.
+/// If a discount_pct is provided, the fee is discounted accordingly.
 /// Returns a `TradingFee` structure containing the fee rate and the calculated fee amount.
-pub fn query_opening_fee(deps: Deps, denom: &str, size: Int128) -> ContractResult<TradingFee> {
+pub fn query_opening_fee(
+    deps: Deps,
+    denom: &str,
+    size: Int128,
+    discount_pct: Option<Decimal>,
+) -> ContractResult<TradingFee> {
     let cfg = CONFIG.load(deps.storage)?;
     let ms = MARKET_STATES.load(deps.storage, denom)?;
 
@@ -610,8 +673,11 @@ pub fn query_opening_fee(deps: Deps, denom: &str, size: Int128) -> ContractResul
     let denom_price = oracle.query_price(&deps.querier, denom, ActionKind::Default)?.price;
     let perp_params = params.query_perp_params(&deps.querier, denom)?;
 
+    // Apply discount to fee rates if provided
+    let (opening_fee_rate, _) = compute_discounted_fee_rates(&perp_params, discount_pct);
+
     let fees = PositionModification::Increase(size).compute_fees(
-        perp_params.opening_fee_rate,
+        opening_fee_rate,
         perp_params.closing_fee_rate,
         denom_price,
         base_denom_price,
@@ -620,7 +686,7 @@ pub fn query_opening_fee(deps: Deps, denom: &str, size: Int128) -> ContractResul
     )?;
 
     Ok(TradingFee {
-        rate: perp_params.opening_fee_rate,
+        rate: opening_fee_rate,
         fee: coin(fees.opening_fee.unsigned_abs().u128(), cfg.base_denom),
     })
 }
@@ -640,11 +706,20 @@ pub fn query_position_fees(
     let addresses = query_contract_addrs(
         deps,
         &cfg.address_provider,
-        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+        vec![
+            MarsAddressType::Oracle,
+            MarsAddressType::Params,
+            MarsAddressType::CreditManager,
+            MarsAddressType::DaoStaking,
+        ],
     )?;
 
     let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
     let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+
+    // Get staking tier discount for this account
+    let credit_manager = addresses[&MarsAddressType::CreditManager].clone();
+    let credit_manager_adapter = get_credit_manager_adapter(&credit_manager);
 
     let base_denom_price =
         oracle.query_price(&deps.querier, &cfg.base_denom, ActionKind::Default)?.price;
@@ -687,9 +762,16 @@ pub fn query_position_fees(
             PositionModification::Increase(new_size)
         }
     };
+    // Query the credit manager to get the discount for this account via adapter
+    let discount_pct = credit_manager_adapter.query_discount_pct(&deps.querier, account_id)?;
+
+    // Apply discount to fee rates using the helper function
+    let (discounted_opening_fee_rate, discounted_closing_fee_rate) =
+        compute_discounted_fee_rates(&perp_params, Some(discount_pct));
+
     let fees = modification.compute_fees(
-        perp_params.opening_fee_rate,
-        perp_params.closing_fee_rate,
+        discounted_opening_fee_rate,
+        discounted_closing_fee_rate,
         denom_price,
         base_denom_price,
         skew,
