@@ -775,12 +775,6 @@ pub struct TradingFee {
     pub fee: Coin,
 }
 
-
-#[cw_serde]
-pub enum Direction {
-    Long,
-    Short,
-}
 #[cw_serde]
 #[derive(Default)]
 pub struct PositionFeesResponse {

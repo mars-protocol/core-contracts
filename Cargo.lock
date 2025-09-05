@@ -2668,6 +2668,7 @@ dependencies = [
  "mars-mock-oracle",
  "mars-owner",
  "mars-perps-common",
+ "mars-rover-health-computer",
  "mars-testing",
  "mars-types",
  "mars-utils",

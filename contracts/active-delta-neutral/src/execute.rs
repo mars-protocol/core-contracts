@@ -25,7 +25,8 @@ use crate::{
     },
     order_creation::build_trade_actions,
     order_validation::{self, DynamicValidator},
-    state::{CONFIG, OWNER, POSITION}, traits::Validator,
+    state::{CONFIG, OWNER, POSITION},
+    traits::Validator,
 };
 /// # Execute Increase Position
 ///

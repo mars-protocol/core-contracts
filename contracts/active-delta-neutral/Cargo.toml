@@ -20,26 +20,27 @@ backtraces = ["cosmwasm-std/backtraces"]
 library    = []
 
 [dependencies]
-cosmwasm-schema = { workspace = true }
-cosmwasm-std    = { workspace = true }
-cw-storage-plus = { workspace = true }
-thiserror       = { workspace = true }
-mars-delta-neutral-position        = { workspace = true }
-mars-types      = { workspace = true }
-mars-utils      = { workspace = true }
-schemars        = { workspace = true }
-serde           = { workspace = true }
-cw-paginate     = { workspace = true }
-mars-owner        = { workspace = true }
-mars-perps-common = { workspace = true }
+cosmwasm-schema              = { workspace = true }
+cosmwasm-std                 = { workspace = true }
+cw-paginate                  = { workspace = true }
+cw-storage-plus              = { workspace = true }
+mars-delta-neutral-position  = { workspace = true }
+mars-owner                   = { workspace = true }
+mars-perps-common            = { workspace = true }
+mars-rover-health-computer   = { workspace = true }
+mars-types                   = { workspace = true }
+mars-utils                   = { workspace = true }
+schemars                     = { workspace = true }
+serde                        = { workspace = true }
+thiserror                    = { workspace = true }
 
 [dev-dependencies]
 cw-multi-test       = { workspace = true, features = ["cosmwasm_1_1"] }
+mars-credit-manager = { workspace = true }
+mars-mock-oracle    = { workspace = true }
+mars-testing        = { workspace = true }
 proptest            = { workspace = true }
 test-case           = { workspace = true }
-mars-credit-manager = { workspace = true }
-mars-testing        = { workspace = true }
-mars-mock-oracle    = { workspace = true }
 
 
 

@@ -1,6 +1,7 @@
-use cosmwasm_std::{Decimal, Deps, Env, SignedDecimal};
+use cosmwasm_std::{Decimal, Deps, Env, Int128, SignedDecimal};
 use mars_delta_neutral_position::types::Position;
-use mars_types::{active_delta_neutral::execute::Direction, position::Side};
+use mars_rover_health_computer::Direction;
+use mars_types::{position::Side};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -37,7 +38,9 @@ impl Validator for FixedValidator {
     }
 }
 
-pub struct DynamicValidator;
+pub struct DynamicValidator{
+    pub k: u64,
+};
 
 impl Validator for DynamicValidator {
     /// Dynamic validator asserts that the position will meet the formula.
@@ -53,26 +56,29 @@ impl Validator for DynamicValidator {
         &self,
         perp_funding_rate: SignedDecimal,
         net_spot_yield: SignedDecimal,
-        spot_execution_price: Decimal,
-        perp_execution_price: Decimal,
+        spot_execution_price: SignedDecimal,
+        perp_execution_price: SignedDecimal,
         perp_trading_fee_rate: Decimal,
         direction: Direction,
     ) -> ContractResult<bool> {
-
         let net_yield = net_spot_yield.checked_add(perp_funding_rate)?;
 
+        // Convert values to SignedDecimal to support our operation
+        let perp_trading_fee_sd: SignedDecimal = perp_trading_fee_rate.try_into()?;
+        let sign_sd = SignedDecimal::from_atomics(direction.sign(), 0)?;
+
         // The limit as defined by our model
-        let cost_limit = net_yield.checked_div(self.k)?;
-        
+        let cost_limit = net_yield.checked_div(SignedDecimal::from_atomics(Int128::from(self.k), 0)?)?;
+
         // The cost of our order
         let cost = perp_execution_price
             .checked_sub(spot_execution_price)?
             .checked_div(spot_execution_price)?
-            .checked_add(perp_trading_fee_rate.checked_mul(direction.sign()))?;
+            .checked_add(perp_trading_fee_sd.checked_mul(sign_sd)?)?;
 
         let valid_entry = match direction {
-            Direction::Buy => cost.lt(cost_limit),
-            Direction::Sell => cost.gt(cost_limit),
+            Direction::Long => cost.lt(&cost_limit),
+            Direction::Short => cost.gt(&cost_limit),
         };
 
         Ok(valid_entry)

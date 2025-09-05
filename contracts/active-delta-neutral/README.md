@@ -14,33 +14,3 @@ This contract implements an actively managed delta-neutral strategy utilizing th
 [[Strategy Abstraction](TODO)] – define strategy-specific logic (e.g., long spot/short perp) via pluggable trait implementations
 
 [[Profitability Model](./docs/entry_exit_model.md)] – enforced on-chain to ensure trades meet minimum expected return (bot is trustless, only triggers)
-
-## Getting Started
-
-### Prerequisites
-
-- Rust and Cargo installed on your system.
-
-### Building the Project
-
-To build the project, run:
-
-```bash
-cargo build
-```
-
-### Running Tests
-
-To execute the tests, use:
-
-```bash
-cargo test
-```
-
-## Contributing
-
-Contributions are welcome! Please fork the repository and submit a pull request for any improvements or bug fixes.
-
-## License
-
-This project is licensed under the MIT License. 

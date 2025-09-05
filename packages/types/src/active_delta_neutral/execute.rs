@@ -30,8 +30,3 @@ pub enum ExecuteMsg {
         recipient: Option<String>,
     },
 }
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub enum Direction {
-    Buy,
-    Sell,
-}
