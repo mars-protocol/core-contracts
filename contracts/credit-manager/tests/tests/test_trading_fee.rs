@@ -8,25 +8,25 @@ use test_case::test_case;
 use super::helpers::{default_perp_params, uosmo_info, MockEnv};
 
 #[test_case(
-    Uint128::new(200_000),
-    "tier_2",
-    Decimal::percent(60),
-    Decimal::percent(25);
-    "spot market tier 2: 60% discount on 0.25% base fee"
-)]
-#[test_case(
-    Uint128::new(100_000),
-    "tier_3",
-    Decimal::percent(45),
-    Decimal::percent(25);
-    "spot market tier 3: 45% discount on 0.25% base fee"
-)]
-#[test_case(
-    Uint128::new(50_000),
+    Uint128::new(100_000_000_000),
     "tier_4",
-    Decimal::percent(35),
-    Decimal::percent(25);
-    "spot market tier 4: 35% discount on 0.25% base fee"
+    Decimal::percent(30),
+    Decimal::percent(1);
+    "spot market tier 4: 30% discount on 1% base fee"
+)]
+#[test_case(
+    Uint128::new(50_000_000_000),
+    "tier_3",
+    Decimal::percent(20),
+    Decimal::percent(1);
+    "spot market tier 3: 20% discount on 1% base fee"
+)]
+#[test_case(
+    Uint128::new(10_000_000_000),
+    "tier_2",
+    Decimal::percent(10),
+    Decimal::percent(1);
+    "spot market tier 2: 10% discount on 1% base fee"
 )]
 fn test_trading_fee_query_spot(
     voting_power: Uint128,
@@ -34,7 +34,8 @@ fn test_trading_fee_query_spot(
     expected_discount: Decimal,
     expected_base_fee: Decimal,
 ) {
-    let mut mock = MockEnv::new().set_params(&[uosmo_info()]).build().unwrap();
+    let mut mock =
+        MockEnv::new().set_params(&[uosmo_info()]).swap_fee(Decimal::percent(1)).build().unwrap();
 
     // Create a credit account
     let user = Addr::unchecked("user");
@@ -68,25 +69,25 @@ fn test_trading_fee_query_spot(
 }
 
 #[test_case(
-    Uint128::new(25_000),
+    Uint128::new(250_000_000_000),
     "tier_5",
-    Decimal::percent(25),
+    Decimal::percent(45),
     "uosmo";
-    "perp market tier 5: 25% discount on uosmo"
+    "perp market tier 5: 45% discount on uosmo"
 )]
 #[test_case(
-    Uint128::new(10_000),
+    Uint128::new(500_000_000_000),
     "tier_6",
-    Decimal::percent(15),
+    Decimal::percent(60),
     "uosmo";
-    "perp market tier 6: 15% discount on uosmo"
+    "perp market tier 6: 60% discount on uosmo"
 )]
 #[test_case(
-    Uint128::new(5_000),
+    Uint128::new(1_000_000_000_000),
     "tier_7",
-    Decimal::percent(10),
+    Decimal::percent(70),
     "uosmo";
-    "perp market tier 7: 10% discount on uosmo"
+    "perp market tier 7: 70% discount on uosmo"
 )]
 fn test_trading_fee_query_perp(
     voting_power: Uint128,
@@ -94,7 +95,8 @@ fn test_trading_fee_query_perp(
     expected_discount: Decimal,
     denom: &str,
 ) {
-    let mut mock = MockEnv::new().set_params(&[uosmo_info()]).build().unwrap();
+    let mut mock =
+        MockEnv::new().set_params(&[uosmo_info()]).swap_fee(Decimal::percent(1)).build().unwrap();
 
     // Create a credit account
     let user = Addr::unchecked("user");
@@ -135,14 +137,15 @@ fn test_trading_fee_query_perp(
 
 #[test]
 fn test_trading_fee_query_edge_cases() {
-    let mut mock = MockEnv::new().set_params(&[uosmo_info()]).build().unwrap();
+    let mut mock =
+        MockEnv::new().set_params(&[uosmo_info()]).swap_fee(Decimal::percent(1)).build().unwrap();
 
     // Create a credit account
     let user = Addr::unchecked("user");
     let account_id = mock.create_credit_account(&user).unwrap();
 
-    // Test tier 1 (highest discount - 75%)
-    mock.set_voting_power(&user, Uint128::new(350_000));
+    // Test tier 8 (highest discount - 80%)
+    mock.set_voting_power(&user, Uint128::new(1_500_000_000_000));
 
     let response: TradingFeeResponse = mock
         .app
@@ -156,15 +159,15 @@ fn test_trading_fee_query_edge_cases() {
         )
         .unwrap();
 
-    assert_eq!(response.tier_id, "tier_1");
-    assert_eq!(response.discount_pct, Decimal::percent(75));
+    assert_eq!(response.tier_id, "tier_8");
+    assert_eq!(response.discount_pct, Decimal::percent(80));
 
     // Calculate the expected effective fee based on the actual response
     let calculated_effective =
-        response.base_fee_pct.checked_mul(Decimal::one() - Decimal::percent(75)).unwrap();
+        response.base_fee_pct.checked_mul(Decimal::one() - Decimal::percent(80)).unwrap();
     assert_eq!(response.effective_fee_pct, calculated_effective);
 
-    // Test tier 10 (no discount - 0%)
+    // Test tier 1 (no discount - 0%)
     mock.set_voting_power(&user, Uint128::new(0));
 
     let response: TradingFeeResponse = mock
@@ -179,7 +182,7 @@ fn test_trading_fee_query_edge_cases() {
         )
         .unwrap();
 
-    assert_eq!(response.tier_id, "tier_10");
+    assert_eq!(response.tier_id, "tier_1");
     assert_eq!(response.discount_pct, Decimal::percent(0));
 
     // Calculate the expected effective fee based on the actual response

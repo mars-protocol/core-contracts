@@ -84,12 +84,12 @@ fn test_swap_with_discount() {
         (base_fee, effective_fee)
     };
 
-    // Tier 10 (min power 0) → 0% discount
+    // Tier 1 (min power 0) → 0% discount
     mock.set_voting_power(&user, Uint128::new(0));
     let res = do_swap(&mut mock, &account_id, &user, 10_000, "uatom", "uosmo");
     let attrs = extract(&res);
     assert_eq!(attrs.get("voting_power").unwrap(), "0");
-    assert_eq!(attrs.get("tier_id").unwrap(), "tier_10");
+    assert_eq!(attrs.get("tier_id").unwrap(), "tier_1");
     assert_eq!(attrs.get("discount_pct").unwrap(), &Decimal::percent(0).to_string());
 
     // Verify fees: no discount means base_fee == effective_fee
@@ -97,12 +97,12 @@ fn test_swap_with_discount() {
     assert_eq!(base_fee, Decimal::percent(1)); // 1% base fee
     assert_eq!(effective_fee, Decimal::percent(1)); // No discount applied
 
-    // Tier 7 (>= 5_000) → 10% discount
-    mock.set_voting_power(&user, Uint128::new(5_000));
+    // Tier 2 (>= 10_000 MARS) → 10% discount
+    mock.set_voting_power(&user, Uint128::new(10_000_000_000));
     let res = do_swap(&mut mock, &account_id, &user, 10_000, "uatom", "uosmo");
     let attrs = extract(&res);
-    assert_eq!(attrs.get("voting_power").unwrap(), "5000");
-    assert_eq!(attrs.get("tier_id").unwrap(), "tier_7");
+    assert_eq!(attrs.get("voting_power").unwrap(), "10000000000");
+    assert_eq!(attrs.get("tier_id").unwrap(), "tier_2");
     assert_eq!(attrs.get("discount_pct").unwrap(), &Decimal::percent(10).to_string());
 
     // Verify fees: 10% discount means effective_fee = base_fee * (1 - 0.1) = base_fee * 0.9
@@ -110,12 +110,12 @@ fn test_swap_with_discount() {
     assert_eq!(base_fee, Decimal::percent(1)); // 1% base fee
     assert_eq!(effective_fee, Decimal::percent(1) * (Decimal::one() - Decimal::percent(10))); // 0.9% effective fee
 
-    // Tier 3 (>= 100_000) → 45% discount
-    mock.set_voting_power(&user, Uint128::new(100_000));
+    // Tier 5 (>= 250_000 MARS) → 45% discount
+    mock.set_voting_power(&user, Uint128::new(250_000_000_000));
     let res = do_swap(&mut mock, &account_id, &user, 10_000, "uatom", "uosmo");
     let attrs = extract(&res);
-    assert_eq!(attrs.get("voting_power").unwrap(), "100000");
-    assert_eq!(attrs.get("tier_id").unwrap(), "tier_3");
+    assert_eq!(attrs.get("voting_power").unwrap(), "250000000000");
+    assert_eq!(attrs.get("tier_id").unwrap(), "tier_5");
     assert_eq!(attrs.get("discount_pct").unwrap(), &Decimal::percent(45).to_string());
 
     // Verify fees: 45% discount means effective_fee = base_fee * (1 - 0.45) = base_fee * 0.55

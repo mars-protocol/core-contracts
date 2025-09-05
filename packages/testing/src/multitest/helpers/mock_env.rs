@@ -28,6 +28,7 @@ use mars_types::{
     },
     adapters::{
         account_nft::AccountNftUnchecked,
+        dao_staking::DaoStakingUnchecked,
         health::HealthContract,
         incentives::{Incentives, IncentivesUnchecked},
         oracle::{Oracle, OracleBase, OracleUnchecked},
@@ -1289,6 +1290,10 @@ impl MockEnvBuilder {
         self
     }
 
+    pub fn set_swap_fee(mut self, fee: Decimal) -> Self {
+        self.swap_fee = Some(fee);
+        self
+    }
     //--------------------------------------------------------------------------------------------------
     // Execute Msgs
     //--------------------------------------------------------------------------------------------------
@@ -1404,6 +1409,19 @@ impl MockEnvBuilder {
         let params = self.get_params_contract().into();
         let keeper_fee_config = self.get_keeper_fee_config();
         let swap_fee = self.get_swap_fee();
+        let fee_tier_config = self.fee_tier_config.clone().unwrap_or(FeeTierConfig {
+            tiers: vec![FeeTier {
+                id: "tier_1".to_string(),
+                min_voting_power: "0".to_string(),
+                discount_pct: Decimal::percent(0),
+            }],
+        });
+        let dao_staking_address = DaoStakingUnchecked::new(
+            self.dao_staking_addr
+                .clone()
+                .unwrap_or_else(|| Addr::unchecked("mock-dao-staking"))
+                .to_string(),
+        );
 
         self.deploy_rewards_collector();
         self.deploy_astroport_incentives();
@@ -1429,6 +1447,8 @@ impl MockEnvBuilder {
                     keeper_fee_config,
                     perps_liquidation_bonus_ratio,
                     swap_fee,
+                    fee_tier_config,
+                    dao_staking_address,
                 },
                 &[],
                 "mock-rover-contract",
@@ -1489,7 +1509,7 @@ impl MockEnvBuilder {
         self.update_config(
             rover,
             ConfigUpdates {
-                dao_staking_address: Some(dao_addr.to_string()),
+                dao_staking_address: Some(DaoStakingUnchecked::new(dao_addr.to_string())),
                 ..Default::default()
             },
         );
@@ -1498,56 +1518,46 @@ impl MockEnvBuilder {
     }
 
     fn set_fee_tiers(&mut self, rover: &Addr) {
-        // Default full 10-tier config if none provided (descending thresholds)
+        // Default 8-tier config if none provided (descending thresholds)
         let fee_cfg = self.fee_tier_config.clone().unwrap_or(FeeTierConfig {
             tiers: vec![
                 FeeTier {
-                    id: "tier_1".to_string(),
-                    min_voting_power: "350000".to_string(),
-                    discount_pct: Decimal::percent(75),
+                    id: "tier_8".to_string(),
+                    min_voting_power: "1500000000000".to_string(), // 1,500,000 MARS = 1,500,000,000,000 uMARS
+                    discount_pct: Decimal::percent(80),
                 },
                 FeeTier {
-                    id: "tier_2".to_string(),
-                    min_voting_power: "200000".to_string(),
+                    id: "tier_7".to_string(),
+                    min_voting_power: "1000000000000".to_string(), // 1,000,000 MARS = 1,000,000,000,000 uMARS
+                    discount_pct: Decimal::percent(70),
+                },
+                FeeTier {
+                    id: "tier_6".to_string(),
+                    min_voting_power: "500000000000".to_string(), // 500,000 MARS
                     discount_pct: Decimal::percent(60),
                 },
                 FeeTier {
-                    id: "tier_3".to_string(),
-                    min_voting_power: "100000".to_string(),
+                    id: "tier_5".to_string(),
+                    min_voting_power: "250000000000".to_string(), // 250,000 MARS
                     discount_pct: Decimal::percent(45),
                 },
                 FeeTier {
                     id: "tier_4".to_string(),
-                    min_voting_power: "50000".to_string(),
-                    discount_pct: Decimal::percent(35),
+                    min_voting_power: "100000000000".to_string(), // 100,000 MARS
+                    discount_pct: Decimal::percent(30),
                 },
                 FeeTier {
-                    id: "tier_5".to_string(),
-                    min_voting_power: "25000".to_string(),
-                    discount_pct: Decimal::percent(25),
+                    id: "tier_3".to_string(),
+                    min_voting_power: "50000000000".to_string(), // 50,000 MARS
+                    discount_pct: Decimal::percent(20),
                 },
                 FeeTier {
-                    id: "tier_6".to_string(),
-                    min_voting_power: "10000".to_string(),
-                    discount_pct: Decimal::percent(15),
-                },
-                FeeTier {
-                    id: "tier_7".to_string(),
-                    min_voting_power: "5000".to_string(),
+                    id: "tier_2".to_string(),
+                    min_voting_power: "10000000000".to_string(), // 10,000 MARS
                     discount_pct: Decimal::percent(10),
                 },
                 FeeTier {
-                    id: "tier_8".to_string(),
-                    min_voting_power: "1000".to_string(),
-                    discount_pct: Decimal::percent(5),
-                },
-                FeeTier {
-                    id: "tier_9".to_string(),
-                    min_voting_power: "100".to_string(),
-                    discount_pct: Decimal::percent(1),
-                },
-                FeeTier {
-                    id: "tier_10".to_string(),
+                    id: "tier_1".to_string(),
                     min_voting_power: "0".to_string(),
                     discount_pct: Decimal::percent(0),
                 },

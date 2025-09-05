@@ -4,10 +4,10 @@ use cosmwasm_std::{Decimal, Uint128};
 use super::KeeperFeeConfig;
 use crate::{
     adapters::{
-        account_nft::AccountNftUnchecked, health::HealthContractUnchecked,
-        incentives::IncentivesUnchecked, oracle::OracleUnchecked, params::ParamsUnchecked,
-        perps::PerpsUnchecked, red_bank::RedBankUnchecked, swapper::SwapperUnchecked,
-        zapper::ZapperUnchecked,
+        account_nft::AccountNftUnchecked, dao_staking::DaoStakingUnchecked,
+        health::HealthContractUnchecked, incentives::IncentivesUnchecked, oracle::OracleUnchecked,
+        params::ParamsUnchecked, perps::PerpsUnchecked, red_bank::RedBankUnchecked,
+        swapper::SwapperUnchecked, zapper::ZapperUnchecked,
     },
     fee_tiers::FeeTierConfig,
 };
@@ -55,6 +55,10 @@ pub struct InstantiateMsg {
     /// For example, if set to 0.0001, 0.01% of the swap amount will be taken as a fee.
     /// This fee is applied once, no matter how many hops in the route
     pub swap_fee: Decimal,
+    /// Configuration for fee tiers based on staking
+    pub fee_tier_config: FeeTierConfig,
+    /// Address of the DAO staking contract
+    pub dao_staking_address: DaoStakingUnchecked,
 }
 
 /// Used when you want to update fields on Instantiate config
@@ -81,5 +85,5 @@ pub struct ConfigUpdates {
     pub swap_fee: Option<Decimal>,
     // Staking-based fee tiers
     pub fee_tier_config: Option<FeeTierConfig>,
-    pub dao_staking_address: Option<String>,
+    pub dao_staking_address: Option<DaoStakingUnchecked>,
 }

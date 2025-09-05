@@ -510,4 +510,49 @@ export const neutronDevnetConfig: DeploymentConfig = {
   maxPerpParams: 20,
   perpsLiquidationBonusRatio: '0.6',
   swapFee: '0.0005',
+  feeTierConfig: {
+    tiers: [
+      {
+        id: 'tier_8',
+        min_voting_power: '1500000000000', // 1,500,000 MARS
+        discount_pct: '0.80', // 80% discount
+      },
+      {
+        id: 'tier_7',
+        min_voting_power: '1000000000000', // 1,000,000 MARS
+        discount_pct: '0.70', // 70% discount
+      },
+      {
+        id: 'tier_6',
+        min_voting_power: '500000000000', // 500,000 MARS
+        discount_pct: '0.60', // 60% discount
+      },
+      {
+        id: 'tier_5',
+        min_voting_power: '250000000000', // 250,000 MARS
+        discount_pct: '0.45', // 45% discount
+      },
+      {
+        id: 'tier_4',
+        min_voting_power: '100000000000', // 100,000 MARS
+        discount_pct: '0.30', // 30% discount
+      },
+      {
+        id: 'tier_3',
+        min_voting_power: '50000000000', // 50,000 MARS
+        discount_pct: '0.20', // 20% discount
+      },
+      {
+        id: 'tier_2',
+        min_voting_power: '10000000000', // 10,000 MARS
+        discount_pct: '0.10', // 10% discount
+      },
+      {
+        id: 'tier_1',
+        min_voting_power: '0',
+        discount_pct: '0.00', // 0% discount
+      },
+    ],
+  },
+  daoStakingAddress: 'neutron1pxjszcmmdxwtw9kv533u3hcudl6qahsa42chcs24gervf4ge40usaw3pcr',
 }

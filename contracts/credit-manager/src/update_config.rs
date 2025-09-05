@@ -150,10 +150,11 @@ pub fn update_config(
     }
 
     if let Some(addr) = updates.dao_staking_address {
-        let checked = deps.api.addr_validate(&addr)?;
-        DAO_STAKING_ADDRESS.save(deps.storage, &checked)?;
-        response =
-            response.add_attribute("key", "dao_staking_address").add_attribute("value", addr);
+        let checked = addr.check(deps.api)?;
+        DAO_STAKING_ADDRESS.save(deps.storage, checked.address())?;
+        response = response
+            .add_attribute("key", "dao_staking_address")
+            .add_attribute("value", checked.address());
     }
 
     if let Some(kfc) = updates.keeper_fee_config {

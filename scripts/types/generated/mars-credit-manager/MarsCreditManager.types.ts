@@ -6,16 +6,18 @@
  */
 
 export type SwapperBaseForString = string
+export type Decimal = string
 export type HealthContractBaseForString = string
 export type IncentivesUnchecked = string
 export type Uint128 = string
-export type Decimal = string
 export type OracleBaseForString = string
 export type ParamsBaseForString = string
 export type RedBankUnchecked = string
 export type ZapperBaseForString = string
 export interface InstantiateMsg {
+  dao_staking_address: string
   duality_swapper: SwapperBaseForString
+  fee_tier_config: FeeTierConfig
   health_contract: HealthContractBaseForString
   incentives: IncentivesUnchecked
   keeper_fee_config: KeeperFeeConfig
@@ -30,6 +32,14 @@ export interface InstantiateMsg {
   swap_fee: Decimal
   swapper: SwapperBaseForString
   zapper: ZapperBaseForString
+}
+export interface FeeTierConfig {
+  tiers: FeeTier[]
+}
+export interface FeeTier {
+  discount_pct: Decimal
+  id: string
+  min_voting_power: string
 }
 export interface KeeperFeeConfig {
   min_fee: Coin
@@ -637,14 +647,6 @@ export interface ConfigUpdates {
   swap_fee?: Decimal | null
   swapper?: SwapperBaseForString | null
   zapper?: ZapperBaseForString | null
-}
-export interface FeeTierConfig {
-  tiers: FeeTier[]
-}
-export interface FeeTier {
-  discount_pct: Decimal
-  id: string
-  min_voting_power: string
 }
 export interface NftConfigUpdates {
   address_provider_contract_addr?: string | null

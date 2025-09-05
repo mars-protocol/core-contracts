@@ -7,7 +7,9 @@
     "title": "InstantiateMsg",
     "type": "object",
     "required": [
+      "dao_staking_address",
       "duality_swapper",
+      "fee_tier_config",
       "health_contract",
       "incentives",
       "keeper_fee_config",
@@ -24,11 +26,23 @@
       "zapper"
     ],
     "properties": {
+      "dao_staking_address": {
+        "description": "Address of the DAO staking contract",
+        "type": "string"
+      },
       "duality_swapper": {
         "description": "Helper contract for making swaps",
         "allOf": [
           {
             "$ref": "#/definitions/SwapperBase_for_String"
+          }
+        ]
+      },
+      "fee_tier_config": {
+        "description": "Configuration for fee tiers based on staking",
+        "allOf": [
+          {
+            "$ref": "#/definitions/FeeTierConfig"
           }
         ]
       },
@@ -159,6 +173,41 @@
       "Decimal": {
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
+      },
+      "FeeTier": {
+        "type": "object",
+        "required": [
+          "discount_pct",
+          "id",
+          "min_voting_power"
+        ],
+        "properties": {
+          "discount_pct": {
+            "$ref": "#/definitions/Decimal"
+          },
+          "id": {
+            "type": "string"
+          },
+          "min_voting_power": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "FeeTierConfig": {
+        "type": "object",
+        "required": [
+          "tiers"
+        ],
+        "properties": {
+          "tiers": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/FeeTier"
+            }
+          }
+        },
+        "additionalProperties": false
       },
       "HealthContractBase_for_String": {
         "type": "string"

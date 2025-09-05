@@ -69,73 +69,59 @@ fn open_perp(
 // Test fee discount across different voting power tiers and scenarios
 #[test_case(
     0,
-    "tier_10",
+    "tier_1",
     Decimal::percent(0),
     200;
-    "tier 10: 0 power -> 0% discount, size 200"
+    "tier 1: 0 power -> 0% discount, size 200"
 )]
 #[test_case(
-    25_000,
+    250_000_000_000,
     "tier_5", 
-    Decimal::percent(25),
-    200;
-    "tier 5: >= 25_000 power -> 25% discount, size 200"
-)]
-#[test_case(
-    200_000,
-    "tier_2",
-    Decimal::percent(60),
-    200;
-    "tier 2: >= 200_000 power -> 60% discount, size 200"
-)]
-#[test_case(
-    50_000,
-    "tier_4",
-    Decimal::percent(35),
-    100;
-    "tier 4: >= 50_000 power -> 35% discount, size 100"
-)]
-#[test_case(
-    150_000,
-    "tier_3",
     Decimal::percent(45),
-    500;
-    "tier 3: >= 150_000 power -> 45% discount, size 500"
+    200;
+    "tier 5: >= 250_000 MARS power -> 45% discount, size 200"
 )]
 #[test_case(
-    10_000,
-    "tier_6",
-    Decimal::percent(15),
-    150;
-    "tier 6: >= 10_000 power -> 15% discount, size 150"
-)]
-#[test_case(
-    5_000,
+    1_000_000_000_000,
     "tier_7",
+    Decimal::percent(70),
+    200;
+    "tier 7: >= 1_000_000 MARS power -> 70% discount, size 200"
+)]
+#[test_case(
+    100_000_000_000,
+    "tier_4",
+    Decimal::percent(30),
+    100;
+    "tier 4: >= 100_000 MARS power -> 30% discount, size 100"
+)]
+#[test_case(
+    500_000_000_000,
+    "tier_6",
+    Decimal::percent(60),
+    500;
+    "tier 6: >= 500_000 MARS power -> 60% discount, size 500"
+)]
+#[test_case(
+    10_000_000_000,
+    "tier_2",
     Decimal::percent(10),
+    150;
+    "tier 2: >= 10_000 MARS power -> 10% discount, size 150"
+)]
+#[test_case(
+    50_000_000_000,
+    "tier_3",
+    Decimal::percent(20),
     300;
-    "tier 7: >= 5_000 power -> 10% discount, size 300"
+    "tier 3: >= 50_000 MARS power -> 20% discount, size 300"
 )]
 #[test_case(
-    1_000,
+    1_500_000_000_000,
     "tier_8",
-    Decimal::percent(5),
+    Decimal::percent(80),
     400;
-    "tier 8: >= 1_000 power -> 5% discount, size 400"
-)]
-#[test_case(
-    100,
-    "tier_9",
-    Decimal::percent(1),
-    600;
-    "tier 9: >= 100 power -> 1% discount, size 600"
-)]
-#[test_case(
-    350_000,
-    "tier_1",
-    Decimal::percent(75),
-    800;
-    "tier 1: >= 350_000 power -> 75% discount, size 800"
+    "tier 8: >= 1_500_000 MARS power -> 80% discount, size 400"
 )]
 fn test_perps_with_discount_events(
     voting_power: u128,
@@ -183,39 +169,39 @@ fn test_perps_with_discount_events(
 // Test close_perp_position with discount functionality
 #[test_case(
     0,
-    "tier_10",
-    Decimal::percent(0);
-    "close_perp_position tier 10: 0 power -> 0% discount"
-)]
-#[test_case(
-    25_000,
-    "tier_5",
-    Decimal::percent(25);
-    "close_perp_position tier 5: >= 25_000 power -> 25% discount"
-)]
-#[test_case(
-    200_000,
-    "tier_2",
-    Decimal::percent(60);
-    "close_perp_position tier 2: >= 200_000 power -> 60% discount"
-)]
-#[test_case(
-    50_000,
-    "tier_4",
-    Decimal::percent(35);
-    "close_perp_position tier 4: >= 50_000 power -> 35% discount"
-)]
-#[test_case(
-    100_000,
-    "tier_3",
-    Decimal::percent(45);
-    "close_perp_position tier 3: >= 100_000 power -> 45% discount"
-)]
-#[test_case(
-    350_000,
     "tier_1",
-    Decimal::percent(75);
-    "close_perp_position tier 1: >= 350_000 power -> 75% discount"
+    Decimal::percent(0);
+    "close_perp_position tier 1: 0 power -> 0% discount"
+)]
+#[test_case(
+    250_000_000_000,
+    "tier_5",
+    Decimal::percent(45);
+    "close_perp_position tier 5: >= 250_000 MARS power -> 45% discount"
+)]
+#[test_case(
+    1_000_000_000_000,
+    "tier_7",
+    Decimal::percent(70);
+    "close_perp_position tier 7: >= 1_000_000 MARS power -> 70% discount"
+)]
+#[test_case(
+    100_000_000_000,
+    "tier_4",
+    Decimal::percent(30);
+    "close_perp_position tier 4: >= 100_000 MARS power -> 30% discount"
+)]
+#[test_case(
+    500_000_000_000,
+    "tier_6",
+    Decimal::percent(60);
+    "close_perp_position tier 6: >= 500_000 MARS power -> 60% discount"
+)]
+#[test_case(
+    1_500_000_000_000,
+    "tier_8",
+    Decimal::percent(80);
+    "close_perp_position tier 8: >= 1_500_000 MARS power -> 80% discount"
 )]
 fn test_close_perp_position_with_discount(
     voting_power: u128,
@@ -267,39 +253,39 @@ fn test_close_perp_position_with_discount(
 // Test multiple perp positions with discount functionality
 #[test_case(
     0,
-    "tier_10",
-    Decimal::percent(0);
-    "multiple positions tier 10: 0 power -> 0% discount"
-)]
-#[test_case(
-    25_000,
-    "tier_5",
-    Decimal::percent(25);
-    "multiple positions tier 5: >= 25_000 power -> 25% discount"
-)]
-#[test_case(
-    200_000,
-    "tier_2",
-    Decimal::percent(60);
-    "multiple positions tier 2: >= 200_000 power -> 60% discount"
-)]
-#[test_case(
-    50_000,
-    "tier_4",
-    Decimal::percent(35);
-    "multiple positions tier 4: >= 50_000 power -> 35% discount"
-)]
-#[test_case(
-    100_000,
-    "tier_3",
-    Decimal::percent(45);
-    "multiple positions tier 3: >= 100_000 power -> 45% discount"
-)]
-#[test_case(
-    350_000,
     "tier_1",
-    Decimal::percent(75);
-    "multiple positions tier 1: >= 350_000 power -> 75% discount"
+    Decimal::percent(0);
+    "multiple positions tier 1: 0 power -> 0% discount"
+)]
+#[test_case(
+    250_000_000_000,
+    "tier_5",
+    Decimal::percent(45);
+    "multiple positions tier 5: >= 250_000 MARS power -> 45% discount"
+)]
+#[test_case(
+    1_000_000_000_000,
+    "tier_7",
+    Decimal::percent(70);
+    "multiple positions tier 7: >= 1_000_000 MARS power -> 70% discount"
+)]
+#[test_case(
+    100_000_000_000,
+    "tier_4",
+    Decimal::percent(30);
+    "multiple positions tier 4: >= 100_000 MARS power -> 30% discount"
+)]
+#[test_case(
+    500_000_000_000,
+    "tier_6",
+    Decimal::percent(60);
+    "multiple positions tier 6: >= 500_000 MARS power -> 60% discount"
+)]
+#[test_case(
+    1_500_000_000_000,
+    "tier_8",
+    Decimal::percent(80);
+    "multiple positions tier 8: >= 1_500_000 MARS power -> 80% discount"
 )]
 fn test_multiple_perp_positions_with_discount(
     voting_power: u128,

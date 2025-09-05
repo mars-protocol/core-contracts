@@ -8,52 +8,42 @@ fn create_test_fee_tier_config() -> FeeTierConfig {
     FeeTierConfig {
         tiers: vec![
             FeeTier {
-                id: "tier_1".to_string(),
-                min_voting_power: "350000".to_string(),
-                discount_pct: Decimal::percent(75),
+                id: "tier_8".to_string(),
+                min_voting_power: "1500000000000".to_string(), // 1,500,000 MARS = 1,500,000,000,000 uMARS
+                discount_pct: Decimal::percent(80),
             },
             FeeTier {
-                id: "tier_2".to_string(),
-                min_voting_power: "200000".to_string(),
+                id: "tier_7".to_string(),
+                min_voting_power: "1000000000000".to_string(), // 1,000,000 MARS = 1,000,000,000,000 uMARS
+                discount_pct: Decimal::percent(70),
+            },
+            FeeTier {
+                id: "tier_6".to_string(),
+                min_voting_power: "500000000000".to_string(), // 500,000 MARS = 500,000,000,000 uMARS
                 discount_pct: Decimal::percent(60),
             },
             FeeTier {
-                id: "tier_3".to_string(),
-                min_voting_power: "100000".to_string(),
+                id: "tier_5".to_string(),
+                min_voting_power: "250000000000".to_string(), // 250,000 MARS = 250,000,000,000 uMARS
                 discount_pct: Decimal::percent(45),
             },
             FeeTier {
                 id: "tier_4".to_string(),
-                min_voting_power: "50000".to_string(),
-                discount_pct: Decimal::percent(35),
+                min_voting_power: "100000000000".to_string(), // 100,000 MARS = 100,000,000,000 uMARS
+                discount_pct: Decimal::percent(30),
             },
             FeeTier {
-                id: "tier_5".to_string(),
-                min_voting_power: "25000".to_string(),
-                discount_pct: Decimal::percent(25),
+                id: "tier_3".to_string(),
+                min_voting_power: "50000000000".to_string(), // 50,000 MARS = 50,000,000,000 uMARS
+                discount_pct: Decimal::percent(20),
             },
             FeeTier {
-                id: "tier_6".to_string(),
-                min_voting_power: "10000".to_string(),
-                discount_pct: Decimal::percent(15),
-            },
-            FeeTier {
-                id: "tier_7".to_string(),
-                min_voting_power: "5000".to_string(),
+                id: "tier_2".to_string(),
+                min_voting_power: "10000000000".to_string(), // 10,000 MARS = 10,000,000,000 uMARS
                 discount_pct: Decimal::percent(10),
             },
             FeeTier {
-                id: "tier_8".to_string(),
-                min_voting_power: "1000".to_string(),
-                discount_pct: Decimal::percent(5),
-            },
-            FeeTier {
-                id: "tier_9".to_string(),
-                min_voting_power: "100".to_string(),
-                discount_pct: Decimal::percent(1),
-            },
-            FeeTier {
-                id: "tier_10".to_string(),
+                id: "tier_1".to_string(),
                 min_voting_power: "0".to_string(),
                 discount_pct: Decimal::percent(0),
             },
@@ -66,70 +56,58 @@ fn test_staking_tier_manager_creation() {
     let config = create_test_fee_tier_config();
     let manager = StakingTierManager::new(config);
 
-    assert_eq!(manager.config.tiers.len(), 10);
-    assert_eq!(manager.config.tiers[0].id, "tier_1");
-    assert_eq!(manager.config.tiers[9].id, "tier_10");
+    assert_eq!(manager.config.tiers.len(), 8);
+    assert_eq!(manager.config.tiers[0].id, "tier_8");
+    assert_eq!(manager.config.tiers[7].id, "tier_1");
 }
 
 #[test_case(
-    Uint128::new(350000),
-    "tier_1",
-    Decimal::percent(75);
-    "exact match tier 1"
-)]
-#[test_case(
-    Uint128::new(200000),
-    "tier_2",
-    Decimal::percent(60);
-    "exact match tier 2"
-)]
-#[test_case(
-    Uint128::new(100000),
-    "tier_3",
-    Decimal::percent(45);
-    "exact match tier 3"
-)]
-#[test_case(
-    Uint128::new(50000),
-    "tier_4",
-    Decimal::percent(35);
-    "exact match tier 4"
-)]
-#[test_case(
-    Uint128::new(25000),
-    "tier_5",
-    Decimal::percent(25);
-    "exact match tier 5"
-)]
-#[test_case(
-    Uint128::new(10000),
-    "tier_6",
-    Decimal::percent(15);
-    "exact match tier 6"
-)]
-#[test_case(
-    Uint128::new(5000),
-    "tier_7",
-    Decimal::percent(10);
-    "exact match tier 7"
-)]
-#[test_case(
-    Uint128::new(1000),
+    Uint128::new(1500000000000),
     "tier_8",
-    Decimal::percent(5);
+    Decimal::percent(80);
     "exact match tier 8"
 )]
 #[test_case(
-    Uint128::new(100),
-    "tier_9",
-    Decimal::percent(1);
-    "exact match tier 9"
+    Uint128::new(1000000000000),
+    "tier_7",
+    Decimal::percent(70);
+    "exact match tier 7"
+)]
+#[test_case(
+    Uint128::new(500000000000),
+    "tier_6",
+    Decimal::percent(60);
+    "exact match tier 6"
+)]
+#[test_case(
+    Uint128::new(250000000000),
+    "tier_5",
+    Decimal::percent(45);
+    "exact match tier 5"
+)]
+#[test_case(
+    Uint128::new(100000000000),
+    "tier_4",
+    Decimal::percent(30);
+    "exact match tier 4"
+)]
+#[test_case(
+    Uint128::new(50000000000),
+    "tier_3",
+    Decimal::percent(20);
+    "exact match tier 3"
+)]
+#[test_case(
+    Uint128::new(10000000000),
+    "tier_2",
+    Decimal::percent(10);
+    "exact match tier 2"
 )]
 #[test_case(
     Uint128::new(0),
-    "tier_10",
+    "tier_1",
     Decimal::percent(0);
-    "exact match tier 10"
+    "exact match tier 1"
 )]
 fn test_find_applicable_tier_exact_matches(
     voting_power: Uint128,
@@ -145,58 +123,46 @@ fn test_find_applicable_tier_exact_matches(
 }
 
 #[test_case(
-    Uint128::new(300000),
-    "tier_2",
-    Decimal::percent(60);
-    "between tier 1 and tier 2"
-)]
-#[test_case(
-    Uint128::new(150000),
-    "tier_3",
-    Decimal::percent(45);
-    "between tier 2 and tier 3"
-)]
-#[test_case(
-    Uint128::new(75000),
-    "tier_4",
-    Decimal::percent(35);
-    "between tier 3 and tier 4"
-)]
-#[test_case(
-    Uint128::new(30000),
-    "tier_5",
-    Decimal::percent(25);
-    "between tier 4 and tier 5"
-)]
-#[test_case(
-    Uint128::new(15000),
-    "tier_6",
-    Decimal::percent(15);
-    "between tier 5 and tier 6"
-)]
-#[test_case(
-    Uint128::new(7500),
+    Uint128::new(1200000000000),
     "tier_7",
-    Decimal::percent(10);
+    Decimal::percent(70);
     "between tier 6 and tier 7"
 )]
 #[test_case(
-    Uint128::new(1500),
-    "tier_8",
-    Decimal::percent(5);
-    "between tier 7 and tier 8"
+    Uint128::new(750000000000),
+    "tier_6",
+    Decimal::percent(60);
+    "between tier 5 and tier 6"
 )]
 #[test_case(
-    Uint128::new(500),
-    "tier_9",
-    Decimal::percent(1);
-    "between tier 8 and tier 9"
+    Uint128::new(300000000000),
+    "tier_5",
+    Decimal::percent(45);
+    "between tier 4 and tier 5"
 )]
 #[test_case(
-    Uint128::new(50),
-    "tier_10",
+    Uint128::new(150000000000),
+    "tier_4",
+    Decimal::percent(30);
+    "between tier 3 and tier 4"
+)]
+#[test_case(
+    Uint128::new(75000000000),
+    "tier_3",
+    Decimal::percent(20);
+    "between tier 2 and tier 3"
+)]
+#[test_case(
+    Uint128::new(15000000000),
+    "tier_2",
+    Decimal::percent(10);
+    "between tier 1 and tier 2"
+)]
+#[test_case(
+    Uint128::new(5000000000),
+    "tier_1",
     Decimal::percent(0);
-    "between tier 9 and tier 10"
+    "between tier 0 and tier 1"
 )]
 fn test_find_applicable_tier_between_thresholds(
     voting_power: Uint128,
@@ -212,15 +178,15 @@ fn test_find_applicable_tier_between_thresholds(
 }
 
 #[test_case(
-    Uint128::new(500000),
-    "tier_1",
-    Decimal::percent(75);
+    Uint128::new(2000000000000),
+    "tier_8",
+    Decimal::percent(80);
     "above highest tier threshold"
 )]
 #[test_case(
-    Uint128::new(1000000),
-    "tier_1",
-    Decimal::percent(75);
+    Uint128::new(3000000000000),
+    "tier_8",
+    Decimal::percent(80);
     "well above highest tier threshold"
 )]
 fn test_find_applicable_tier_above_highest(
@@ -238,21 +204,21 @@ fn test_find_applicable_tier_above_highest(
 
 #[test_case(
     Uint128::new(1),
-    "tier_10",
+    "tier_1",
     Decimal::percent(0);
     "edge case: minimal voting power"
 )]
 #[test_case(
-    Uint128::new(99),
-    "tier_10",
+    Uint128::new(9999000000),
+    "tier_1",
     Decimal::percent(0);
-    "edge case: just below tier 9"
+    "edge case: just below tier 2"
 )]
 #[test_case(
-    Uint128::new(101),
-    "tier_9",
-    Decimal::percent(1);
-    "edge case: just above tier 10"
+    Uint128::new(10001000000),
+    "tier_2",
+    Decimal::percent(10);
+    "edge case: just above tier 1"
 )]
 fn test_find_applicable_tier_edge_cases(
     voting_power: Uint128,
@@ -385,59 +351,49 @@ fn test_get_default_tier() {
     let manager = StakingTierManager::new(config);
 
     let default_tier = manager.get_default_tier().unwrap();
-    assert_eq!(default_tier.id, "tier_10");
+    assert_eq!(default_tier.id, "tier_1");
     assert_eq!(default_tier.discount_pct, Decimal::percent(0));
 }
 
 #[test_case(
-    Uint128::new(400000),
-    Decimal::percent(75);
-    "tier 1: highest discount"
+    Uint128::new(1500000000000),
+    Decimal::percent(80);
+    "tier 8: highest discount"
 )]
 #[test_case(
-    Uint128::new(250000),
+    Uint128::new(1000000000000),
+    Decimal::percent(70);
+    "tier 7: high discount"
+)]
+#[test_case(
+    Uint128::new(500000000000),
     Decimal::percent(60);
-    "tier 2: high discount"
+    "tier 6: medium-high discount"
 )]
 #[test_case(
-    Uint128::new(120000),
+    Uint128::new(250000000000),
     Decimal::percent(45);
-    "tier 3: medium-high discount"
+    "tier 5: medium discount"
 )]
 #[test_case(
-    Uint128::new(60000),
-    Decimal::percent(35);
-    "tier 4: medium discount"
+    Uint128::new(100000000000),
+    Decimal::percent(30);
+    "tier 4: medium-low discount"
 )]
 #[test_case(
-    Uint128::new(30000),
-    Decimal::percent(25);
-    "tier 5: medium-low discount"
+    Uint128::new(50000000000),
+    Decimal::percent(20);
+    "tier 3: low discount"
 )]
 #[test_case(
-    Uint128::new(12000),
-    Decimal::percent(15);
-    "tier 6: low discount"
-)]
-#[test_case(
-    Uint128::new(6000),
+    Uint128::new(10000000000),
     Decimal::percent(10);
-    "tier 7: very low discount"
+    "tier 2: very low discount"
 )]
 #[test_case(
-    Uint128::new(1500),
-    Decimal::percent(5);
-    "tier 8: minimal discount"
-)]
-#[test_case(
-    Uint128::new(500),
-    Decimal::percent(1);
-    "tier 9: tiny discount"
-)]
-#[test_case(
-    Uint128::new(50),
+    Uint128::new(0),
     Decimal::percent(0);
-    "tier 10: no discount"
+    "tier 1: no discount"
 )]
 fn test_discount_calculation_examples(voting_power: Uint128, expected_discount: Decimal) {
     let config = create_test_fee_tier_config();
