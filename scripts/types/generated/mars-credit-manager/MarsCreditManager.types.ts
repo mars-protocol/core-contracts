@@ -5,6 +5,7 @@
  * and run the @cosmwasm/ts-codegen generate command to regenerate this file.
  */
 
+export type DaoStakingBaseForString = string
 export type SwapperBaseForString = string
 export type Decimal = string
 export type HealthContractBaseForString = string
@@ -15,7 +16,7 @@ export type ParamsBaseForString = string
 export type RedBankUnchecked = string
 export type ZapperBaseForString = string
 export interface InstantiateMsg {
-  dao_staking_address: string
+  dao_staking_address: DaoStakingBaseForString
   duality_swapper: SwapperBaseForString
   fee_tier_config: FeeTierConfig
   health_contract: HealthContractBaseForString
@@ -629,7 +630,7 @@ export interface OsmoSwap {
 }
 export interface ConfigUpdates {
   account_nft?: AccountNftBaseForString | null
-  dao_staking_address?: string | null
+  dao_staking_address?: DaoStakingBaseForString | null
   duality_swapper?: SwapperBaseForString | null
   fee_tier_config?: FeeTierConfig | null
   health_contract?: HealthContractBaseForString | null
