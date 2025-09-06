@@ -43,6 +43,7 @@ export type ExecuteMsg =
       execute_order: {
         account_id: string
         denom: string
+        discount_pct?: Decimal | null
         reduce_only?: boolean | null
         size: Int128
       }
@@ -51,6 +52,7 @@ export type ExecuteMsg =
       close_all_positions: {
         account_id: string
         action?: ActionKind | null
+        discount_pct?: Decimal | null
       }
     }
   | {
@@ -185,6 +187,7 @@ export type QueryMsg =
   | {
       opening_fee: {
         denom: string
+        discount_pct?: Decimal | null
         size: Int128
       }
     }

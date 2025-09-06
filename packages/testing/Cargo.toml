@@ -44,6 +44,7 @@ mars-mock-oracle               = { workspace = true }
 mars-mock-pyth                 = { workspace = true }
 mars-mock-red-bank             = { workspace = true }
 mars-mock-vault                = { workspace = true }
+mars-mock-dao-staking          = { workspace = true }
 mars-oracle-osmosis            = { workspace = true }
 mars-oracle-wasm               = { workspace = true }
 mars-owner                     = { workspace = true }

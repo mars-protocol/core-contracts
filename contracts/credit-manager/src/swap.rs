@@ -1,4 +1,4 @@
-use cosmwasm_std::{Coin, DepsMut, Env, Response, Uint128};
+use cosmwasm_std::{Coin, Decimal, DepsMut, Env, Response, Uint128};
 use mars_types::{
     credit_manager::{ActionAmount, ActionCoin, ChangeExpected},
     swapper::SwapperRoute,
@@ -6,6 +6,7 @@ use mars_types::{
 
 use crate::{
     error::{ContractError, ContractResult},
+    staking::get_account_tier_and_discount,
     state::{COIN_BALANCES, DUALITY_SWAPPER, REWARDS_COLLECTOR, SWAPPER, SWAP_FEE},
     utils::{
         assert_withdraw_enabled, decrement_coin_balance, increment_coin_balance, update_balance_msg,
@@ -40,9 +41,14 @@ pub fn swap_exact_in(
 
     decrement_coin_balance(deps.storage, account_id, &coin_in_to_trade)?;
 
-    // Deduct the swap fee
-    let swap_fee = SWAP_FEE.load(deps.storage)?;
-    let swap_fee_amount = coin_in_to_trade.amount.checked_mul_floor(swap_fee)?;
+    // Get staking tier discount for this account
+    let (tier, discount_pct, voting_power) =
+        get_account_tier_and_discount(deps.as_ref(), account_id)?;
+
+    // Apply discount to swap fee
+    let base_swap_fee = SWAP_FEE.load(deps.storage)?;
+    let effective_swap_fee = base_swap_fee * (Decimal::one() - discount_pct);
+    let swap_fee_amount = coin_in_to_trade.amount.checked_mul_floor(effective_swap_fee)?;
     coin_in_to_trade.amount = coin_in_to_trade.amount.checked_sub(swap_fee_amount)?;
 
     // Send to Rewards collector
@@ -74,5 +80,10 @@ pub fn swap_exact_in(
         .add_attribute("action", "swapper")
         .add_attribute("account_id", account_id)
         .add_attribute("coin_in", coin_in_to_trade.to_string())
-        .add_attribute("denom_out", denom_out))
+        .add_attribute("denom_out", denom_out)
+        .add_attribute("voting_power", voting_power.to_string())
+        .add_attribute("tier_id", tier.id)
+        .add_attribute("discount_pct", discount_pct.to_string())
+        .add_attribute("base_swap_fee", base_swap_fee.to_string())
+        .add_attribute("effective_swap_fee", effective_swap_fee.to_string()))
 }
