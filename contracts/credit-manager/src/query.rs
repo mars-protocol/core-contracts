@@ -7,9 +7,9 @@ use cw_storage_plus::Bound;
 use mars_types::{
     adapters::vault::{Vault, VaultBase, VaultPosition, VaultPositionValue, VaultUnchecked},
     credit_manager::{
-        Account, CoinBalanceResponseItem, ConfigResponse, DebtAmount, DebtShares, Positions,
-        SharesResponseItem, TriggerOrderResponse, VaultBinding, VaultPositionResponseItem,
-        VaultUtilizationResponse,
+        Account, AccountTierAndDiscountResponse, CoinBalanceResponseItem, ConfigResponse,
+        DebtAmount, DebtShares, MarketType, Positions, SharesResponseItem, TradingFeeResponse,
+        TriggerOrderResponse, VaultBinding, VaultPositionResponseItem, VaultUtilizationResponse,
     },
     health::AccountKind,
     oracle::ActionKind,
@@ -17,6 +17,7 @@ use mars_types::{
 
 use crate::{
     error::ContractResult,
+    staking::get_account_tier_and_discount,
     state::{
         ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, DEBT_SHARES, HEALTH_CONTRACT, INCENTIVES,
         KEEPER_FEE_CONFIG, MAX_SLIPPAGE, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS,
@@ -352,12 +353,12 @@ pub fn query_vault_bindings(
 pub fn query_account_tier_and_discount(
     deps: Deps,
     account_id: &str,
-) -> ContractResult<mars_types::credit_manager::AccountTierAndDiscountResponse> {
+) -> ContractResult<AccountTierAndDiscountResponse> {
     use crate::staking::get_account_tier_and_discount;
 
     let (tier, discount_pct, voting_power) = get_account_tier_and_discount(deps, account_id)?;
 
-    Ok(mars_types::credit_manager::AccountTierAndDiscountResponse {
+    Ok(AccountTierAndDiscountResponse {
         tier_id: tier.id,
         discount_pct,
         voting_power,
@@ -367,26 +368,24 @@ pub fn query_account_tier_and_discount(
 pub fn query_trading_fee(
     deps: Deps,
     account_id: &str,
-    market_type: &mars_types::credit_manager::MarketType,
-) -> ContractResult<mars_types::credit_manager::TradingFeeResponse> {
-    use crate::staking::get_account_tier_and_discount;
-
+    market_type: &MarketType,
+) -> ContractResult<TradingFeeResponse> {
     let (tier, discount_pct, _) = get_account_tier_and_discount(deps, account_id)?;
 
     match market_type {
-        mars_types::credit_manager::MarketType::Spot => {
+        MarketType::Spot => {
             let base_fee_pct = SWAP_FEE.load(deps.storage)?;
             let effective_fee_pct =
                 base_fee_pct.checked_mul(cosmwasm_std::Decimal::one() - discount_pct)?;
 
-            Ok(mars_types::credit_manager::TradingFeeResponse {
+            Ok(TradingFeeResponse {
                 base_fee_pct,
                 discount_pct,
                 effective_fee_pct,
                 tier_id: tier.id,
             })
         }
-        mars_types::credit_manager::MarketType::Perp {
+        MarketType::Perp {
             denom,
         } => {
             let params = PARAMS.load(deps.storage)?;
@@ -396,7 +395,7 @@ pub fn query_trading_fee(
             let effective_fee_pct =
                 base_fee_pct.checked_mul(cosmwasm_std::Decimal::one() - discount_pct)?;
 
-            Ok(mars_types::credit_manager::TradingFeeResponse {
+            Ok(TradingFeeResponse {
                 base_fee_pct,
                 discount_pct,
                 effective_fee_pct,

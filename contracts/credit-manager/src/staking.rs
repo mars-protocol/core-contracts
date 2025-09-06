@@ -48,7 +48,7 @@ impl StakingTierManager {
                 result = mid;
                 // Look for higher tiers (lower indices) but don't go below 0
                 if mid == 0 {
-                    break; // We found the highest tier
+                    break;
                 }
                 right = mid - 1;
             } else {
@@ -66,7 +66,6 @@ impl StakingTierManager {
             return Err(StdError::generic_err("Fee tier config cannot be empty"));
         }
 
-        // Parse first tier once
         let mut prev_power = Uint128::from_str(&self.config.tiers[0].min_voting_power)
             .map_err(|_| StdError::generic_err("Invalid min_voting_power in tier"))?;
 

@@ -9,37 +9,37 @@ fn create_test_fee_tier_config() -> FeeTierConfig {
         tiers: vec![
             FeeTier {
                 id: "tier_8".to_string(),
-                min_voting_power: "1500000000000".to_string(), // 1,500,000 MARS = 1,500,000,000,000 uMARS
+                min_voting_power: "1500000000000".to_string(), // 1,500,000 MARS
                 discount_pct: Decimal::percent(80),
             },
             FeeTier {
                 id: "tier_7".to_string(),
-                min_voting_power: "1000000000000".to_string(), // 1,000,000 MARS = 1,000,000,000,000 uMARS
+                min_voting_power: "1000000000000".to_string(), // 1,000,000 MARS
                 discount_pct: Decimal::percent(70),
             },
             FeeTier {
                 id: "tier_6".to_string(),
-                min_voting_power: "500000000000".to_string(), // 500,000 MARS = 500,000,000,000 uMARS
+                min_voting_power: "500000000000".to_string(), // 500,000 MARS
                 discount_pct: Decimal::percent(60),
             },
             FeeTier {
                 id: "tier_5".to_string(),
-                min_voting_power: "250000000000".to_string(), // 250,000 MARS = 250,000,000,000 uMARS
+                min_voting_power: "250000000000".to_string(), // 250,000 MARS
                 discount_pct: Decimal::percent(45),
             },
             FeeTier {
                 id: "tier_4".to_string(),
-                min_voting_power: "100000000000".to_string(), // 100,000 MARS = 100,000,000,000 uMARS
+                min_voting_power: "100000000000".to_string(), // 100,000 MARS
                 discount_pct: Decimal::percent(30),
             },
             FeeTier {
                 id: "tier_3".to_string(),
-                min_voting_power: "50000000000".to_string(), // 50,000 MARS = 50,000,000,000 uMARS
+                min_voting_power: "50000000000".to_string(), // 50,000 MARS
                 discount_pct: Decimal::percent(20),
             },
             FeeTier {
                 id: "tier_2".to_string(),
-                min_voting_power: "10000000000".to_string(), // 10,000 MARS = 10,000,000,000 uMARS
+                min_voting_power: "10000000000".to_string(), // 10,000 MARS
                 discount_pct: Decimal::percent(10),
             },
             FeeTier {
