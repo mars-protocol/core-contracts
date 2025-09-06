@@ -3,7 +3,7 @@ use cw2::{assert_contract_version, set_contract_version};
 use mars_rewards_collector_base::ContractError;
 use mars_types::rewards_collector::{Config, RewardConfig, TransferType};
 
-use crate::entry::{NeutronCollector, CONTRACT_NAME, CONTRACT_VERSION};
+use crate::entry::{NeutronCollector, CONTRACT_NAME};
 
 pub mod previous_state {
     use cosmwasm_schema::cw_serde;
@@ -41,7 +41,9 @@ pub mod previous_state {
 }
 
 const FROM_VERSION: &str = "2.2.0";
-
+// We use a hardcoded version of the contract version here
+// in order to preserve the original test
+const CONTRACT_VERSION: &str = "2.2.2";
 pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
     let storage: &mut dyn Storage = deps.storage;
     let collector = NeutronCollector::default();
