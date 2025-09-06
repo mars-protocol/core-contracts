@@ -24,7 +24,6 @@ mod previous_state {
         pub fee_collector_config: RewardConfig,
         pub channel_id: String,
         pub timeout_seconds: u64,
-        pub whitelisted_distributors: Vec<Addr>,
     }
 
     pub const CONFIG: Item<Config> = Item::new("config");
@@ -53,7 +52,6 @@ fn test_successful_migration() {
         },
         channel_id: "channel-1".to_string(),
         timeout_seconds: 60,
-        whitelisted_distributors: vec![Addr::unchecked("distributor")],
     };
 
     previous_state::CONFIG.save(&mut deps.storage, &old_config).unwrap();
@@ -85,7 +83,7 @@ fn test_successful_migration() {
     assert_eq!(config_response.fee_collector_config, old_config.fee_collector_config);
     assert_eq!(config_response.channel_id, old_config.channel_id);
     assert_eq!(config_response.timeout_seconds, old_config.timeout_seconds);
-    assert_eq!(config_response.whitelisted_distributors, vec!["distributor".to_string()]);
+    assert!(config_response.whitelisted_distributors.is_empty());
 
     // After migration, check that the contract version is updated
     let version = cw2::get_contract_version(&deps.storage).unwrap();
