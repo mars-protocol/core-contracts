@@ -22,7 +22,6 @@ mod previous_state {
         pub fee_collector_config: RewardConfig,
         pub channel_id: String,
         pub timeout_seconds: u64,
-        pub whitelisted_distributors: Vec<Addr>,
     }
 
     pub const CONFIG: Item<Config> = Item::new("config");
@@ -47,7 +46,7 @@ pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
         fee_collector_config: old_config.fee_collector_config,
         channel_id: old_config.channel_id,
         timeout_seconds: old_config.timeout_seconds,
-        whitelisted_distributors: old_config.whitelisted_distributors,
+        whitelisted_distributors: vec![],
     };
 
     new_config.validate()?;
