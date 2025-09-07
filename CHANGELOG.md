@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.3.1-perps
+
+### Added
+- **Spot Trading Fees**:
+  - A swap fee is now collected on spot trades within the Credit Manager's existing `SwapExactIn` action.
+  - The collected fees are transferred to the Rewards Collector for distribution.
+
+### Changed
+- **Rewards Collector State Migration**:
+  - Removed `slippage_tolerance` from the contract's configuration state.
+  - The migration now initializes `whitelisted_distributors` as an empty list, ensuring a clean state for the distributor whitelist upon upgrade.
+
+---
+
 ## v2.3.0-perps
 
 ### Added
