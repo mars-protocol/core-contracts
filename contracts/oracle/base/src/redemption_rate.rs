@@ -14,12 +14,6 @@ pub struct RedemptionRate<T> {
     pub max_staleness: u64,
 }
 
-#[cw_serde]
-pub struct NeutronRedemptionRate<T> {
-    /// Contract addr
-    pub contract_addr: T,
-}
-
 /// How much base_denom we get for 1 denom
 ///
 /// Example:
