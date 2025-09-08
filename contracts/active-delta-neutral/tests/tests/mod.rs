@@ -7,3 +7,4 @@ mod test_market_config;
 mod test_order_creation;
 mod test_position_modification;
 mod test_withdraw;
+mod test_order_validation;

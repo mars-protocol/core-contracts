@@ -125,7 +125,7 @@ mars-delta-neutral-position  = { path = "./packages/delta-neutral-position" }
 mars-account-nft               = { path = "./contracts/account-nft" }
 mars-address-provider          = { path = "./contracts/address-provider" }
 mars-credit-manager            = { path = "./contracts/credit-manager" }
-mars-active-delta-neutral     = { path = "./contracts/active-delta-neutral" }
+mars-active-delta-neutral      = { path = "./contracts/active-delta-neutral" }
 mars-incentives                = { path = "./contracts/incentives" }
 mars-mock-pyth                 = { path = "./contracts/mock-pyth" }
 mars-oracle-base               = { path = "./contracts/oracle/base" }

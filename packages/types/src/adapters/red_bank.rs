@@ -4,7 +4,7 @@ use cosmwasm_std::{
     WasmMsg, WasmQuery,
 };
 
-use crate::red_bank;
+use crate::red_bank::{self, MarketV2Response};
 
 #[cw_serde]
 pub struct RedBankUnchecked(String);
@@ -170,5 +170,16 @@ impl RedBank {
                 })?,
             }))?;
         Ok(response.amount)
+    }
+
+    pub fn query_market(&self, querier: &QuerierWrapper, denom: &str) -> StdResult<MarketV2Response> {
+        let response: red_bank::MarketV2Response =
+            querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+                contract_addr: self.addr.to_string(),
+                msg: to_json_binary(&red_bank::QueryMsg::MarketV2 {
+                    denom: denom.to_string(),
+                })?,
+            }))?;
+        Ok(response)
     }
 }

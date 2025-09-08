@@ -1,10 +1,7 @@
 use cosmwasm_std::Uint128;
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use cosmwasm_schema::cw_serde;use crate::{active_delta_neutral::query::MarketConfig, swapper::SwapperRoute};
 
-use crate::{active_delta_neutral::query::MarketConfig, swapper::SwapperRoute};
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[cw_serde]
 pub enum ExecuteMsg {
     Buy {
         amount: Uint128,

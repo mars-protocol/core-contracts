@@ -2656,7 +2656,7 @@ dependencies = [
 
 [[package]]
 name = "mars-active-delta-neutral"
-version = "2.2.0"
+version = "2.3.2"
 dependencies = [
  "cosmwasm-schema 1.5.7",
  "cosmwasm-std 1.5.7",

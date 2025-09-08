@@ -32,7 +32,6 @@ pub fn instantiate(
         MarsAddressType::CreditManager,
         MarsAddressType::Oracle,
         MarsAddressType::Perps,
-        MarsAddressType::Health,
         MarsAddressType::RedBank,
         MarsAddressType::Params,
     ];
@@ -45,7 +44,6 @@ pub fn instantiate(
     let cm_addr = &addresses[&MarsAddressType::CreditManager];
     let oracle_addr = &addresses[&MarsAddressType::Oracle];
     let perps_addr = &addresses[&MarsAddressType::Perps];
-    let health_addr = &addresses[&MarsAddressType::Health];
     let red_bank_addr = &addresses[&MarsAddressType::RedBank];
     let params_addr = &addresses[&MarsAddressType::Params];
 
@@ -56,7 +54,6 @@ pub fn instantiate(
         credit_manager_addr: cm_addr.clone(),
         oracle_addr: oracle_addr.clone(),
         perps_addr: perps_addr.clone(),
-        health_addr: health_addr.clone(),
         red_bank_addr: red_bank_addr.clone(),
         params_addr: params_addr.clone(),
         base_denom,

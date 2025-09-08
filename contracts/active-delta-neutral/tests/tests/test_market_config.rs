@@ -1,7 +1,7 @@
 use cosmwasm_std::Addr;
 use cw_paginate::PaginationResponse;
 use mars_testing::multitest::helpers::MockEnv;
-use mars_types::active_delta_neutral::query::MarketConfig;
+use mars_types::active_delta_neutral::{order_validation::DynamicValidator, query::MarketConfig};
 
 use crate::tests::helpers::delta_neutral_helpers::{
     add_active_delta_neutral_market, deploy_active_delta_neutral_contract,
@@ -21,7 +21,7 @@ fn test_query_market_config() {
         spot_denom: "ibc/0000000000000000000000000000000000000000000000000000000000000000"
             .to_string(),
         perp_denom: "perps/ubtc".to_string(),
-        k: 300u64,
+        validation_model: DynamicValidator { k: 300 },
     };
     let active_delta_neutral = deploy_active_delta_neutral_contract(
         &mut mock,
@@ -83,7 +83,7 @@ fn valid_config() -> MarketConfig {
         spot_denom: "ibc/0000000000000000000000000000000000000000000000000000000000000000"
             .to_string(),
         perp_denom: "perps/ubtc".to_string(),
-        k: 1,
+        validation_model: DynamicValidator { k: 1 },
     }
 }
 
@@ -118,6 +118,6 @@ fn perp_denom_not_perps_prefix_fails() {
 #[test]
 fn k_zero_fails() {
     let mut config = valid_config();
-    config.k = 0;
+    config.validation_model.k = 0;
     assert!(config.validate().is_err());
 }

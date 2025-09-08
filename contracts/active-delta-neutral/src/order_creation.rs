@@ -46,7 +46,7 @@ pub fn build_trade_actions(
             denom: asset_in_denom.to_string(),
         },
         denom_out: asset_out_denom.to_string(),
-        min_receive: Uint128::zero(),
+        min_receive: Uint128::new(100), // todo
         route: Some(swapper_route.clone()),
     });
     actions

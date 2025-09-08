@@ -16,6 +16,5 @@ fn test_config_is_created_on_instantiate() {
     assert_eq!(config.credit_manager_addr, "contract11");
     assert_eq!(config.oracle_addr, "contract4");
     assert_eq!(config.perps_addr, "contract13");
-    assert_eq!(config.health_addr, "contract7");
     assert_eq!(config.red_bank_addr, "contract0");
 }

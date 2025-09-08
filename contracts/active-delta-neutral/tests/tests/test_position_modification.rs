@@ -4,7 +4,7 @@ use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use mars_mock_oracle::msg::CoinPrice;
 use mars_testing::multitest::helpers::{coin_info, uusdc_info, MockEnv};
 use mars_types::{
-    active_delta_neutral::query::{MarketConfig, QueryMsg},
+    active_delta_neutral::{order_validation::DynamicValidator, query::MarketConfig},
     oracle::ActionKind,
     params::{PerpParams, PerpParamsUpdate},
     swapper::{DualityRoute, SwapperRoute},
@@ -80,11 +80,11 @@ fn test_position_modification() {
     add_active_delta_neutral_market(
         &owner,
         MarketConfig {
-            market_id: "btc".to_string(),
+            market_id: "btc-1".to_string(),
             usdc_denom: usdc_denom.to_string(),
             spot_denom: spot_denom.to_string(),
             perp_denom: perp_denom.to_string(),
-            k: 1000,
+            validation_model: DynamicValidator { k: 1000 },
         },
         &mut mock,
         &active_delta_neutral,
@@ -100,11 +100,11 @@ fn test_position_modification() {
 
     assert!(deposit_res.is_ok());
 
-    let positions = query_contract_credit_manager_positions(&mock, &active_delta_neutral);
+    let _positions = query_contract_credit_manager_positions(&mock, &active_delta_neutral);
 
     let res = buy_delta_neutral_market(
         &owner,
-        "btc",
+        "btc-1",
         Uint128::new(100_000_000),
         SwapperRoute::Duality(DualityRoute {
             from: usdc_denom.to_string(),
@@ -123,7 +123,7 @@ fn test_position_modification() {
                                                                 // Now decrease by 50%
     let res = sell_delta_neutral_market(
         &owner,
-        "btc",
+        "btc-1",
         Uint128::new(50_000_000),
         SwapperRoute::Duality(DualityRoute {
             from: spot_denom.to_string(),

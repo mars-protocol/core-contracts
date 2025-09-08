@@ -11,7 +11,7 @@ use mars_types::{
         execute::ExecuteMsg,
         query::{Config, MarketConfig},
     },
-    adapters::{credit_manager::CreditManager, oracle::Oracle, params::Params, perps::Perps},
+    adapters::{credit_manager::CreditManager, oracle::Oracle, params::Params, perps::Perps, red_bank::RedBank},
     credit_manager::{self, Action, ActionAmount, ActionCoin},
     oracle::ActionKind,
     swapper::SwapperRoute,
@@ -24,9 +24,7 @@ use crate::{
         self, assert_deposit_funds_valid, assert_no_funds, combined_balance, PositionDeltas,
     },
     order_creation::build_trade_actions,
-    order_validation::{self, DynamicValidator},
     state::{CONFIG, OWNER, POSITION},
-    traits::Validator,
 };
 /// # Execute Increase Position
 ///
@@ -51,10 +49,12 @@ use crate::{
 pub fn buy(
     deps: DepsMut,
     env: Env,
+    info: MessageInfo,
     market_id: &str,
     amount: Uint128,
     swapper_route: &SwapperRoute,
 ) -> Result<Response, ContractError> {
+    assert_no_funds(&info.funds)?;
     let config: Config = CONFIG.load(deps.storage)?;
     let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, market_id)?;
     let credit_account_id =
@@ -125,11 +125,12 @@ pub fn buy(
 pub fn sell(
     deps: DepsMut,
     env: Env,
-    _info: MessageInfo,
+    info: MessageInfo,
     amount: Uint128,
     market_id: &str,
     swapper_route: &SwapperRoute,
 ) -> Result<Response, ContractError> {
+    assert_no_funds(&info.funds)?;
     let config: Config = CONFIG.load(deps.storage)?;
     let market_config: MarketConfig = MARKET_CONFIG.load(deps.storage, market_id)?;
     let credit_account_id =
@@ -163,7 +164,7 @@ pub fn sell(
         contract_addr: env.contract.address.to_string(),
         msg: to_json_binary(&ExecuteMsg::Hedge {
             swap_exact_in_amount: amount,
-            market_id: market_config.spot_denom.clone(),
+            market_id: market_config.market_id.clone(),
             increasing: false,
         })?,
         funds: vec![],
@@ -210,6 +211,8 @@ pub fn hedge(
     market_id: &str,
     increasing: bool,
 ) -> ContractResult<Response> {
+    assert_no_funds(&info.funds)?;
+
     // Internal method only
     if info.sender != env.contract.address {
         return Err(ContractError::Unauthorized {});
@@ -228,10 +231,13 @@ pub fn hedge(
     let params = Params::new(config.params_addr.clone());
     let perps = Perps::new(config.perps_addr.clone());
     let oracle = Oracle::new(config.oracle_addr.clone());
+    let redbank = RedBank::new(config.red_bank_addr.clone(), credit_manager.addr.clone());
 
     // Fresh state info
     let mars_positions = credit_manager.query_positions(&deps.querier, credit_account_id)?;
     let perps_market = perps.query_perp_market_state(&deps.querier, &market_config.perp_denom)?;
+    let spot_market = redbank.query_market(&deps.querier, &market_config.spot_denom)?;
+    let usdc_market = redbank.query_market(&deps.querier, &market_config.usdc_denom)?;
 
     let PositionDeltas {
         funding_delta,
@@ -291,11 +297,20 @@ pub fn hedge(
                 )?, // todo add fees
                 env.block.time.nanos(),
                 funding_delta,
-                // TODO tidy
                 Int128::try_from(borrow_delta)?,
             )
         }
     }?;
+
+    // TODO calculate net spot yield
+    market_config.validation_model.validate_order_execution(
+        perps_market.current_funding_rate,
+        net_spot_yield,
+        spot_execution_price,
+        perp_execution_price,
+        perp_trading_fee_rate,
+        direction,
+    )?;
 
     POSITION.save(deps.storage, market_id, &position_state)?;
 
@@ -318,7 +333,12 @@ pub fn hedge(
         .add_attribute("borrow_delta", borrow_delta.to_string()))
 }
 
-pub fn add_market(deps: DepsMut, market_config: MarketConfig) -> ContractResult<Response> {
+pub fn add_market(
+    deps: DepsMut,
+    info: MessageInfo,
+    market_config: MarketConfig,
+) -> ContractResult<Response> {
+    assert_no_funds(&info.funds)?;
     market_config.validate()?;
     MARKET_CONFIG.save(deps.storage, &market_config.market_id, &market_config)?;
     Ok(Response::new().add_attribute("action", "add_market"))

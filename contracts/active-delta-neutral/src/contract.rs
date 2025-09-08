@@ -1,5 +1,5 @@
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response,
 };
 use mars_types::active_delta_neutral::{
     execute::ExecuteMsg, instantiate::InstantiateMsg, query::QueryMsg,
@@ -7,7 +7,9 @@ use mars_types::active_delta_neutral::{
 
 use crate::{
     error::ContractResult,
-    execute, instantiate,
+    execute,
+    instantiate,
+    migrate,
     query::{query_all_market_configs, query_config, query_market_config},
     reply,
 };
@@ -40,7 +42,7 @@ pub fn execute(
             amount,
             market_id,
             swapper_route,
-        } => execute::buy(deps, env, &market_id, amount, &swapper_route),
+        } => execute::buy(deps, env, info, &market_id, amount, &swapper_route),
         ExecuteMsg::Sell {
             amount,
             market_id,
@@ -48,7 +50,7 @@ pub fn execute(
         } => execute::sell(deps, env, info, amount, &market_id, &swapper_route),
         ExecuteMsg::AddMarket {
             config,
-        } => execute::add_market(deps, config),
+        } => execute::add_market(deps, info, config),
         ExecuteMsg::Deposit {} => execute::deposit(deps, info),
         ExecuteMsg::Withdraw {
             amount,
@@ -92,4 +94,9 @@ pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         } => to_json_binary(&query_all_market_configs(deps, start_after, limit)?),
     };
     res.map_err(Into::into)
+}
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn migrate(deps: DepsMut, env: Env, _msg: Empty) -> ContractResult<Response> {
+    migrate::migrate(deps, env, _msg)
 }

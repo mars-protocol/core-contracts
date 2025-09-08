@@ -10,7 +10,7 @@ use mars_active_delta_neutral::{
 };
 use mars_owner::OwnerInit;
 use mars_testing::multitest::helpers::{AccountToFund, MockEnv};
-use mars_types::active_delta_neutral::query::{Config, MarketConfig};
+use mars_types::active_delta_neutral::{order_validation::DynamicValidator, query::{Config, MarketConfig}};
 use test_case::test_case;
 
 use crate::tests::helpers::delta_neutral_helpers::{
@@ -31,7 +31,6 @@ fn setup_config(
         credit_account_id,
         oracle_addr: Addr::unchecked("oracle"),
         perps_addr: Addr::unchecked("perps"),
-        health_addr: Addr::unchecked("health"),
         red_bank_addr: Addr::unchecked("red_bank"),
         params_addr: Addr::unchecked("params"),
     };
@@ -145,16 +144,16 @@ fn test_deposit_multitest(
     // Add a market
     let market_config = MarketConfig {
         market_id: "market_1".to_string(),
-        usdc_denom: "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81"
+        usdc_denom: "uusdc"
             .to_string(),
-        spot_denom: "ibc/0000000000000000000000000000000000000000000000000000000000000000"
+        spot_denom: "uusdc"
             .to_string(),
         perp_denom: "perps/ubtc".to_string(),
-        k: 300u64,
+        validation_model: DynamicValidator { k: 300 },
     };
     let active_delta_neutral = deploy_active_delta_neutral_contract(
         &mut mock,
-        "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81",
+        "uusdc",
     );
     let res = add_active_delta_neutral_market(
         &owner,

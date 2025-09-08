@@ -10,7 +10,7 @@ use mars_active_delta_neutral::{
 };
 use mars_owner::OwnerInit;
 use mars_testing::multitest::helpers::{AccountToFund, MockEnv};
-use mars_types::active_delta_neutral::query::{Config, MarketConfig};
+use mars_types::active_delta_neutral::{order_validation::DynamicValidator, query::{Config, MarketConfig}};
 use test_case::test_case;
 
 use crate::tests::helpers::delta_neutral_helpers::{
@@ -32,7 +32,6 @@ fn setup_config(
         credit_account_id,
         oracle_addr: Addr::unchecked("oracle"),
         perps_addr: Addr::unchecked("perps"),
-        health_addr: Addr::unchecked("health"),
         red_bank_addr: Addr::unchecked("red_bank"),
         params_addr: Addr::unchecked("params"),
     };
@@ -137,7 +136,7 @@ fn test_withdraw_multitest(
         spot_denom: "ibc/0000000000000000000000000000000000000000000000000000000000000000"
             .to_string(),
         perp_denom: "perps/ubtc".to_string(),
-        k: 300u64,
+        validation_model: DynamicValidator { k: 300 },
     };
     let active_delta_neutral = deploy_active_delta_neutral_contract(&mut mock, uusdc_denom);
     let res = add_active_delta_neutral_market(

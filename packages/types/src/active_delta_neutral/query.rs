@@ -2,8 +2,11 @@ use cosmwasm_schema::{cw_serde, QueryResponses};
 use cosmwasm_std::Addr;
 use mars_utils::{
     error::ValidationError,
-    helpers::{integer_param_gt_zero, validate_native_denom},
+    helpers::validate_native_denom,
 };
+
+use crate::active_delta_neutral::order_validation::DynamicValidator;
+
 /// Configuration for the Active Delta Neutral contract.
 ///
 /// This struct contains the addresses and identifiers for all major dependencies
@@ -19,8 +22,6 @@ pub struct Config {
     pub oracle_addr: Addr,
     /// Address of the Perps contract.
     pub perps_addr: Addr,
-    /// Address of the Health contract for risk checks.
-    pub health_addr: Addr,
     /// Address of the Red Bank contract.
     pub red_bank_addr: Addr,
     /// Address of the Params contract.
@@ -69,7 +70,7 @@ pub struct MarketConfig {
     /// Denomination of the perps asset for this market (must start with "perps/").
     pub perp_denom: String,
     /// Market parameter controlling the  sensitivity of the model (must be > 0).
-    pub k: u64,
+    pub validation_model: DynamicValidator,
 }
 
 impl MarketConfig {
@@ -80,26 +81,26 @@ impl MarketConfig {
     /// * `usdc_denom` - Denomination of the USDC token.
     /// * `spot_denom` - Denomination of the spot asset.
     /// * `perp_denom` - Denomination of the perps asset (must start with "perps/").
-    /// * `k` - model sensitivity controller (must be > 0).
+    /// * `validation_model` - model that controls entry validation.
     pub fn new(
         market_id: String,
         usdc_denom: String,
         spot_denom: String,
         perp_denom: String,
-        k: u64,
+        validation_model: DynamicValidator,
     ) -> Self {
         Self {
             market_id,
             usdc_denom,
             spot_denom,
             perp_denom,
-            k,
+            validation_model,
         }
     }
 
     /// Validates the market configuration.
     ///
-    /// Ensures all denom fields are valid and `k` is greater than zero.
+    /// Ensures all denom fields are valid and validation model is valid.
     /// Returns a `ValidationError` if any field is invalid.
     pub fn validate(&self) -> Result<(), ValidationError> {
         validate_native_denom(&self.usdc_denom)?;
@@ -111,8 +112,7 @@ impl MarketConfig {
             });
         }
 
-        integer_param_gt_zero(self.k, "k")?;
-
+        self.validation_model.validate()?;
         Ok(())
     }
 }

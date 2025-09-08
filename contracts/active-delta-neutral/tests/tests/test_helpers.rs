@@ -2,7 +2,7 @@ use cosmwasm_std::{Coin, Int128, Uint128};
 use mars_active_delta_neutral::helpers::calculate_deltas;
 use mars_delta_neutral_position::types::Position;
 use mars_types::{
-    active_delta_neutral::query::MarketConfig,
+    active_delta_neutral::{order_validation::DynamicValidator, query::MarketConfig},
     credit_manager::{DebtAmount, Positions},
     health::AccountKind,
 };
@@ -30,7 +30,7 @@ fn test_calculate_deltas_basic() {
         spot_denom: "ATOM".to_string(),
         usdc_denom: "USDC".to_string(),
         perp_denom: "perps/ATOM".to_string(),
-        k: 100,
+        validation_model: DynamicValidator { k: 100 },
         market_id: "atom".to_string(),
     };
     let position_state = Position::default();
@@ -59,7 +59,7 @@ fn test_calculate_deltas_missing_debt() {
         spot_denom: "ATOM".to_string(),
         usdc_denom: "USDC".to_string(),
         perp_denom: "perps/ATOM".to_string(),
-        k: 100,
+        validation_model: DynamicValidator { k: 100 },
         market_id: "atom".to_string(),
     };
     let position_state = Position::default();
@@ -85,7 +85,7 @@ fn test_calculate_deltas_empty_positions() {
         spot_denom: "ATOM".to_string(),
         usdc_denom: "USDC".to_string(),
         perp_denom: "perps/ATOM".to_string(),
-        k: 100,
+        validation_model: DynamicValidator { k: 100 },
         market_id: "atom".to_string(),
     };
     let position_state = Position::default();

@@ -1,8 +1,10 @@
 mod common;
 
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 use cosmwasm_std::{Decimal, Int128, Uint128};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 /// Position type that holds all relevant data for a delta-neutral position
 ///
@@ -53,6 +55,34 @@ impl Default for Position {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub enum Direction {
+    /// Long position - buying the asset
+    Long,
+
+    /// Short position - selling the asset
+    Short,
+}
+
+impl Direction {
+    pub fn sign(&self) -> Int128 {
+        match self {
+            Direction::Long => Int128::from_str("1").unwrap(),
+            Direction::Short => Int128::from_str("-1").unwrap(),
+        }
+    }
+}
+
+impl fmt::Display for Direction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Direction::Long => write!(f, "Long"),
+            Direction::Short => write!(f, "Short"),
+        }
+    }
+}
+
 
 /// Result of a position decrease operation
 ///
