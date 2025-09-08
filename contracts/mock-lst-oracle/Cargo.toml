@@ -1,6 +1,6 @@
 [package]
 name          = "mars-mock-lst-oracle"
-description   = "Mocked version of an LST oracle contract"
+description   = "Mocked version of a slinky lst oracle contract"
 version       = { workspace = true }
 authors       = { workspace = true }
 license       = { workspace = true }

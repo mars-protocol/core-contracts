@@ -188,50 +188,50 @@ impl fmt::Display for WasmPriceSourceChecked {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let label = match self {
             WasmPriceSource::Fixed {
-                        price,
-                    } => format!("fixed:{price}"),
+                price,
+            } => format!("fixed:{price}"),
             WasmPriceSource::AstroportSpot {
-                        pair_address,
-                    } => {
-                        format!("astroport_spot:{pair_address}.")
-                    }
+                pair_address,
+            } => {
+                format!("astroport_spot:{pair_address}.")
+            }
             WasmPriceSource::AstroportTwap {
-                        pair_address,
-                        window_size,
-                        tolerance,
-                    } => {
-                        format!(
-                            "astroport_twap:{pair_address}. Window Size: {window_size}. Tolerance: {tolerance}."
-                        )
-                    }
+                pair_address,
+                window_size,
+                tolerance,
+            } => {
+                format!(
+                    "astroport_twap:{pair_address}. Window Size: {window_size}. Tolerance: {tolerance}."
+                )
+            }
             WasmPriceSource::Pyth {
-                        contract_addr,
-                        price_feed_id,
-                        max_staleness,
-                        max_confidence,
-                        max_deviation,
-                        denom_decimals
-                    } => format!("pyth:{contract_addr}:{price_feed_id}:{max_staleness}:{max_confidence}:{max_deviation}:{denom_decimals}"),
+                contract_addr,
+                price_feed_id,
+                max_staleness,
+                max_confidence,
+                max_deviation,
+                denom_decimals
+            } => format!("pyth:{contract_addr}:{price_feed_id}:{max_staleness}:{max_confidence}:{max_deviation}:{denom_decimals}"),
             WasmPriceSource::Lsd { transitive_denom, twap, redemption_rate } => {
-                        let AstroportTwap {
-                            pair_address,
-                            window_size,
-                            tolerance,
-                        } = twap;
-                        let RedemptionRate {
-                            contract_addr,
-                            max_staleness,
-                        } = redemption_rate;
-                        format!("lsd:{transitive_denom}:{pair_address}:{window_size}:{tolerance}:{contract_addr}:{max_staleness}")
-                    },
+                let AstroportTwap {
+                    pair_address,
+                    window_size,
+                    tolerance,
+                } = twap;
+                let RedemptionRate {
+                    contract_addr,
+                    max_staleness,
+                } = redemption_rate;
+                format!("lsd:{transitive_denom}:{pair_address}:{window_size}:{tolerance}:{contract_addr}:{max_staleness}")
+            },
             WasmPriceSource::SlinkyLsd { transitive_denom, contract_addr } => format!("slinky_lsd:{transitive_denom}:{contract_addr}"),
             WasmPriceSource::XykLiquidityToken { pair_address } => format!("xyk_liquidity_token:{pair_address}"),
             WasmPriceSource::PclLiquidityToken { pair_address } => format!("pcl_liquidity_token:{pair_address}"),
             WasmPriceSource::PclDualityOrderbookLiquidityToken { pair_address } => format!("pcl_duality_orderbook_liquidity_token:{pair_address}"),
             WasmPriceSource::SsLiquidityToken { pair_address } => format!("stable_swap_liquidity_token:{pair_address}"),
             WasmPriceSource::Slinky { base_symbol, denom_decimals, max_blocks_old } => {
-                        format!("slinky:{base_symbol}:{denom_decimals}:{max_blocks_old}")
-                    },
+                format!("slinky:{base_symbol}:{denom_decimals}:{max_blocks_old}")
+            },
         };
         write!(f, "{label}")
     }
@@ -251,7 +251,7 @@ impl PriceSourceUnchecked<WasmPriceSourceChecked, Empty> for WasmPriceSourceUnch
             });
         }
 
-        // check if USD price source is correct
+        // Check if USD price source is correct
         if denom == USD_DENOM
             && !matches!(&self, &WasmPriceSource::Fixed { price } if is_one_followed_by_zeros(&price.to_string()))
         {
@@ -892,7 +892,7 @@ fn query_slinky_lsd_price(
 
     // We don't do any staleness checks here as slinky LST contract does not provide that.
 
-    // Get base price from oracle. If it does not exist, error
+    // Get base asset price from oracle. If it does not exist, error
     let price = price_sources.load(deps.storage, transitive_denom)?.query_price(
         deps,
         env,

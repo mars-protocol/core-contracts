@@ -497,6 +497,34 @@
             "additionalProperties": false
           },
           {
+            "description": "Slinky LSD price quoted in USD based on data from Pyth, Astroport and Redemption Rate provider.",
+            "type": "object",
+            "required": [
+              "slinky_lsd"
+            ],
+            "properties": {
+              "slinky_lsd": {
+                "type": "object",
+                "required": [
+                  "contract_addr",
+                  "transitive_denom"
+                ],
+                "properties": {
+                  "contract_addr": {
+                    "description": "Contract address of the oracle",
+                    "type": "string"
+                  },
+                  "transitive_denom": {
+                    "description": "Transitive denom for which we query price in USD. It refers to 'Asset' in the equation: stAsset/USD = stAsset/Asset * Asset/USD",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Astroport LP token (of an XYK pool) price quoted in uusd",
             "type": "object",
             "required": [

@@ -6,7 +6,7 @@ See the [slinky vault](https://github.com/neutron-org/slinky-vault/tree/main/con
 
 ## Purpose
 
-In a production environment, the Mars oracle relies on external LST oracles to fetch redemption rates for various liquid staked assets. To ensure robust and predictable testing without depending on external oracle deployments, this mock contract was created.
+In a production environment, the Mars oracle relies on external slinky LST oracle to fetch redemption rates for various liquid staked assets. To ensure robust and predictable testing without depending on external oracle deployments and their conflicting dependencies, this mock contract was created.
 
 It simulates the core behavior of an LST oracle by allowing test setups to instantiate it with a specific `redemption_rate` and `lst_asset_denom`. These values can also be updated during test execution, enabling a wide range of scenarios to be tested reliably.
 
