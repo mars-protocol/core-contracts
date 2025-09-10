@@ -278,7 +278,7 @@ export const osmosisTestnetConfig: DeploymentConfig = {
       target_denom: aUSDC,
       transfer_type: 'bank',
     },
-    slippageTolerance: '0.01',
+    whitelistedDistributors: [],
   },
   keeperFeeConfig: {
     min_fee: { amount: '1000000', denom: aUSDC },
@@ -308,4 +308,5 @@ export const osmosisTestnetConfig: DeploymentConfig = {
   oracleConfigs: [osmoOracle, atomOracle, USDCOracle, atomOsmoOracle, usdcOsmoOracle],
   maxPerpParams: 20,
   perpsLiquidationBonusRatio: '0.6',
+  swapFee: '0.0005',
 }

@@ -135,6 +135,7 @@ pub struct MockEnvBuilder {
     pub keeper_fee_config: Option<KeeperFeeConfig>,
     pub perps_liquidation_bonus_ratio: Option<Decimal>,
     pub perps_protocol_fee_ratio: Option<Decimal>,
+    pub swap_fee: Option<Decimal>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -168,6 +169,7 @@ impl MockEnv {
             keeper_fee_config: None,
             perps_liquidation_bonus_ratio: None,
             perps_protocol_fee_ratio: None,
+            swap_fee: None,
         }
     }
 
@@ -1355,13 +1357,13 @@ impl MockEnvBuilder {
         let max_unlocking_positions = self.get_max_unlocking_positions();
         let max_slippage = self.get_max_slippage();
         let perps_liquidation_bonus_ratio = self.get_perps_liquidation_ratio();
-
         let oracle = self.get_oracle().into();
         let duality_swapper = self.deploy_duality_swapper().into();
         let zapper = self.deploy_zapper(&oracle)?.into();
         let health_contract = self.get_health_contract().into();
         let params = self.get_params_contract().into();
         let keeper_fee_config = self.get_keeper_fee_config();
+        let swap_fee = self.get_swap_fee();
 
         self.deploy_rewards_collector();
         self.deploy_astroport_incentives();
@@ -1386,6 +1388,7 @@ impl MockEnvBuilder {
                     incentives,
                     keeper_fee_config,
                     perps_liquidation_bonus_ratio,
+                    swap_fee,
                 },
                 &[],
                 "mock-rover-contract",
@@ -1767,7 +1770,7 @@ impl MockEnvBuilder {
                     },
                     channel_id: "".to_string(),
                     timeout_seconds: 1,
-                    slippage_tolerance: Default::default(),
+                    whitelisted_distributors: vec![],
                 },
                 &[],
                 "mock-rewards-collector",
@@ -1928,6 +1931,10 @@ impl MockEnvBuilder {
         self.perps_protocol_fee_ratio.unwrap_or_else(|| Decimal::percent(0))
     }
 
+    fn get_swap_fee(&self) -> Decimal {
+        self.swap_fee.unwrap_or_else(|| Decimal::percent(0))
+    }
+
     //--------------------------------------------------------------------------------------------------
     // Setter functions
     //--------------------------------------------------------------------------------------------------
@@ -2039,6 +2046,11 @@ impl MockEnvBuilder {
 
     pub fn perps_protocol_fee_ratio(mut self, ratio: Decimal) -> Self {
         self.perps_protocol_fee_ratio = Some(ratio);
+        self
+    }
+
+    pub fn swap_fee(mut self, ratio: Decimal) -> Self {
+        self.swap_fee = Some(ratio);
         self
     }
 }

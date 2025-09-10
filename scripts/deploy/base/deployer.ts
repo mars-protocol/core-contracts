@@ -209,6 +209,7 @@ export class Deployer {
       incentives: this.storage.addresses.incentives!,
       keeper_fee_config: this.config.keeperFeeConfig,
       perps_liquidation_bonus_ratio: this.config.perpsLiquidationBonusRatio,
+      swap_fee: this.config.swapFee,
     }
 
     await this.instantiate('creditManager', this.storage.codeIds.creditManager!, msg)
@@ -418,7 +419,7 @@ export class Deployer {
       fee_collector_config: this.config.rewardsCollector.feeCollectorConfig,
       channel_id: this.config.rewardsCollector.channelId,
       timeout_seconds: this.config.rewardsCollector.timeoutSeconds,
-      slippage_tolerance: this.config.rewardsCollector.slippageTolerance,
+      whitelisted_distributors: this.config.rewardsCollector.whitelistedDistributors,
     }
     await this.instantiate('rewardsCollector', this.storage.codeIds['rewardsCollector']!, msg)
   }

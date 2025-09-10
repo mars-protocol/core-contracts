@@ -27,6 +27,7 @@ export interface InstantiateMsg {
   params: ParamsBaseForString
   perps_liquidation_bonus_ratio: Decimal
   red_bank: RedBankUnchecked
+  swap_fee: Decimal
   swapper: SwapperBaseForString
   zapper: ZapperBaseForString
 }
@@ -631,6 +632,7 @@ export interface ConfigUpdates {
   perps_liquidation_bonus_ratio?: Decimal | null
   red_bank?: RedBankUnchecked | null
   rewards_collector?: string | null
+  swap_fee?: Decimal | null
   swapper?: SwapperBaseForString | null
   zapper?: ZapperBaseForString | null
 }
@@ -748,6 +750,9 @@ export type QueryMsg =
         limit?: number | null
         start_after?: string | null
       }
+    }
+  | {
+      swap_fee_rate: {}
     }
 export type ActionKind = 'default' | 'liquidation'
 export type VaultPositionAmount =

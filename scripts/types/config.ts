@@ -87,7 +87,7 @@ export interface DeploymentConfig {
     revenueShareConfig: RewardConfig
     safetyFundConfig: RewardConfig
     feeCollectorConfig: RewardConfig
-    slippageTolerance: string
+    whitelistedDistributors: string[]
   }
   incentives: {
     epochDuration: number
@@ -129,6 +129,7 @@ export interface DeploymentConfig {
   }
   maxPerpParams: number
   perpsLiquidationBonusRatio: Decimal
+  swapFee: Decimal
 }
 
 export interface AssetConfig {
