@@ -2924,7 +2924,7 @@ dependencies = [
 
 [[package]]
 name = "mars-oracle-wasm"
-version = "2.2.3"
+version = "2.3.2"
 dependencies = [
  "astroport 2.9.0",
  "astroport 5.2.0",
