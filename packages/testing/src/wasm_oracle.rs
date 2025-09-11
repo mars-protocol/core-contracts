@@ -14,13 +14,17 @@ use cw_it::{
         utils::{native_asset, native_info, AstroportContracts},
     },
     robot::TestRobot,
-    test_tube::{Account, Module, SigningAccount, Wasm},
+    test_tube::{Account, Module, RunnerExecuteResult, SigningAccount, Wasm},
     traits::CwItRunner,
     ContractMap, ContractType, TestRunner,
+};
+use mars_mock_lst_oracle::msg::{
+    ExecuteMsg as LstOracleExecuteMsg, InstantiateMsg as LstOracleInstantiateMsg,
 };
 use mars_oracle_wasm::WasmPriceSourceUnchecked;
 use mars_owner::OwnerUpdate;
 use mars_types::oracle::{InstantiateMsg, WasmOracleCustomExecuteMsg, WasmOracleCustomInitParams};
+use osmosis_std::types::cosmwasm::wasm::v1::MsgExecuteContractResponse;
 
 use crate::test_runner::get_test_runner;
 
@@ -35,6 +39,7 @@ pub const APPEND_ARCH: bool = false;
 pub const ASTRO_ARTIFACTS_PATH: Option<&str> = Some("tests/astroport-artifacts");
 
 pub const ORACLE_CONTRACT_NAME: &str = "mars-oracle-wasm";
+pub const MOCK_LST_ORACLE_CONTRACT_NAME: &str = "mars-mock-lst-oracle";
 
 pub const STRIDE_ARTIFACTS_PATH: &str = "tests/stride-artifacts";
 pub const STRIDE_ICA_ORACLE_CONTRACT_NAME: &str = "ica_oracle";
@@ -45,6 +50,7 @@ pub struct WasmOracleTestRobot<'a> {
     pub astroport_contracts: AstroportContracts,
     pub mars_oracle_contract_addr: String,
     pub stride_contract_addr: Option<String>,
+    pub mock_lst_oracle_addr: Option<String>,
 }
 
 impl<'a> WasmOracleTestRobot<'a> {
@@ -55,14 +61,19 @@ impl<'a> WasmOracleTestRobot<'a> {
         base_denom: Option<&str>,
     ) -> Self {
         // Upload and instantiate contracts
-        let (astroport_contracts, oracle_contract_addr, stride_contract_addr) =
-            Self::upload_and_init_contracts(runner, contract_map, admin, base_denom);
+        let (
+            astroport_contracts,
+            mars_oracle_contract_addr,
+            stride_contract_addr,
+            mock_lst_oracle_addr,
+        ) = Self::upload_and_init_contracts(runner, contract_map, admin, base_denom);
 
         Self {
             runner,
             astroport_contracts,
-            mars_oracle_contract_addr: oracle_contract_addr,
             stride_contract_addr,
+            mars_oracle_contract_addr,
+            mock_lst_oracle_addr,
         }
     }
 
@@ -72,7 +83,7 @@ impl<'a> WasmOracleTestRobot<'a> {
         contracts: ContractMap,
         admin: &SigningAccount,
         base_denom: Option<&str>,
-    ) -> (AstroportContracts, String, Option<String>) {
+    ) -> (AstroportContracts, String, Option<String>, Option<String>) {
         let admin_addr = admin.address();
         // Upload contracts
         let code_ids = cw_it::helpers::upload_wasm_files(runner, admin, contracts).unwrap();
@@ -114,6 +125,27 @@ impl<'a> WasmOracleTestRobot<'a> {
                 None
             };
 
+        // Instantiate mock slinky LST oracle contract
+        let mock_lst_oracle_addr = if let Some(&code_id) = code_ids.get("mars-mock-lst-oracle") {
+            let mock_lst_oracle_init_msg = LstOracleInstantiateMsg {
+                redemption_rate: Decimal::one(),
+                lst_asset_denom: "uatom".to_string(),
+            };
+            let mock_lst_oracle_init_res = wasm
+                .instantiate(
+                    code_id,
+                    &mock_lst_oracle_init_msg,
+                    Some(&admin_addr),
+                    None,
+                    &[],
+                    admin,
+                )
+                .unwrap();
+            Some(mock_lst_oracle_init_res.data.address)
+        } else {
+            None
+        };
+
         // Ensure astroport factory has the pair type for concentrated_duality_orderbook
         let pair_type = PairType::Custom("concentrated_duality_orderbook".to_string());
         let factory_address = astroport_contracts.factory.address.clone();
@@ -133,7 +165,7 @@ impl<'a> WasmOracleTestRobot<'a> {
         };
         wasm.execute(&factory_address, &update_pair_config_msg, &[], admin).unwrap();
 
-        (astroport_contracts, oracle_contract_addr, stride_contract_addr)
+        (astroport_contracts, oracle_contract_addr, stride_contract_addr, mock_lst_oracle_addr)
     }
 
     pub fn increase_time(&self, seconds: u64) -> &Self {
@@ -155,17 +187,26 @@ impl<'a> WasmOracleTestRobot<'a> {
 
     // ====== Price source methods ======
 
+    pub fn set_price_source_with_result(
+        &self,
+        denom: &str,
+        price_source: WasmPriceSourceUnchecked,
+        signer: &SigningAccount,
+    ) -> RunnerExecuteResult<MsgExecuteContractResponse> {
+        let msg = mars_types::oracle::ExecuteMsg::<_, Empty>::SetPriceSource {
+            denom: denom.to_string(),
+            price_source,
+        };
+        self.wasm().execute(&self.mars_oracle_contract_addr, &msg, &[], signer)
+    }
+
     pub fn set_price_source(
         &self,
         denom: &str,
         price_source: WasmPriceSourceUnchecked,
         signer: &SigningAccount,
     ) -> &Self {
-        let msg = mars_types::oracle::ExecuteMsg::<_, Empty>::SetPriceSource {
-            denom: denom.to_string(),
-            price_source,
-        };
-        self.wasm().execute(&self.mars_oracle_contract_addr, &msg, &[], signer).unwrap();
+        self.set_price_source_with_result(denom, price_source, signer).unwrap();
         self
     }
 
@@ -358,6 +399,32 @@ impl<'a> WasmOracleTestRobot<'a> {
         self
     }
 
+    pub fn set_mock_lst_denom(&self, denom: String, signer: &SigningAccount) -> &Self {
+        let mock_lst_oracle_addr =
+            self.mock_lst_oracle_addr.clone().expect("Mock LST oracle contract not found");
+
+        let msg = LstOracleExecuteMsg::SetLstAssetDenom {
+            denom,
+        };
+        self.wasm().execute(&mock_lst_oracle_addr, &msg, &[], signer).unwrap();
+        self
+    }
+
+    pub fn set_lst_oracle_redemption_rate_metric(
+        &self,
+        value: Decimal,
+        signer: &SigningAccount,
+    ) -> &Self {
+        let mock_lst_oracle_addr =
+            self.mock_lst_oracle_addr.clone().expect("Mock LST oracle contract not found");
+
+        let msg = LstOracleExecuteMsg::SetRedemptionRate {
+            redemption_rate: value,
+        };
+        self.wasm().execute(&mock_lst_oracle_addr, &msg, &[], signer).unwrap();
+        self
+    }
+
     pub fn query_redemption_rate(&self, denom: &str) -> ica_oracle::msg::RedemptionRateResponse {
         let stride_contract_addr =
             self.stride_contract_addr.clone().expect("Stride ica oracle contract not found");
@@ -453,6 +520,19 @@ pub fn get_stride_ica_oracle_contract(runner: &TestRunner) -> ContractType {
     }
 }
 
+pub fn get_mock_slinky_lst_contract(runner: &TestRunner) -> ContractType {
+    match runner {
+        TestRunner::MultiTest(_) => {
+            ContractType::MultiTestContract(Box::new(cw_it::cw_multi_test::ContractWrapper::new(
+                mars_mock_lst_oracle::contract::execute,
+                mars_mock_lst_oracle::contract::instantiate,
+                mars_mock_lst_oracle::contract::query,
+            )))
+        }
+        _ => panic!("Unsupported test runner type"),
+    }
+}
+
 /// Returns a HashMap of contracts to be used in the tests
 pub fn get_contracts(runner: &TestRunner) -> ContractMap {
     // Get Astroport contracts
@@ -466,6 +546,9 @@ pub fn get_contracts(runner: &TestRunner) -> ContractMap {
     // Get Oracle contract
     let contract = get_wasm_oracle_contract(runner);
     contracts.insert(ORACLE_CONTRACT_NAME.to_string(), contract);
+
+    let slinky_lst_contract = get_mock_slinky_lst_contract(runner);
+    contracts.insert(MOCK_LST_ORACLE_CONTRACT_NAME.to_string(), slinky_lst_contract);
 
     contracts
 }
