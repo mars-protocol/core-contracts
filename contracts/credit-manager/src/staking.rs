@@ -1,14 +1,16 @@
-use std::str::FromStr;
-
-use cosmwasm_std::{Decimal, Deps, StdError, StdResult, Uint128};
+use cosmwasm_std::{Decimal, Deps, Uint128};
 use mars_types::{
-    adapters::dao_staking::DaoStaking,
+    adapters::governance::Governance,
     fee_tiers::{FeeTier, FeeTierConfig},
 };
 
 use crate::{
-    state::{DAO_STAKING_ADDRESS, FEE_TIER_CONFIG},
-    utils::query_nft_token_owner,
+    error::{ContractError, ContractResult},
+    state::{FEE_TIER_CONFIG, GOVERNANCE},
+    utils::{
+        assert_discount_pct, assert_tiers_not_empty, assert_tiers_sorted_descending,
+        query_nft_token_owner,
+    },
 };
 
 pub struct StakingTierManager {
@@ -24,11 +26,9 @@ impl StakingTierManager {
 
     /// Find the applicable tier for a given voting power
     /// Returns the tier with the highest min_voting_power that the user qualifies for
-    pub fn find_applicable_tier(&self, voting_power: Uint128) -> StdResult<&FeeTier> {
+    pub fn find_applicable_tier(&self, voting_power: Uint128) -> ContractResult<&FeeTier> {
         // Ensure tiers are sorted in descending order of min_voting_power
-        if self.config.tiers.is_empty() {
-            return Err(StdError::generic_err("No tiers configured"));
-        }
+        assert_tiers_not_empty(&self.config.tiers)?;
 
         // Binary search for the applicable tier
         let mut left = 0;
@@ -39,9 +39,7 @@ impl StakingTierManager {
             let mid = left + (right - left) / 2;
             let tier = &self.config.tiers[mid];
 
-            // Parse min_voting_power once per tier
-            let min_power = Uint128::from_str(&tier.min_voting_power)
-                .map_err(|_| StdError::generic_err("Invalid min_voting_power in tier"))?;
+            let min_power = tier.min_voting_power;
 
             if voting_power >= min_power {
                 // User qualifies for this tier, but there might be a better one
@@ -61,56 +59,37 @@ impl StakingTierManager {
     }
 
     /// Validate that tiers are properly ordered by min_voting_power (descending)
-    pub fn validate(&self) -> StdResult<()> {
-        if self.config.tiers.is_empty() {
-            return Err(StdError::generic_err("Fee tier config cannot be empty"));
-        }
+    pub fn validate(&self) -> ContractResult<()> {
+        assert_tiers_not_empty(&self.config.tiers)?;
 
-        let mut prev_power = Uint128::from_str(&self.config.tiers[0].min_voting_power)
-            .map_err(|_| StdError::generic_err("Invalid min_voting_power in tier"))?;
-
-        // Check for descending order and duplicates in one pass
-        for i in 1..self.config.tiers.len() {
-            let curr_power = Uint128::from_str(&self.config.tiers[i].min_voting_power)
-                .map_err(|_| StdError::generic_err("Invalid min_voting_power in tier"))?;
-
-            if curr_power == prev_power {
-                return Err(StdError::generic_err("Duplicate voting power thresholds"));
-            }
-
-            if curr_power >= prev_power {
-                return Err(StdError::generic_err("Tiers must be sorted in descending order"));
-            }
-
-            prev_power = curr_power;
-        }
-
-        // Validate discount percentages are reasonable (0-100%)
+        // Extract all voting powers
+        let mut voting_powers = Vec::new();
         for tier in &self.config.tiers {
-            if tier.discount_pct >= Decimal::one() {
-                return Err(StdError::generic_err("Discount percentage must be less than 100%"));
+            voting_powers.push(tier.min_voting_power);
+        }
+
+        // Check for duplicates
+        for i in 1..voting_powers.len() {
+            if voting_powers[i] == voting_powers[i - 1] {
+                return Err(ContractError::DuplicateVotingPowerThresholds);
             }
+        }
+
+        // Check for descending order
+        assert_tiers_sorted_descending(&voting_powers)?;
+
+        // Validate discount percentages are reasonable (0-100% inclusive)
+        for tier in &self.config.tiers {
+            assert_discount_pct(tier.discount_pct)?;
         }
 
         Ok(())
     }
 
     /// Get the default tier (tier with lowest min_voting_power)
-    pub fn get_default_tier(&self) -> StdResult<&FeeTier> {
-        let mut default_tier: Option<&FeeTier> = None;
-        let mut lowest_power = Uint128::MAX;
-
-        for tier in &self.config.tiers {
-            let min_power = Uint128::from_str(&tier.min_voting_power)
-                .map_err(|_| StdError::generic_err("Invalid min_voting_power in tier"))?;
-
-            if min_power < lowest_power {
-                default_tier = Some(tier);
-                lowest_power = min_power;
-            }
-        }
-
-        default_tier.ok_or_else(|| StdError::generic_err("No tiers configured"))
+    /// the default tier (lowest voting power requirement) is the last element.
+    pub fn get_default_tier(&self) -> ContractResult<&FeeTier> {
+        self.config.tiers.last().ok_or(ContractError::NoTiersPresent)
     }
 }
 
@@ -118,21 +97,25 @@ impl StakingTierManager {
 pub fn get_account_tier_and_discount(
     deps: Deps,
     account_id: &str,
-) -> StdResult<(FeeTier, Decimal, Uint128)> {
+) -> ContractResult<(FeeTier, Decimal, Uint128)> {
     // Get account owner from account_id
-    let account_owner = query_nft_token_owner(deps, account_id)
-        .map_err(|e| StdError::generic_err(e.to_string()))?;
+    let account_owner = query_nft_token_owner(deps, account_id)?;
 
-    // Get DAO staking contract address from state
-    let dao_staking_addr = DAO_STAKING_ADDRESS.load(deps.storage)?;
-    let dao_staking = DaoStaking::new(dao_staking_addr);
+    // Get governance contract address from state
+    let governance_addr =
+        GOVERNANCE.load(deps.storage).map_err(|_| ContractError::FailedToLoadGovernanceAddress)?;
+    let governance = Governance::new(governance_addr);
 
     // Query voting power for the account owner
-    let voting_power_response =
-        dao_staking.query_voting_power_at_height(&deps.querier, &account_owner)?;
+    let voting_power_response = governance
+        .query_voting_power_at_height(&deps.querier, &account_owner)
+        .map_err(|e| ContractError::FailedToQueryVotingPower {
+            error: e.to_string(),
+        })?;
 
     // Get fee tier config and find applicable tier
-    let fee_tier_config = FEE_TIER_CONFIG.load(deps.storage)?;
+    let fee_tier_config =
+        FEE_TIER_CONFIG.load(deps.storage).map_err(|_| ContractError::FailedToLoadFeeTierConfig)?;
     let manager = StakingTierManager::new(fee_tier_config);
     let tier = manager.find_applicable_tier(voting_power_response.power)?;
 

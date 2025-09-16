@@ -1,5 +1,5 @@
-use cosmwasm_std::{Decimal, StdError, Uint128};
-use mars_credit_manager::staking::StakingTierManager;
+use cosmwasm_std::{Decimal, Uint128};
+use mars_credit_manager::{error::ContractError, staking::StakingTierManager};
 use mars_types::fee_tiers::{FeeTier, FeeTierConfig};
 use test_case::test_case;
 
@@ -9,42 +9,42 @@ fn create_test_fee_tier_config() -> FeeTierConfig {
         tiers: vec![
             FeeTier {
                 id: "tier_8".to_string(),
-                min_voting_power: "1500000000000".to_string(), // 1,500,000 MARS
+                min_voting_power: Uint128::new(1500000000000), // 1,500,000 MARS
                 discount_pct: Decimal::percent(80),
             },
             FeeTier {
                 id: "tier_7".to_string(),
-                min_voting_power: "1000000000000".to_string(), // 1,000,000 MARS
+                min_voting_power: Uint128::new(1000000000000), // 1,000,000 MARS
                 discount_pct: Decimal::percent(70),
             },
             FeeTier {
                 id: "tier_6".to_string(),
-                min_voting_power: "500000000000".to_string(), // 500,000 MARS
+                min_voting_power: Uint128::new(500000000000), // 500,000 MARS
                 discount_pct: Decimal::percent(60),
             },
             FeeTier {
                 id: "tier_5".to_string(),
-                min_voting_power: "250000000000".to_string(), // 250,000 MARS
+                min_voting_power: Uint128::new(250000000000), // 250,000 MARS
                 discount_pct: Decimal::percent(45),
             },
             FeeTier {
                 id: "tier_4".to_string(),
-                min_voting_power: "100000000000".to_string(), // 100,000 MARS
+                min_voting_power: Uint128::new(100000000000), // 100,000 MARS
                 discount_pct: Decimal::percent(30),
             },
             FeeTier {
                 id: "tier_3".to_string(),
-                min_voting_power: "50000000000".to_string(), // 50,000 MARS
+                min_voting_power: Uint128::new(50000000000), // 50,000 MARS
                 discount_pct: Decimal::percent(20),
             },
             FeeTier {
                 id: "tier_2".to_string(),
-                min_voting_power: "10000000000".to_string(), // 10,000 MARS
+                min_voting_power: Uint128::new(10000000000), // 10,000 MARS
                 discount_pct: Decimal::percent(10),
             },
             FeeTier {
                 id: "tier_1".to_string(),
-                min_voting_power: "0".to_string(),
+                min_voting_power: Uint128::zero(),
                 discount_pct: Decimal::percent(0),
             },
         ],
@@ -252,14 +252,7 @@ fn test_validate_fee_tier_config_empty() {
 
     let result = manager.validate();
     assert!(result.is_err());
-    match result.unwrap_err() {
-        StdError::GenericErr {
-            msg,
-        } => {
-            assert!(msg.contains("Fee tier config cannot be empty"));
-        }
-        _ => panic!("Expected StdError::GenericErr"),
-    }
+    assert_eq!(result.unwrap_err(), ContractError::EmptyFeeTierConfig);
 }
 
 #[test]
@@ -268,12 +261,12 @@ fn test_validate_fee_tier_config_unsorted() {
         tiers: vec![
             FeeTier {
                 id: "tier_2".to_string(),
-                min_voting_power: "200000".to_string(),
+                min_voting_power: Uint128::new(200000),
                 discount_pct: Decimal::percent(60),
             },
             FeeTier {
                 id: "tier_1".to_string(),
-                min_voting_power: "350000".to_string(),
+                min_voting_power: Uint128::new(350000),
                 discount_pct: Decimal::percent(75),
             },
         ],
@@ -282,14 +275,7 @@ fn test_validate_fee_tier_config_unsorted() {
 
     let result = manager.validate();
     assert!(result.is_err());
-    match result.unwrap_err() {
-        StdError::GenericErr {
-            msg,
-        } => {
-            assert!(msg.contains("Tiers must be sorted in descending order"));
-        }
-        _ => panic!("Expected StdError::GenericErr"),
-    }
+    assert_eq!(result.unwrap_err(), ContractError::TiersNotSortedDescending);
 }
 
 #[test]
@@ -298,12 +284,12 @@ fn test_validate_fee_tier_config_duplicate_thresholds() {
         tiers: vec![
             FeeTier {
                 id: "tier_1".to_string(),
-                min_voting_power: "350000".to_string(),
+                min_voting_power: Uint128::new(350000),
                 discount_pct: Decimal::percent(75),
             },
             FeeTier {
                 id: "tier_2".to_string(),
-                min_voting_power: "350000".to_string(),
+                min_voting_power: Uint128::new(350000),
                 discount_pct: Decimal::percent(60),
             },
         ],
@@ -312,14 +298,7 @@ fn test_validate_fee_tier_config_duplicate_thresholds() {
 
     let result = manager.validate();
     assert!(result.is_err());
-    match result.unwrap_err() {
-        StdError::GenericErr {
-            msg,
-        } => {
-            assert!(msg.contains("Duplicate voting power thresholds"));
-        }
-        _ => panic!("Expected StdError::GenericErr"),
-    }
+    assert_eq!(result.unwrap_err(), ContractError::DuplicateVotingPowerThresholds);
 }
 
 #[test]
@@ -327,22 +306,15 @@ fn test_validate_fee_tier_config_invalid_discount() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "tier_1".to_string(),
-            min_voting_power: "350000".to_string(),
-            discount_pct: Decimal::percent(100), // 100% discount (invalid)
+            min_voting_power: Uint128::new(350000),
+            discount_pct: Decimal::percent(150), // 150% discount (invalid - over 100%)
         }],
     };
     let manager = StakingTierManager::new(config);
 
     let result = manager.validate();
     assert!(result.is_err());
-    match result.unwrap_err() {
-        StdError::GenericErr {
-            msg,
-        } => {
-            assert!(msg.contains("Discount percentage must be less than 100%"));
-        }
-        _ => panic!("Expected StdError::GenericErr"),
-    }
+    assert_eq!(result.unwrap_err(), ContractError::InvalidDiscountPercentage);
 }
 
 #[test]
@@ -408,7 +380,7 @@ fn test_fee_tier_config_with_single_tier() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "single_tier".to_string(),
-            min_voting_power: "0".to_string(),
+            min_voting_power: Uint128::zero(),
             discount_pct: Decimal::percent(25),
         }],
     };
@@ -430,12 +402,12 @@ fn test_fee_tier_config_with_two_tiers() {
         tiers: vec![
             FeeTier {
                 id: "high_tier".to_string(),
-                min_voting_power: "1000".to_string(),
+                min_voting_power: Uint128::new(1000),
                 discount_pct: Decimal::percent(50),
             },
             FeeTier {
                 id: "low_tier".to_string(),
-                min_voting_power: "0".to_string(),
+                min_voting_power: Uint128::zero(),
                 discount_pct: Decimal::percent(10),
             },
         ],
@@ -469,7 +441,7 @@ fn test_validation_empty_tiers() {
 
     let result = manager.validate();
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), StdError::generic_err("Fee tier config cannot be empty"));
+    assert_eq!(result.unwrap_err(), ContractError::EmptyFeeTierConfig);
 }
 
 #[test]
@@ -477,7 +449,7 @@ fn test_validation_single_tier_valid() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "single".to_string(),
-            min_voting_power: "1000".to_string(),
+            min_voting_power: Uint128::new(1000),
             discount_pct: Decimal::percent(25),
         }],
     };
@@ -502,12 +474,12 @@ fn test_validation_duplicate_voting_power() {
         tiers: vec![
             FeeTier {
                 id: "tier_1".to_string(),
-                min_voting_power: "1000".to_string(),
+                min_voting_power: Uint128::new(1000),
                 discount_pct: Decimal::percent(50),
             },
             FeeTier {
                 id: "tier_2".to_string(),
-                min_voting_power: "1000".to_string(), // Duplicate!
+                min_voting_power: Uint128::new(1000), // Duplicate!
                 discount_pct: Decimal::percent(25),
             },
         ],
@@ -516,7 +488,7 @@ fn test_validation_duplicate_voting_power() {
 
     let result = manager.validate();
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), StdError::generic_err("Duplicate voting power thresholds"));
+    assert_eq!(result.unwrap_err(), ContractError::DuplicateVotingPowerThresholds);
 }
 
 #[test]
@@ -525,12 +497,12 @@ fn test_validation_not_descending_order() {
         tiers: vec![
             FeeTier {
                 id: "tier_1".to_string(),
-                min_voting_power: "1000".to_string(),
+                min_voting_power: Uint128::new(1000),
                 discount_pct: Decimal::percent(50),
             },
             FeeTier {
                 id: "tier_2".to_string(),
-                min_voting_power: "2000".to_string(), // Higher than previous!
+                min_voting_power: Uint128::new(2000), // Higher than previous!
                 discount_pct: Decimal::percent(25),
             },
         ],
@@ -539,10 +511,7 @@ fn test_validation_not_descending_order() {
 
     let result = manager.validate();
     assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        StdError::generic_err("Tiers must be sorted in descending order")
-    );
+    assert_eq!(result.unwrap_err(), ContractError::TiersNotSortedDescending);
 }
 
 #[test]
@@ -551,12 +520,12 @@ fn test_validation_equal_voting_power() {
         tiers: vec![
             FeeTier {
                 id: "tier_1".to_string(),
-                min_voting_power: "1000".to_string(),
+                min_voting_power: Uint128::new(1000),
                 discount_pct: Decimal::percent(50),
             },
             FeeTier {
                 id: "tier_2".to_string(),
-                min_voting_power: "1000".to_string(), // Equal to previous!
+                min_voting_power: Uint128::new(1000), // Equal to previous!
                 discount_pct: Decimal::percent(25),
             },
         ],
@@ -565,23 +534,24 @@ fn test_validation_equal_voting_power() {
 
     let result = manager.validate();
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), StdError::generic_err("Duplicate voting power thresholds"));
+    assert_eq!(result.unwrap_err(), ContractError::DuplicateVotingPowerThresholds);
 }
 
 #[test]
-fn test_validation_invalid_voting_power_format() {
+fn test_validation_valid_voting_power_format() {
+    // This test is no longer needed since Uint128 type ensures valid format
+    // But we can test that valid Uint128 values work correctly
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "tier_1".to_string(),
-            min_voting_power: "invalid_number".to_string(), // Invalid format!
+            min_voting_power: Uint128::new(1000),
             discount_pct: Decimal::percent(50),
         }],
     };
     let manager = StakingTierManager::new(config);
 
     let result = manager.validate();
-    assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), StdError::generic_err("Invalid min_voting_power in tier"));
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -589,18 +559,14 @@ fn test_validation_discount_100_percent() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "tier_1".to_string(),
-            min_voting_power: "1000".to_string(),
-            discount_pct: Decimal::one(), // 100% discount!
+            min_voting_power: Uint128::new(1000),
+            discount_pct: Decimal::one(), // 100% discount - now valid!
         }],
     };
     let manager = StakingTierManager::new(config);
 
     let result = manager.validate();
-    assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        StdError::generic_err("Discount percentage must be less than 100%")
-    );
+    assert!(result.is_ok()); // 100% discount should now be valid
 }
 
 #[test]
@@ -608,7 +574,7 @@ fn test_validation_discount_over_100_percent() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "tier_1".to_string(),
-            min_voting_power: "1000".to_string(),
+            min_voting_power: Uint128::new(1000),
             discount_pct: Decimal::percent(150), // 150% discount!
         }],
     };
@@ -616,10 +582,7 @@ fn test_validation_discount_over_100_percent() {
 
     let result = manager.validate();
     assert!(result.is_err());
-    assert_eq!(
-        result.unwrap_err(),
-        StdError::generic_err("Discount percentage must be less than 100%")
-    );
+    assert_eq!(result.unwrap_err(), ContractError::InvalidDiscountPercentage);
 }
 
 #[test]
@@ -627,7 +590,7 @@ fn test_validation_discount_99_percent_valid() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "tier_1".to_string(),
-            min_voting_power: "1000".to_string(),
+            min_voting_power: Uint128::new(1000),
             discount_pct: Decimal::percent(99), // 99% discount - valid!
         }],
     };
@@ -642,7 +605,7 @@ fn test_validation_zero_discount_valid() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "tier_1".to_string(),
-            min_voting_power: "1000".to_string(),
+            min_voting_power: Uint128::new(1000),
             discount_pct: Decimal::zero(), // 0% discount - valid!
         }],
     };
@@ -658,27 +621,27 @@ fn test_validation_complex_scenario() {
         tiers: vec![
             FeeTier {
                 id: "platinum".to_string(),
-                min_voting_power: "1000000".to_string(),
+                min_voting_power: Uint128::new(1000000),
                 discount_pct: Decimal::percent(90),
             },
             FeeTier {
                 id: "gold".to_string(),
-                min_voting_power: "500000".to_string(),
+                min_voting_power: Uint128::new(500000),
                 discount_pct: Decimal::percent(75),
             },
             FeeTier {
                 id: "silver".to_string(),
-                min_voting_power: "100000".to_string(),
+                min_voting_power: Uint128::new(100000),
                 discount_pct: Decimal::percent(50),
             },
             FeeTier {
                 id: "bronze".to_string(),
-                min_voting_power: "10000".to_string(),
+                min_voting_power: Uint128::new(10000),
                 discount_pct: Decimal::percent(25),
             },
             FeeTier {
                 id: "basic".to_string(),
-                min_voting_power: "0".to_string(),
+                min_voting_power: Uint128::zero(),
                 discount_pct: Decimal::zero(),
             },
         ],
@@ -695,12 +658,12 @@ fn test_validation_edge_case_single_digit() {
         tiers: vec![
             FeeTier {
                 id: "tier_1".to_string(),
-                min_voting_power: "1".to_string(),
+                min_voting_power: Uint128::new(1),
                 discount_pct: Decimal::percent(10),
             },
             FeeTier {
                 id: "tier_2".to_string(),
-                min_voting_power: "0".to_string(),
+                min_voting_power: Uint128::zero(),
                 discount_pct: Decimal::zero(),
             },
         ],

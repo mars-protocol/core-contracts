@@ -47,7 +47,8 @@ pub fn swap_exact_in(
 
     // Apply discount to swap fee
     let base_swap_fee = SWAP_FEE.load(deps.storage)?;
-    let effective_swap_fee = base_swap_fee * (Decimal::one() - discount_pct);
+    let effective_swap_fee =
+        base_swap_fee.checked_mul(Decimal::one().checked_sub(discount_pct)?)?;
     let swap_fee_amount = coin_in_to_trade.amount.checked_mul_floor(effective_swap_fee)?;
     coin_in_to_trade.amount = coin_in_to_trade.amount.checked_sub(swap_fee_amount)?;
 

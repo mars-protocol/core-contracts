@@ -211,7 +211,7 @@ export class Deployer {
       perps_liquidation_bonus_ratio: this.config.perpsLiquidationBonusRatio,
       swap_fee: this.config.swapFee,
       fee_tier_config: this.config.feeTierConfig,
-      dao_staking_address: this.config.daoStakingAddress,
+      governance_address: this.config.governance,
     }
 
     await this.instantiate('creditManager', this.storage.codeIds.creditManager!, msg)

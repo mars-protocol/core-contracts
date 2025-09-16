@@ -30,7 +30,7 @@ export type MarsAddressType =
   | 'perps'
   | 'health'
   | 'revenue_share'
-  | 'dao_staking'
+  | 'governance'
 export type OwnerUpdate =
   | {
       propose_new_owner: {

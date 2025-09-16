@@ -4,8 +4,8 @@ use cosmwasm_std::{
     StdResult, Uint128,
 };
 use cw_storage_plus::Map;
-use mars_types::adapters::dao_staking::{
-    DaoStakingQueryMsg, VotingPowerAtHeightQuery, VotingPowerAtHeightResponse,
+use mars_types::adapters::governance::{
+    GovernanceQueryMsg, VotingPowerAtHeightQuery, VotingPowerAtHeightResponse,
 };
 
 const VOTING_POWER: Map<&Addr, Uint128> = Map::new("voting_power");
@@ -38,9 +38,9 @@ pub fn execute(deps: DepsMut, _env: Env, _info: MessageInfo, msg: ExecMsg) -> St
 }
 
 #[entry_point]
-pub fn query(deps: Deps, _env: Env, msg: DaoStakingQueryMsg) -> StdResult<Binary> {
+pub fn query(deps: Deps, _env: Env, msg: GovernanceQueryMsg) -> StdResult<Binary> {
     match msg {
-        DaoStakingQueryMsg::VotingPowerAtHeight(VotingPowerAtHeightQuery {
+        GovernanceQueryMsg::VotingPowerAtHeight(VotingPowerAtHeightQuery {
             address,
         }) => {
             let addr = deps.api.addr_validate(&address)?;

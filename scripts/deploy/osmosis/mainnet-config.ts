@@ -1120,5 +1120,5 @@ export const osmosisMainnetConfig: DeploymentConfig = {
   feeTierConfig: {
     tiers: [],
   },
-  daoStakingAddress: '',
+  governance: '',
 }

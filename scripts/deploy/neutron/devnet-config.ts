@@ -554,5 +554,5 @@ export const neutronDevnetConfig: DeploymentConfig = {
       },
     ],
   },
-  daoStakingAddress: 'neutron1pxjszcmmdxwtw9kv533u3hcudl6qahsa42chcs24gervf4ge40usaw3pcr',
+  governance: 'neutron1pxjszcmmdxwtw9kv533u3hcudl6qahsa42chcs24gervf4ge40usaw3pcr',
 }

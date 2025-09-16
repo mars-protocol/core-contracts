@@ -25,7 +25,7 @@ use crate::{
     position::{PositionExt, PositionModification},
     position_management::compute_discounted_fee_rates,
     state::{
-        ACCOUNT_OPENING_FEE_RATES, CONFIG, DEPOSIT_SHARES, MARKET_STATES, POSITIONS, REALIZED_PNL,
+        CONFIG, DEPOSIT_SHARES, MARKET_STATES, POSITIONS, REALIZED_PNL,
         TOTAL_UNLOCKING_OR_UNLOCKED_SHARES, UNLOCKS, VAULT_STATE,
     },
     utils::{
@@ -314,22 +314,18 @@ pub fn query_position(
     // Query the credit manager to get the discount for this account via adapter
     let discount_pct = credit_manager_adapter.query_discount_pct(&deps.querier, &account_id)?;
 
-    // Check if we have a stored opening fee rate for this position
-    let stored_opening_fee_rate =
-        ACCOUNT_OPENING_FEE_RATES.may_load(deps.storage, (&account_id, &denom))?;
+    // Get the effective opening fee rate (volume-weighted average or fallback)
+    // let fallback_opening_fee_rate = perp_params.opening_fee_rate * (Decimal::one() - discount_pct);
+    // let discounted_opening_fee_rate = get_effective_opening_fee_rate(
+    //     deps.storage,
+    //     &account_id,
+    //     &denom,
+    //     fallback_opening_fee_rate,
+    // )?;
 
+    // Use current discount for closing fee rate (fair for current operations)
     let (discounted_opening_fee_rate, discounted_closing_fee_rate) =
-        if let Some(stored_rate) = stored_opening_fee_rate {
-            // Use the stored opening fee rate (what was actually paid) for historical accuracy
-            // But still use current discount for closing fee rate (fair for current operations)
-            let current_closing_fee_rate =
-                perp_params.closing_fee_rate * (Decimal::one() - discount_pct);
-            (stored_rate, current_closing_fee_rate)
-        } else {
-            // Fallback to current rates for existing positions without stored fee rates
-            compute_discounted_fee_rates(&perp_params, Some(discount_pct))
-        };
-
+        compute_discounted_fee_rates(&perp_params, Some(discount_pct))?;
     let pnl_amounts = position.compute_pnl(
         &curr_funding,
         ms.skew()?,
@@ -425,21 +421,9 @@ pub fn query_positions(
                 credit_manager_adapter.query_discount_pct(&deps.querier, &account_id)?;
 
             // Check if we have a stored opening fee rate for this position
-            let stored_opening_fee_rate =
-                ACCOUNT_OPENING_FEE_RATES.may_load(deps.storage, (&account_id, &denom))?;
 
             let (discounted_opening_fee_rate, discounted_closing_fee_rate) =
-                if let Some(stored_rate) = stored_opening_fee_rate {
-                    // Use the stored opening fee rate (what was actually paid) for historical accuracy
-                    // But still use current discount for closing fee rate (fair for current operations)
-                    let current_closing_fee_rate =
-                        perp_params.closing_fee_rate * (Decimal::one() - discount_pct);
-                    (stored_rate, current_closing_fee_rate)
-                } else {
-                    // Fallback to current rates for existing positions without stored fee rates
-                    compute_discounted_fee_rates(&perp_params, Some(discount_pct))
-                };
-
+                compute_discounted_fee_rates(&perp_params, Some(discount_pct))?;
             let pnl_amounts = position.compute_pnl(
                 &funding,
                 skew,
@@ -490,12 +474,13 @@ pub fn query_positions_by_account(
             MarsAddressType::Oracle,
             MarsAddressType::Params,
             MarsAddressType::CreditManager,
-            MarsAddressType::DaoStaking,
+            MarsAddressType::Governance,
         ],
     )?;
 
     let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
     let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+    let credit_manager = get_credit_manager_adapter(&addresses[&MarsAddressType::CreditManager]);
 
     // Don't query the price if there are no positions. This is important during liquidation as
     // the price query might fail (if Default pricing is pased in).
@@ -523,18 +508,10 @@ pub fn query_positions_by_account(
             let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
 
             // Check if we have a stored opening fee rate for this position
-            let stored_opening_fee_rate =
-                ACCOUNT_OPENING_FEE_RATES.may_load(deps.storage, (&account_id, &denom))?;
 
+            let discount_pct = credit_manager.query_discount_pct(&deps.querier, &account_id)?;
             let (opening_fee_rate, closing_fee_rate) =
-                if let Some(stored_rate) = stored_opening_fee_rate {
-                    // Use the stored opening fee rate (what was actually paid) for historical accuracy
-                    // Use current closing fee rate (fair for current operations)
-                    (stored_rate, perp_params.closing_fee_rate)
-                } else {
-                    // Fallback to current rates for existing positions without stored fee rates
-                    (perp_params.opening_fee_rate, perp_params.closing_fee_rate)
-                };
+                compute_discounted_fee_rates(&perp_params, Some(discount_pct))?;
 
             let pnl_amounts = position.compute_pnl(
                 &curr_funding,
@@ -682,7 +659,7 @@ pub fn query_opening_fee(
     let perp_params = params.query_perp_params(&deps.querier, denom)?;
 
     // Apply discount to fee rates if provided
-    let (opening_fee_rate, _) = compute_discounted_fee_rates(&perp_params, discount_pct);
+    let (opening_fee_rate, _) = compute_discounted_fee_rates(&perp_params, discount_pct)?;
 
     let fees = PositionModification::Increase(size).compute_fees(
         opening_fee_rate,
@@ -718,7 +695,7 @@ pub fn query_position_fees(
             MarsAddressType::Oracle,
             MarsAddressType::Params,
             MarsAddressType::CreditManager,
-            MarsAddressType::DaoStaking,
+            MarsAddressType::Governance,
         ],
     )?;
 
@@ -775,7 +752,7 @@ pub fn query_position_fees(
 
     // Apply discount to fee rates using the helper function
     let (discounted_opening_fee_rate, discounted_closing_fee_rate) =
-        compute_discounted_fee_rates(&perp_params, Some(discount_pct));
+        compute_discounted_fee_rates(&perp_params, Some(discount_pct))?;
 
     let fees = modification.compute_fees(
         discounted_opening_fee_rate,

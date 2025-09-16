@@ -45,8 +45,8 @@ pub enum MarsAddressType {
     Health,
     /// The address that shall receive the revenue share given to neutron (10%)
     RevenueShare,
-    /// Dao staking contract
-    DaoStaking,
+    /// Governance contract
+    Governance,
 }
 
 impl fmt::Display for MarsAddressType {
@@ -67,7 +67,7 @@ impl fmt::Display for MarsAddressType {
             MarsAddressType::Perps => "perps",
             MarsAddressType::Health => "health",
             MarsAddressType::RevenueShare => "revenue_share",
-            MarsAddressType::DaoStaking => "dao_staking",
+            MarsAddressType::Governance => "governance",
         };
         write!(f, "{s}")
     }
@@ -93,7 +93,7 @@ impl FromStr for MarsAddressType {
             "perps" => Ok(MarsAddressType::Perps),
             "health" => Ok(MarsAddressType::Health),
             "revenue_share" => Ok(MarsAddressType::RevenueShare),
-            "dao_staking" => Ok(MarsAddressType::DaoStaking),
+            "governance" => Ok(MarsAddressType::Governance),
             _ => Err(StdError::parse_err(type_name::<Self>(), s)),
         }
     }

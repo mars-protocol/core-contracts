@@ -14,14 +14,13 @@ fn accounting_with_discount_fees() {
     let protocol_fee_rate = Decimal::percent(2);
     let mut mock = MockEnv::new().protocol_fee_rate(protocol_fee_rate).build().unwrap();
 
-    // Set up dao staking after building
-    let dao_staking_addr = Addr::unchecked("mock-dao-staking");
-    mock.set_dao_staking_address(&dao_staking_addr);
+    // Set up governance after building
+    let governance_addr = Addr::unchecked("mock-governance");
+    mock.set_governance_address(&governance_addr);
 
     let owner = mock.owner.clone();
     let credit_manager = mock.credit_manager.clone();
     let user = "jake";
-
     // Fund credit manager and set up prices
     mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uatom", "uusdc"]);
     mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();

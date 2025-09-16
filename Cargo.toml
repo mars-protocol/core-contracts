@@ -25,7 +25,7 @@ members  = [
   "contracts/mock-pyth",
   "contracts/mock-red-bank",
   "contracts/mock-vault",
-  "contracts/mock-dao-staking",
+  "contracts/mock-governance",
 
   # packages
   "packages/chains/*",
@@ -152,7 +152,7 @@ mars-mock-oracle                = { path = "./contracts/mock-oracle" }
 mars-mock-red-bank              = { path = "./contracts/mock-red-bank" }
 mars-mock-vault                 = { path = "./contracts/mock-vault" }
 mars-mock-rover-health          = { path = "./contracts/mock-health" }
-mars-mock-dao-staking           = { path = "./contracts/mock-dao-staking" }
+mars-mock-governance            = { path = "./contracts/mock-governance" }
 mars-swapper-mock               = { path = "./contracts/swapper/mock" }
 mars-zapper-mock                = { path = "./contracts/v2-zapper/mock" }
 

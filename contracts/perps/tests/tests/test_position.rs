@@ -2044,6 +2044,99 @@ fn query_position_fees(
 }
 
 #[test]
+fn query_opening_fee_with_voting_power_discounts() {
+    let mut mock = MockEnv::new().build().unwrap();
+
+    let owner = mock.owner.clone();
+    let credit_manager = mock.credit_manager.clone();
+    let user = "jake";
+
+    // set prices
+    mock.set_price(&owner, "uusdc", Decimal::from_str("0.9").unwrap()).unwrap();
+    mock.set_price(&owner, "uosmo", Decimal::from_str("1.25").unwrap()).unwrap();
+
+    // credit manager is calling the perps contract, so we need to fund it
+    mock.fund_accounts(&[&credit_manager], 1_000_000_000_000_000u128, &["uosmo", "uusdc"]);
+
+    // deposit some big number of uusdc to vault
+    mock.deposit_to_vault(
+        &credit_manager,
+        Some(user),
+        None,
+        &[coin(1_000_000_000_000u128, "uusdc")],
+    )
+    .unwrap();
+
+    // init denoms
+    mock.update_perp_params(
+        &owner,
+        PerpParamsUpdate::AddOrUpdate {
+            params: PerpParams {
+                opening_fee_rate: Decimal::from_str("0.004").unwrap(),
+                closing_fee_rate: Decimal::from_str("0.006").unwrap(),
+                ..default_perp_params("uosmo")
+            },
+        },
+    );
+
+    // open a position to change skew
+    let size = Int128::from_str("10000").unwrap();
+    let opening_fee = mock.query_opening_fee("uosmo", size, None).fee;
+    mock.execute_perp_order(&credit_manager, "2", "uosmo", size, None, &[opening_fee]).unwrap();
+
+    let test_size = Int128::from_str("2500").unwrap();
+
+    // Test different discount tiers
+    let test_cases = vec![
+        (Decimal::percent(0), "Tier 1: 0% discount"),
+        (Decimal::percent(10), "Tier 2: 10% discount"),
+        (Decimal::percent(20), "Tier 3: 20% discount"),
+        (Decimal::percent(30), "Tier 4: 30% discount"),
+        (Decimal::percent(45), "Tier 5: 45% discount"),
+    ];
+
+    // Get base fee without discount
+    let base_fee = mock.query_opening_fee("uosmo", test_size, None).fee;
+
+    for (discount_pct, description) in test_cases {
+        // Query fee with discount
+        let discounted_fee = mock.query_opening_fee("uosmo", test_size, Some(discount_pct)).fee;
+
+        // Calculate expected fee with discount
+        let discount_multiplier = Decimal::one().checked_sub(discount_pct).unwrap();
+        let expected_fee_amount = base_fee.amount.checked_mul_floor(discount_multiplier).unwrap();
+
+        // Verify discount is applied correctly
+        assert_eq!(
+            discounted_fee.amount, expected_fee_amount,
+            "{}: Expected fee {} but got {}",
+            description, expected_fee_amount, discounted_fee.amount
+        );
+
+        // Verify that higher discounts result in lower fees
+        if discount_pct > Decimal::percent(0) {
+            assert!(
+                discounted_fee.amount < base_fee.amount,
+                "{}: Discounted fee should be less than base fee",
+                description
+            );
+        }
+    }
+
+    // Test edge cases
+    // 100% discount should result in 0 fee
+    let zero_fee = mock.query_opening_fee("uosmo", test_size, Some(Decimal::percent(100))).fee;
+    assert_eq!(zero_fee.amount, Uint128::zero(), "100% discount should result in 0 fee");
+
+    // 0% discount should be same as no discount
+    let no_discount_fee = mock.query_opening_fee("uosmo", test_size, Some(Decimal::percent(0))).fee;
+    assert_eq!(
+        no_discount_fee.amount, base_fee.amount,
+        "0% discount should be same as no discount"
+    );
+}
+
+#[test]
 fn random_user_cannot_close_all_positions() {
     let mut mock = MockEnv::new().build().unwrap();
 

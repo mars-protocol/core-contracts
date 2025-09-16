@@ -415,5 +415,5 @@ export const neutronMainnetConfig: DeploymentConfig = {
   feeTierConfig: {
     tiers: [],
   },
-  daoStakingAddress: '',
+  governance: '',
 }

@@ -1,6 +1,6 @@
 pub mod account_nft;
 pub mod credit_manager;
-pub mod dao_staking;
+pub mod governance;
 pub mod health;
 pub mod incentives;
 pub mod oracle;

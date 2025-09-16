@@ -5,20 +5,20 @@
  * and run the @cosmwasm/ts-codegen generate command to regenerate this file.
  */
 
-export type DaoStakingBaseForString = string
 export type SwapperBaseForString = string
 export type Decimal = string
+export type Uint128 = string
+export type GovernanceBaseForString = string
 export type HealthContractBaseForString = string
 export type IncentivesUnchecked = string
-export type Uint128 = string
 export type OracleBaseForString = string
 export type ParamsBaseForString = string
 export type RedBankUnchecked = string
 export type ZapperBaseForString = string
 export interface InstantiateMsg {
-  dao_staking_address: DaoStakingBaseForString
   duality_swapper: SwapperBaseForString
   fee_tier_config: FeeTierConfig
+  governance_address: GovernanceBaseForString
   health_contract: HealthContractBaseForString
   incentives: IncentivesUnchecked
   keeper_fee_config: KeeperFeeConfig
@@ -40,7 +40,7 @@ export interface FeeTierConfig {
 export interface FeeTier {
   discount_pct: Decimal
   id: string
-  min_voting_power: string
+  min_voting_power: Uint128
 }
 export interface KeeperFeeConfig {
   min_fee: Coin
@@ -630,9 +630,9 @@ export interface OsmoSwap {
 }
 export interface ConfigUpdates {
   account_nft?: AccountNftBaseForString | null
-  dao_staking_address?: DaoStakingBaseForString | null
   duality_swapper?: SwapperBaseForString | null
   fee_tier_config?: FeeTierConfig | null
+  governance_address?: GovernanceBaseForString | null
   health_contract?: HealthContractBaseForString | null
   incentives?: IncentivesUnchecked | null
   keeper_fee_config?: KeeperFeeConfig | null

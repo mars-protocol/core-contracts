@@ -4,7 +4,7 @@ use cosmwasm_std::{Decimal, Uint128};
 use super::KeeperFeeConfig;
 use crate::{
     adapters::{
-        account_nft::AccountNftUnchecked, dao_staking::DaoStakingUnchecked,
+        account_nft::AccountNftUnchecked, governance::GovernanceUnchecked,
         health::HealthContractUnchecked, incentives::IncentivesUnchecked, oracle::OracleUnchecked,
         params::ParamsUnchecked, perps::PerpsUnchecked, red_bank::RedBankUnchecked,
         swapper::SwapperUnchecked, zapper::ZapperUnchecked,
@@ -57,8 +57,8 @@ pub struct InstantiateMsg {
     pub swap_fee: Decimal,
     /// Configuration for fee tiers based on staking
     pub fee_tier_config: FeeTierConfig,
-    /// Address of the DAO staking contract
-    pub dao_staking_address: DaoStakingUnchecked,
+    /// Address of the governance contract
+    pub governance_address: GovernanceUnchecked,
 }
 
 /// Used when you want to update fields on Instantiate config
@@ -85,5 +85,5 @@ pub struct ConfigUpdates {
     pub swap_fee: Option<Decimal>,
     // Staking-based fee tiers
     pub fee_tier_config: Option<FeeTierConfig>,
-    pub dao_staking_address: Option<DaoStakingUnchecked>,
+    pub governance_address: Option<GovernanceUnchecked>,
 }

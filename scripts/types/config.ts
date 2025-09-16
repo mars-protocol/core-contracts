@@ -140,7 +140,7 @@ export interface DeploymentConfig {
   perpsLiquidationBonusRatio: Decimal
   swapFee: Decimal
   feeTierConfig: FeeTierConfig
-  daoStakingAddress: string
+  governance: string
 }
 
 export interface AssetConfig {

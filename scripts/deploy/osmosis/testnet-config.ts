@@ -312,5 +312,5 @@ export const osmosisTestnetConfig: DeploymentConfig = {
   feeTierConfig: {
     tiers: [],
   },
-  daoStakingAddress: '',
+  governance: '',
 }

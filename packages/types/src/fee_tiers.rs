@@ -1,11 +1,11 @@
 use cosmwasm_schema::{cw_serde, QueryResponses};
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Decimal, Uint128};
 
 #[cw_serde]
 pub struct FeeTier {
     pub id: String,
-    pub min_voting_power: String, // Uint128 as string
-    pub discount_pct: Decimal,    // Percentage as Decimal (e.g., 0.25 for 25%)
+    pub min_voting_power: Uint128,
+    pub discount_pct: Decimal, // Percentage as Decimal (e.g., 0.25 for 25%)
 }
 
 #[cw_serde]

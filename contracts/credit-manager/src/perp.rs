@@ -121,11 +121,10 @@ pub fn execute_perp_order(
             order_size,
             reduce_only,
             discount_pct,
+            &tier.id,
         )?,
         None => {
             // Open new position
-            let base_opening_fee =
-                perps.query_opening_fee(&deps.querier, denom, order_size, None)?;
             let opening_fee =
                 perps.query_opening_fee(&deps.querier, denom, order_size, Some(discount_pct))?;
             let fee = opening_fee.fee;
@@ -154,7 +153,6 @@ pub fn execute_perp_order(
                 .add_attribute("reduce_only", reduce_only.unwrap_or(false).to_string())
                 .add_attribute("new_size", order_size.to_string())
                 .add_attribute("opening_fee", fee.to_string())
-                .add_attribute("base_opening_fee", base_opening_fee.fee.to_string())
                 .add_attribute("voting_power", voting_power.to_string())
                 .add_attribute("tier_id", tier.id)
                 .add_attribute("discount_pct", discount_pct.to_string())
@@ -170,7 +168,7 @@ pub fn close_perp_position(
     let perps = PERPS.load(deps.storage)?;
 
     // Get staking tier discount for this account
-    let (_, discount_pct, _) = get_account_tier_and_discount(deps.as_ref(), account_id)?;
+    let (tier, discount_pct, _) = get_account_tier_and_discount(deps.as_ref(), account_id)?;
 
     // Query the perp position PnL so that we know whether funds needs to be
     // sent to the perps contract
@@ -198,6 +196,7 @@ pub fn close_perp_position(
                 order_size,
                 Some(true),
                 discount_pct,
+                &tier.id,
             )?)
         }
         None => Err(ContractError::NoPerpPosition {
@@ -266,17 +265,16 @@ fn modify_existing_position(
     order_size: Int128,
     reduce_only: Option<bool>,
     discount_pct: Decimal,
+    tier: &str,
 ) -> ContractResult<Response> {
     let pnl = position.unrealized_pnl.to_coins(&position.base_denom).pnl;
     let pnl_string = position.unrealized_pnl.pnl.to_string();
     let (funds, response) = update_state_based_on_pnl(&mut deps, account_id, pnl, None, response)?;
     let funds = funds.map_or_else(Vec::new, |c| vec![c]);
 
-    // Get base and effective fees for logging
-    let base_opening_fee = perps.query_opening_fee(&deps.querier, denom, order_size, None)?;
+    // Get effective fee
     let effective_opening_fee =
         perps.query_opening_fee(&deps.querier, denom, order_size, Some(discount_pct))?;
-
     let msg = perps.execute_perp_order(
         account_id,
         denom,
@@ -303,9 +301,9 @@ fn modify_existing_position(
         .add_attribute("reduce_only", reduce_only.unwrap_or(false).to_string())
         .add_attribute("order_size", order_size.to_string())
         .add_attribute("new_size", new_size.to_string())
-        .add_attribute("base_opening_fee", base_opening_fee.fee.to_string())
         .add_attribute("effective_opening_fee", effective_opening_fee.fee.to_string())
-        .add_attribute("discount_pct", discount_pct.to_string()))
+        .add_attribute("discount_pct", discount_pct.to_string())
+        .add_attribute("tier_id", tier))
 }
 
 /// Prepare the necessary messages and funds to be sent to the perps contract based on the PnL.

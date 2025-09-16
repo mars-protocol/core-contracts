@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{Addr, Decimal, StdError, StdResult, Storage, Uint128};
+use cosmwasm_std::{Addr, StdError, StdResult, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
 use mars_owner::Owner;
 use mars_types::{
@@ -39,10 +39,6 @@ pub const POSITIONS: Map<(&str, &str), Position> = Map::new("positions");
 
 // (account_id, denom) => realized PnL amounts
 pub const REALIZED_PNL: Map<(&str, &str), PnlAmounts> = Map::new("realized_pnls");
-
-// (account_id, denom) => opening fee rate that was actually applied
-pub const ACCOUNT_OPENING_FEE_RATES: Map<(&str, &str), Decimal> =
-    Map::new("account_opening_fee_rates");
 
 // denom => market cash flow
 pub const MARKET_CASH_FLOW: Map<&str, CashFlow> = Map::new("market_cf");

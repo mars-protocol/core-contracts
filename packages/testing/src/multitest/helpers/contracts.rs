@@ -1,6 +1,5 @@
 use cosmwasm_std::Empty;
 use cw_multi_test::{Contract, ContractWrapper};
-use mars_mock_dao_staking as _; // ensure dependency is linked
 
 pub fn mock_rover_contract() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
@@ -130,12 +129,12 @@ pub fn mock_perps_contract() -> Box<dyn Contract<Empty>> {
     Box::new(contract)
 }
 
-pub fn mock_dao_staking_contract() -> Box<dyn Contract<Empty>> {
+pub fn mock_governance_contract() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
-        mars_mock_dao_staking::execute,
-        mars_mock_dao_staking::instantiate,
-        mars_mock_dao_staking::query,
+        mars_mock_governance::execute,
+        mars_mock_governance::instantiate,
+        mars_mock_governance::query,
     )
-    .with_reply(mars_mock_dao_staking::reply);
+    .with_reply(mars_mock_governance::reply);
     Box::new(contract)
 }

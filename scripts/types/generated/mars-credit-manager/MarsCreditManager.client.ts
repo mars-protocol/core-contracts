@@ -8,12 +8,12 @@
 import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from '@cosmjs/cosmwasm-stargate'
 import { StdFee } from '@cosmjs/amino'
 import {
-  DaoStakingBaseForString,
   SwapperBaseForString,
   Decimal,
+  Uint128,
+  GovernanceBaseForString,
   HealthContractBaseForString,
   IncentivesUnchecked,
-  Uint128,
   OracleBaseForString,
   ParamsBaseForString,
   RedBankUnchecked,

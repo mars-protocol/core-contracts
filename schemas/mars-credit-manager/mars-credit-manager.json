@@ -7,9 +7,9 @@
     "title": "InstantiateMsg",
     "type": "object",
     "required": [
-      "dao_staking_address",
       "duality_swapper",
       "fee_tier_config",
+      "governance_address",
       "health_contract",
       "incentives",
       "keeper_fee_config",
@@ -26,14 +26,6 @@
       "zapper"
     ],
     "properties": {
-      "dao_staking_address": {
-        "description": "Address of the DAO staking contract",
-        "allOf": [
-          {
-            "$ref": "#/definitions/DaoStakingBase_for_String"
-          }
-        ]
-      },
       "duality_swapper": {
         "description": "Helper contract for making swaps",
         "allOf": [
@@ -47,6 +39,14 @@
         "allOf": [
           {
             "$ref": "#/definitions/FeeTierConfig"
+          }
+        ]
+      },
+      "governance_address": {
+        "description": "Address of the governance contract",
+        "allOf": [
+          {
+            "$ref": "#/definitions/GovernanceBase_for_String"
           }
         ]
       },
@@ -174,9 +174,6 @@
           }
         }
       },
-      "DaoStakingBase_for_String": {
-        "type": "string"
-      },
       "Decimal": {
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
@@ -196,7 +193,7 @@
             "type": "string"
           },
           "min_voting_power": {
-            "type": "string"
+            "$ref": "#/definitions/Uint128"
           }
         },
         "additionalProperties": false
@@ -215,6 +212,9 @@
           }
         },
         "additionalProperties": false
+      },
+      "GovernanceBase_for_String": {
+        "type": "string"
       },
       "HealthContractBase_for_String": {
         "type": "string"
@@ -2486,16 +2486,6 @@
               }
             ]
           },
-          "dao_staking_address": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/DaoStakingBase_for_String"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
           "duality_swapper": {
             "anyOf": [
               {
@@ -2510,6 +2500,16 @@
             "anyOf": [
               {
                 "$ref": "#/definitions/FeeTierConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "governance_address": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/GovernanceBase_for_String"
               },
               {
                 "type": "null"
@@ -2689,9 +2689,6 @@
           }
         ]
       },
-      "DaoStakingBase_for_String": {
-        "type": "string"
-      },
       "Decimal": {
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
@@ -2802,7 +2799,7 @@
             "type": "string"
           },
           "min_voting_power": {
-            "type": "string"
+            "$ref": "#/definitions/Uint128"
           }
         },
         "additionalProperties": false
@@ -2821,6 +2818,9 @@
           }
         },
         "additionalProperties": false
+      },
+      "GovernanceBase_for_String": {
+        "type": "string"
       },
       "HealthContractBase_for_String": {
         "type": "string"

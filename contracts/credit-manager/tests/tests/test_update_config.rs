@@ -42,7 +42,7 @@ fn only_owner_can_update_config() {
             perps_liquidation_bonus_ratio: None,
             swap_fee: None,
             fee_tier_config: None,
-            dao_staking_address: None,
+            governance_address: None,
         },
     );
 
@@ -131,7 +131,7 @@ fn update_config_works_with_full_config() {
             perps_liquidation_bonus_ratio: Some(new_perps_lb_ratio),
             swap_fee: Some(new_swap_fee),
             fee_tier_config: None,
-            dao_staking_address: None,
+            governance_address: None,
         },
     )
     .unwrap();

@@ -58,7 +58,7 @@ pub struct MockEnvBuilder {
     deleverage_enabled: bool,
     withdraw_enabled: bool,
     max_unlocks: u8,
-    pub dao_staking_addr: Option<Addr>,
+    pub governance_addr: Option<Addr>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -78,7 +78,7 @@ impl MockEnv {
             deleverage_enabled: true,
             withdraw_enabled: true,
             max_unlocks: 5,
-            dao_staking_addr: Some(Addr::unchecked("mock-dao-staking")),
+            governance_addr: Some(Addr::unchecked("mock-governance")),
         }
     }
 
@@ -533,13 +533,13 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn set_dao_staking_address(&mut self, address: &Addr) {
+    pub fn set_governance_address(&mut self, address: &Addr) {
         self.app
             .execute_contract(
                 self.owner.clone(),
                 self.address_provider.clone(),
                 &address_provider::ExecuteMsg::SetAddress {
-                    address_type: MarsAddressType::DaoStaking,
+                    address_type: MarsAddressType::Governance,
                     address: address.to_string(),
                 },
                 &[],
@@ -559,12 +559,12 @@ impl MockEnvBuilder {
         let perps_contract = self.deploy_perps(address_provider_contract.as_str());
         let incentives_contract = self.deploy_incentives(&address_provider_contract);
 
-        // Deploy dao staking if provided
-        if let Some(dao_staking_addr) = self.dao_staking_addr.clone() {
+        // Deploy governance if provided
+        if let Some(governance_addr) = self.governance_addr.clone() {
             self.update_address_provider(
                 &address_provider_contract,
-                MarsAddressType::DaoStaking,
-                &dao_staking_addr,
+                MarsAddressType::Governance,
+                &governance_addr,
             );
         }
 
@@ -878,21 +878,21 @@ impl MockEnvBuilder {
         self
     }
 
-    pub fn set_dao_staking_addr(mut self, addr: &Addr) -> Self {
-        self.dao_staking_addr = Some(addr.clone());
+    pub fn set_governance_addr(mut self, addr: &Addr) -> Self {
+        self.governance_addr = Some(addr.clone());
         self
     }
 
-    pub fn deploy_mock_dao_staking(&mut self) -> &mut Self {
-        let dao_staking_addr = self.deploy_dao_staking();
-        self.dao_staking_addr = Some(dao_staking_addr);
+    pub fn deploy_mock_governance(&mut self) -> &mut Self {
+        let governance_addr = self.deploy_governance();
+        self.governance_addr = Some(governance_addr);
         self
     }
 
-    fn deploy_dao_staking(&mut self) -> Addr {
-        // Create a simple mock dao staking contract address
-        let addr = Addr::unchecked("mock-dao-staking");
-        self.set_address(MarsAddressType::DaoStaking, addr.clone());
+    fn deploy_governance(&mut self) -> Addr {
+        // Create a simple mock governance contract address
+        let addr = Addr::unchecked("mock-governance");
+        self.set_address(MarsAddressType::Governance, addr.clone());
         addr
     }
 }

@@ -881,5 +881,5 @@ export const neutronTestnetConfig: DeploymentConfig = {
   feeTierConfig: {
     tiers: [],
   },
-  daoStakingAddress: '',
+  governance: '',
 }

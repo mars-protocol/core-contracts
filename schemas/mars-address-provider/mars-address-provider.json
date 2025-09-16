@@ -145,10 +145,10 @@
             ]
           },
           {
-            "description": "Dao staking contract",
+            "description": "Governance contract",
             "type": "string",
             "enum": [
-              "dao_staking"
+              "governance"
             ]
           }
         ]
@@ -391,10 +391,10 @@
             ]
           },
           {
-            "description": "Dao staking contract",
+            "description": "Governance contract",
             "type": "string",
             "enum": [
-              "dao_staking"
+              "governance"
             ]
           }
         ]
@@ -505,10 +505,10 @@
               ]
             },
             {
-              "description": "Dao staking contract",
+              "description": "Governance contract",
               "type": "string",
               "enum": [
-                "dao_staking"
+                "governance"
               ]
             }
           ]
@@ -622,10 +622,10 @@
               ]
             },
             {
-              "description": "Dao staking contract",
+              "description": "Governance contract",
               "type": "string",
               "enum": [
-                "dao_staking"
+                "governance"
               ]
             }
           ]
@@ -739,10 +739,10 @@
               ]
             },
             {
-              "description": "Dao staking contract",
+              "description": "Governance contract",
               "type": "string",
               "enum": [
-                "dao_staking"
+                "governance"
               ]
             }
           ]
