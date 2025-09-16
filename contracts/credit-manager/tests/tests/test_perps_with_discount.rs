@@ -494,6 +494,17 @@ fn test_perp_position_modification_with_tier_changes() {
     .unwrap();
 
     let initial_vault_balance = mock.query_balance(mock.perps.address(), "uusdc").amount;
+    let query_market_acct = |mock: &MockEnv| -> mars_types::perps::AccountingResponse {
+        mock.app
+            .wrap()
+            .query_wasm_smart(
+                mock.perps.address(),
+                &mars_types::perps::QueryMsg::MarketAccounting {
+                    denom: atom.denom.clone(),
+                },
+            )
+            .unwrap()
+    };
 
     // Step 1: Open initial position with Tier 1 (0% discount)
     mock.set_voting_power(&user, Uint128::new(0));
@@ -531,6 +542,15 @@ fn test_perp_position_modification_with_tier_changes() {
     let vault_balance_1 =
         assert_vault_balance_increase(&mock, initial_vault_balance, opening_fee_1);
 
+    // Market accounting after step 1
+    let acct_after_1 = query_market_acct(&mock);
+    assert_eq!(
+        acct_after_1.accounting.cash_flow.opening_fee,
+        Int128::try_from(opening_fee_1).unwrap()
+    );
+    assert_eq!(acct_after_1.accounting.cash_flow.price_pnl, Int128::zero());
+    assert_eq!(acct_after_1.accounting.cash_flow.accrued_funding, Int128::zero());
+
     // Step 2: Increase position with Tier 2 (10% discount)
     mock.set_voting_power(&user, Uint128::new(10_000_000_000)); // 10,000 MARS
 
@@ -566,6 +586,16 @@ fn test_perp_position_modification_with_tier_changes() {
     let expected_total_size = Int128::new(200 + 200);
     assert_position_size(&mock, &account_id, &atom.denom, expected_total_size);
     let vault_balance_2 = assert_vault_balance_increase(&mock, vault_balance_1, opening_fee_2);
+
+    // Market accounting after step 2 (opening fees accumulate)
+    let acct_after_2 = query_market_acct(&mock);
+    let expected_opening_fees_1_2 = opening_fee_1 + opening_fee_2;
+    assert_eq!(
+        acct_after_2.accounting.cash_flow.opening_fee,
+        Int128::try_from(expected_opening_fees_1_2).unwrap()
+    );
+    assert_eq!(acct_after_2.accounting.cash_flow.price_pnl, Int128::zero());
+    assert_eq!(acct_after_2.accounting.cash_flow.accrued_funding, Int128::zero());
 
     // Step 3: Increase position with Tier 5 (45% discount)
     mock.set_voting_power(&user, Uint128::new(250_000_000_000)); // 250,000 MARS
@@ -603,6 +633,16 @@ fn test_perp_position_modification_with_tier_changes() {
     assert_position_size(&mock, &account_id, &atom.denom, final_expected_size);
     let vault_balance_3 = assert_vault_balance_increase(&mock, vault_balance_2, opening_fee_3);
 
+    // Market accounting after step 3 (opening fees accumulate)
+    let acct_after_3 = query_market_acct(&mock);
+    let expected_opening_fees_total = opening_fee_1 + opening_fee_2 + opening_fee_3;
+    assert_eq!(
+        acct_after_3.accounting.cash_flow.opening_fee,
+        Int128::try_from(expected_opening_fees_total).unwrap()
+    );
+    assert_eq!(acct_after_3.accounting.cash_flow.price_pnl, Int128::zero());
+    assert_eq!(acct_after_3.accounting.cash_flow.accrued_funding, Int128::zero());
+
     // Step 4: Validate total fees collected and user balance changes
     let total_fees_collected = vault_balance_3 - initial_vault_balance;
     let expected_total_fees = opening_fee_1 + opening_fee_2 + opening_fee_3;
@@ -613,6 +653,19 @@ fn test_perp_position_modification_with_tier_changes() {
     assert_eq!(total_user_balance_decrease, expected_total_fees);
 
     // Step 5: Close position with current tier (Tier 5)
+    // Pre-calc expected closing fee from query
+    let closing_fee_estimate: mars_types::perps::PositionFeesResponse = mock
+        .app
+        .wrap()
+        .query_wasm_smart(
+            mock.perps.address(),
+            &mars_types::perps::QueryMsg::PositionFees {
+                account_id: account_id.clone(),
+                denom: atom.denom.clone(),
+                new_size: Int128::zero(),
+            },
+        )
+        .unwrap();
     let close_res = mock
         .update_credit_account(
             &account_id,
@@ -632,6 +685,18 @@ fn test_perp_position_modification_with_tier_changes() {
     // Verify position is closed
     let position_after_close = mock.query_perp_position(&account_id, &atom.denom);
     assert!(position_after_close.position.is_none());
+
+    // Market accounting after close: opening fees + closing fee must be realized, no unrealized pnl
+    let acct_after_close = query_market_acct(&mock);
+    let expected_opening_total_i = Int128::try_from(expected_total_fees).unwrap();
+    assert_eq!(acct_after_close.accounting.cash_flow.opening_fee, expected_opening_total_i);
+    assert_eq!(acct_after_close.accounting.cash_flow.price_pnl, Int128::zero());
+    assert_eq!(acct_after_close.accounting.cash_flow.accrued_funding, Int128::zero());
+    // closing fee equals estimate
+    assert_eq!(
+        acct_after_close.accounting.cash_flow.closing_fee,
+        Int128::try_from(closing_fee_estimate.closing_fee).unwrap()
+    );
 }
 
 #[test]
