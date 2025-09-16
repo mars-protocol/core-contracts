@@ -1,14 +1,15 @@
-use cosmwasm_std::{coin, testing::mock_env, to_json_binary, CosmosMsg, Decimal, Empty, Uint128, WasmMsg, SubMsg};
+use cosmwasm_std::{
+    coin, testing::mock_env, to_json_binary, CosmosMsg, Decimal, Empty, SubMsg, Uint128, WasmMsg,
+};
 use mars_rewards_collector_neutron::entry::execute;
 use mars_testing::mock_info;
 use mars_types::{
     rewards_collector::{ConfigResponse, ExecuteMsg, QueryMsg},
-    swapper::{SwapperRoute, DualityRoute},
+    swapper::{DualityRoute, SwapperRoute},
 };
 
-use crate::tests::helpers;
-
 use super::helpers::*;
+use crate::tests::helpers;
 
 #[test]
 fn test_swap_asset_with_neutron_swapper() {
@@ -45,12 +46,18 @@ fn test_swap_asset_with_neutron_swapper() {
             safety_fund_route: Some(SwapperRoute::Duality(DualityRoute {
                 from: "uatom".to_string(),
                 to: cfg.safety_fund_config.target_denom.to_string(),
-                swap_denoms: vec!["uatom".to_string(), cfg.safety_fund_config.target_denom.to_string()],
+                swap_denoms: vec![
+                    "uatom".to_string(),
+                    cfg.safety_fund_config.target_denom.to_string(),
+                ],
             })),
             fee_collector_route: Some(SwapperRoute::Duality(DualityRoute {
                 from: "uatom".to_string(),
                 to: cfg.fee_collector_config.target_denom.to_string(),
-                swap_denoms: vec!["uatom".to_string(), cfg.fee_collector_config.target_denom.to_string()],
+                swap_denoms: vec![
+                    "uatom".to_string(),
+                    cfg.fee_collector_config.target_denom.to_string(),
+                ],
             })),
             safety_fund_min_receive: Some(Uint128::new(178528)),
             fee_collector_min_receive: Some(Uint128::new(663140)),
@@ -69,7 +76,10 @@ fn test_swap_asset_with_neutron_swapper() {
             route: Some(SwapperRoute::Duality(DualityRoute {
                 from: "uatom".to_string(),
                 to: cfg.safety_fund_config.target_denom.to_string(),
-                swap_denoms: vec!["uatom".to_string(), cfg.safety_fund_config.target_denom.to_string()],
+                swap_denoms: vec![
+                    "uatom".to_string(),
+                    cfg.safety_fund_config.target_denom.to_string(),
+                ],
             })),
         })
         .unwrap(),
@@ -87,7 +97,10 @@ fn test_swap_asset_with_neutron_swapper() {
             route: Some(SwapperRoute::Duality(DualityRoute {
                 from: "uatom".to_string(),
                 to: cfg.fee_collector_config.target_denom.to_string(),
-                swap_denoms: vec!["uatom".to_string(), cfg.fee_collector_config.target_denom.to_string()],
+                swap_denoms: vec![
+                    "uatom".to_string(),
+                    cfg.fee_collector_config.target_denom.to_string(),
+                ],
             })),
         })
         .unwrap(),

@@ -1,6 +1,4 @@
-use cosmwasm_std::{
-    to_json_binary, Coin, CosmosMsg, Empty, Env, IbcMsg, IbcTimeout, Uint128, WasmMsg,
-};
+use cosmwasm_std::{to_json_binary, Coin, CosmosMsg, Empty, Env, Uint128, WasmMsg};
 use cw2::set_contract_version;
 use mars_rewards_collector_base::{
     contract::Collector, ContractError, ContractResult, SwapMsg, TransferMsg,
@@ -19,10 +17,10 @@ pub struct NeutronMsgFactory {}
 
 impl TransferMsg<Empty> for NeutronMsgFactory {
     fn transfer_msg(
-        env: &Env,
+        _env: &Env,
         to_address: &str,
         amount: Coin,
-        cfg: &Config,
+        _cfg: &Config,
         transfer_type: &TransferType,
     ) -> ContractResult<CosmosMsg<Empty>> {
         match transfer_type {
@@ -142,6 +140,7 @@ pub mod entry {
             NeutronMigrateMsg::V2_1_0ToV2_2_0 {} => migrations::v2_2_0::migrate(deps),
             NeutronMigrateMsg::V2_2_0ToV2_2_2 {} => migrations::v2_2_2::migrate(deps),
             NeutronMigrateMsg::V2_2_2ToV2_3_1 {} => migrations::v2_3_1::migrate(deps),
+            NeutronMigrateMsg::V2_3_1ToV2_3_2 {} => migrations::v2_3_2::migrate(deps),
         }
     }
 }

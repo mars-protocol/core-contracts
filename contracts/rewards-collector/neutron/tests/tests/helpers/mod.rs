@@ -1,12 +1,11 @@
 use cosmwasm_std::{
-    coin, from_json, testing::{mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR}, Decimal, Deps, OwnedDeps
+    coin, from_json,
+    testing::{mock_env, MockApi, MockQuerier, MockStorage, MOCK_CONTRACT_ADDR},
+    Decimal, Deps, OwnedDeps,
 };
-
 use mars_rewards_collector_neutron::entry;
 use mars_testing::{mock_info, MarsMockQuerier};
-use mars_types::{
-    rewards_collector::{InstantiateMsg, QueryMsg, RewardConfig, TransferType},
-};
+use mars_types::rewards_collector::{InstantiateMsg, QueryMsg, RewardConfig, TransferType};
 
 pub fn mock_instantiate_msg() -> InstantiateMsg {
     InstantiateMsg {
@@ -33,24 +32,23 @@ pub fn mock_instantiate_msg() -> InstantiateMsg {
 }
 
 pub fn setup_test_env() -> OwnedDeps<cosmwasm_std::MemoryStorage, MockApi, MarsMockQuerier> {
-
     let mut deps: OwnedDeps<cosmwasm_std::MemoryStorage, MockApi, MarsMockQuerier> =
-    OwnedDeps::<_, _, _> {
-        storage: MockStorage::default(),
-        api: MockApi::default(),
-        querier: MarsMockQuerier::new(MockQuerier::new(&[(
-            MOCK_CONTRACT_ADDR,
-            &[coin(88888, "uatom"), coin(1234, "uusdc"), coin(8964, "umars")],
-        )])),
-        custom_query_type: Default::default(),
-    };
+        OwnedDeps::<_, _, _> {
+            storage: MockStorage::default(),
+            api: MockApi::default(),
+            querier: MarsMockQuerier::new(MockQuerier::new(&[(
+                MOCK_CONTRACT_ADDR,
+                &[coin(88888, "uatom"), coin(1234, "uusdc"), coin(8964, "umars")],
+            )])),
+            custom_query_type: Default::default(),
+        };
 
     deps.querier.set_oracle_price("uatom", Decimal::one());
-    
+
     let info = mock_info("deployer");
     let msg = mock_instantiate_msg();
     entry::instantiate(deps.as_mut(), mock_env(), info, msg).unwrap();
-    
+
     deps
 }
 
