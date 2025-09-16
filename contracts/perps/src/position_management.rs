@@ -366,7 +366,9 @@ fn modify_position(
 
     // Convert PnL amounts to coins
     let pnl = pnl_amounts.to_coins(&cfg.base_denom).pnl;
+
     let mut msgs = vec![];
+
     // Apply the payment to the credit manager if necessary
     apply_payment_to_cm_if_needed(&cfg, cm_address, &mut msgs, paid_amount, &pnl)?;
 
@@ -387,6 +389,7 @@ fn modify_position(
         entry_accrued_funding_per_unit_in_base_denom,
         &pnl_amounts,
     );
+
     // Update the realized PnL, market state, and total cash flow based on the new amounts
     apply_pnl_and_fees(
         &cfg,

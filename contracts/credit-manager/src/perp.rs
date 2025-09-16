@@ -272,9 +272,6 @@ fn modify_existing_position(
     let (funds, response) = update_state_based_on_pnl(&mut deps, account_id, pnl, None, response)?;
     let funds = funds.map_or_else(Vec::new, |c| vec![c]);
 
-    // Get effective fee
-    let effective_opening_fee =
-        perps.query_opening_fee(&deps.querier, denom, order_size, Some(discount_pct))?;
     let msg = perps.execute_perp_order(
         account_id,
         denom,
@@ -301,7 +298,6 @@ fn modify_existing_position(
         .add_attribute("reduce_only", reduce_only.unwrap_or(false).to_string())
         .add_attribute("order_size", order_size.to_string())
         .add_attribute("new_size", new_size.to_string())
-        .add_attribute("effective_opening_fee", effective_opening_fee.fee.to_string())
         .add_attribute("discount_pct", discount_pct.to_string())
         .add_attribute("tier_id", tier))
 }

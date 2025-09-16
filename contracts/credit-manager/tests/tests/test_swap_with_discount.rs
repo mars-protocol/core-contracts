@@ -97,6 +97,30 @@ fn test_swap_with_discount() {
     assert_eq!(base_fee, Decimal::percent(1)); // 1% base fee
     assert_eq!(effective_fee, Decimal::percent(1)); // No discount applied
 
+    // Verify account balances for tier 1 (no discount)
+    let positions = mock.query_positions(&account_id);
+    assert_eq!(positions.deposits.len(), 1);
+    let osmo_deposit = positions.deposits.iter().find(|d| d.denom == "uosmo").unwrap();
+    assert!(osmo_deposit.amount > Uint128::zero());
+
+    let atom_deposit = positions.deposits.iter().find(|d| d.denom == "uatom");
+    assert!(atom_deposit.is_none());
+
+    // Verify Credit Manager contract balances
+    let rover_atom_balance = mock.query_balance(&mock.rover, "uatom");
+    // Rover retains the effective swap fee in input denom (1% of 10,000 = 100)
+    assert_eq!(rover_atom_balance.amount, Uint128::new(100));
+
+    let rover_osmo_balance = mock.query_balance(&mock.rover, "uosmo");
+    assert_eq!(rover_osmo_balance.amount, osmo_deposit.amount);
+
+    // Verify user wallet balances - check that swap amount is correctly debited
+    let user_atom_balance = mock.query_balance(&user, "uatom");
+    assert_eq!(user_atom_balance.amount, Uint128::new(30_000 - 10_000)); // 20,000 ATOM remaining (10,000 debited for swap)
+
+    let user_osmo_balance = mock.query_balance(&user, "uosmo");
+    assert_eq!(user_osmo_balance.amount, Uint128::zero());
+
     // Tier 2 (>= 10_000 MARS) → 10% discount
     mock.set_voting_power(&user, Uint128::new(10_000_000_000));
     let res = do_swap(&mut mock, &account_id, &user, 10_000, "uatom", "uosmo");
@@ -110,6 +134,30 @@ fn test_swap_with_discount() {
     assert_eq!(base_fee, Decimal::percent(1)); // 1% base fee
     assert_eq!(effective_fee, Decimal::percent(1) * (Decimal::one() - Decimal::percent(10))); // 0.9% effective fee
 
+    // Verify account balances for tier 2 (10% discount)
+    let positions = mock.query_positions(&account_id);
+    assert_eq!(positions.deposits.len(), 1);
+    let osmo_deposit = positions.deposits.iter().find(|d| d.denom == "uosmo").unwrap();
+    assert!(osmo_deposit.amount > Uint128::zero());
+
+    let atom_deposit = positions.deposits.iter().find(|d| d.denom == "uatom");
+    assert!(atom_deposit.is_none());
+
+    // Verify Credit Manager contract balances
+    let rover_atom_balance = mock.query_balance(&mock.rover, "uatom");
+    // Cumulative retained fee: 100 (first) + 90 (second with 0.9%) = 190
+    assert_eq!(rover_atom_balance.amount, Uint128::new(190));
+
+    let rover_osmo_balance = mock.query_balance(&mock.rover, "uosmo");
+    assert_eq!(rover_osmo_balance.amount, osmo_deposit.amount);
+
+    // Verify user wallet balances - check that swap amount is correctly debited
+    let user_atom_balance = mock.query_balance(&user, "uatom");
+    assert_eq!(user_atom_balance.amount, Uint128::new(30_000 - 20_000)); // 10,000 ATOM remaining (20,000 debited for 2 swaps)
+
+    let user_osmo_balance = mock.query_balance(&user, "uosmo");
+    assert_eq!(user_osmo_balance.amount, Uint128::zero());
+
     // Tier 5 (>= 250_000 MARS) → 45% discount
     mock.set_voting_power(&user, Uint128::new(250_000_000_000));
     let res = do_swap(&mut mock, &account_id, &user, 10_000, "uatom", "uosmo");
@@ -122,6 +170,32 @@ fn test_swap_with_discount() {
     let (base_fee, effective_fee) = extract_fees(&res);
     assert_eq!(base_fee, Decimal::percent(1)); // 1% base fee
     assert_eq!(effective_fee, Decimal::percent(1) * (Decimal::one() - Decimal::percent(45))); // 0.55% effective fee
+
+    // Verify account balances to ensure internal accounting is correct
+    let positions = mock.query_positions(&account_id);
+    assert_eq!(positions.deposits.len(), 1);
+    let osmo_deposit = positions.deposits.iter().find(|d| d.denom == "uosmo").unwrap();
+    // Should have received OSMO from the swap (minus fees)
+    assert!(osmo_deposit.amount > Uint128::zero());
+
+    // Verify no ATOM remains in account (it was swapped)
+    let atom_deposit = positions.deposits.iter().find(|d| d.denom == "uatom");
+    assert!(atom_deposit.is_none());
+
+    // Verify Credit Manager contract balances
+    let rover_atom_balance = mock.query_balance(&mock.rover, "uatom");
+    // Cumulative retained fee: 190 + 55 (third with 0.55%) = 245
+    assert_eq!(rover_atom_balance.amount, Uint128::new(245));
+
+    let rover_osmo_balance = mock.query_balance(&mock.rover, "uosmo");
+    assert_eq!(rover_osmo_balance.amount, osmo_deposit.amount); // OSMO should match account deposit
+
+    // Verify user wallet balances - check that swap amount is correctly debited
+    let user_atom_balance = mock.query_balance(&user, "uatom");
+    assert_eq!(user_atom_balance.amount, Uint128::new(30_000 - 30_000)); // 0 ATOM remaining (30,000 debited for 3 swaps)
+
+    let user_osmo_balance = mock.query_balance(&user, "uosmo");
+    assert_eq!(user_osmo_balance.amount, Uint128::zero()); // No OSMO in user wallet
 
     assert!(res
         .events

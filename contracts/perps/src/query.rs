@@ -313,19 +313,9 @@ pub fn query_position(
 
     // Query the credit manager to get the discount for this account via adapter
     let discount_pct = credit_manager_adapter.query_discount_pct(&deps.querier, &account_id)?;
-
-    // Get the effective opening fee rate (volume-weighted average or fallback)
-    // let fallback_opening_fee_rate = perp_params.opening_fee_rate * (Decimal::one() - discount_pct);
-    // let discounted_opening_fee_rate = get_effective_opening_fee_rate(
-    //     deps.storage,
-    //     &account_id,
-    //     &denom,
-    //     fallback_opening_fee_rate,
-    // )?;
-
-    // Use current discount for closing fee rate (fair for current operations)
     let (discounted_opening_fee_rate, discounted_closing_fee_rate) =
         compute_discounted_fee_rates(&perp_params, Some(discount_pct))?;
+
     let pnl_amounts = position.compute_pnl(
         &curr_funding,
         ms.skew()?,
@@ -419,11 +409,9 @@ pub fn query_positions(
             // Query the credit manager to get the discount for this account via adapter
             let discount_pct =
                 credit_manager_adapter.query_discount_pct(&deps.querier, &account_id)?;
-
-            // Check if we have a stored opening fee rate for this position
-
             let (discounted_opening_fee_rate, discounted_closing_fee_rate) =
                 compute_discounted_fee_rates(&perp_params, Some(discount_pct))?;
+
             let pnl_amounts = position.compute_pnl(
                 &funding,
                 skew,
@@ -507,8 +495,7 @@ pub fn query_positions_by_account(
             let ms = MARKET_STATES.load(deps.storage, &denom)?;
             let curr_funding = ms.current_funding(current_time, denom_price, base_denom_price)?;
 
-            // Check if we have a stored opening fee rate for this position
-
+            // Query the credit manager to get the discount for this account via adapter
             let discount_pct = credit_manager.query_discount_pct(&deps.querier, &account_id)?;
             let (opening_fee_rate, closing_fee_rate) =
                 compute_discounted_fee_rates(&perp_params, Some(discount_pct))?;
@@ -659,11 +646,12 @@ pub fn query_opening_fee(
     let perp_params = params.query_perp_params(&deps.querier, denom)?;
 
     // Apply discount to fee rates if provided
-    let (opening_fee_rate, _) = compute_discounted_fee_rates(&perp_params, discount_pct)?;
+    let (opening_fee_rate, closing_fee_rate) =
+        compute_discounted_fee_rates(&perp_params, discount_pct)?;
 
     let fees = PositionModification::Increase(size).compute_fees(
         opening_fee_rate,
-        perp_params.closing_fee_rate,
+        closing_fee_rate,
         denom_price,
         base_denom_price,
         ms.skew()?,
@@ -749,8 +737,6 @@ pub fn query_position_fees(
     };
     // Query the credit manager to get the discount for this account via adapter
     let discount_pct = credit_manager_adapter.query_discount_pct(&deps.querier, account_id)?;
-
-    // Apply discount to fee rates using the helper function
     let (discounted_opening_fee_rate, discounted_closing_fee_rate) =
         compute_discounted_fee_rates(&perp_params, Some(discount_pct))?;
 
