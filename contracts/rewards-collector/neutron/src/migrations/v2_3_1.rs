@@ -3,7 +3,7 @@ use cw2::{assert_contract_version, set_contract_version};
 use mars_rewards_collector_base::ContractError;
 use mars_types::rewards_collector::Config;
 
-use crate::entry::{NeutronCollector, CONTRACT_NAME, CONTRACT_VERSION};
+use crate::{NeutronCollector, CONTRACT_NAME};
 
 mod previous_state {
     use cosmwasm_schema::cw_serde;
@@ -28,6 +28,7 @@ mod previous_state {
 }
 
 const FROM_VERSION: &str = "2.2.2";
+const TO_VERSION: &str = "2.3.1";
 
 pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
     assert_contract_version(deps.storage, &format!("crates.io:{CONTRACT_NAME}"), FROM_VERSION)?;
@@ -53,9 +54,9 @@ pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
 
     collector.config.save(storage, &new_config)?;
 
-    set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), CONTRACT_VERSION)?;
+    set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), TO_VERSION)?;
     Ok(Response::new()
         .add_attribute("action", "migrate")
         .add_attribute("from_version", FROM_VERSION)
-        .add_attribute("to_version", CONTRACT_VERSION))
+        .add_attribute("to_version", TO_VERSION))
 }

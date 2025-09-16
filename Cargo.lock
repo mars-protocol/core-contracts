@@ -3064,12 +3064,15 @@ version = "2.3.1"
 dependencies = [
  "cosmwasm-schema 1.5.7",
  "cosmwasm-std 1.5.7",
+ "cw-multi-test",
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "mars-rewards-collector-base",
  "mars-testing",
  "mars-types",
  "neutron-sdk",
+ "serde",
+ "test-case",
 ]
 
 [[package]]

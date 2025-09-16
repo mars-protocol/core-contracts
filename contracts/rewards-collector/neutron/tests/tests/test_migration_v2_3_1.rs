@@ -1,7 +1,10 @@
 use cosmwasm_std::{from_json, testing::mock_env, Addr, Decimal};
 use cw2::VersionError;
 use mars_rewards_collector_base::ContractError;
-use mars_rewards_collector_neutron::entry::{migrate, query, CONTRACT_NAME, CONTRACT_VERSION};
+use mars_rewards_collector_neutron::{
+    entry::{migrate, query},
+    CONTRACT_NAME,
+};
 use mars_testing::mock_dependencies;
 use mars_types::rewards_collector::{
     ConfigResponse, NeutronMigrateMsg, QueryMsg, RewardConfig, TransferType,
@@ -28,6 +31,8 @@ mod previous_state {
 
     pub const CONFIG: Item<Config> = Item::new("config");
 }
+
+const TO_VERSION: &str = "2.3.1";
 
 #[test]
 fn test_successful_migration() {
@@ -70,7 +75,7 @@ fn test_successful_migration() {
     assert_eq!(res.attributes[1].key, "from_version");
     assert_eq!(res.attributes[1].value, "2.2.2");
     assert_eq!(res.attributes[2].key, "to_version");
-    assert_eq!(res.attributes[2].value, CONTRACT_VERSION);
+    assert_eq!(res.attributes[2].value, TO_VERSION);
 
     let query_res = query(deps.as_ref(), mock_env(), QueryMsg::Config {}).unwrap();
     let config_response: ConfigResponse = from_json(&query_res).unwrap();
@@ -87,7 +92,7 @@ fn test_successful_migration() {
 
     // After migration, check that the contract version is updated
     let version = cw2::get_contract_version(&deps.storage).unwrap();
-    assert_eq!(version.version, CONTRACT_VERSION);
+    assert_eq!(version.version, TO_VERSION);
     assert_eq!(version.contract, format!("crates.io:{}", CONTRACT_NAME));
 }
 

@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    coin, to_json_binary, Addr, Binary, Coin, CosmosMsg, CustomMsg, Decimal, Deps, DepsMut, Empty,
-    Env, MessageInfo, Response, StdResult, Uint128, WasmMsg,
+    to_json_binary, Addr, Binary, Coin, CosmosMsg, CustomMsg, Decimal, Deps, DepsMut, Env,
+    MessageInfo, Response, StdResult, Uint128, WasmMsg,
 };
 use cw_storage_plus::Item;
 use mars_owner::{Owner, OwnerInit::SetInitialOwner, OwnerUpdate};
@@ -18,7 +18,7 @@ use mars_utils::helpers::option_string_to_addr;
 
 use crate::{
     helpers::{ensure_distributor_whitelisted, stringify_option_amount, unwrap_option_amount},
-    ContractError, ContractResult, TransferMsg,
+    ContractError, ContractResult, SwapMsg, TransferMsg,
 };
 
 pub struct Collector<'a, M: CustomMsg, I: TransferMsg<M>> {
@@ -46,7 +46,7 @@ impl<'a, M: CustomMsg, I: TransferMsg<M>> Default for Collector<'a, M, I> {
 impl<'a, M, I> Collector<'a, M, I>
 where
     M: CustomMsg,
-    I: TransferMsg<M>,
+    I: TransferMsg<M> + SwapMsg<M>,
 {
     pub fn instantiate(
         &self,
@@ -345,20 +345,24 @@ where
             cfg.address_provider,
             &address_provider::QueryMsg::Addresses(vec![
                 MarsAddressType::Swapper,
+                MarsAddressType::DualitySwapper,
                 MarsAddressType::Oracle,
             ]),
         )?;
 
-        let swapper_addr = &addresses[0].address;
+        let swapper_addresses = &addresses[0..2];
 
         // execute the swap to safety fund denom, if the amount to swap is non-zero,
         // and if the denom is not already the safety fund denom
         // Note that revenue share is included in this swap as they are the same denom
         if !rf_and_sf_combined.is_zero() && denom != cfg.safety_fund_config.target_denom {
-            let swap_msg = self.generate_swap_msg(
-                swapper_addr,
-                denom,
-                rf_and_sf_combined,
+            let swap_msg = I::swap_msg(
+                &env,
+                swapper_addresses,
+                Coin {
+                    amount: rf_and_sf_combined,
+                    denom: denom.to_string(),
+                },
                 &cfg.safety_fund_config.target_denom,
                 safety_fund_min_receive.ok_or(
                     ContractError::InvalidMinReceive {
@@ -374,10 +378,13 @@ where
         // execute the swap to fee collector denom, if the amount to swap is non-zero,
         // and if the denom is not already the fee collector denom
         if !fc_amount.is_zero() && denom != cfg.fee_collector_config.target_denom {
-            let swap_msg = self.generate_swap_msg(
-                swapper_addr,
-                denom,
-                fc_amount,
+            let swap_msg = I::swap_msg(
+                &env,
+                swapper_addresses,
+                Coin {
+                    amount: fc_amount,
+                    denom: denom.to_string(),
+                },
                 &cfg.fee_collector_config.target_denom,
                 fee_collector_min_receive.ok_or(
                     ContractError::InvalidMinReceive {
@@ -396,27 +403,6 @@ where
             .add_attribute("denom", denom)
             .add_attribute("amount_safety_fund", rf_and_sf_combined)
             .add_attribute("amount_fee_collector", fc_amount))
-    }
-
-    fn generate_swap_msg(
-        &self,
-        swapper_addr: &str,
-        denom_in: &str,
-        amount_in: Uint128,
-        denom_out: &str,
-        min_receive: Uint128,
-        route: Option<SwapperRoute>,
-    ) -> Result<WasmMsg, ContractError> {
-        Ok(WasmMsg::Execute {
-            contract_addr: swapper_addr.to_string(),
-            msg: to_json_binary(&mars_types::swapper::ExecuteMsg::<Empty, Empty>::SwapExactIn {
-                coin_in: coin(amount_in.u128(), denom_in),
-                denom_out: denom_out.to_string(),
-                min_receive,
-                route,
-            })?,
-            funds: vec![coin(amount_in.u128(), denom_in)],
-        })
     }
 
     pub fn distribute_rewards(

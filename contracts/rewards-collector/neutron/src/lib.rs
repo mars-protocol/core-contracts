@@ -1,20 +1,111 @@
+use cosmwasm_std::{
+    to_json_binary, Coin, CosmosMsg, Empty, Env, IbcMsg, IbcTimeout, Uint128, WasmMsg,
+};
+use cw2::set_contract_version;
+use mars_rewards_collector_base::{
+    contract::Collector, ContractError, ContractResult, SwapMsg, TransferMsg,
+};
+use mars_types::{
+    address_provider::{AddressResponseItem, MarsAddressType},
+    rewards_collector::{
+        Config, ExecuteMsg, InstantiateMsg, NeutronMigrateMsg, QueryMsg, TransferType,
+    },
+    swapper::SwapperRoute,
+};
+
 pub mod migrations;
+
+pub struct NeutronMsgFactory {}
+
+impl TransferMsg<Empty> for NeutronMsgFactory {
+    fn transfer_msg(
+        env: &Env,
+        to_address: &str,
+        amount: Coin,
+        cfg: &Config,
+        transfer_type: &TransferType,
+    ) -> ContractResult<CosmosMsg<Empty>> {
+        match transfer_type {
+            TransferType::Bank => Ok(CosmosMsg::Bank(cosmwasm_std::BankMsg::Send {
+                to_address: to_address.to_string(),
+                amount: vec![amount],
+            })),
+            _ => Err(ContractError::UnsupportedTransferType {
+                transfer_type: transfer_type.to_string(),
+            }),
+        }
+    }
+}
+
+impl SwapMsg<Empty> for NeutronMsgFactory {
+    fn swap_msg(
+        _env: &Env,
+        swapper_addresses: &[AddressResponseItem],
+        coin_in: Coin,
+        denom_out: &str,
+        min_receive: Uint128,
+        route: Option<SwapperRoute>,
+    ) -> ContractResult<CosmosMsg<Empty>> {
+        match route {
+            Some(SwapperRoute::Duality(_)) => {
+                // Use DualitySwapper for duality routes
+                let duality_swapper = swapper_addresses
+                    .iter()
+                    .find(|addr| addr.address_type == MarsAddressType::DualitySwapper)
+                    .ok_or(ContractError::NoSwapper {
+                        required: MarsAddressType::DualitySwapper.to_string(),
+                    })?;
+
+                // Call the duality swapper contract
+                Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: duality_swapper.address.clone(),
+                    msg: to_json_binary(
+                        &mars_types::swapper::ExecuteMsg::<Empty, Empty>::SwapExactIn {
+                            coin_in: coin_in.clone(),
+                            denom_out: denom_out.to_string(),
+                            min_receive,
+                            route,
+                        },
+                    )?,
+                    funds: vec![coin_in],
+                }))
+            }
+            _ => {
+                // Use default swapper for other routes or no route
+                let swapper = swapper_addresses
+                    .iter()
+                    .find(|addr| addr.address_type == MarsAddressType::Swapper)
+                    .ok_or(ContractError::NoSwapper {
+                        required: MarsAddressType::Swapper.to_string(),
+                    })?;
+
+                Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+                    contract_addr: swapper.address.clone(),
+                    msg: to_json_binary(
+                        &mars_types::swapper::ExecuteMsg::<Empty, Empty>::SwapExactIn {
+                            coin_in: coin_in.clone(),
+                            denom_out: denom_out.to_string(),
+                            min_receive,
+                            route,
+                        },
+                    )?,
+                    funds: vec![coin_in],
+                }))
+            }
+        }
+    }
+}
+
+pub type NeutronCollector<'a> = Collector<'a, Empty, NeutronMsgFactory>;
+
+pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
+pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[cfg(not(feature = "library"))]
 pub mod entry {
-    use cosmwasm_std::{
-        entry_point, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
-    };
-    use cw2::set_contract_version;
-    use mars_rewards_collector_base::{contract::Collector, ContractResult};
-    use mars_types::rewards_collector::{ExecuteMsg, InstantiateMsg, NeutronMigrateMsg, QueryMsg};
+    use cosmwasm_std::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult};
 
-    use crate::migrations;
-
-    pub type NeutronCollector<'a> = Collector<'a, Empty, Empty>;
-
-    pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
-    pub const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
+    use super::*;
 
     #[entry_point]
     pub fn instantiate(

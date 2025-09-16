@@ -3,7 +3,7 @@ use cw2::{assert_contract_version, set_contract_version};
 use mars_rewards_collector_base::ContractError;
 use mars_types::rewards_collector::{Config, RewardConfig, TransferType};
 
-use crate::entry::{NeutronCollector, CONTRACT_NAME};
+use crate::{NeutronCollector, CONTRACT_NAME};
 
 pub mod previous_state {
     use cosmwasm_schema::cw_serde;
