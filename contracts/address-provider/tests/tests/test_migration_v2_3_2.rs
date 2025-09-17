@@ -29,7 +29,7 @@ fn wrong_contract_version() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(
         deps.as_mut().storage,
-        &format!("crates.io:{CONTRACT_NAME}"),
+        format!("crates.io:{CONTRACT_NAME}"),
         "4.1.0",
     )
     .unwrap();
@@ -50,7 +50,7 @@ fn successful_migration() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(
         deps.as_mut().storage,
-        &format!("crates.io:{CONTRACT_NAME}"),
+        format!("crates.io:{CONTRACT_NAME}"),
         FROM_VERSION,
     )
     .unwrap();
