@@ -8,8 +8,6 @@ use mars_address_provider::{
 use mars_testing::mock_dependencies;
 use mars_types::address_provider::MigrateMsg;
 
-
-
 #[test]
 fn wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
@@ -29,8 +27,12 @@ fn wrong_contract_name() {
 #[test]
 fn wrong_contract_version() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, &format!("crates.io:{CONTRACT_NAME}"), "4.1.0")
-        .unwrap();
+    cw2::set_contract_version(
+        deps.as_mut().storage,
+        &format!("crates.io:{CONTRACT_NAME}"),
+        "4.1.0",
+    )
+    .unwrap();
 
     let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_2ToV2_3_2 {}).unwrap_err();
 
@@ -46,17 +48,25 @@ fn wrong_contract_version() {
 #[test]
 fn successful_migration() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, &format!("crates.io:{CONTRACT_NAME}"), FROM_VERSION)
-        .unwrap();
+    cw2::set_contract_version(
+        deps.as_mut().storage,
+        &format!("crates.io:{CONTRACT_NAME}"),
+        FROM_VERSION,
+    )
+    .unwrap();
 
-    let res = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_2ToV2_3_2 { }).unwrap();
+    let res = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_2ToV2_3_2 {}).unwrap();
 
     assert_eq!(res.messages, vec![]);
     assert_eq!(res.events, vec![] as Vec<Event>);
     assert!(res.data.is_none());
     assert_eq!(
         res.attributes,
-        vec![attr("action", "migrate"), attr("from_version", FROM_VERSION), attr("to_version", CONTRACT_VERSION)]
+        vec![
+            attr("action", "migrate"),
+            attr("from_version", FROM_VERSION),
+            attr("to_version", CONTRACT_VERSION)
+        ]
     );
 
     let new_contract_version = ContractVersion {

@@ -3,8 +3,8 @@ use std::convert::TryInto;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response,
-    StdError, StdResult,
+    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response, StdError,
+    StdResult,
 };
 use cw2::set_contract_version;
 use cw_storage_plus::Bound;
