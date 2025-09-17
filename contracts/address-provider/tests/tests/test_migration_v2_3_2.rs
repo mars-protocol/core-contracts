@@ -27,12 +27,8 @@ fn wrong_contract_name() {
 #[test]
 fn wrong_contract_version() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(
-        deps.as_mut().storage,
-        format!("crates.io:{CONTRACT_NAME}"),
-        "4.1.0",
-    )
-    .unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, format!("crates.io:{CONTRACT_NAME}"), "4.1.0")
+        .unwrap();
 
     let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_2ToV2_3_2 {}).unwrap_err();
 
