@@ -3,7 +3,7 @@ use std::convert::TryInto;
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Order, Response,
+    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Order, Response,
     StdError, StdResult,
 };
 use cw2::set_contract_version;
@@ -11,7 +11,7 @@ use cw_storage_plus::Bound;
 use mars_owner::{OwnerInit::SetInitialOwner, OwnerUpdate};
 use mars_types::address_provider::{
     AddressResponseItem, Config, ConfigResponse, ExecuteMsg, InstantiateMsg, MarsAddressType,
-    QueryMsg,
+    MigrateMsg, QueryMsg,
 };
 
 use crate::{
@@ -172,6 +172,9 @@ fn query_all_addresses(
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
-    migrations::v2_2_2::migrate(deps)
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    match msg {
+        MigrateMsg::V2_2_0ToV2_2_2 {} => migrations::v2_2_2::migrate(deps),
+        MigrateMsg::V2_2_2ToV2_3_2 {} => migrations::v2_3_2::migrate(deps),
+    }
 }

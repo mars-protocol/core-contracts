@@ -2656,7 +2656,7 @@ dependencies = [
 
 [[package]]
 name = "mars-address-provider"
-version = "2.2.2"
+version = "2.3.2"
 dependencies = [
  "bech32 0.11.0",
  "cosmwasm-schema 1.5.7",
@@ -3060,7 +3060,7 @@ dependencies = [
 
 [[package]]
 name = "mars-rewards-collector-neutron"
-version = "2.3.1"
+version = "2.3.2"
 dependencies = [
  "cosmwasm-schema 1.5.7",
  "cosmwasm-std 1.5.7",
