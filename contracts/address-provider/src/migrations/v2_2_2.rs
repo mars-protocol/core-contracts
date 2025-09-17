@@ -10,7 +10,7 @@ pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
     // make sure we're migrating the correct contract and from the correct version
     assert_contract_version(deps.storage, &format!("crates.io:{CONTRACT_NAME}"), FROM_VERSION)?;
 
-    // add new address
+    // this is a standard migration with no state changes
     set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), TO_VERSION)?;
 
     Ok(Response::new()

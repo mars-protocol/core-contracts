@@ -349,6 +349,7 @@ where
             ]),
         )?;
 
+        // duality address queried seperately
         let duality_swapper_address = deps
             .querier
             .query_wasm_smart::<AddressResponseItem>(

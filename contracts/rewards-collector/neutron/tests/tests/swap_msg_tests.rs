@@ -104,7 +104,7 @@ mod tests {
     }
 
     #[test]
-    fn test_neutron_swap_msg_with_osmosis_route() {
+    fn test_neutron_swap_msg_with_astro_route() {
         let env = mock_env();
 
         let coin_in = Coin {
@@ -113,9 +113,9 @@ mod tests {
         };
 
         // Test with osmosis route (should use default swapper)
-        let route = Some(SwapperRoute::Osmo(mars_types::swapper::OsmoRoute {
-            swaps: vec![mars_types::swapper::OsmoSwap {
-                pool_id: 1,
+        let route = Some(SwapperRoute::Astro(mars_types::swapper::AstroRoute {
+            swaps: vec![mars_types::swapper::AstroSwap {
+                from: "untrn".to_string(),
                 to: "uusdc".to_string(),
             }],
         }));
