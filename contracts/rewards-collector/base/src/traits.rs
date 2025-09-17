@@ -2,7 +2,7 @@ use cosmwasm_std::{
     to_json_binary, BankMsg, Coin, CosmosMsg, CustomMsg, Empty, Env, Uint128, WasmMsg,
 };
 use mars_types::{
-    address_provider::{AddressResponseItem, MarsAddressType},
+    address_provider::AddressResponseItem,
     rewards_collector::{Config, TransferType},
     swapper::SwapperRoute,
 };
@@ -12,7 +12,8 @@ use crate::{ContractError, ContractResult};
 pub trait SwapMsg<M: CustomMsg> {
     fn swap_msg(
         env: &Env,
-        swapper_addresses: &[AddressResponseItem],
+        default_swapper_addr: &AddressResponseItem,
+        duality_swapper_addr: &Option<AddressResponseItem>,
         coin_in: Coin,
         denom_out: &str,
         min_receive: Uint128,
@@ -23,34 +24,24 @@ pub trait SwapMsg<M: CustomMsg> {
 impl SwapMsg<Empty> for Empty {
     fn swap_msg(
         _env: &Env,
-        swapper_addresses: &[AddressResponseItem],
+        default_swapper_addr: &AddressResponseItem,
+        _duality_swapper_addr: &Option<AddressResponseItem>,
         coin_in: Coin,
         denom_out: &str,
         min_receive: Uint128,
         route: Option<SwapperRoute>,
     ) -> ContractResult<CosmosMsg<Empty>> {
-        let swapper =
-            swapper_addresses.iter().find(|addr| addr.address_type == MarsAddressType::Swapper);
-
-        if let Some(swapper) = swapper {
-            Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-                // Default to first swapper
-                contract_addr: swapper.address.clone(),
-                msg: to_json_binary(
-                    &mars_types::swapper::ExecuteMsg::<Empty, Empty>::SwapExactIn {
-                        coin_in: coin_in.clone(),
-                        denom_out: denom_out.to_string(),
-                        min_receive,
-                        route,
-                    },
-                )?,
-                funds: vec![coin_in],
-            }))
-        } else {
-            Err(ContractError::NoSwapper {
-                required: MarsAddressType::Swapper.to_string(),
-            })
-        }
+        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+            // Default to first swapper
+            contract_addr: default_swapper_addr.address.to_string(),
+            msg: to_json_binary(&mars_types::swapper::ExecuteMsg::<Empty, Empty>::SwapExactIn {
+                coin_in: coin_in.clone(),
+                denom_out: denom_out.to_string(),
+                min_receive,
+                route,
+            })?,
+            funds: vec![coin_in],
+        }))
     }
 }
 

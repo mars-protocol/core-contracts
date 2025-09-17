@@ -342,15 +342,27 @@ where
 
         let mut messages = vec![];
         let addresses = &deps.querier.query_wasm_smart::<Vec<AddressResponseItem>>(
-            cfg.address_provider,
+            cfg.address_provider.clone(),
             &address_provider::QueryMsg::Addresses(vec![
                 MarsAddressType::Swapper,
-                MarsAddressType::DualitySwapper,
                 MarsAddressType::Oracle,
             ]),
         )?;
 
-        let swapper_addresses = &addresses[0..2];
+        let duality_swapper_address = deps
+            .querier
+            .query_wasm_smart::<AddressResponseItem>(
+                cfg.address_provider.clone(),
+                &address_provider::QueryMsg::Address(MarsAddressType::DualitySwapper),
+            )
+            .ok();
+
+        let swapper = addresses
+            .iter()
+            .find(|addr| addr.address_type == MarsAddressType::Swapper)
+            .ok_or(ContractError::NoSwapper {
+            required: MarsAddressType::Swapper.to_string(),
+        })?;
 
         // execute the swap to safety fund denom, if the amount to swap is non-zero,
         // and if the denom is not already the safety fund denom
@@ -358,7 +370,8 @@ where
         if !rf_and_sf_combined.is_zero() && denom != cfg.safety_fund_config.target_denom {
             let swap_msg = I::swap_msg(
                 &env,
-                swapper_addresses,
+                swapper,
+                &duality_swapper_address,
                 Coin {
                     amount: rf_and_sf_combined,
                     denom: denom.to_string(),
@@ -380,7 +393,8 @@ where
         if !fc_amount.is_zero() && denom != cfg.fee_collector_config.target_denom {
             let swap_msg = I::swap_msg(
                 &env,
-                swapper_addresses,
+                swapper,
+                &duality_swapper_address,
                 Coin {
                     amount: fc_amount,
                     denom: denom.to_string(),

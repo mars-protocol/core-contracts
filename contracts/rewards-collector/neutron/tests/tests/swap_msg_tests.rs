@@ -11,16 +11,6 @@ mod tests {
     #[test]
     fn test_neutron_swap_msg_with_duality_route() {
         let env = mock_env();
-        let swapper_addresses = vec![
-            AddressResponseItem {
-                address: "swapper_contract".to_string(),
-                address_type: MarsAddressType::Swapper,
-            },
-            AddressResponseItem {
-                address: "duality_swapper".to_string(),
-                address_type: MarsAddressType::DualitySwapper,
-            },
-        ];
 
         let coin_in = Coin {
             denom: "untrn".to_string(),
@@ -33,9 +23,19 @@ mod tests {
             swap_denoms: vec!["untrn".to_string(), "uusdc".to_string()],
         }));
 
+        let default_swapper = AddressResponseItem {
+            address: "swapper_contract".to_string(),
+            address_type: MarsAddressType::Swapper,
+        };
+        let duality_swapper = Some(AddressResponseItem {
+            address: "duality_swapper".to_string(),
+            address_type: MarsAddressType::DualitySwapper,
+        });
+
         let result = NeutronMsgFactory::swap_msg(
             &env,
-            &swapper_addresses,
+            &default_swapper,
+            &duality_swapper,
             coin_in.clone(),
             "uusdc",
             Uint128::new(950),
@@ -61,26 +61,26 @@ mod tests {
     #[test]
     fn test_neutron_swap_msg_with_default_swapper() {
         let env = mock_env();
-        let swapper_addresses = vec![
-            AddressResponseItem {
-                address: "swapper_contract".to_string(),
-                address_type: MarsAddressType::Swapper,
-            },
-            AddressResponseItem {
-                address: "duality_swapper".to_string(),
-                address_type: MarsAddressType::DualitySwapper,
-            },
-        ];
 
         let coin_in = Coin {
             denom: "untrn".to_string(),
             amount: Uint128::new(1000),
         };
 
+        let default_swapper = AddressResponseItem {
+            address: "swapper_contract".to_string(),
+            address_type: MarsAddressType::Swapper,
+        };
+        let duality_swapper = Some(AddressResponseItem {
+            address: "duality_swapper".to_string(),
+            address_type: MarsAddressType::DualitySwapper,
+        });
+
         // Test with no route (should use default swapper)
         let result = NeutronMsgFactory::swap_msg(
             &env,
-            &swapper_addresses,
+            &default_swapper,
+            &duality_swapper,
             coin_in.clone(),
             "uusdc",
             Uint128::new(950),
@@ -106,16 +106,6 @@ mod tests {
     #[test]
     fn test_neutron_swap_msg_with_osmosis_route() {
         let env = mock_env();
-        let swapper_addresses = vec![
-            AddressResponseItem {
-                address: "swapper_contract".to_string(),
-                address_type: MarsAddressType::Swapper,
-            },
-            AddressResponseItem {
-                address: "duality_swapper".to_string(),
-                address_type: MarsAddressType::DualitySwapper,
-            },
-        ];
 
         let coin_in = Coin {
             denom: "untrn".to_string(),
@@ -130,9 +120,20 @@ mod tests {
             }],
         }));
 
+        let default_swapper = AddressResponseItem {
+            address: "swapper_contract".to_string(),
+            address_type: MarsAddressType::Swapper,
+        };
+
+        let duality_swapper = Some(AddressResponseItem {
+            address: "duality_swapper".to_string(),
+            address_type: MarsAddressType::DualitySwapper,
+        });
+
         let result = NeutronMsgFactory::swap_msg(
             &env,
-            &swapper_addresses,
+            &default_swapper,
+            &duality_swapper,
             coin_in.clone(),
             "uusdc",
             Uint128::new(950),
@@ -158,10 +159,10 @@ mod tests {
     #[test]
     fn test_neutron_swap_msg_no_duality_swapper() {
         let env = mock_env();
-        let swapper_addresses = vec![AddressResponseItem {
+        let swapper_address = AddressResponseItem {
             address: "swapper_contract".to_string(),
             address_type: MarsAddressType::Swapper,
-        }];
+        };
 
         let coin_in = Coin {
             denom: "untrn".to_string(),
@@ -176,7 +177,8 @@ mod tests {
 
         let result = NeutronMsgFactory::swap_msg(
             &env,
-            &swapper_addresses,
+            &swapper_address,
+            &None,
             coin_in,
             "uusdc",
             Uint128::new(950),
@@ -189,39 +191,6 @@ mod tests {
                 required,
             } => {
                 assert_eq!(required, MarsAddressType::DualitySwapper.to_string());
-            }
-            _ => panic!("Expected NoSwapper error"),
-        }
-    }
-
-    #[test]
-    fn test_neutron_swap_msg_no_default_swapper() {
-        let env = mock_env();
-        let swapper_addresses = vec![AddressResponseItem {
-            address: "duality_swapper".to_string(),
-            address_type: MarsAddressType::DualitySwapper,
-        }];
-
-        let coin_in = Coin {
-            denom: "untrn".to_string(),
-            amount: Uint128::new(1000),
-        };
-
-        let result = NeutronMsgFactory::swap_msg(
-            &env,
-            &swapper_addresses,
-            coin_in,
-            "uusdc",
-            Uint128::new(950),
-            None,
-        );
-
-        assert!(result.is_err());
-        match result.unwrap_err() {
-            ContractError::NoSwapper {
-                required,
-            } => {
-                assert_eq!(required, MarsAddressType::Swapper.to_string());
             }
             _ => panic!("Expected NoSwapper error"),
         }

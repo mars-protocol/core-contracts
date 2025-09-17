@@ -38,7 +38,8 @@ impl TransferMsg<Empty> for NeutronMsgFactory {
 impl SwapMsg<Empty> for NeutronMsgFactory {
     fn swap_msg(
         _env: &Env,
-        swapper_addresses: &[AddressResponseItem],
+        default_swapper_addr: &AddressResponseItem,
+        duality_swapper_addr: &Option<AddressResponseItem>,
         coin_in: Coin,
         denom_out: &str,
         min_receive: Uint128,
@@ -47,10 +48,8 @@ impl SwapMsg<Empty> for NeutronMsgFactory {
         match route {
             Some(SwapperRoute::Duality(_)) => {
                 // Use DualitySwapper for duality routes
-                let duality_swapper = swapper_addresses
-                    .iter()
-                    .find(|addr| addr.address_type == MarsAddressType::DualitySwapper)
-                    .ok_or(ContractError::NoSwapper {
+                let duality_swapper =
+                    duality_swapper_addr.clone().ok_or(ContractError::NoSwapper {
                         required: MarsAddressType::DualitySwapper.to_string(),
                     })?;
 
@@ -70,15 +69,8 @@ impl SwapMsg<Empty> for NeutronMsgFactory {
             }
             _ => {
                 // Use default swapper for other routes or no route
-                let swapper = swapper_addresses
-                    .iter()
-                    .find(|addr| addr.address_type == MarsAddressType::Swapper)
-                    .ok_or(ContractError::NoSwapper {
-                        required: MarsAddressType::Swapper.to_string(),
-                    })?;
-
                 Ok(CosmosMsg::Wasm(WasmMsg::Execute {
-                    contract_addr: swapper.address.clone(),
+                    contract_addr: default_swapper_addr.address.to_string(),
                     msg: to_json_binary(
                         &mars_types::swapper::ExecuteMsg::<Empty, Empty>::SwapExactIn {
                             coin_in: coin_in.clone(),
