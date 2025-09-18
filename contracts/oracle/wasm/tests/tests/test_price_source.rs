@@ -12,7 +12,7 @@ use cw_it::{
         utils::{native_asset, native_info},
     },
     robot::TestRobot,
-    test_tube::{Account, Module, Wasm},
+    test_tube::{Account, Module, RunnerError, Wasm},
     traits::{CwItRunner, DEFAULT_COIN_AMOUNT},
 };
 use cw_storage_plus::Map;
@@ -931,12 +931,87 @@ pub fn validate_and_query_lsd_price_source(
         .assert_price_almost_equal(primary_ibc_denom, expected_price, Decimal::percent(1));
 }
 
+#[test_case(
+    "stLuna", "uluna", Some(Decimal::from_ratio(2u128, 1u128)), "stLuna", true;
+    "Success: correct contract and transitive denom"
+)]
+#[test_case(
+    "stLuna", "uluna", Some(Decimal::from_ratio(2u128, 1u128)), "uatom", true
+    => panics "lst denom does not match";
+    "Error: contract returns wrong denom"
+)]
+#[test_case(
+    "stLuna", "uluna", Some(Decimal::from_ratio(2u128, 1u128)), "stLuna", false
+    => panics "missing price source for";
+    "Error: missing transitive denom"
+)]
+#[test_case(
+    "stLuna", "uluna", Some(Decimal::from_ratio(2u128, 1u128)), "uatom", false
+    => panics "lst denom does not match";
+    "Error: wrong denom and missing transitive denom"
+)]
+pub fn validate_and_query_slinky_lsd_price_source(
+    expected_lst_denom: &str,
+    transitive_denom: &str,
+    transitive_price: Option<Decimal>,
+    contract_lst_denom: &str, // what the mock contract actually returns
+    transitive_denom_present: bool,
+) {
+    let owned_runner = get_test_runner();
+    let runner = owned_runner.as_ref();
+    let admin = &runner
+        .init_account(&[
+            coin(DEFAULT_COIN_AMOUNT, expected_lst_denom),
+            coin(DEFAULT_COIN_AMOUNT, transitive_denom),
+        ])
+        .unwrap();
+    let robot = WasmOracleTestRobot::new(&runner, get_contracts(&runner), admin, Some("uusd"));
+
+    // Set up the mock contract to return `contract_lst_denom` for its denom query
+    robot.set_mock_lst_denom(contract_lst_denom.to_string(), admin);
+
+    // Optionally set the transitive denom price source
+    if transitive_denom_present {
+        robot.set_price_source(
+            transitive_denom,
+            WasmPriceSourceUnchecked::Fixed {
+                price: transitive_price.unwrap_or_else(Decimal::one),
+            },
+            admin,
+        );
+    }
+
+    let price_source = WasmPriceSourceUnchecked::SlinkyLsd {
+        contract_addr: robot.mock_lst_oracle_addr.clone().unwrap(),
+        transitive_denom: transitive_denom.to_string(),
+    };
+
+    let set_price_source_result =
+        robot.set_price_source_with_result(expected_lst_denom, price_source, admin);
+
+    if contract_lst_denom != expected_lst_denom {
+        assert!(matches!(
+            set_price_source_result,
+            Err(RunnerError::ExecuteError { msg })
+            if msg.contains("lst denom does not match")
+        ));
+    } else if !transitive_denom_present {
+        assert!(matches!(
+            set_price_source_result,
+            Err(RunnerError::ExecuteError { msg })
+            if msg.contains("missing price source for")
+        ));
+    } else {
+        assert!(set_price_source_result.is_ok());
+    }
+}
+
 #[test_case(PairType::Xyk {}, &["uatom","untrn"], Some(Decimal::from_str("8.86506356").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [1171210862745u128, 12117922358503u128], &[6,6]; "XYK, 6:6 decimals")]
 #[test_case(PairType::Xyk {}, &["untrn","ueth"], Some(Decimal::from_str("0.85676231").unwrap()), Some(Decimal::from_str("0.000000003192778061").unwrap()), [291397962796u128, 65345494060528260316u128], &[6,18]; "XYK, 6:18 decimals")]
 #[test_case(PairType::Xyk {}, &["ueth","udydx"], Some(Decimal::from_str("0.000000003195385").unwrap()), Some(Decimal::from_str("0.00000000000238175").unwrap()), DEFAULT_LIQ, &[18,18]; "XYK, 18:18 decimals")]
-#[test_case(PairType::Stable {  }, &["utia","ustia"], Some(Decimal::one()), Some(Decimal::one()), DEFAULT_LIQ, &[6,6] => panics "Invalid price source: expecting pair contract14 to be xyk pool; found stable"; "XYK required, found StableSwap")]
-#[test_case(PairType::Custom("concentrated".to_string()), &["utia","ustia"], Some(Decimal::one()), Some(Decimal::one()), [145692686804, 175998046105], &[6,6] => panics "Invalid price source: expecting pair contract14 to be xyk pool; found custom-concentrated"; "XYK required, found PCL")]
-#[test_case(PairType::Custom("concentrated_duality_orderbook".to_string()), &["utia","ustia"], Some(Decimal::one()), Some(Decimal::one()), [145692686804, 175998046105], &[6,6] => panics "Invalid price source: expecting pair contract14 to be xyk pool; found custom-concentrated"; "XYK required, found PCL-concentrated-duality-orderbook")]
+#[test_case(PairType::Stable {  }, &["utia","ustia"], Some(Decimal::one()), Some(Decimal::one()), DEFAULT_LIQ, &[6,6] => panics "Invalid price source: expecting pair contract15 to be xyk pool; found stable"; "XYK required, found StableSwap")]
+#[test_case(PairType::Custom("concentrated".to_string()), &["utia","ustia"], Some(Decimal::one()), Some(Decimal::one()), [145692686804, 175998046105], &[6,6] => panics "Invalid price source: expecting pair contract15 to be xyk pool; found custom-concentrated"; "XYK required, found PCL")]
+#[test_case(PairType::Custom("concentrated_duality_orderbook".to_string()), &["utia","ustia"], Some(Decimal::one()), Some(Decimal::one()), [145692686804, 175998046105], &[6,6] => panics "Invalid price source: expecting pair contract15 to be xyk pool; found custom-concentrated"; "XYK required, found PCL-concentrated-duality-orderbook")]
 #[test_case(PairType::Xyk {}, &["uatom","untrn"], None, None, DEFAULT_LIQ, &[6,6] => panics "Invalid price source: missing price source for uatom"; "XYK, missing price source for both assets")]
 #[test_case(PairType::Xyk {}, &["uatom","untrn"], None, Some(Decimal::one()), DEFAULT_LIQ, &[6,6] => panics "Invalid price source: missing price source for uatom"; "XYK, missing price source for first asset")]
 #[test_case(PairType::Xyk {}, &["uatom","untrn"], Some(Decimal::one()), None, DEFAULT_LIQ, &[6,6] => panics "Invalid price source: missing price source for untrn"; "XYK, missing price source for second asset")]
@@ -1016,8 +1091,8 @@ pub fn test_validate_and_query_astroport_xyk_lp_price_source(
 #[test_case(PairType::Custom("concentrated_duality_orderbook".to_string()), &["udydx","untrn"], Some(Decimal::from_str("3000").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [9000000000000000u128, 10000000000000000000u128], &[18,6], Some(Decimal::from_str("108275327").unwrap()); "PCL duality orderbook, [18, 6] decimals")]
 #[test_case(PairType::Custom("concentrated".to_string()), &["udydx","ueth"], Some(Decimal::from_str("0.000000000002095907").unwrap()), Some(Decimal::from_str("0.000000003705405005").unwrap()), [230049283723446123784938u128,  134273643746123784938u128], &[18,18], Some(Decimal::from_str("176.25191391713600000").unwrap()); "PCL, [18, 18] decimals")]
 #[test_case(PairType::Custom("concentrated_duality_orderbook".to_string()), &["udydx","ueth"], Some(Decimal::from_str("0.000000000002095907").unwrap()), Some(Decimal::from_str("0.000000003705405005").unwrap()), [230049283723446123784938u128,  134273643746123784938u128], &[18,18], Some(Decimal::from_str("176.25191391713600000").unwrap()); "PCL duality orderbook, [18, 18] decimals")]
-#[test_case(PairType::Xyk{}, &["uatom","untrn"], Some(Decimal::from_str("8.86506356").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [1171210862745u128, 12117922358503u128], &[6,6], None => panics "Invalid price source: expecting pair contract14 to be custom-concentrated pool; found xyk"; "PCL required, found XYK")]
-#[test_case(PairType::Stable{}, &["uatom","untrn"], Some(Decimal::from_str("8.86506356").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [1171210862745u128, 12117922358503u128], &[6,6], None => panics "Invalid price source: expecting pair contract14 to be custom-concentrated pool; found stable"; "PCL required, found Stable")]
+#[test_case(PairType::Xyk{}, &["uatom","untrn"], Some(Decimal::from_str("8.86506356").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [1171210862745u128, 12117922358503u128], &[6,6], None => panics "Invalid price source: expecting pair contract15 to be custom-concentrated pool; found xyk"; "PCL required, found XYK")]
+#[test_case(PairType::Stable{}, &["uatom","untrn"], Some(Decimal::from_str("8.86506356").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [1171210862745u128, 12117922358503u128], &[6,6], None => panics "Invalid price source: expecting pair contract15 to be custom-concentrated pool; found stable"; "PCL required, found Stable")]
 #[test_case(PairType::Custom("concentrated".to_string()), &["uatom","untrn"], None, None, [1171210862745u128, 1171210862745u128], &[6,6], None => panics "Invalid price source: missing price source for uatom"; "PCL, missing price source for both assets")]
 #[test_case(PairType::Custom("concentrated_duality_orderbook".to_string()), &["uatom","untrn"], None, None, [1171210862745u128, 1171210862745u128], &[6,6], None => panics "Invalid price source: missing price source for uatom"; "PCL duality orderbook, missing price source for both assets")]
 #[test_case(PairType::Custom("concentrated".to_string()), &["uatom","untrn"], None, Some(Decimal::one()), [1171210862745u128, 1171210862745u128], &[6,6], None => panics "Invalid price source: missing price source for uatom"; "PCL, missing price source for first asset")]
@@ -1110,9 +1185,9 @@ pub fn test_validate_and_query_astroport_pcl_lp_price_source(
 #[test_case(PairType::Stable{}, &["uatom","untrn"], Some(Decimal::from_str("0.000000000585").unwrap()), Some(Decimal::from_str("0.0000000097696221").unwrap()), [2000000000u128, 100000000u128], &[6,6], Some(Decimal::from_str("0.0000000005850000").unwrap()); "SS, [6, 6] decimals, rounding small numbers")]
 #[test_case(PairType::Stable{}, &["uneth","ueth"], Some(Decimal::from_str("3605.405005").unwrap()), Some(Decimal::from_str("0.00000000370540501").unwrap()), [1909955u128, 1715278424796108660u128], &[6,18], Some(Decimal::from_str("0.0000000036054050").unwrap()); "SS, [6, 18] decimals")]
 #[test_case(PairType::Stable{}, &["usteth","ueth"], Some(Decimal::from_str("0.00000000370240501").unwrap()), Some(Decimal::from_str("0.00000000370540501").unwrap()), [1909955195744952147u128, 1715278424796108660u128], &[18,18], Some(Decimal::from_str("0.0000000037024050").unwrap()); "SS, [18, 18] decimals")]
-#[test_case(PairType::Xyk{}, &["uatom","untrn"], Some(Decimal::from_str("8.86506356").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [1171210862745u128, 12117922358503u128], &[6,6], None => panics "Invalid price source: expecting pair contract14 to be stable pool; found xyk"; "SS required, found XYK")]
-#[test_case(PairType::Custom("concentrated".to_string()), &["uatom","untrn"], Some(Decimal::from_str("8.86506356").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [1171210862745u128, 12117922358503u128], &[6,6], None => panics "Invalid price source: expecting pair contract14 to be stable pool; found custom-concentrated"; "SS required, found PCL")]
-#[test_case(PairType::Custom("concentrated_duality_orderbook".to_string()), &["uatom","untrn"], Some(Decimal::from_str("8.86506356").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [1171210862745u128, 12117922358503u128], &[6,6], None => panics "Invalid price source: expecting pair contract14 to be stable pool; found custom-concentrated"; "SS required, found PCL duality orderbook")]
+#[test_case(PairType::Xyk{}, &["uatom","untrn"], Some(Decimal::from_str("8.86506356").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [1171210862745u128, 12117922358503u128], &[6,6], None => panics "Invalid price source: expecting pair contract15 to be stable pool; found xyk"; "SS required, found XYK")]
+#[test_case(PairType::Custom("concentrated".to_string()), &["uatom","untrn"], Some(Decimal::from_str("8.86506356").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [1171210862745u128, 12117922358503u128], &[6,6], None => panics "Invalid price source: expecting pair contract15 to be stable pool; found custom-concentrated"; "SS required, found PCL")]
+#[test_case(PairType::Custom("concentrated_duality_orderbook".to_string()), &["uatom","untrn"], Some(Decimal::from_str("8.86506356").unwrap()), Some(Decimal::from_str("0.97696221").unwrap()), [1171210862745u128, 12117922358503u128], &[6,6], None => panics "Invalid price source: expecting pair contract15 to be stable pool; found custom-concentrated"; "SS required, found PCL duality orderbook")]
 #[test_case(PairType::Stable{}, &["uatom","untrn"], None, None, [1171210862745u128, 1171210862745u128], &[6,6], None => panics "Invalid price source: missing price source for uatom"; "SS, missing price source for both assets")]
 #[test_case(PairType::Stable{}, &["uatom","untrn"], None, Some(Decimal::one()), [1171210862745u128, 1171210862745u128], &[6,6], None => panics "Invalid price source: missing price source for uatom"; "SS, missing price source for first asset")]
 #[test_case(PairType::Stable{}, &["uatom","untrn"], Some(Decimal::one()), None, [1171210862745u128, 1171210862745u128], &[6,6], None => panics "Invalid price source: missing price source for untrn"; "SS, missing price source for second asset")]
