@@ -1,16 +1,16 @@
 use cosmwasm_std::{DepsMut, Response};
 use cw2::{assert_contract_version, set_contract_version};
+use mars_rewards_collector_base::ContractError;
 
-use crate::{contract::CONTRACT_NAME, error::ContractError};
+use crate::CONTRACT_NAME;
 
-const FROM_VERSION: &str = "2.2.0";
-const TO_VERSION: &str = "2.2.2";
+const FROM_VERSION: &str = "2.3.1";
+const TO_VERSION: &str = "2.3.2";
 
 pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
-    // make sure we're migrating the correct contract and from the correct version
     assert_contract_version(deps.storage, &format!("crates.io:{CONTRACT_NAME}"), FROM_VERSION)?;
 
-    // this is a standard migration with no state changes
+    // This is a standard migration with no state changes
     set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), TO_VERSION)?;
 
     Ok(Response::new()

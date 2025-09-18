@@ -2,7 +2,7 @@ use cosmwasm_std::{DepsMut, Response};
 use cw2::{assert_contract_version, set_contract_version};
 use mars_rewards_collector_base::ContractError;
 
-use crate::entry::CONTRACT_NAME;
+use crate::CONTRACT_NAME;
 
 const FROM_VERSION: &str = "2.1.0";
 
