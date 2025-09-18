@@ -101,7 +101,15 @@ export interface MarsPerpsReadOnlyInterface {
   }) => Promise<PnlAmounts>
   marketAccounting: ({ denom }: { denom: string }) => Promise<AccountingResponse>
   totalAccounting: () => Promise<AccountingResponse>
-  openingFee: ({ denom, size }: { denom: string; size: Int128 }) => Promise<TradingFee>
+  openingFee: ({
+    denom,
+    discountPct,
+    size,
+  }: {
+    denom: string
+    discountPct?: Decimal
+    size: Int128
+  }) => Promise<TradingFee>
   positionFees: ({
     accountId,
     denom,
@@ -267,10 +275,19 @@ export class MarsPerpsQueryClient implements MarsPerpsReadOnlyInterface {
       total_accounting: {},
     })
   }
-  openingFee = async ({ denom, size }: { denom: string; size: Int128 }): Promise<TradingFee> => {
+  openingFee = async ({
+    denom,
+    discountPct,
+    size,
+  }: {
+    denom: string
+    discountPct?: Decimal
+    size: Int128
+  }): Promise<TradingFee> => {
     return this.client.queryContractSmart(this.contractAddress, {
       opening_fee: {
         denom,
+        discount_pct: discountPct,
         size,
       },
     })
@@ -342,11 +359,13 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     {
       accountId,
       denom,
+      discountPct,
       reduceOnly,
       size,
     }: {
       accountId: string
       denom: string
+      discountPct?: Decimal
       reduceOnly?: boolean
       size: Int128
     },
@@ -358,9 +377,11 @@ export interface MarsPerpsInterface extends MarsPerpsReadOnlyInterface {
     {
       accountId,
       action,
+      discountPct,
     }: {
       accountId: string
       action?: ActionKind
+      discountPct?: Decimal
     },
     fee?: number | StdFee | 'auto',
     memo?: string,
@@ -517,11 +538,13 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     {
       accountId,
       denom,
+      discountPct,
       reduceOnly,
       size,
     }: {
       accountId: string
       denom: string
+      discountPct?: Decimal
       reduceOnly?: boolean
       size: Int128
     },
@@ -536,6 +559,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
         execute_order: {
           account_id: accountId,
           denom,
+          discount_pct: discountPct,
           reduce_only: reduceOnly,
           size,
         },
@@ -549,9 +573,11 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
     {
       accountId,
       action,
+      discountPct,
     }: {
       accountId: string
       action?: ActionKind
+      discountPct?: Decimal
     },
     fee: number | StdFee | 'auto' = 'auto',
     memo?: string,
@@ -564,6 +590,7 @@ export class MarsPerpsClient extends MarsPerpsQueryClient implements MarsPerpsIn
         close_all_positions: {
           account_id: accountId,
           action,
+          discount_pct: discountPct,
         },
       },
       fee,

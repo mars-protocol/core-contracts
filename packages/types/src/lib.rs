@@ -3,6 +3,7 @@ pub mod adapters;
 pub mod address_provider;
 pub mod credit_manager;
 pub mod error;
+pub mod fee_tiers;
 pub mod health;
 pub mod incentives;
 pub mod keys;

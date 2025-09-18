@@ -114,8 +114,38 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+
+    /// Get the staking tier and discount percentage for an account based on their voting power
+    #[returns(AccountTierAndDiscountResponse)]
+    GetAccountTierAndDiscount {
+        account_id: String,
+    },
+
+    /// Query the trading fee for a specific account and market type.
+    #[returns(TradingFeeResponse)]
+    TradingFee {
+        account_id: String,
+        market_type: MarketType,
+    },
+
     #[returns(Decimal)]
     SwapFeeRate {},
+}
+
+#[cw_serde]
+pub enum MarketType {
+    Spot,
+    Perp {
+        denom: String,
+    },
+}
+
+#[cw_serde]
+pub struct TradingFeeResponse {
+    pub base_fee_pct: Decimal,
+    pub discount_pct: Decimal,
+    pub effective_fee_pct: Decimal,
+    pub tier_id: String,
 }
 
 #[cw_serde]
@@ -243,4 +273,11 @@ pub struct Account {
 pub struct VaultBinding {
     pub account_id: String,
     pub vault_address: String,
+}
+
+#[cw_serde]
+pub struct AccountTierAndDiscountResponse {
+    pub tier_id: String,
+    pub discount_pct: Decimal,
+    pub voting_power: Uint128,
 }

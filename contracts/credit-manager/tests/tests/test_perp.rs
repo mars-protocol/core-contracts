@@ -96,7 +96,7 @@ fn open_position_with_correct_payment(
 
     // Check perp data before any action
     let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
-    let opening_fee = mock.query_perp_opening_fee(&atom_info.denom, perp_size);
+    let opening_fee = mock.query_perp_opening_fee(&atom_info.denom, perp_size, None);
     assert_eq!(opening_fee.fee.amount.u128(), 49);
 
     // Open perp position
@@ -313,7 +313,7 @@ fn close_perp_position_with_profit() {
 
     // check perp data before any action
     let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
-    let opening_fee = mock.query_perp_opening_fee(&atom_info.denom, perp_size);
+    let opening_fee = mock.query_perp_opening_fee(&atom_info.denom, perp_size, None);
 
     // open perp position
     mock.update_credit_account(
@@ -1018,7 +1018,7 @@ fn close_perp_position() {
 
     // check perp data before any action
     let vault_usdc_balance = mock.query_balance(mock.perps.address(), &usdc_info.denom);
-    let opening_fee = mock.query_perp_opening_fee(&atom_info.denom, perp_size);
+    let opening_fee = mock.query_perp_opening_fee(&atom_info.denom, perp_size, None);
 
     // wrongly try to close a not existing position
     let res = mock.update_credit_account(

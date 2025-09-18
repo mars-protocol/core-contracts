@@ -1,6 +1,7 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    to_json_binary, Addr, Api, Coin, CosmosMsg, Int128, QuerierWrapper, StdResult, Uint128, WasmMsg,
+    to_json_binary, Addr, Api, Coin, CosmosMsg, Decimal, Int128, QuerierWrapper, StdResult,
+    Uint128, WasmMsg,
 };
 
 use crate::{
@@ -96,6 +97,7 @@ impl Perps {
         size: Int128,
         reduce_only: Option<bool>,
         funds: Vec<Coin>,
+        discount_pct: Option<Decimal>,
     ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
@@ -104,6 +106,7 @@ impl Perps {
                 denom: denom.into(),
                 size,
                 reduce_only,
+                discount_pct,
             })?,
             funds,
         }))
@@ -115,12 +118,14 @@ impl Perps {
         account_id: impl Into<String>,
         funds: Vec<Coin>,
         action: ActionKind,
+        discount_pct: Option<Decimal>,
     ) -> StdResult<CosmosMsg> {
         Ok(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: self.address().into(),
             msg: to_json_binary(&ExecuteMsg::CloseAllPositions {
                 account_id: account_id.into(),
                 action: Some(action),
+                discount_pct,
             })?,
             funds,
         }))
@@ -167,12 +172,14 @@ impl Perps {
         querier: &QuerierWrapper,
         denom: impl Into<String>,
         size: Int128,
+        discount_pct: Option<Decimal>,
     ) -> StdResult<TradingFee> {
         let res: TradingFee = querier.query_wasm_smart(
             self.address(),
             &QueryMsg::OpeningFee {
                 denom: denom.into(),
                 size,
+                discount_pct,
             },
         )?;
         Ok(res)

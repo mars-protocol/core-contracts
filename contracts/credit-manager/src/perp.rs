@@ -1,7 +1,8 @@
 use std::cmp::min;
 
 use cosmwasm_std::{
-    coin, ensure_eq, BankMsg, Coin, CosmosMsg, DepsMut, Env, Int128, MessageInfo, Response, Uint128,
+    coin, ensure_eq, BankMsg, Coin, CosmosMsg, Decimal, DepsMut, Env, Int128, MessageInfo,
+    Response, Uint128,
 };
 use mars_types::{
     adapters::perps::Perps,
@@ -12,6 +13,7 @@ use mars_types::{
 use crate::{
     borrow,
     error::{ContractError, ContractResult},
+    staking::get_account_tier_and_discount,
     state::{COIN_BALANCES, PERPS, RED_BANK},
     trigger::remove_invalid_trigger_orders,
     utils::{decrement_coin_balance, increment_coin_balance},
@@ -94,6 +96,10 @@ pub fn execute_perp_order(
 
     let mut response = Response::new();
 
+    // Get staking tier discount for this account
+    let (tier, discount_pct, voting_power) =
+        get_account_tier_and_discount(deps.as_ref(), account_id)?;
+
     // Query the perp position PnL so that we know whether funds needs to be
     // sent to the perps contract
     //
@@ -114,10 +120,13 @@ pub fn execute_perp_order(
             position,
             order_size,
             reduce_only,
+            discount_pct,
+            &tier.id,
         )?,
         None => {
             // Open new position
-            let opening_fee = perps.query_opening_fee(&deps.querier, denom, order_size)?;
+            let opening_fee =
+                perps.query_opening_fee(&deps.querier, denom, order_size, Some(discount_pct))?;
             let fee = opening_fee.fee;
 
             let funds = if !fee.amount.is_zero() {
@@ -127,8 +136,14 @@ pub fn execute_perp_order(
                 vec![]
             };
 
-            let msg =
-                perps.execute_perp_order(account_id, denom, order_size, reduce_only, funds)?;
+            let msg = perps.execute_perp_order(
+                account_id,
+                denom,
+                order_size,
+                reduce_only,
+                funds,
+                Some(discount_pct),
+            )?;
 
             response
                 .add_message(msg)
@@ -138,6 +153,9 @@ pub fn execute_perp_order(
                 .add_attribute("reduce_only", reduce_only.unwrap_or(false).to_string())
                 .add_attribute("new_size", order_size.to_string())
                 .add_attribute("opening_fee", fee.to_string())
+                .add_attribute("voting_power", voting_power.to_string())
+                .add_attribute("tier_id", tier.id)
+                .add_attribute("discount_pct", discount_pct.to_string())
         }
     })
 }
@@ -148,6 +166,9 @@ pub fn close_perp_position(
     denom: &str,
 ) -> ContractResult<Response> {
     let perps = PERPS.load(deps.storage)?;
+
+    // Get staking tier discount for this account
+    let (tier, discount_pct, _) = get_account_tier_and_discount(deps.as_ref(), account_id)?;
 
     // Query the perp position PnL so that we know whether funds needs to be
     // sent to the perps contract
@@ -174,6 +195,8 @@ pub fn close_perp_position(
                 position,
                 order_size,
                 Some(true),
+                discount_pct,
+                &tier.id,
             )?)
         }
         None => Err(ContractError::NoPerpPosition {
@@ -215,14 +238,21 @@ pub fn close_all_perps(
         update_state_based_on_pnl(&mut deps, account_id, pnl, Some(action.clone()), response)?;
     let funds = funds.map_or_else(Vec::new, |c| vec![c]);
 
+    // Get staking tier discount for this account
+    let (tier, discount_pct, voting_power) =
+        get_account_tier_and_discount(deps.as_ref(), account_id)?;
+
     // Close all perp positions at once
-    let close_msg = perps.close_all_msg(account_id, funds, action)?;
+    let close_msg = perps.close_all_msg(account_id, funds, action, Some(discount_pct))?;
 
     Ok(response
         .add_message(close_msg)
         .add_attribute("action", "close_all_perps")
         .add_attribute("account_id", account_id)
-        .add_attribute("number_of_positions", perp_positions.len().to_string()))
+        .add_attribute("number_of_positions", perp_positions.len().to_string())
+        .add_attribute("voting_power", voting_power.to_string())
+        .add_attribute("tier_id", tier.id)
+        .add_attribute("discount_pct", discount_pct.to_string()))
 }
 
 fn modify_existing_position(
@@ -234,13 +264,22 @@ fn modify_existing_position(
     position: PerpPosition,
     order_size: Int128,
     reduce_only: Option<bool>,
+    discount_pct: Decimal,
+    tier: &str,
 ) -> ContractResult<Response> {
     let pnl = position.unrealized_pnl.to_coins(&position.base_denom).pnl;
     let pnl_string = position.unrealized_pnl.pnl.to_string();
     let (funds, response) = update_state_based_on_pnl(&mut deps, account_id, pnl, None, response)?;
     let funds = funds.map_or_else(Vec::new, |c| vec![c]);
 
-    let msg = perps.execute_perp_order(account_id, denom, order_size, reduce_only, funds)?;
+    let msg = perps.execute_perp_order(
+        account_id,
+        denom,
+        order_size,
+        reduce_only,
+        funds,
+        Some(discount_pct),
+    )?;
 
     let new_size = position.size.checked_add(order_size)?;
 
@@ -258,7 +297,9 @@ fn modify_existing_position(
         .add_attribute("realized_pnl", pnl_string)
         .add_attribute("reduce_only", reduce_only.unwrap_or(false).to_string())
         .add_attribute("order_size", order_size.to_string())
-        .add_attribute("new_size", new_size.to_string()))
+        .add_attribute("new_size", new_size.to_string())
+        .add_attribute("discount_pct", discount_pct.to_string())
+        .add_attribute("tier_id", tier))
 }
 
 /// Prepare the necessary messages and funds to be sent to the perps contract based on the PnL.
