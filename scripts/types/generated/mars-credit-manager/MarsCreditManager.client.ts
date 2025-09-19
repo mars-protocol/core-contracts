@@ -187,6 +187,7 @@ export interface MarsCreditManagerReadOnlyInterface {
     limit?: number
     startAfter?: string
   }) => Promise<ArrayOfVaultBinding>
+  swapFeeRate: () => Promise<Decimal>
 }
 export class MarsCreditManagerQueryClient implements MarsCreditManagerReadOnlyInterface {
   client: CosmWasmClient
@@ -211,6 +212,7 @@ export class MarsCreditManagerQueryClient implements MarsCreditManagerReadOnlyIn
     this.allTriggerOrders = this.allTriggerOrders.bind(this)
     this.allAccountTriggerOrders = this.allAccountTriggerOrders.bind(this)
     this.vaultBindings = this.vaultBindings.bind(this)
+    this.swapFeeRate = this.swapFeeRate.bind(this)
   }
   accountKind = async ({ accountId }: { accountId: string }): Promise<AccountKind> => {
     return this.client.queryContractSmart(this.contractAddress, {
@@ -416,6 +418,11 @@ export class MarsCreditManagerQueryClient implements MarsCreditManagerReadOnlyIn
         limit,
         start_after: startAfter,
       },
+    })
+  }
+  swapFeeRate = async (): Promise<Decimal> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      swap_fee_rate: {},
     })
   }
 }

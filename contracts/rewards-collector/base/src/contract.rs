@@ -1,6 +1,6 @@
 use cosmwasm_std::{
-    coin, to_json_binary, Addr, Binary, Coin, CosmosMsg, CustomMsg, Decimal, Deps, DepsMut, Empty,
-    Env, MessageInfo, Response, StdResult, Uint128, WasmMsg,
+    to_json_binary, Addr, Binary, Coin, CosmosMsg, CustomMsg, Decimal, Deps, DepsMut, Env,
+    MessageInfo, Response, StdResult, Uint128, WasmMsg,
 };
 use cw_storage_plus::Item;
 use mars_owner::{Owner, OwnerInit::SetInitialOwner, OwnerUpdate};
@@ -8,7 +8,6 @@ use mars_types::{
     address_provider::{self, AddressResponseItem, MarsAddressType},
     credit_manager::{self, Action},
     incentives::{self, IncentiveKind},
-    oracle::ActionKind,
     red_bank,
     rewards_collector::{
         Config, ConfigResponse, ExecuteMsg, InstantiateMsg, QueryMsg, UpdateConfig,
@@ -18,8 +17,8 @@ use mars_types::{
 use mars_utils::helpers::option_string_to_addr;
 
 use crate::{
-    helpers::{stringify_option_amount, unwrap_option_amount},
-    ContractError, ContractResult, TransferMsg,
+    helpers::{ensure_distributor_whitelisted, stringify_option_amount, unwrap_option_amount},
+    ContractError, ContractResult, SwapMsg, TransferMsg,
 };
 
 pub struct Collector<'a, M: CustomMsg, I: TransferMsg<M>> {
@@ -47,7 +46,7 @@ impl<'a, M: CustomMsg, I: TransferMsg<M>> Default for Collector<'a, M, I> {
 impl<'a, M, I> Collector<'a, M, I>
 where
     M: CustomMsg,
-    I: TransferMsg<M>,
+    I: TransferMsg<M> + SwapMsg<M>,
 {
     pub fn instantiate(
         &self,
@@ -96,7 +95,7 @@ where
             } => self.withdraw_from_credit_manager(deps, account_id, actions),
             ExecuteMsg::DistributeRewards {
                 denom,
-            } => self.distribute_rewards(deps, &env, &denom),
+            } => self.distribute_rewards(deps, &env, &denom, info.sender),
             ExecuteMsg::SwapAsset {
                 denom,
                 amount,
@@ -108,6 +107,7 @@ where
                 deps,
                 env,
                 &denom,
+                info.sender,
                 amount,
                 safety_fund_route,
                 fee_collector_route,
@@ -163,7 +163,7 @@ where
             fee_collector_config,
             channel_id,
             timeout_seconds,
-            slippage_tolerance,
+            whitelist_actions,
         } = new_cfg;
 
         cfg.address_provider =
@@ -175,7 +175,34 @@ where
         cfg.fee_collector_config = fee_collector_config.unwrap_or(cfg.fee_collector_config);
         cfg.channel_id = channel_id.unwrap_or(cfg.channel_id);
         cfg.timeout_seconds = timeout_seconds.unwrap_or(cfg.timeout_seconds);
-        cfg.slippage_tolerance = slippage_tolerance.unwrap_or(cfg.slippage_tolerance);
+
+        // Process whitelist actions if provided
+        if let Some(actions) = whitelist_actions {
+            for action in actions {
+                match action {
+                    mars_types::rewards_collector::WhitelistAction::AddAddress {
+                        address,
+                    } => {
+                        // Validate the address
+                        let validated_addr = deps.api.addr_validate(&address)?;
+
+                        // Only add if not already in the list
+                        if !cfg.whitelisted_distributors.contains(&validated_addr) {
+                            cfg.whitelisted_distributors.push(validated_addr);
+                        }
+                    }
+                    mars_types::rewards_collector::WhitelistAction::RemoveAddress {
+                        address,
+                    } => {
+                        // Validate the address for consistency
+                        let validated_addr = deps.api.addr_validate(&address)?;
+
+                        // Remove the address if it exists in the list
+                        cfg.whitelisted_distributors.retain(|addr| addr != validated_addr);
+                    }
+                }
+            }
+        }
 
         cfg.validate()?;
 
@@ -293,6 +320,7 @@ where
         deps: DepsMut,
         env: Env,
         denom: &str,
+        sender: Addr,
         amount: Option<Uint128>,
         safety_fund_route: Option<SwapperRoute>,
         fee_collector_route: Option<SwapperRoute>,
@@ -300,6 +328,7 @@ where
         fee_collector_min_receive: Option<Uint128>,
     ) -> ContractResult<Response<M>> {
         let cfg = self.config.load(deps.storage)?;
+        ensure_distributor_whitelisted(deps.as_ref(), &cfg, &self.owner, &sender)?;
 
         // if amount is None, swap the total balance
         let amount_to_swap =
@@ -313,50 +342,48 @@ where
 
         let mut messages = vec![];
         let addresses = &deps.querier.query_wasm_smart::<Vec<AddressResponseItem>>(
-            cfg.address_provider,
+            cfg.address_provider.clone(),
             &address_provider::QueryMsg::Addresses(vec![
                 MarsAddressType::Swapper,
                 MarsAddressType::Oracle,
             ]),
         )?;
 
-        let swapper_addr = &addresses[0].address;
-        let oracle_addr = &addresses[1].address;
-
-        let asset_in_price = deps
+        // duality address queried seperately
+        let duality_swapper_address = deps
             .querier
-            .query_wasm_smart::<mars_types::oracle::PriceResponse>(
-                oracle_addr.to_string(),
-                &mars_types::oracle::QueryMsg::Price {
-                    denom: denom.to_string(),
-                    kind: Some(ActionKind::Default),
-                },
-            )?
-            .price;
+            .query_wasm_smart::<AddressResponseItem>(
+                cfg.address_provider.clone(),
+                &address_provider::QueryMsg::Address(MarsAddressType::DualitySwapper),
+            )
+            .ok();
 
-        // apply slippage to asset in price. Creating this variable means we only need to apply
-        // slippage tolerance calculation once, instead of for each denom
-        let slippage_adjusted_asset_in_price =
-            asset_in_price.checked_mul(Decimal::one().checked_sub(cfg.slippage_tolerance)?)?;
+        let swapper = addresses
+            .iter()
+            .find(|addr| addr.address_type == MarsAddressType::Swapper)
+            .ok_or(ContractError::NoSwapper {
+            required: MarsAddressType::Swapper.to_string(),
+        })?;
 
         // execute the swap to safety fund denom, if the amount to swap is non-zero,
         // and if the denom is not already the safety fund denom
         // Note that revenue share is included in this swap as they are the same denom
         if !rf_and_sf_combined.is_zero() && denom != cfg.safety_fund_config.target_denom {
-            let swap_msg = self.swap_asset_to_reward(
-                &deps,
-                oracle_addr,
-                &denom.to_string(),
-                rf_and_sf_combined,
-                slippage_adjusted_asset_in_price,
+            let swap_msg = I::swap_msg(
+                &env,
+                swapper,
+                &duality_swapper_address,
+                Coin {
+                    amount: rf_and_sf_combined,
+                    denom: denom.to_string(),
+                },
+                &cfg.safety_fund_config.target_denom,
                 safety_fund_min_receive.ok_or(
                     ContractError::InvalidMinReceive {
                         reason: "required to pass 'safety_fund_min_receive' when swapping safety fund amount".to_string()
                     }
                 )?,
-                &cfg.safety_fund_config.target_denom,
                 safety_fund_route,
-                swapper_addr,
             )?;
 
             messages.push(swap_msg);
@@ -365,20 +392,21 @@ where
         // execute the swap to fee collector denom, if the amount to swap is non-zero,
         // and if the denom is not already the fee collector denom
         if !fc_amount.is_zero() && denom != cfg.fee_collector_config.target_denom {
-            let swap_msg = self.swap_asset_to_reward(
-                &deps,
-                oracle_addr,
-                &denom.to_string(),
-                fc_amount,
-                slippage_adjusted_asset_in_price,
+            let swap_msg = I::swap_msg(
+                &env,
+                swapper,
+                &duality_swapper_address,
+                Coin {
+                    amount: fc_amount,
+                    denom: denom.to_string(),
+                },
+                &cfg.fee_collector_config.target_denom,
                 fee_collector_min_receive.ok_or(
                     ContractError::InvalidMinReceive {
                         reason: "required to pass 'fee_collector_min_receive' when swapping to fee collector".to_string()
                     }
                 )?,
-                &cfg.fee_collector_config.target_denom,
                 fee_collector_route,
-                swapper_addr,
             )?;
 
             messages.push(swap_msg);
@@ -392,113 +420,20 @@ where
             .add_attribute("amount_fee_collector", fc_amount))
     }
 
-    fn swap_asset_to_reward(
-        &self,
-        deps: &DepsMut,
-        oracle_addr: &str,
-        asset_in_denom: &String,
-        asset_in_amount: Uint128,
-        slippage_adjusted_asset_in_price: Decimal,
-        min_receive: Uint128,
-        target_reward_denom: &String,
-        target_route: Option<SwapperRoute>,
-        swapper_addr: &str,
-    ) -> Result<WasmMsg, ContractError> {
-        let target_fund_price = deps
-            .querier
-            .query_wasm_smart::<mars_types::oracle::PriceResponse>(
-                oracle_addr.to_string(),
-                &mars_types::oracle::QueryMsg::Price {
-                    denom: target_reward_denom.to_string(),
-                    kind: Some(ActionKind::Default),
-                },
-            )?
-            .price;
-
-        self.ensure_min_receive_within_slippage_tolerance(
-            asset_in_denom.to_string(),
-            target_reward_denom.to_string(),
-            asset_in_amount,
-            slippage_adjusted_asset_in_price,
-            target_fund_price,
-            min_receive,
-        )?;
-
-        self.generate_swap_msg(
-            swapper_addr,
-            asset_in_denom,
-            asset_in_amount,
-            target_reward_denom,
-            min_receive,
-            target_route,
-        )
-    }
-
-    fn generate_swap_msg(
-        &self,
-        swapper_addr: &str,
-        denom_in: &str,
-        amount_in: Uint128,
-        denom_out: &str,
-        min_receive: Uint128,
-        route: Option<SwapperRoute>,
-    ) -> Result<WasmMsg, ContractError> {
-        Ok(WasmMsg::Execute {
-            contract_addr: swapper_addr.to_string(),
-            msg: to_json_binary(&mars_types::swapper::ExecuteMsg::<Empty, Empty>::SwapExactIn {
-                coin_in: coin(amount_in.u128(), denom_in),
-                denom_out: denom_out.to_string(),
-                min_receive,
-                route,
-            })?,
-            funds: vec![coin(amount_in.u128(), denom_in)],
-        })
-    }
-
-    /// Ensure the slippage is not greater than what is tolerated in contract config
-    /// We do this by calculating the minimum_price and applying that to the min receive
-    /// Calculation is as follows:
-    /// Safety_denom price in oracle is 2
-    /// slippage_adjusted_asset_in_price (calculated via oracle) is 9.5
-    /// pair price = 9.5 / 2 = 4.75
-    /// minimum_tolerated = 4.75 * amount_in
-    fn ensure_min_receive_within_slippage_tolerance(
-        &self,
-        asset_in_denom: String,
-        asset_out_denom: String,
-        amount_in: Uint128,
-        slippage_adjusted_asset_in_price: Decimal,
-        asset_out_price: Decimal,
-        min_receive: Uint128,
-    ) -> Result<(), ContractError> {
-        // The price of the asset to be swapped, denominated in the output asset denom
-        let asset_out_denominated_price =
-            slippage_adjusted_asset_in_price.checked_div(asset_out_price)?;
-        let min_receive_lower_limit = amount_in.checked_mul_floor(asset_out_denominated_price)?;
-
-        if min_receive_lower_limit > min_receive {
-            return Err(ContractError::SlippageLimitExceeded {
-                denom_in: asset_in_denom,
-                denom_out: asset_out_denom,
-                min_receive_minumum: min_receive_lower_limit,
-                min_receive_given: min_receive,
-            });
-        }
-
-        Ok(())
-    }
-
     pub fn distribute_rewards(
         &self,
         deps: DepsMut,
         env: &Env,
         denom: &str,
+        sender: Addr,
     ) -> ContractResult<Response<M>> {
         let mut res = Response::new().add_attribute("action", "distribute_rewards");
         let mut msgs: Vec<CosmosMsg<M>> = vec![];
 
         // Configs
         let cfg = &self.config.load(deps.storage)?;
+        ensure_distributor_whitelisted(deps.as_ref(), cfg, &self.owner, &sender)?;
+
         let safety_fund_config = &cfg.safety_fund_config;
         let revenue_share_config = &cfg.revenue_share_config;
         let fee_collector_config = &cfg.fee_collector_config;
@@ -616,7 +551,11 @@ where
             fee_collector_config: cfg.fee_collector_config,
             channel_id: cfg.channel_id,
             timeout_seconds: cfg.timeout_seconds,
-            slippage_tolerance: cfg.slippage_tolerance,
+            whitelisted_distributors: cfg
+                .whitelisted_distributors
+                .iter()
+                .map(|addr| addr.to_string())
+                .collect(),
         })
     }
 }

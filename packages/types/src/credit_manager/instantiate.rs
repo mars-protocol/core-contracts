@@ -48,6 +48,10 @@ pub struct InstantiateMsg {
     /// PnL loss as follows:
     /// `bonus applied to liquidation = perps_liquidation_bonus_ratio * original LB * PnL loss`
     pub perps_liquidation_bonus_ratio: Decimal,
+    /// The swap fee applied to each swap. This is a percentage of the swap amount.
+    /// For example, if set to 0.0001, 0.01% of the swap amount will be taken as a fee.
+    /// This fee is applied once, no matter how many hops in the route
+    pub swap_fee: Decimal,
 }
 
 /// Used when you want to update fields on Instantiate config
@@ -71,4 +75,5 @@ pub struct ConfigUpdates {
     pub perps: Option<PerpsUnchecked>,
     pub keeper_fee_config: Option<KeeperFeeConfig>,
     pub perps_liquidation_bonus_ratio: Option<Decimal>,
+    pub swap_fee: Option<Decimal>,
 }

@@ -3,7 +3,7 @@ use cw2::{assert_contract_version, set_contract_version};
 use mars_rewards_collector_base::ContractError;
 use mars_types::rewards_collector::{Config, RewardConfig, TransferType};
 
-use crate::entry::{NeutronCollector, CONTRACT_NAME, CONTRACT_VERSION};
+use crate::{NeutronCollector, CONTRACT_NAME};
 
 pub mod previous_state {
     use cosmwasm_schema::cw_serde;
@@ -41,7 +41,9 @@ pub mod previous_state {
 }
 
 const FROM_VERSION: &str = "2.2.0";
-
+// We use a hardcoded version of the contract version here
+// in order to preserve the original test
+const CONTRACT_VERSION: &str = "2.2.2";
 pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
     let storage: &mut dyn Storage = deps.storage;
     let collector = NeutronCollector::default();
@@ -56,7 +58,6 @@ pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
     let new_config = Config {
         // old, unchanged values
         address_provider: existing_config.address_provider,
-        slippage_tolerance: existing_config.slippage_tolerance,
         timeout_seconds: existing_config.timeout_seconds,
 
         // set as empty so any ibc transfers error. This prevents mistakenly sending funds somewhere
@@ -84,6 +85,9 @@ pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
             target_denom: existing_config.fee_collector_denom,
             transfer_type: TransferType::Bank,
         },
+
+        // set to empty list
+        whitelisted_distributors: vec![],
     };
 
     // ensure our new config is legal

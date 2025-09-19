@@ -1,37 +1,48 @@
-use std::fmt::{Debug, Display};
-
 use cosmwasm_std::{
-    BankMsg, Coin, CosmosMsg, CustomMsg, CustomQuery, Decimal, Empty, Env, QuerierWrapper, Uint128,
+    to_json_binary, BankMsg, Coin, CosmosMsg, CustomMsg, Empty, Env, Uint128, WasmMsg,
 };
-use mars_types::rewards_collector::{Config, TransferType};
-use schemars::JsonSchema;
-use serde::{de::DeserializeOwned, Serialize};
+use mars_types::{
+    address_provider::AddressResponseItem,
+    rewards_collector::{Config, TransferType},
+    swapper::SwapperRoute,
+};
 
 use crate::{ContractError, ContractResult};
 
-pub trait Route<M, Q>:
-    Serialize + DeserializeOwned + Clone + Debug + Display + PartialEq + JsonSchema
-where
-    M: CustomMsg,
-    Q: CustomQuery,
-{
-    /// Determine whether the route is valid, given a pair of input and output denoms
-    fn validate(
-        &self,
-        querier: &QuerierWrapper<Q>,
-        denom_in: &str,
-        denom_out: &str,
-    ) -> ContractResult<()>;
-
-    /// Build a message for executing the trade, given an input denom and amount
-    fn build_swap_msg(
-        &self,
+pub trait SwapMsg<M: CustomMsg> {
+    fn swap_msg(
         env: &Env,
-        querier: &QuerierWrapper<Q>,
-        denom_in: &str,
-        amount: Uint128,
-        slippage_tolerance: Decimal,
+        default_swapper_addr: &AddressResponseItem,
+        duality_swapper_addr: &Option<AddressResponseItem>,
+        coin_in: Coin,
+        denom_out: &str,
+        min_receive: Uint128,
+        route: Option<SwapperRoute>,
     ) -> ContractResult<CosmosMsg<M>>;
+}
+
+impl SwapMsg<Empty> for Empty {
+    fn swap_msg(
+        _env: &Env,
+        default_swapper_addr: &AddressResponseItem,
+        _duality_swapper_addr: &Option<AddressResponseItem>,
+        coin_in: Coin,
+        denom_out: &str,
+        min_receive: Uint128,
+        route: Option<SwapperRoute>,
+    ) -> ContractResult<CosmosMsg<Empty>> {
+        Ok(CosmosMsg::Wasm(WasmMsg::Execute {
+            // Default to first swapper
+            contract_addr: default_swapper_addr.address.to_string(),
+            msg: to_json_binary(&mars_types::swapper::ExecuteMsg::<Empty, Empty>::SwapExactIn {
+                coin_in: coin_in.clone(),
+                denom_out: denom_out.to_string(),
+                min_receive,
+                route,
+            })?,
+            funds: vec![coin_in],
+        }))
+    }
 }
 
 pub trait TransferMsg<M: CustomMsg> {

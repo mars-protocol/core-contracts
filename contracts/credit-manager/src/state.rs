@@ -65,3 +65,5 @@ pub const REWARDS_COLLECTOR: Item<RewardsCollector> = Item::new("rewards_collect
 pub const VAULTS: Map<&str, Addr> = Map::new("vaults");
 
 pub const PERPS_LB_RATIO: Item<Decimal> = Item::new("perps_lb_ratio");
+
+pub const SWAP_FEE: Item<Decimal> = Item::new("swap_fee");

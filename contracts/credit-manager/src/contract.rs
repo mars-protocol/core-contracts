@@ -18,8 +18,9 @@ use crate::{
         query_accounts, query_all_coin_balances, query_all_debt_shares,
         query_all_total_debt_shares, query_all_trigger_orders,
         query_all_trigger_orders_for_account, query_all_vault_positions,
-        query_all_vault_utilizations, query_config, query_positions, query_total_debt_shares,
-        query_vault_bindings, query_vault_position_value, query_vault_utilization,
+        query_all_vault_utilizations, query_config, query_positions, query_swap_fee,
+        query_total_debt_shares, query_vault_bindings, query_vault_position_value,
+        query_vault_utilization,
     },
     repay::repay_from_wallet,
     state::NEXT_TRIGGER_ID,
@@ -172,6 +173,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             start_after,
             limit,
         } => to_json_binary(&query_vault_bindings(deps, start_after, limit)?),
+        QueryMsg::SwapFeeRate {} => to_json_binary(&query_swap_fee(deps)?),
     };
     res.map_err(Into::into)
 }
@@ -179,6 +181,9 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
     match msg {
+        MigrateMsg::V2_3_0ToV2_3_1 {
+            swap_fee,
+        } => migrations::v2_3_1::migrate(deps, swap_fee),
         MigrateMsg::V2_2_3ToV2_3_0 {
             max_trigger_orders,
         } => migrations::v2_3_0::migrate(deps, max_trigger_orders),

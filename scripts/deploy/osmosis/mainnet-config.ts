@@ -1068,7 +1068,7 @@ export const osmosisMainnetConfig: DeploymentConfig = {
       target_denom: axlUSDC,
       transfer_type: 'ibc',
     },
-    slippageTolerance: '0.01',
+    whitelistedDistributors: [],
   },
   incentives: {
     epochDuration: 604800, // 1 week
@@ -1116,4 +1116,5 @@ export const osmosisMainnetConfig: DeploymentConfig = {
   ],
   maxPerpParams: 20,
   perpsLiquidationBonusRatio: '0.6',
+  swapFee: '0.0005',
 }
