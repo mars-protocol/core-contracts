@@ -9,15 +9,18 @@ import { CosmWasmClient, SigningCosmWasmClient, ExecuteResult } from '@cosmjs/co
 import { StdFee } from '@cosmjs/amino'
 import {
   SwapperBaseForString,
+  Decimal,
+  Uint128,
+  GovernanceBaseForString,
   HealthContractBaseForString,
   IncentivesUnchecked,
-  Uint128,
-  Decimal,
   OracleBaseForString,
   ParamsBaseForString,
   RedBankUnchecked,
   ZapperBaseForString,
   InstantiateMsg,
+  FeeTierConfig,
+  FeeTier,
   KeeperFeeConfig,
   Coin,
   ExecuteMsg,
@@ -62,6 +65,7 @@ import {
   VaultAmount,
   VaultAmount1,
   UnlockingPositions,
+  MarketType,
   VaultPosition,
   LockingVaultAmount,
   VaultUnlockingPosition,
@@ -85,10 +89,15 @@ import {
   OwnerResponse,
   RewardsCollector,
   ArrayOfCoin,
+  FeeTierConfigResponse,
+  AccountTierAndDiscountResponse,
   Positions,
   DebtAmount,
   PerpPosition,
   PnlAmounts,
+  TradingFeeResponse,
+  SpotTradingFeeResponse,
+  PerpTradingFeeResponse,
   ArrayOfVaultBinding,
   VaultBinding,
   VaultPositionValue,
@@ -187,7 +196,20 @@ export interface MarsCreditManagerReadOnlyInterface {
     limit?: number
     startAfter?: string
   }) => Promise<ArrayOfVaultBinding>
+  getAccountTierAndDiscount: ({
+    accountId,
+  }: {
+    accountId: string
+  }) => Promise<AccountTierAndDiscountResponse>
+  tradingFee: ({
+    accountId,
+    marketType,
+  }: {
+    accountId: string
+    marketType: MarketType
+  }) => Promise<TradingFeeResponse>
   swapFeeRate: () => Promise<Decimal>
+  feeTierConfig: () => Promise<FeeTierConfigResponse>
 }
 export class MarsCreditManagerQueryClient implements MarsCreditManagerReadOnlyInterface {
   client: CosmWasmClient
@@ -212,7 +234,10 @@ export class MarsCreditManagerQueryClient implements MarsCreditManagerReadOnlyIn
     this.allTriggerOrders = this.allTriggerOrders.bind(this)
     this.allAccountTriggerOrders = this.allAccountTriggerOrders.bind(this)
     this.vaultBindings = this.vaultBindings.bind(this)
+    this.getAccountTierAndDiscount = this.getAccountTierAndDiscount.bind(this)
+    this.tradingFee = this.tradingFee.bind(this)
     this.swapFeeRate = this.swapFeeRate.bind(this)
+    this.feeTierConfig = this.feeTierConfig.bind(this)
   }
   accountKind = async ({ accountId }: { accountId: string }): Promise<AccountKind> => {
     return this.client.queryContractSmart(this.contractAddress, {
@@ -420,9 +445,39 @@ export class MarsCreditManagerQueryClient implements MarsCreditManagerReadOnlyIn
       },
     })
   }
+  getAccountTierAndDiscount = async ({
+    accountId,
+  }: {
+    accountId: string
+  }): Promise<AccountTierAndDiscountResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      get_account_tier_and_discount: {
+        account_id: accountId,
+      },
+    })
+  }
+  tradingFee = async ({
+    accountId,
+    marketType,
+  }: {
+    accountId: string
+    marketType: MarketType
+  }): Promise<TradingFeeResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      trading_fee: {
+        account_id: accountId,
+        market_type: marketType,
+      },
+    })
+  }
   swapFeeRate = async (): Promise<Decimal> => {
     return this.client.queryContractSmart(this.contractAddress, {
       swap_fee_rate: {},
+    })
+  }
+  feeTierConfig = async (): Promise<FeeTierConfigResponse> => {
+    return this.client.queryContractSmart(this.contractAddress, {
+      fee_tier_config: {},
     })
   }
 }

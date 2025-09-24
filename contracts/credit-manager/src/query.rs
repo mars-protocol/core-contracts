@@ -7,21 +7,24 @@ use cw_storage_plus::Bound;
 use mars_types::{
     adapters::vault::{Vault, VaultBase, VaultPosition, VaultPositionValue, VaultUnchecked},
     credit_manager::{
-        Account, CoinBalanceResponseItem, ConfigResponse, DebtAmount, DebtShares, Positions,
-        SharesResponseItem, TriggerOrderResponse, VaultBinding, VaultPositionResponseItem,
-        VaultUtilizationResponse,
+        Account, AccountTierAndDiscountResponse, CoinBalanceResponseItem, ConfigResponse,
+        DebtAmount, DebtShares, FeeTierConfigResponse, PerpTradingFeeResponse, Positions,
+        SharesResponseItem, SpotTradingFeeResponse, TradingFeeResponse, TriggerOrderResponse,
+        VaultBinding, VaultPositionResponseItem, VaultUtilizationResponse,
     },
     health::AccountKind,
     oracle::ActionKind,
+    perps::MarketType,
 };
 
 use crate::{
     error::ContractResult,
+    staking::get_account_tier_and_discount,
     state::{
-        ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, DEBT_SHARES, HEALTH_CONTRACT, INCENTIVES,
-        KEEPER_FEE_CONFIG, MAX_SLIPPAGE, MAX_UNLOCKING_POSITIONS, ORACLE, OWNER, PARAMS, PERPS,
-        PERPS_LB_RATIO, RED_BANK, REWARDS_COLLECTOR, SWAPPER, SWAP_FEE, TOTAL_DEBT_SHARES,
-        TRIGGER_ORDERS, VAULTS, VAULT_POSITIONS, ZAPPER,
+        ACCOUNT_KINDS, ACCOUNT_NFT, COIN_BALANCES, DEBT_SHARES, FEE_TIER_CONFIG, GOVERNANCE,
+        HEALTH_CONTRACT, INCENTIVES, KEEPER_FEE_CONFIG, MAX_SLIPPAGE, MAX_UNLOCKING_POSITIONS,
+        ORACLE, OWNER, PARAMS, PERPS, PERPS_LB_RATIO, RED_BANK, REWARDS_COLLECTOR, SWAPPER,
+        SWAP_FEE, TOTAL_DEBT_SHARES, TRIGGER_ORDERS, VAULTS, VAULT_POSITIONS, ZAPPER,
     },
     utils::debt_shares_to_amount,
     vault::vault_utilization_in_deposit_cap_denom,
@@ -67,6 +70,7 @@ pub fn query_config(deps: Deps) -> ContractResult<ConfigResponse> {
         rewards_collector: REWARDS_COLLECTOR.may_load(deps.storage)?,
         keeper_fee_config: KEEPER_FEE_CONFIG.load(deps.storage)?,
         perps_liquidation_bonus_ratio: PERPS_LB_RATIO.load(deps.storage)?,
+        governance: GOVERNANCE.load(deps.storage)?.into(),
     })
 }
 
@@ -346,5 +350,72 @@ pub fn query_vault_bindings(
             account_id,
             vault_address: vault_addr.to_string(),
         })
+    })
+}
+
+pub fn query_account_tier_and_discount(
+    deps: Deps,
+    account_id: &str,
+) -> ContractResult<AccountTierAndDiscountResponse> {
+    use crate::staking::get_account_tier_and_discount;
+
+    let (tier, discount_pct, voting_power) = get_account_tier_and_discount(deps, account_id)?;
+
+    Ok(AccountTierAndDiscountResponse {
+        tier_id: tier.id,
+        discount_pct,
+        voting_power,
+    })
+}
+
+pub fn query_trading_fee(
+    deps: Deps,
+    account_id: &str,
+    market_type: &MarketType,
+) -> ContractResult<TradingFeeResponse> {
+    let (tier, discount_pct, _) = get_account_tier_and_discount(deps, account_id)?;
+
+    match market_type {
+        MarketType::Spot => {
+            let base_fee_pct = SWAP_FEE.load(deps.storage)?;
+            let effective_fee_pct =
+                base_fee_pct.checked_mul(cosmwasm_std::Decimal::one() - discount_pct)?;
+
+            Ok(TradingFeeResponse::Spot(SpotTradingFeeResponse {
+                base_fee_pct,
+                discount_pct,
+                effective_fee_pct,
+                tier_id: tier.id,
+            }))
+        }
+        MarketType::Perp {
+            denom,
+        } => {
+            let params = PARAMS.load(deps.storage)?;
+            let perp_params = params.query_perp_params(&deps.querier, denom)?;
+
+            let opening_fee_pct = perp_params.opening_fee_rate;
+            let closing_fee_pct = perp_params.closing_fee_rate;
+
+            let effective_opening_fee_pct =
+                opening_fee_pct.checked_mul(cosmwasm_std::Decimal::one() - discount_pct)?;
+            let effective_closing_fee_pct =
+                closing_fee_pct.checked_mul(cosmwasm_std::Decimal::one() - discount_pct)?;
+
+            Ok(TradingFeeResponse::Perp(PerpTradingFeeResponse {
+                opening_fee_pct,
+                closing_fee_pct,
+                discount_pct,
+                effective_opening_fee_pct,
+                effective_closing_fee_pct,
+                tier_id: tier.id,
+            }))
+        }
+    }
+}
+
+pub fn query_fee_tier_config(deps: Deps) -> ContractResult<FeeTierConfigResponse> {
+    Ok(FeeTierConfigResponse {
+        fee_tier_config: FEE_TIER_CONFIG.load(deps.storage)?,
     })
 }

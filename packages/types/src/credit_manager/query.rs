@@ -8,9 +8,10 @@ use crate::{
         rewards_collector::RewardsCollector,
         vault::{Vault, VaultPosition, VaultUnchecked},
     },
+    fee_tiers::FeeTierConfig,
     health::AccountKind,
     oracle::ActionKind,
-    perps::PerpPosition,
+    perps::{MarketType, PerpPosition},
     traits::Coins,
 };
 
@@ -114,8 +115,49 @@ pub enum QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+
+    /// Get the staking tier and discount percentage for an account based on their voting power
+    #[returns(AccountTierAndDiscountResponse)]
+    GetAccountTierAndDiscount {
+        account_id: String,
+    },
+
+    /// Query the trading fee for a specific account and market type.
+    #[returns(TradingFeeResponse)]
+    TradingFee {
+        account_id: String,
+        market_type: MarketType,
+    },
+
     #[returns(Decimal)]
     SwapFeeRate {},
+
+    #[returns(FeeTierConfigResponse)]
+    FeeTierConfig {},
+}
+
+#[cw_serde]
+pub struct SpotTradingFeeResponse {
+    pub base_fee_pct: Decimal,
+    pub discount_pct: Decimal,
+    pub effective_fee_pct: Decimal,
+    pub tier_id: String,
+}
+
+#[cw_serde]
+pub struct PerpTradingFeeResponse {
+    pub opening_fee_pct: Decimal,
+    pub closing_fee_pct: Decimal,
+    pub discount_pct: Decimal,
+    pub effective_opening_fee_pct: Decimal,
+    pub effective_closing_fee_pct: Decimal,
+    pub tier_id: String,
+}
+
+#[cw_serde]
+pub enum TradingFeeResponse {
+    Spot(SpotTradingFeeResponse),
+    Perp(PerpTradingFeeResponse),
 }
 
 #[cw_serde]
@@ -231,6 +273,7 @@ pub struct ConfigResponse {
     pub rewards_collector: Option<RewardsCollector>,
     pub keeper_fee_config: KeeperFeeConfig,
     pub perps_liquidation_bonus_ratio: Decimal,
+    pub governance: String,
 }
 
 #[cw_serde]
@@ -243,4 +286,16 @@ pub struct Account {
 pub struct VaultBinding {
     pub account_id: String,
     pub vault_address: String,
+}
+
+#[cw_serde]
+pub struct AccountTierAndDiscountResponse {
+    pub tier_id: String,
+    pub discount_pct: Decimal,
+    pub voting_power: Uint128,
+}
+
+#[cw_serde]
+pub struct FeeTierConfigResponse {
+    pub fee_tier_config: FeeTierConfig,
 }

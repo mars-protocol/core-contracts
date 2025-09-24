@@ -18,13 +18,16 @@ use crate::{
     error::{ContractError, ContractResult},
     market::MarketStateExt,
     position::{PositionExt, PositionModification},
-    position_management::apply_pnl_and_fees,
+    position_management::{apply_pnl_and_fees, compute_discounted_fee_rates},
     query,
     state::{
         DeleverageRequestTempStorage, CONFIG, DELEVERAGE_REQUEST_TEMP_STORAGE, MARKET_STATES,
         POSITIONS, REALIZED_PNL, TOTAL_CASH_FLOW,
     },
-    utils::{get_oracle_adapter, get_params_adapter, update_position_attributes},
+    utils::{
+        get_credit_manager_adapter, get_oracle_adapter, get_params_adapter,
+        update_position_attributes,
+    },
 };
 
 pub const DELEVERAGE_REQUEST_REPLY_ID: u64 = 10_001;
@@ -87,11 +90,12 @@ pub fn deleverage(
     let addresses = query_contract_addrs(
         deps.as_ref(),
         &cfg.address_provider,
-        vec![MarsAddressType::Oracle, MarsAddressType::Params],
+        vec![MarsAddressType::Oracle, MarsAddressType::Params, MarsAddressType::CreditManager],
     )?;
 
     let oracle = get_oracle_adapter(&addresses[&MarsAddressType::Oracle]);
     let params = get_params_adapter(&addresses[&MarsAddressType::Params]);
+    let credit_manager = get_credit_manager_adapter(&addresses[&MarsAddressType::CreditManager]);
 
     // Query prices and parameters
     let base_denom_price =
@@ -114,14 +118,17 @@ pub fn deleverage(
     let initial_skew = ms.skew()?;
     ms.close_position(current_time, denom_price, base_denom_price, &position)?;
 
+    let discount_pct = credit_manager.query_discount_pct(&deps.querier, &account_id)?;
+    let (opening_fee_rate, closing_fee_rate) =
+        compute_discounted_fee_rates(&perp_params, Some(discount_pct))?;
     // Compute the position's unrealized PnL
     let pnl_amounts = position.compute_pnl(
         &ms.funding,
         initial_skew,
         denom_price,
         base_denom_price,
-        perp_params.opening_fee_rate,
-        perp_params.closing_fee_rate,
+        opening_fee_rate,
+        closing_fee_rate,
         PositionModification::Decrease(position.size),
     )?;
 
@@ -160,6 +167,7 @@ pub fn deleverage(
 
     // Save updated states
     POSITIONS.remove(deps.storage, (&account_id, &denom));
+
     REALIZED_PNL.save(deps.storage, (&account_id, &denom), &realized_pnl)?;
     MARKET_STATES.save(deps.storage, &denom, &ms)?;
     TOTAL_CASH_FLOW.save(deps.storage, &tcf)?;

@@ -1117,4 +1117,8 @@ export const osmosisMainnetConfig: DeploymentConfig = {
   maxPerpParams: 20,
   perpsLiquidationBonusRatio: '0.6',
   swapFee: '0.0005',
+  feeTierConfig: {
+    tiers: [],
+  },
+  governance: '',
 }
