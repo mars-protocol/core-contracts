@@ -90,12 +90,15 @@ import {
   OwnerResponse,
   RewardsCollector,
   ArrayOfCoin,
+  FeeTierConfigResponse,
   AccountTierAndDiscountResponse,
   Positions,
   DebtAmount,
   PerpPosition,
   PnlAmounts,
   TradingFeeResponse,
+  SpotTradingFeeResponse,
+  PerpTradingFeeResponse,
   ArrayOfVaultBinding,
   VaultBinding,
   VaultPositionValue,
@@ -281,6 +284,14 @@ export const marsCreditManagerQueryKeys = {
         args,
       },
     ] as const,
+  feeTierConfig: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+    [
+      {
+        ...marsCreditManagerQueryKeys.address(contractAddress)[0],
+        method: 'fee_tier_config',
+        args,
+      },
+    ] as const,
 }
 export interface MarsCreditManagerReactQuery<TResponse, TData = TResponse> {
   client: MarsCreditManagerQueryClient | undefined
@@ -290,6 +301,21 @@ export interface MarsCreditManagerReactQuery<TResponse, TData = TResponse> {
   > & {
     initialData?: undefined
   }
+}
+export interface MarsCreditManagerFeeTierConfigQuery<TData>
+  extends MarsCreditManagerReactQuery<FeeTierConfigResponse, TData> {}
+export function useMarsCreditManagerFeeTierConfigQuery<TData = FeeTierConfigResponse>({
+  client,
+  options,
+}: MarsCreditManagerFeeTierConfigQuery<TData>) {
+  return useQuery<FeeTierConfigResponse, Error, TData>(
+    marsCreditManagerQueryKeys.feeTierConfig(client?.contractAddress),
+    () => (client ? client.feeTierConfig() : Promise.reject(new Error('Invalid client'))),
+    {
+      ...options,
+      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
+    },
+  )
 }
 export interface MarsCreditManagerSwapFeeRateQuery<TData>
   extends MarsCreditManagerReactQuery<Decimal, TData> {}

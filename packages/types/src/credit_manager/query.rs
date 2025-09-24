@@ -8,9 +8,10 @@ use crate::{
         rewards_collector::RewardsCollector,
         vault::{Vault, VaultPosition, VaultUnchecked},
     },
+    fee_tiers::FeeTierConfig,
     health::AccountKind,
     oracle::ActionKind,
-    perps::PerpPosition,
+    perps::{MarketType, PerpPosition},
     traits::Coins,
 };
 
@@ -130,22 +131,33 @@ pub enum QueryMsg {
 
     #[returns(Decimal)]
     SwapFeeRate {},
+
+    #[returns(FeeTierConfigResponse)]
+    FeeTierConfig {},
 }
 
 #[cw_serde]
-pub enum MarketType {
-    Spot,
-    Perp {
-        denom: String,
-    },
-}
-
-#[cw_serde]
-pub struct TradingFeeResponse {
+pub struct SpotTradingFeeResponse {
     pub base_fee_pct: Decimal,
     pub discount_pct: Decimal,
     pub effective_fee_pct: Decimal,
     pub tier_id: String,
+}
+
+#[cw_serde]
+pub struct PerpTradingFeeResponse {
+    pub opening_fee_pct: Decimal,
+    pub closing_fee_pct: Decimal,
+    pub discount_pct: Decimal,
+    pub effective_opening_fee_pct: Decimal,
+    pub effective_closing_fee_pct: Decimal,
+    pub tier_id: String,
+}
+
+#[cw_serde]
+pub enum TradingFeeResponse {
+    Spot(SpotTradingFeeResponse),
+    Perp(PerpTradingFeeResponse),
 }
 
 #[cw_serde]
@@ -261,6 +273,7 @@ pub struct ConfigResponse {
     pub rewards_collector: Option<RewardsCollector>,
     pub keeper_fee_config: KeeperFeeConfig,
     pub perps_liquidation_bonus_ratio: Decimal,
+    pub governance: String,
 }
 
 #[cw_serde]
@@ -280,4 +293,9 @@ pub struct AccountTierAndDiscountResponse {
     pub tier_id: String,
     pub discount_pct: Decimal,
     pub voting_power: Uint128,
+}
+
+#[cw_serde]
+pub struct FeeTierConfigResponse {
+    pub fee_tier_config: FeeTierConfig,
 }

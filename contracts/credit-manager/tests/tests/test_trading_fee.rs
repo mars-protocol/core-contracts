@@ -1,8 +1,5 @@
 use cosmwasm_std::{Addr, Decimal, Uint128};
-use mars_types::{
-    credit_manager::{MarketType, TradingFeeResponse},
-    params::PerpParamsUpdate,
-};
+use mars_types::{credit_manager::TradingFeeResponse, params::PerpParamsUpdate, perps::MarketType};
 use test_case::test_case;
 
 use super::helpers::{default_perp_params, uosmo_info, MockEnv};
@@ -58,14 +55,19 @@ fn test_trading_fee_query_spot(
         .unwrap();
 
     // Verify the response
-    assert_eq!(response.base_fee_pct, expected_base_fee);
-    assert_eq!(response.discount_pct, expected_discount);
+    match response {
+        TradingFeeResponse::Spot(spot_response) => {
+            assert_eq!(spot_response.base_fee_pct, expected_base_fee);
+            assert_eq!(spot_response.discount_pct, expected_discount);
 
-    // Calculate the expected effective fee based on the actual response
-    let calculated_effective =
-        response.base_fee_pct.checked_mul(Decimal::one() - expected_discount).unwrap();
-    assert_eq!(response.effective_fee_pct, calculated_effective);
-    assert_eq!(response.tier_id, expected_tier_id);
+            // Calculate the expected effective fee based on the actual response
+            let calculated_effective =
+                spot_response.base_fee_pct.checked_mul(Decimal::one() - expected_discount).unwrap();
+            assert_eq!(spot_response.effective_fee_pct, calculated_effective);
+            assert_eq!(spot_response.tier_id, expected_tier_id);
+        }
+        _ => panic!("Expected Spot response"),
+    }
 }
 
 #[test_case(
@@ -126,13 +128,26 @@ fn test_trading_fee_query_perp(
         .unwrap();
 
     // Verify the response
-    assert_eq!(response.discount_pct, expected_discount);
-    assert_eq!(response.tier_id, expected_tier_id);
+    match response {
+        TradingFeeResponse::Perp(perp_response) => {
+            assert_eq!(perp_response.discount_pct, expected_discount);
+            assert_eq!(perp_response.tier_id, expected_tier_id);
 
-    // The effective fee should be base_fee * (1 - discount)
-    let expected_effective =
-        response.base_fee_pct.checked_mul(Decimal::one() - expected_discount).unwrap();
-    assert_eq!(response.effective_fee_pct, expected_effective);
+            // The effective fees should be base_fee * (1 - discount)
+            let expected_opening_effective = perp_response
+                .opening_fee_pct
+                .checked_mul(Decimal::one() - expected_discount)
+                .unwrap();
+            let expected_closing_effective = perp_response
+                .closing_fee_pct
+                .checked_mul(Decimal::one() - expected_discount)
+                .unwrap();
+
+            assert_eq!(perp_response.effective_opening_fee_pct, expected_opening_effective);
+            assert_eq!(perp_response.effective_closing_fee_pct, expected_closing_effective);
+        }
+        _ => panic!("Expected Perp response"),
+    }
 }
 
 #[test]
@@ -159,13 +174,20 @@ fn test_trading_fee_query_edge_cases() {
         )
         .unwrap();
 
-    assert_eq!(response.tier_id, "tier_8");
-    assert_eq!(response.discount_pct, Decimal::percent(80));
+    match response {
+        TradingFeeResponse::Spot(spot_response) => {
+            assert_eq!(spot_response.tier_id, "tier_8");
+            assert_eq!(spot_response.discount_pct, Decimal::percent(80));
 
-    // Calculate the expected effective fee based on the actual response
-    let calculated_effective =
-        response.base_fee_pct.checked_mul(Decimal::one() - Decimal::percent(80)).unwrap();
-    assert_eq!(response.effective_fee_pct, calculated_effective);
+            // Calculate the expected effective fee based on the actual response
+            let calculated_effective = spot_response
+                .base_fee_pct
+                .checked_mul(Decimal::one() - Decimal::percent(80))
+                .unwrap();
+            assert_eq!(spot_response.effective_fee_pct, calculated_effective);
+        }
+        _ => panic!("Expected Spot response"),
+    }
 
     // Test tier 1 (no discount - 0%)
     mock.set_voting_power(&user, Uint128::new(0));
@@ -182,11 +204,18 @@ fn test_trading_fee_query_edge_cases() {
         )
         .unwrap();
 
-    assert_eq!(response.tier_id, "tier_1");
-    assert_eq!(response.discount_pct, Decimal::percent(0));
+    match response {
+        TradingFeeResponse::Spot(spot_response) => {
+            assert_eq!(spot_response.tier_id, "tier_1");
+            assert_eq!(spot_response.discount_pct, Decimal::percent(0));
 
-    // Calculate the expected effective fee based on the actual response
-    let calculated_effective =
-        response.base_fee_pct.checked_mul(Decimal::one() - Decimal::percent(0)).unwrap();
-    assert_eq!(response.effective_fee_pct, calculated_effective);
+            // Calculate the expected effective fee based on the actual response
+            let calculated_effective = spot_response
+                .base_fee_pct
+                .checked_mul(Decimal::one() - Decimal::percent(0))
+                .unwrap();
+            assert_eq!(spot_response.effective_fee_pct, calculated_effective);
+        }
+        _ => panic!("Expected Spot response"),
+    }
 }

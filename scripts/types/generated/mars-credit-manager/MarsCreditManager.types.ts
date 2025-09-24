@@ -778,6 +778,9 @@ export type QueryMsg =
   | {
       swap_fee_rate: {}
     }
+  | {
+      fee_tier_config: {}
+    }
 export type ActionKind = 'default' | 'liquidation'
 export type VaultPositionAmount =
   | {
@@ -862,6 +865,7 @@ export interface VaultUtilizationResponse {
 }
 export interface ConfigResponse {
   account_nft?: string | null
+  governance: string
   health_contract: string
   incentives: string
   keeper_fee_config: KeeperFeeConfig
@@ -889,6 +893,9 @@ export interface RewardsCollector {
   address: string
 }
 export type ArrayOfCoin = Coin[]
+export interface FeeTierConfigResponse {
+  fee_tier_config: FeeTierConfig
+}
 export interface AccountTierAndDiscountResponse {
   discount_pct: Decimal
   tier_id: string
@@ -927,10 +934,25 @@ export interface PnlAmounts {
   pnl: Int128
   price_pnl: Int128
 }
-export interface TradingFeeResponse {
+export type TradingFeeResponse =
+  | {
+      spot: SpotTradingFeeResponse
+    }
+  | {
+      perp: PerpTradingFeeResponse
+    }
+export interface SpotTradingFeeResponse {
   base_fee_pct: Decimal
   discount_pct: Decimal
   effective_fee_pct: Decimal
+  tier_id: string
+}
+export interface PerpTradingFeeResponse {
+  closing_fee_pct: Decimal
+  discount_pct: Decimal
+  effective_closing_fee_pct: Decimal
+  effective_opening_fee_pct: Decimal
+  opening_fee_pct: Decimal
   tier_id: string
 }
 export type ArrayOfVaultBinding = VaultBinding[]
