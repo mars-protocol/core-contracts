@@ -2817,6 +2817,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "mars-mock-lst-oracle"
+version = "2.2.0"
+dependencies = [
+ "cosmwasm-schema 1.5.7",
+ "cosmwasm-std 1.5.7",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "mars-mock-oracle"
 version = "2.2.0"
 dependencies = [
@@ -2911,7 +2924,7 @@ dependencies = [
 
 [[package]]
 name = "mars-oracle-wasm"
-version = "2.2.3"
+version = "2.3.2"
 dependencies = [
  "astroport 2.9.0",
  "astroport 5.2.0",
@@ -3244,6 +3257,7 @@ dependencies = [
  "mars-incentives",
  "mars-mock-astroport-incentives",
  "mars-mock-incentives",
+ "mars-mock-lst-oracle",
  "mars-mock-oracle",
  "mars-mock-pyth",
  "mars-mock-red-bank",
