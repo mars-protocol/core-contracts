@@ -1,6 +1,7 @@
-use crate::fee_tiers::FeeTierConfig;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Decimal};
+
+use crate::fee_tiers::FeeTierConfig;
 
 #[cw_serde]
 pub enum MigrateMsg {
