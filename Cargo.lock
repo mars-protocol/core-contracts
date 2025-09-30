@@ -2656,7 +2656,7 @@ dependencies = [
 
 [[package]]
 name = "mars-address-provider"
-version = "2.2.2"
+version = "2.3.2"
 dependencies = [
  "bech32 0.11.0",
  "cosmwasm-schema 1.5.7",
@@ -2828,6 +2828,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "mars-mock-lst-oracle"
+version = "2.2.0"
+dependencies = [
+ "cosmwasm-schema 1.5.7",
+ "cosmwasm-std 1.5.7",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "mars-mock-oracle"
 version = "2.2.0"
 dependencies = [
@@ -2922,7 +2935,7 @@ dependencies = [
 
 [[package]]
 name = "mars-oracle-wasm"
-version = "2.2.3"
+version = "2.3.2"
 dependencies = [
  "astroport 2.9.0",
  "astroport 5.2.0",
@@ -3071,16 +3084,19 @@ dependencies = [
 
 [[package]]
 name = "mars-rewards-collector-neutron"
-version = "2.2.2"
+version = "2.3.2"
 dependencies = [
  "cosmwasm-schema 1.5.7",
  "cosmwasm-std 1.5.7",
+ "cw-multi-test",
  "cw-storage-plus 1.2.0",
  "cw2 1.1.2",
  "mars-rewards-collector-base",
  "mars-testing",
  "mars-types",
  "neutron-sdk",
+ "serde",
+ "test-case",
 ]
 
 [[package]]
@@ -3253,6 +3269,7 @@ dependencies = [
  "mars-mock-astroport-incentives",
  "mars-mock-governance",
  "mars-mock-incentives",
+ "mars-mock-lst-oracle",
  "mars-mock-oracle",
  "mars-mock-pyth",
  "mars-mock-red-bank",

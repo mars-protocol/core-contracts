@@ -9,7 +9,7 @@ use crate::{
     state::{FEE_TIER_CONFIG, GOVERNANCE},
 };
 
-const FROM_VERSION: &str = "2.3.0";
+const FROM_VERSION: &str = "2.3.1";
 const TO_VERSION: &str = "2.4.0";
 
 pub fn migrate(

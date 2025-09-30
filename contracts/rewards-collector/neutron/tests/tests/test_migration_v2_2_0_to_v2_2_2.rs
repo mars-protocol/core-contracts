@@ -2,8 +2,7 @@ use cosmwasm_std::{attr, testing::mock_env, Addr, Decimal, Event};
 use cw2::{ContractVersion, VersionError};
 use mars_rewards_collector_base::ContractError;
 use mars_rewards_collector_neutron::{
-    entry::{migrate, NeutronCollector},
-    migrations::v2_2_2::previous_state,
+    entry::migrate, migrations::v2_2_2::previous_state, NeutronCollector,
 };
 use mars_testing::mock_dependencies;
 use mars_types::rewards_collector::{NeutronMigrateMsg, TransferType};
