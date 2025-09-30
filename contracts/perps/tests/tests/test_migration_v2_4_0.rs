@@ -1,7 +1,8 @@
-use cosmwasm_std::{attr, testing::mock_env, Empty};
+use cosmwasm_std::{attr, testing::mock_env};
 use cw2::{ContractVersion, VersionError};
 use mars_perps::{contract::migrate, error::ContractError};
 use mars_testing::mock_dependencies;
+use mars_types::perps::MigrateMsg;
 
 const CONTRACT_NAME: &str = "mars-perps";
 const CONTRACT_VERSION: &str = "2.4.0";
@@ -11,7 +12,7 @@ fn wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.3.0").unwrap();
 
-    let err = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_3_0ToV2_4_0 {}).unwrap_err();
 
     assert_eq!(
         err,
@@ -28,7 +29,7 @@ fn wrong_contract_version() {
     cw2::set_contract_version(deps.as_mut().storage, format!("crates.io:{CONTRACT_NAME}"), "1.0.0")
         .unwrap();
 
-    let err = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_3_0ToV2_4_0 {}).unwrap_err();
 
     assert_eq!(
         err,
@@ -45,7 +46,7 @@ fn successful_migration_from_2_3_0() {
     cw2::set_contract_version(deps.as_mut().storage, format!("crates.io:{CONTRACT_NAME}"), "2.3.0")
         .unwrap();
 
-    let res = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap();
+    let res = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_3_0ToV2_4_0 {}).unwrap();
 
     assert_eq!(res.messages, vec![]);
     assert_eq!(
