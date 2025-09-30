@@ -193,5 +193,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
             max_trigger_orders,
         } => migrations::v2_3_0::migrate(deps, max_trigger_orders),
         MigrateMsg::V2_2_0ToV2_2_3 {} => migrations::v2_2_3::migrate(deps),
+        MigrateMsg::V2_3_0ToV2_4_0 {
+            fee_tier_config,
+            governance_address,
+        } => migrations::v2_4_0::migrate(deps, fee_tier_config, governance_address),
     }
 }
