@@ -4,7 +4,7 @@ use mars_oracle_base::ContractError;
 
 use crate::contract::{CONTRACT_NAME, CONTRACT_VERSION};
 
-const FROM_VERSION: &str = "2.2.0";
+const FROM_VERSION: &str = "2.2.3";
 
 pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
     // Make sure we're migrating the correct contract and from the correct version

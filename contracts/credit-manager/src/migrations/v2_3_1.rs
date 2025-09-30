@@ -1,15 +1,16 @@
-use cosmwasm_std::{DepsMut, Response};
+use cosmwasm_std::{Decimal, DepsMut, Response};
 use cw2::{assert_contract_version, set_contract_version};
-use mars_oracle_base::ContractError;
 
-use crate::contract::CONTRACT_NAME;
+use crate::{contract::CONTRACT_NAME, error::ContractError, state::SWAP_FEE};
 
-const FROM_VERSION: &str = "2.2.0";
-const TO_VERSION: &str = "2.2.3";
+const FROM_VERSION: &str = "2.3.0";
+const TO_VERSION: &str = "2.3.1";
 
-pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, swap_fee: Decimal) -> Result<Response, ContractError> {
     // make sure we're migrating the correct contract and from the correct version
     assert_contract_version(deps.storage, &format!("crates.io:{CONTRACT_NAME}"), FROM_VERSION)?;
+
+    SWAP_FEE.save(deps.storage, &swap_fee)?;
 
     set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), TO_VERSION)?;
 

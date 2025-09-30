@@ -1,19 +1,18 @@
 use cosmwasm_std::{DepsMut, Response};
 use cw2::{assert_contract_version, set_contract_version};
 
-use crate::{contract::CONTRACT_NAME, error::ContractError};
+use crate::{
+    contract::{CONTRACT_NAME, CONTRACT_VERSION},
+    error::ContractError,
+};
 
-const FROM_VERSION: &str = "2.2.0";
-
-// Hardcode the contract version so we don't break the tests
-// when we bump to a new version
-const CONTRACT_VERSION: &str = "2.2.3";
+pub const FROM_VERSION: &str = "2.2.2";
 
 pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
-    // Make sure we're migrating the correct contract and from the correct version
+    // make sure we're migrating the correct contract and from the correct version
     assert_contract_version(deps.storage, &format!("crates.io:{CONTRACT_NAME}"), FROM_VERSION)?;
 
-    // Update contract version
+    // this is a standard migration with no state changes
     set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), CONTRACT_VERSION)?;
 
     Ok(Response::new()

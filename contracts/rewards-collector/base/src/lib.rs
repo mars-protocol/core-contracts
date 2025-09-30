@@ -1,7 +1,6 @@
 pub mod contract;
-mod error;
-mod helpers;
-mod traits;
-
+pub mod error;
+pub mod helpers;
+pub mod traits;
 pub use error::*;
 pub use traits::*;

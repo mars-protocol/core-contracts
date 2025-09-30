@@ -77,6 +77,11 @@ pub enum ContractError {
     UnauthorizedDistributor {
         sender: String,
     },
+
+    #[error("Unable to find required swapper address. Required: {required}")]
+    NoSwapper {
+        required: String,
+    },
 }
 
 pub type ContractResult<T> = Result<T, ContractError>;

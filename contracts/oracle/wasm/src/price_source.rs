@@ -28,6 +28,9 @@ use crate::{
         validate_astroport_lp_pool_for_type, validate_astroport_pair_price_source,
     },
     lp_pricing::{query_pcl_lp_price, query_stable_swap_lp_price},
+    redemption_rate::{
+        query_redemption_rate as query_slinky_lst_redemption_rate, query_slinky_lst_denom,
+    },
     slinky::{assert_slinky, query_slinky_price},
     state::{ASTROPORT_FACTORY, ASTROPORT_TWAP_SNAPSHOTS},
 };
@@ -123,6 +126,15 @@ pub enum WasmPriceSource<A> {
         /// Params to query redemption rate
         redemption_rate: RedemptionRate<A>,
     },
+    /// Slinky LSD price quoted in USD based on data from Pyth, Astroport and Redemption Rate provider.
+    SlinkyLsd {
+        /// Transitive denom for which we query price in USD. It refers to 'Asset' in the equation:
+        /// stAsset/USD = stAsset/Asset * Asset/USD
+        transitive_denom: String,
+        /// Contract address of the oracle
+        contract_addr: A,
+    },
+
     /// Astroport LP token (of an XYK pool) price quoted in uusd
     XykLiquidityToken {
         /// Address of the Astroport pair
@@ -212,6 +224,7 @@ impl fmt::Display for WasmPriceSourceChecked {
                 } = redemption_rate;
                 format!("lsd:{transitive_denom}:{pair_address}:{window_size}:{tolerance}:{contract_addr}:{max_staleness}")
             },
+            WasmPriceSource::SlinkyLsd { transitive_denom, contract_addr } => format!("slinky_lsd:{transitive_denom}:{contract_addr}"),
             WasmPriceSource::XykLiquidityToken { pair_address } => format!("xyk_liquidity_token:{pair_address}"),
             WasmPriceSource::PclLiquidityToken { pair_address } => format!("pcl_liquidity_token:{pair_address}"),
             WasmPriceSource::PclDualityOrderbookLiquidityToken { pair_address } => format!("pcl_duality_orderbook_liquidity_token:{pair_address}"),
@@ -238,7 +251,7 @@ impl PriceSourceUnchecked<WasmPriceSourceChecked, Empty> for WasmPriceSourceUnch
             });
         }
 
-        // check if USD price source is correct
+        // Check if USD price source is correct
         if denom == USD_DENOM
             && !matches!(&self, &WasmPriceSource::Fixed { price } if is_one_followed_by_zeros(&price.to_string()))
         {
@@ -369,6 +382,31 @@ impl PriceSourceUnchecked<WasmPriceSourceChecked, Empty> for WasmPriceSourceUnch
                         contract_addr: deps.api.addr_validate(&redemption_rate.contract_addr)?,
                         max_staleness: redemption_rate.max_staleness,
                     },
+                })
+            }
+            WasmPriceSource::SlinkyLsd {
+                contract_addr,
+                transitive_denom,
+            } => {
+                let contract_addr = deps.api.addr_validate(&contract_addr)?;
+
+                // Ensure that the contract is using to the denom we expect
+                let lst_denom = query_slinky_lst_denom(&deps.querier, &contract_addr)?;
+                if lst_denom != denom {
+                    return Err(ContractError::InvalidPriceSource {
+                        reason: format!("lst denom does not match. Lst denom returned by contract: {}, expected: {}", lst_denom, denom),
+                    });
+                }
+
+                if !price_sources.has(deps.storage, &transitive_denom) {
+                    return Err(ContractError::InvalidPriceSource {
+                        reason: format!("missing price source for {}", transitive_denom),
+                    });
+                }
+
+                Ok(WasmPriceSourceChecked::SlinkyLsd {
+                    contract_addr,
+                    transitive_denom,
                 })
             }
             WasmPriceSource::XykLiquidityToken {
@@ -522,6 +560,18 @@ impl PriceSourceChecked<Empty> for WasmPriceSourceChecked {
                 twap,
                 redemption_rate,
                 config,
+                price_sources,
+                kind,
+            ),
+            WasmPriceSource::SlinkyLsd {
+                contract_addr,
+                transitive_denom,
+            } => query_slinky_lsd_price(
+                deps,
+                env,
+                config,
+                contract_addr,
+                transitive_denom,
                 price_sources,
                 kind,
             ),
@@ -827,6 +877,32 @@ fn query_lsd_price(
     )?;
 
     min_price.checked_mul(transitive_price).map_err(Into::into)
+}
+
+fn query_slinky_lsd_price(
+    deps: &Deps,
+    env: &Env,
+    config: &Config,
+    contract_addr: &Addr,
+    transitive_denom: &str,
+    price_sources: &Map<&str, WasmPriceSourceChecked>,
+    kind: ActionKind,
+) -> ContractResult<Decimal> {
+    let rr = query_slinky_lst_redemption_rate(&deps.querier, contract_addr.clone())?;
+
+    // We don't do any staleness checks here as slinky LST contract does not provide that.
+
+    // Get base asset price from oracle. If it does not exist, error
+    let price = price_sources.load(deps.storage, transitive_denom)?.query_price(
+        deps,
+        env,
+        transitive_denom,
+        config,
+        price_sources,
+        kind,
+    )?;
+
+    price.checked_mul(rr).map_err(Into::into)
 }
 
 fn query_xyk_liquidity_token_price(

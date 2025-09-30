@@ -1,14 +1,15 @@
-use cosmwasm_std::{attr, testing::mock_env, Empty, Event};
+use cosmwasm_std::{attr, testing::mock_env, Event};
 use cw2::{ContractVersion, VersionError};
 use mars_address_provider::{contract::migrate, error::ContractError};
 use mars_testing::mock_dependencies;
+use mars_types::address_provider::MigrateMsg;
 
 #[test]
 fn wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.2.0").unwrap();
 
-    let err = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_0ToV2_2_2 {}).unwrap_err();
 
     assert_eq!(
         err,
@@ -25,7 +26,7 @@ fn wrong_contract_version() {
     cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-address-provider", "4.1.0")
         .unwrap();
 
-    let err = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_0ToV2_2_2 {}).unwrap_err();
 
     assert_eq!(
         err,
@@ -42,7 +43,7 @@ fn successful_migration() {
     cw2::set_contract_version(deps.as_mut().storage, "crates.io:mars-address-provider", "2.2.0")
         .unwrap();
 
-    let res = migrate(deps.as_mut(), mock_env(), Empty {}).unwrap();
+    let res = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_0ToV2_2_2 {}).unwrap();
 
     assert_eq!(res.messages, vec![]);
     assert_eq!(res.events, vec![] as Vec<Event>);

@@ -174,6 +174,12 @@ pub struct AddressResponseItem {
     pub address: String,
 }
 
+#[cw_serde]
+pub enum MigrateMsg {
+    V2_2_2ToV2_3_2 {},
+    V2_2_0ToV2_2_2 {},
+}
+
 pub mod helpers {
     use std::collections::HashMap;
 

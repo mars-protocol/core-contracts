@@ -1,10 +1,10 @@
 [package]
-name          = "mars-address-provider"
-description   = "A smart contract that holds addresses of Mars Red Bank contracts"
-version       = "2.3.2"
+name          = "mars-mock-lst-oracle"
+description   = "Mocked version of a slinky lst oracle contract"
+version       = { workspace = true }
 authors       = { workspace = true }
-edition       = { workspace = true }
 license       = { workspace = true }
+edition       = { workspace = true }
 repository    = { workspace = true }
 homepage      = { workspace = true }
 documentation = { workspace = true }
@@ -15,21 +15,16 @@ crate-type = ["cdylib", "rlib"]
 doctest    = false
 
 [features]
+# for quicker tests, cargo test --lib
 # for more explicit tests, cargo test --features=backtraces
 backtraces = ["cosmwasm-std/backtraces"]
 library    = []
 
 [dependencies]
-bech32          = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cosmwasm-std    = { workspace = true }
-cw2             = { workspace = true }
-cw-storage-plus = { workspace = true }
-mars-owner      = { workspace = true }
-mars-types      = { workspace = true }
-thiserror       = { workspace = true }
-
-[dev-dependencies]
-cosmwasm-schema = { workspace = true }
-mars-testing    = { workspace = true }
+schemars        = { workspace = true }
 serde           = { workspace = true }
+cw2             = { workspace = true }
+thiserror       = { workspace = true }
+cw-storage-plus = { workspace = true }

@@ -72,6 +72,12 @@ export type WasmPriceSourceForString =
       }
     }
   | {
+      slinky_lsd: {
+        contract_addr: string
+        transitive_denom: string
+      }
+    }
+  | {
       xyk_liquidity_token: {
         pair_address: string
       }

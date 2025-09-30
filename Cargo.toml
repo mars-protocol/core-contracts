@@ -26,6 +26,7 @@ members  = [
   "contracts/mock-red-bank",
   "contracts/mock-vault",
   "contracts/mock-governance",
+  "contracts/mock-lst-oracle",
 
   # packages
   "packages/chains/*",
@@ -151,6 +152,7 @@ mars-mock-incentives            = { path = "./contracts/mock-incentives" }
 mars-mock-oracle                = { path = "./contracts/mock-oracle" }
 mars-mock-red-bank              = { path = "./contracts/mock-red-bank" }
 mars-mock-vault                 = { path = "./contracts/mock-vault" }
+mars-mock-lst-oracle            = { path = "./contracts/mock-lst-oracle" }
 mars-mock-rover-health          = { path = "./contracts/mock-health" }
 mars-mock-governance            = { path = "./contracts/mock-governance" }
 mars-swapper-mock               = { path = "./contracts/swapper/mock" }
