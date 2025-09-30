@@ -1,5 +1,6 @@
+use crate::fee_tiers::FeeTierConfig;
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Addr, Decimal};
 
 #[cw_serde]
 pub enum MigrateMsg {
@@ -9,5 +10,9 @@ pub enum MigrateMsg {
     },
     V2_3_0ToV2_3_1 {
         swap_fee: Decimal,
+    },
+    V2_3_1ToV2_4_0 {
+        fee_tier_config: FeeTierConfig,
+        governance_address: Addr,
     },
 }
