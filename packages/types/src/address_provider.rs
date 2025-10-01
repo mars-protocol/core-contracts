@@ -176,6 +176,7 @@ pub struct AddressResponseItem {
 
 #[cw_serde]
 pub enum MigrateMsg {
+    V2_3_2ToV2_4_0 {},
     V2_2_2ToV2_3_2 {},
     V2_2_0ToV2_2_2 {},
 }

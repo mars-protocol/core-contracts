@@ -29,6 +29,7 @@ mod test_migration_v2;
 mod test_migration_v2_2_3;
 mod test_migration_v2_3_0;
 mod test_migration_v2_3_1;
+mod test_migration_v2_4_0;
 mod test_no_health_check;
 mod test_order_relations;
 mod test_perp;

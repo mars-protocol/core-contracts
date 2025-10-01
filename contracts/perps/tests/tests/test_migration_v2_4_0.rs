@@ -5,14 +5,14 @@ use mars_testing::mock_dependencies;
 use mars_types::perps::MigrateMsg;
 
 const CONTRACT_NAME: &str = "mars-perps";
-const CONTRACT_VERSION: &str = "2.3.0";
+const CONTRACT_VERSION: &str = "2.4.0";
 
 #[test]
 fn wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.2.3").unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", "2.3.0").unwrap();
 
-    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_3ToV2_3_0 {}).unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_3_0ToV2_4_0 {}).unwrap_err();
 
     assert_eq!(
         err,
@@ -29,31 +29,31 @@ fn wrong_contract_version() {
     cw2::set_contract_version(deps.as_mut().storage, format!("crates.io:{CONTRACT_NAME}"), "1.0.0")
         .unwrap();
 
-    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_3ToV2_3_0 {}).unwrap_err();
+    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_3_0ToV2_4_0 {}).unwrap_err();
 
     assert_eq!(
         err,
         ContractError::Version(VersionError::WrongVersion {
-            expected: "2.2.3".to_string(),
+            expected: "2.3.0".to_string(),
             found: "1.0.0".to_string()
         })
     );
 }
 
 #[test]
-fn successful_migration_from_2_2_1() {
+fn successful_migration_from_2_3_0() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, format!("crates.io:{CONTRACT_NAME}"), "2.2.3")
+    cw2::set_contract_version(deps.as_mut().storage, format!("crates.io:{CONTRACT_NAME}"), "2.3.0")
         .unwrap();
 
-    let res = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_2_3ToV2_3_0 {}).unwrap();
+    let res = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_3_0ToV2_4_0 {}).unwrap();
 
     assert_eq!(res.messages, vec![]);
     assert_eq!(
         res.attributes,
         vec![
             attr("action", "migrate"),
-            attr("from_version", "2.2.3"),
+            attr("from_version", "2.3.0"),
             attr("to_version", CONTRACT_VERSION),
         ]
     );

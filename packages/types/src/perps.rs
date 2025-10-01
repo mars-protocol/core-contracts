@@ -62,6 +62,14 @@ pub struct Config<T> {
     /// The maximum number of unlocks that can be requested by a single user
     pub max_unlocks: u8,
 }
+// ------------------------------- migrate messages -------------------------------
+
+#[cw_serde]
+pub enum MigrateMsg {
+    V2_2_1ToV2_2_3 {},
+    V2_2_3ToV2_3_0 {},
+    V2_3_0ToV2_4_0 {},
+}
 
 impl Config<String> {
     pub fn check(self, api: &dyn Api) -> StdResult<Config<Addr>> {
