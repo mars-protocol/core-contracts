@@ -133,6 +133,19 @@ pub fn assert_tiers_sorted_descending(voting_powers: &[Uint128]) -> ContractResu
     Ok(())
 }
 
+pub fn assert_tiers_max_size(
+    tiers: &[impl std::fmt::Debug],
+    max_tiers: usize,
+) -> ContractResult<()> {
+    if tiers.len() > max_tiers {
+        return Err(ContractError::TooManyTiers {
+            max_tiers,
+            provided_tiers: tiers.len(),
+        });
+    }
+    Ok(())
+}
+
 pub fn assert_withdraw_enabled(
     storage: &dyn Storage,
     querier: &QuerierWrapper,

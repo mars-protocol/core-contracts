@@ -4,12 +4,14 @@ use mars_types::{
     fee_tiers::{FeeTier, FeeTierConfig},
 };
 
+const MAX_TIER_SIZE: usize = 20;
+
 use crate::{
     error::{ContractError, ContractResult},
     state::{FEE_TIER_CONFIG, GOVERNANCE},
     utils::{
-        assert_discount_pct, assert_tiers_not_empty, assert_tiers_sorted_descending,
-        query_nft_token_owner,
+        assert_discount_pct, assert_tiers_max_size, assert_tiers_not_empty,
+        assert_tiers_sorted_descending, query_nft_token_owner,
     },
 };
 
@@ -61,27 +63,25 @@ impl StakingTierManager {
     /// Validate that tiers are properly ordered by min_voting_power (descending)
     pub fn validate(&self) -> ContractResult<()> {
         assert_tiers_not_empty(&self.config.tiers)?;
+        assert_tiers_max_size(&self.config.tiers, MAX_TIER_SIZE)?;
 
-        // Extract all voting powers
+        // Check duplicates, descending order, and discount percentages
         let mut voting_powers = Vec::new();
-        for tier in &self.config.tiers {
-            voting_powers.push(tier.min_voting_power);
-        }
+        for (i, tier) in self.config.tiers.iter().enumerate() {
+            // Validate discount percentage
+            assert_discount_pct(tier.discount_pct)?;
 
-        // Check for duplicates
-        for i in 1..voting_powers.len() {
-            if voting_powers[i] == voting_powers[i - 1] {
+            // Collect voting power for later validation
+            voting_powers.push(tier.min_voting_power);
+
+            // Check for duplicates (compare with previous tier)
+            if i > 0 && voting_powers[i] == voting_powers[i - 1] {
                 return Err(ContractError::DuplicateVotingPowerThresholds);
             }
         }
 
         // Check for descending order
         assert_tiers_sorted_descending(&voting_powers)?;
-
-        // Validate discount percentages are reasonable (0-100% inclusive)
-        for tier in &self.config.tiers {
-            assert_discount_pct(tier.discount_pct)?;
-        }
 
         Ok(())
     }

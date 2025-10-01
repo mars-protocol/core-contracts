@@ -328,4 +328,10 @@ pub enum ContractError {
     },
     #[error("Vault has an admin; vaults cannot be managed with an admin set.")]
     VaultHasAdmin {},
+
+    #[error("Too many tiers. Maximum allowed: {max_tiers:?}, provided: {provided_tiers:?}")]
+    TooManyTiers {
+        max_tiers: usize,
+        provided_tiers: usize,
+    },
 }

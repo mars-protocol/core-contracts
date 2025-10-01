@@ -673,3 +673,54 @@ fn test_validation_edge_case_single_digit() {
     let result = manager.validate();
     assert!(result.is_ok());
 }
+
+#[test_case(
+    20, true, None;
+    "exactly 20 tiers (max allowed)"
+)]
+#[test_case(
+    21, false, Some(ContractError::TooManyTiers { max_tiers: 20, provided_tiers: 21 });
+    "21 tiers (exceeds maximum)"
+)]
+#[test_case(
+    19, true, None;
+    "19 tiers (just under maximum)"
+)]
+#[test_case(
+    1, true, None;
+    "single tier (well under maximum)"
+)]
+#[test_case(
+    8, true, None;
+    "original test config (8 tiers)"
+)]
+fn test_validation_max_tier_size(
+    tier_count: usize,
+    should_pass: bool,
+    expected_error: Option<ContractError>,
+) {
+    let mut tiers = Vec::new();
+    for i in 0..tier_count {
+        tiers.push(FeeTier {
+            id: format!("tier_{}", i),
+            min_voting_power: Uint128::new(((tier_count - i) * 1000) as u128), // Descending order
+            discount_pct: Decimal::percent((i * 5) as u64),                    // 0% to max
+        });
+    }
+
+    let config = FeeTierConfig {
+        tiers,
+    };
+    let manager = StakingTierManager::new(config);
+
+    let result = manager.validate();
+
+    if should_pass {
+        assert!(result.is_ok());
+    } else {
+        assert!(result.is_err());
+        if let Some(expected_err) = expected_error {
+            assert_eq!(result.unwrap_err(), expected_err);
+        }
+    }
+}
