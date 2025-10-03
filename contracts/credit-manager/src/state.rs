@@ -8,6 +8,7 @@ use mars_types::{
         swapper::Swapper, vault::VaultPositionAmount, zapper::Zapper,
     },
     credit_manager::{KeeperFeeConfig, TriggerOrder},
+    fee_tiers::FeeTierConfig,
     health::AccountKind,
 };
 use mars_utils::guard::Guard;
@@ -67,3 +68,9 @@ pub const VAULTS: Map<&str, Addr> = Map::new("vaults");
 pub const PERPS_LB_RATIO: Item<Decimal> = Item::new("perps_lb_ratio");
 
 pub const SWAP_FEE: Item<Decimal> = Item::new("swap_fee");
+
+// Fee tier discount configuration
+pub const FEE_TIER_CONFIG: Item<FeeTierConfig> = Item::new("fee_tier_config");
+
+// Governance contract address
+pub const GOVERNANCE: Item<Addr> = Item::new("governance");

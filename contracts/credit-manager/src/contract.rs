@@ -15,12 +15,12 @@ use crate::{
     migrations,
     perp::update_balance_after_deleverage,
     query::{
-        query_accounts, query_all_coin_balances, query_all_debt_shares,
-        query_all_total_debt_shares, query_all_trigger_orders,
+        query_account_tier_and_discount, query_accounts, query_all_coin_balances,
+        query_all_debt_shares, query_all_total_debt_shares, query_all_trigger_orders,
         query_all_trigger_orders_for_account, query_all_vault_positions,
-        query_all_vault_utilizations, query_config, query_positions, query_swap_fee,
-        query_total_debt_shares, query_vault_bindings, query_vault_position_value,
-        query_vault_utilization,
+        query_all_vault_utilizations, query_config, query_fee_tier_config, query_positions,
+        query_swap_fee, query_total_debt_shares, query_trading_fee, query_vault_bindings,
+        query_vault_position_value, query_vault_utilization,
     },
     repay::repay_from_wallet,
     state::NEXT_TRIGGER_ID,
@@ -173,7 +173,15 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
             start_after,
             limit,
         } => to_json_binary(&query_vault_bindings(deps, start_after, limit)?),
+        QueryMsg::GetAccountTierAndDiscount {
+            account_id,
+        } => to_json_binary(&query_account_tier_and_discount(deps, &account_id)?),
+        QueryMsg::TradingFee {
+            account_id,
+            market_type,
+        } => to_json_binary(&query_trading_fee(deps, &account_id, &market_type)?),
         QueryMsg::SwapFeeRate {} => to_json_binary(&query_swap_fee(deps)?),
+        QueryMsg::FeeTierConfig {} => to_json_binary(&query_fee_tier_config(deps)?),
     };
     res.map_err(Into::into)
 }
@@ -188,5 +196,9 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
             max_trigger_orders,
         } => migrations::v2_3_0::migrate(deps, max_trigger_orders),
         MigrateMsg::V2_2_0ToV2_2_3 {} => migrations::v2_2_3::migrate(deps),
+        MigrateMsg::V2_3_1ToV2_4_0 {
+            fee_tier_config,
+            governance_address,
+        } => migrations::v2_4_0::migrate(deps, fee_tier_config, governance_address),
     }
 }

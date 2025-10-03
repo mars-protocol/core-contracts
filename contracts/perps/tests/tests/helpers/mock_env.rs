@@ -58,6 +58,7 @@ pub struct MockEnvBuilder {
     deleverage_enabled: bool,
     withdraw_enabled: bool,
     max_unlocks: u8,
+    pub governance_addr: Option<Addr>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -77,6 +78,7 @@ impl MockEnv {
             deleverage_enabled: true,
             withdraw_enabled: true,
             max_unlocks: 5,
+            governance_addr: Some(Addr::unchecked("mock-governance")),
         }
     }
 
@@ -223,6 +225,7 @@ impl MockEnv {
                 denom: denom.to_string(),
                 size,
                 reduce_only,
+                discount_pct: None,
             },
             funds,
         )
@@ -240,6 +243,7 @@ impl MockEnv {
             &perps::ExecuteMsg::CloseAllPositions {
                 account_id: account_id.to_string(),
                 action: None,
+                discount_pct: None,
             },
             funds,
         )
@@ -479,7 +483,12 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_opening_fee(&self, denom: &str, size: Int128) -> TradingFee {
+    pub fn query_opening_fee(
+        &self,
+        denom: &str,
+        size: Int128,
+        discount_pct: Option<Decimal>,
+    ) -> TradingFee {
         self.app
             .wrap()
             .query_wasm_smart(
@@ -487,6 +496,7 @@ impl MockEnv {
                 &perps::QueryMsg::OpeningFee {
                     denom: denom.to_string(),
                     size,
+                    discount_pct,
                 },
             )
             .unwrap()
@@ -522,6 +532,20 @@ impl MockEnv {
             )
             .unwrap()
     }
+
+    pub fn set_governance_address(&mut self, address: &Addr) {
+        self.app
+            .execute_contract(
+                self.owner.clone(),
+                self.address_provider.clone(),
+                &address_provider::ExecuteMsg::SetAddress {
+                    address_type: MarsAddressType::Governance,
+                    address: address.to_string(),
+                },
+                &[],
+            )
+            .unwrap();
+    }
 }
 
 impl MockEnvBuilder {
@@ -534,6 +558,15 @@ impl MockEnvBuilder {
             self.deploy_rewards_collector(address_provider_contract.as_str());
         let perps_contract = self.deploy_perps(address_provider_contract.as_str());
         let incentives_contract = self.deploy_incentives(&address_provider_contract);
+
+        // Deploy governance if provided
+        if let Some(governance_addr) = self.governance_addr.clone() {
+            self.update_address_provider(
+                &address_provider_contract,
+                MarsAddressType::Governance,
+                &governance_addr,
+            );
+        }
 
         self.update_address_provider(
             &address_provider_contract,
@@ -843,5 +876,23 @@ impl MockEnvBuilder {
     pub fn max_unlocks(&mut self, max_unlocks: u8) -> &mut Self {
         self.max_unlocks = max_unlocks;
         self
+    }
+
+    pub fn set_governance_addr(mut self, addr: &Addr) -> Self {
+        self.governance_addr = Some(addr.clone());
+        self
+    }
+
+    pub fn deploy_mock_governance(&mut self) -> &mut Self {
+        let governance_addr = self.deploy_governance();
+        self.governance_addr = Some(governance_addr);
+        self
+    }
+
+    fn deploy_governance(&mut self) -> Addr {
+        // Create a simple mock governance contract address
+        let addr = Addr::unchecked("mock-governance");
+        self.set_address(MarsAddressType::Governance, addr.clone());
+        addr
     }
 }

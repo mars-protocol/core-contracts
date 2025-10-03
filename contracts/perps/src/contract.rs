@@ -1,10 +1,10 @@
 use cosmwasm_std::{
-    entry_point, to_json_binary, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Reply, Response,
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response,
 };
 use mars_owner::OwnerInit;
 use mars_types::{
     oracle::ActionKind,
-    perps::{ExecuteMsg, InstantiateMsg, QueryMsg},
+    perps::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
 };
 
 use crate::{
@@ -75,15 +75,22 @@ pub fn execute(
         ExecuteMsg::CloseAllPositions {
             account_id,
             action,
-        } => {
-            close_all_positions(deps, env, info, account_id, action.unwrap_or(ActionKind::Default))
-        }
+            discount_pct,
+        } => close_all_positions(
+            deps,
+            env,
+            info,
+            account_id,
+            action.unwrap_or(ActionKind::Default),
+            discount_pct,
+        ),
         ExecuteMsg::ExecuteOrder {
             account_id,
             denom,
             size,
             reduce_only,
-        } => execute_order(deps, env, info, account_id, denom, size, reduce_only),
+            discount_pct,
+        } => execute_order(deps, env, info, account_id, denom, size, reduce_only, discount_pct),
         ExecuteMsg::Deleverage {
             account_id,
             denom,
@@ -175,7 +182,8 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
         QueryMsg::OpeningFee {
             denom,
             size,
-        } => to_json_binary(&query_opening_fee(deps, &denom, size)?),
+            discount_pct,
+        } => to_json_binary(&query_opening_fee(deps, &denom, size, discount_pct)?),
         QueryMsg::PositionFees {
             account_id,
             denom,
@@ -189,6 +197,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, _msg: Empty) -> Result<Response, ContractError> {
-    migrations::v2_3_0::migrate(deps)
+pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    match msg {
+        MigrateMsg::V2_2_1ToV2_2_3 {} => migrations::v2_2_3::migrate(deps),
+        MigrateMsg::V2_2_3ToV2_3_0 {} => migrations::v2_3_0::migrate(deps),
+        MigrateMsg::V2_3_0ToV2_4_0 {} => migrations::v2_4_0::migrate(deps),
+    }
 }

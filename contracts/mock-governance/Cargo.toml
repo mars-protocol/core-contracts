@@ -1,0 +1,16 @@
+[package]
+name = "mars-mock-governance"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+cosmwasm-schema = "1.5"
+cosmwasm-std = "1.5"
+cw-storage-plus = "1.2"
+thiserror = "1"
+mars-types = { path = "../../packages/types" }
+
+

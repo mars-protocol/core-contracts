@@ -13,6 +13,7 @@ use cw_vault_standard::{
     extensions::lockup::{LockupQueryMsg, UnlockingPosition},
     msg::{ExtensionQueryMsg, VaultStandardQueryMsg::VaultExtension},
 };
+use mars_mock_governance::ExecMsg as GovernanceExecMsg;
 use mars_mock_oracle::msg::{
     CoinPrice, ExecuteMsg as OracleExecuteMsg, InstantiateMsg as OracleInstantiateMsg,
 };
@@ -27,6 +28,7 @@ use mars_types::{
     },
     adapters::{
         account_nft::AccountNftUnchecked,
+        governance::GovernanceUnchecked,
         health::HealthContract,
         incentives::{Incentives, IncentivesUnchecked},
         oracle::{Oracle, OracleBase, OracleUnchecked},
@@ -45,6 +47,7 @@ use mars_types::{
         SharesResponseItem, TriggerOrderResponse, VaultBinding, VaultPositionResponseItem,
         VaultUtilizationResponse,
     },
+    fee_tiers::{FeeTier, FeeTierConfig},
     health::{
         AccountKind, ExecuteMsg::UpdateConfig, HealthValuesResponse,
         InstantiateMsg as HealthInstantiateMsg, QueryMsg::HealthValues,
@@ -87,10 +90,11 @@ use mars_zapper_mock::msg::{InstantiateMsg as ZapperInstantiateMsg, LpConfig};
 
 use super::{
     lp_token_info, mock_account_nft_contract, mock_address_provider_contract,
-    mock_astro_incentives_contract, mock_health_contract, mock_incentives_contract,
-    mock_managed_vault_contract, mock_oracle_contract, mock_params_contract, mock_perps_contract,
-    mock_red_bank_contract, mock_rover_contract, mock_swapper_contract, mock_v2_zapper_contract,
-    mock_vault_contract, AccountToFund, CoinInfo, VaultTestInfo, ASTRO_LP_DENOM,
+    mock_astro_incentives_contract, mock_governance_contract, mock_health_contract,
+    mock_incentives_contract, mock_managed_vault_contract, mock_oracle_contract,
+    mock_params_contract, mock_perps_contract, mock_red_bank_contract, mock_rover_contract,
+    mock_swapper_contract, mock_v2_zapper_contract, mock_vault_contract, AccountToFund, CoinInfo,
+    VaultTestInfo, ASTRO_LP_DENOM,
 };
 use crate::{
     integration::mock_contracts::mock_rewards_collector_osmosis_contract,
@@ -136,6 +140,8 @@ pub struct MockEnvBuilder {
     pub perps_liquidation_bonus_ratio: Option<Decimal>,
     pub perps_protocol_fee_ratio: Option<Decimal>,
     pub swap_fee: Option<Decimal>,
+    pub fee_tier_config: Option<mars_types::fee_tiers::FeeTierConfig>,
+    pub governance_addr: Option<Addr>,
 }
 
 #[allow(clippy::new_ret_no_self)]
@@ -170,6 +176,8 @@ impl MockEnv {
             perps_liquidation_bonus_ratio: None,
             perps_protocol_fee_ratio: None,
             swap_fee: None,
+            fee_tier_config: None,
+            governance_addr: None,
         }
     }
 
@@ -1141,7 +1149,12 @@ impl MockEnv {
             .unwrap()
     }
 
-    pub fn query_perp_opening_fee(&self, denom: &str, size: Int128) -> TradingFee {
+    pub fn query_perp_opening_fee(
+        &self,
+        denom: &str,
+        size: Int128,
+        discount_pct: Option<Decimal>,
+    ) -> TradingFee {
         self.app
             .wrap()
             .query_wasm_smart(
@@ -1149,6 +1162,7 @@ impl MockEnv {
                 &perps::QueryMsg::OpeningFee {
                     denom: denom.to_string(),
                     size,
+                    discount_pct,
                 },
             )
             .unwrap()
@@ -1192,6 +1206,21 @@ impl MockEnv {
 
         Addr::unchecked(res.address)
     }
+
+    pub fn set_voting_power(&mut self, user: &Addr, power: Uint128) {
+        let governance = self.query_address_provider(MarsAddressType::Governance);
+        self.app
+            .execute_contract(
+                Addr::unchecked("owner"),
+                governance,
+                &GovernanceExecMsg::SetVotingPower {
+                    address: user.to_string(),
+                    power,
+                },
+                &[],
+            )
+            .unwrap();
+    }
 }
 
 impl MockEnvBuilder {
@@ -1212,6 +1241,8 @@ impl MockEnvBuilder {
         self.update_health_contract_config(&rover);
 
         self.deploy_nft_contract(&rover);
+        self.deploy_governance(&rover);
+        self.set_fee_tiers(&rover);
 
         if self.deploy_nft_contract && self.set_nft_contract_minter {
             self.update_config(
@@ -1249,6 +1280,20 @@ impl MockEnvBuilder {
         })
     }
 
+    pub fn set_fee_tier_config(mut self, cfg: FeeTierConfig) -> Self {
+        self.fee_tier_config = Some(cfg);
+        self
+    }
+
+    pub fn set_governance_addr(mut self, addr: &Addr) -> Self {
+        self.governance_addr = Some(addr.clone());
+        self
+    }
+
+    pub fn set_swap_fee(mut self, fee: Decimal) -> Self {
+        self.swap_fee = Some(fee);
+        self
+    }
     //--------------------------------------------------------------------------------------------------
     // Execute Msgs
     //--------------------------------------------------------------------------------------------------
@@ -1364,6 +1409,19 @@ impl MockEnvBuilder {
         let params = self.get_params_contract().into();
         let keeper_fee_config = self.get_keeper_fee_config();
         let swap_fee = self.get_swap_fee();
+        let fee_tier_config = self.fee_tier_config.clone().unwrap_or(FeeTierConfig {
+            tiers: vec![FeeTier {
+                id: "tier_1".to_string(),
+                min_voting_power: Uint128::zero(),
+                discount_pct: Decimal::percent(0),
+            }],
+        });
+        let governance = GovernanceUnchecked::new(
+            self.governance_addr
+                .clone()
+                .unwrap_or_else(|| Addr::unchecked("mock-governance"))
+                .to_string(),
+        );
 
         self.deploy_rewards_collector();
         self.deploy_astroport_incentives();
@@ -1389,6 +1447,8 @@ impl MockEnvBuilder {
                     keeper_fee_config,
                     perps_liquidation_bonus_ratio,
                     swap_fee,
+                    fee_tier_config,
+                    governance_address: governance,
                 },
                 &[],
                 "mock-rover-contract",
@@ -1430,6 +1490,88 @@ impl MockEnvBuilder {
                 None,
             )
             .unwrap()
+    }
+
+    fn deploy_governance(&mut self, rover: &Addr) -> Addr {
+        let governance_addr = if let Some(addr) = self.governance_addr.clone() {
+            addr
+        } else {
+            let code_id = self.app.store_code(mock_governance_contract());
+            self.app
+                .instantiate_contract(code_id, self.get_owner(), &(), &[], "mock-governance", None)
+                .unwrap()
+        };
+
+        // Register in address provider for queries that fetch Governance via AP
+        self.set_address(MarsAddressType::Governance, governance_addr.clone());
+
+        // Update CM config with governance address only
+        self.update_config(
+            rover,
+            ConfigUpdates {
+                governance_address: Some(GovernanceUnchecked::new(governance_addr.to_string())),
+                ..Default::default()
+            },
+        );
+
+        governance_addr
+    }
+
+    fn set_fee_tiers(&mut self, rover: &Addr) {
+        // Default 8-tier config if none provided (descending thresholds)
+        let fee_cfg = self.fee_tier_config.clone().unwrap_or(FeeTierConfig {
+            tiers: vec![
+                FeeTier {
+                    id: "tier_8".to_string(),
+                    min_voting_power: Uint128::new(1500000000000), // 1,500,000 MARS = 1,500,000,000,000 uMARS
+                    discount_pct: Decimal::percent(80),
+                },
+                FeeTier {
+                    id: "tier_7".to_string(),
+                    min_voting_power: Uint128::new(1000000000000), // 1,000,000 MARS = 1,000,000,000,000 uMARS
+                    discount_pct: Decimal::percent(70),
+                },
+                FeeTier {
+                    id: "tier_6".to_string(),
+                    min_voting_power: Uint128::new(500000000000), // 500,000 MARS
+                    discount_pct: Decimal::percent(60),
+                },
+                FeeTier {
+                    id: "tier_5".to_string(),
+                    min_voting_power: Uint128::new(250000000000), // 250,000 MARS
+                    discount_pct: Decimal::percent(45),
+                },
+                FeeTier {
+                    id: "tier_4".to_string(),
+                    min_voting_power: Uint128::new(100000000000), // 100,000 MARS
+                    discount_pct: Decimal::percent(30),
+                },
+                FeeTier {
+                    id: "tier_3".to_string(),
+                    min_voting_power: Uint128::new(50000000000), // 50,000 MARS
+                    discount_pct: Decimal::percent(20),
+                },
+                FeeTier {
+                    id: "tier_2".to_string(),
+                    min_voting_power: Uint128::new(10000000000), // 10,000 MARS
+                    discount_pct: Decimal::percent(10),
+                },
+                FeeTier {
+                    id: "tier_1".to_string(),
+                    min_voting_power: Uint128::zero(),
+                    discount_pct: Decimal::percent(0),
+                },
+            ],
+        });
+
+        // Push into Rover config
+        self.update_config(
+            rover,
+            ConfigUpdates {
+                fee_tier_config: Some(fee_cfg),
+                ..Default::default()
+            },
+        );
     }
 
     fn get_oracle(&mut self) -> Oracle {

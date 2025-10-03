@@ -110,6 +110,42 @@ pub fn assert_swap_fee(swap_fee: Decimal) -> ContractResult<()> {
     Ok(())
 }
 
+pub fn assert_discount_pct(discount_pct: Decimal) -> ContractResult<()> {
+    if discount_pct > Decimal::one() {
+        return Err(ContractError::InvalidDiscountPercentage);
+    }
+    Ok(())
+}
+
+pub fn assert_tiers_not_empty(tiers: &[impl std::fmt::Debug]) -> ContractResult<()> {
+    if tiers.is_empty() {
+        return Err(ContractError::EmptyFeeTierConfig);
+    }
+    Ok(())
+}
+
+pub fn assert_tiers_sorted_descending(voting_powers: &[Uint128]) -> ContractResult<()> {
+    for i in 1..voting_powers.len() {
+        if voting_powers[i] >= voting_powers[i - 1] {
+            return Err(ContractError::TiersNotSortedDescending);
+        }
+    }
+    Ok(())
+}
+
+pub fn assert_tiers_max_size(
+    tiers: &[impl std::fmt::Debug],
+    max_tiers: usize,
+) -> ContractResult<()> {
+    if tiers.len() > max_tiers {
+        return Err(ContractError::TooManyTiers {
+            max_tiers,
+            provided_tiers: tiers.len(),
+        });
+    }
+    Ok(())
+}
+
 pub fn assert_withdraw_enabled(
     storage: &dyn Storage,
     querier: &QuerierWrapper,

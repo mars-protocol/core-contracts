@@ -128,3 +128,13 @@ pub fn mock_perps_contract() -> Box<dyn Contract<Empty>> {
     .with_reply(mars_perps::contract::reply);
     Box::new(contract)
 }
+
+pub fn mock_governance_contract() -> Box<dyn Contract<Empty>> {
+    let contract = ContractWrapper::new(
+        mars_mock_governance::execute,
+        mars_mock_governance::instantiate,
+        mars_mock_governance::query,
+    )
+    .with_reply(mars_mock_governance::reply);
+    Box::new(contract)
+}

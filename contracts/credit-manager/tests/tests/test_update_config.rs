@@ -41,6 +41,8 @@ fn only_owner_can_update_config() {
             keeper_fee_config: None,
             perps_liquidation_bonus_ratio: None,
             swap_fee: None,
+            fee_tier_config: None,
+            governance_address: None,
         },
     );
 
@@ -128,6 +130,8 @@ fn update_config_works_with_full_config() {
             keeper_fee_config: Some(keeper_fee_config.clone()),
             perps_liquidation_bonus_ratio: Some(new_perps_lb_ratio),
             swap_fee: Some(new_swap_fee),
+            fee_tier_config: None,
+            governance_address: None,
         },
     )
     .unwrap();

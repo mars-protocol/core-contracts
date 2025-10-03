@@ -176,5 +176,6 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
     match msg {
         MigrateMsg::V2_2_0ToV2_2_2 {} => migrations::v2_2_2::migrate(deps),
         MigrateMsg::V2_2_2ToV2_3_2 {} => migrations::v2_3_2::migrate(deps),
+        MigrateMsg::V2_3_2ToV2_4_0 {} => migrations::v2_4_0::migrate(deps),
     }
 }

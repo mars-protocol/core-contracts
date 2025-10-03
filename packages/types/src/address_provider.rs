@@ -45,6 +45,8 @@ pub enum MarsAddressType {
     Health,
     /// The address that shall receive the revenue share given to neutron (10%)
     RevenueShare,
+    /// Governance contract
+    Governance,
 }
 
 impl fmt::Display for MarsAddressType {
@@ -65,6 +67,7 @@ impl fmt::Display for MarsAddressType {
             MarsAddressType::Perps => "perps",
             MarsAddressType::Health => "health",
             MarsAddressType::RevenueShare => "revenue_share",
+            MarsAddressType::Governance => "governance",
         };
         write!(f, "{s}")
     }
@@ -90,6 +93,7 @@ impl FromStr for MarsAddressType {
             "perps" => Ok(MarsAddressType::Perps),
             "health" => Ok(MarsAddressType::Health),
             "revenue_share" => Ok(MarsAddressType::RevenueShare),
+            "governance" => Ok(MarsAddressType::Governance),
             _ => Err(StdError::parse_err(type_name::<Self>(), s)),
         }
     }
@@ -172,6 +176,7 @@ pub struct AddressResponseItem {
 
 #[cw_serde]
 pub enum MigrateMsg {
+    V2_3_2ToV2_4_0 {},
     V2_2_2ToV2_3_2 {},
     V2_2_0ToV2_2_2 {},
 }

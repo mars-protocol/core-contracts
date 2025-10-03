@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use cosmwasm_std::{Addr, Attribute, Decimal, Deps, Int128, Order, SignedDecimal, Uint128};
 use mars_types::{
     adapters::{
+        credit_manager::CreditManagerBase,
         oracle::{Oracle, OracleBase},
         params::ParamsBase,
     },
@@ -97,6 +98,10 @@ pub fn get_oracle_adapter(address: &Addr) -> OracleBase<Addr> {
 
 pub fn get_params_adapter(address: &Addr) -> ParamsBase<Addr> {
     ParamsBase::new(address.clone())
+}
+
+pub fn get_credit_manager_adapter(address: &Addr) -> CreditManagerBase<Addr> {
+    CreditManagerBase::new(address.clone())
 }
 
 // Updates the attributes vector with details of a modified position.

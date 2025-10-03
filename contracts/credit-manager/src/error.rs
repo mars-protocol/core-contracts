@@ -118,6 +118,37 @@ pub enum ContractError {
         reason: String,
     },
 
+    #[error("Fee tier config cannot be empty")]
+    EmptyFeeTierConfig,
+
+    #[error("No tiers present")]
+    NoTiersPresent,
+
+    #[error("Invalid min_voting_power in tier: {voting_power:?}")]
+    InvalidVotingPower {
+        voting_power: String,
+    },
+
+    #[error("Tiers must be sorted in descending order")]
+    TiersNotSortedDescending,
+
+    #[error("Duplicate voting power thresholds")]
+    DuplicateVotingPowerThresholds,
+
+    #[error("Discount percentage must be less than or equal to 100%")]
+    InvalidDiscountPercentage,
+
+    #[error("Failed to load governance address from storage")]
+    FailedToLoadGovernanceAddress,
+
+    #[error("Failed to load fee tier config from storage")]
+    FailedToLoadFeeTierConfig,
+
+    #[error("Failed to query voting power: {error:?}")]
+    FailedToQueryVotingPower {
+        error: String,
+    },
+
     #[error("Paying down {debt_coin:?} for {request_coin:?} does not result in a profit for the liquidator")]
     LiquidationNotProfitable {
         debt_coin: Coin,
@@ -297,4 +328,10 @@ pub enum ContractError {
     },
     #[error("Vault has an admin; vaults cannot be managed with an admin set.")]
     VaultHasAdmin {},
+
+    #[error("Too many tiers. Maximum allowed: {max_tiers:?}, provided: {provided_tiers:?}")]
+    TooManyTiers {
+        max_tiers: usize,
+        provided_tiers: usize,
+    },
 }

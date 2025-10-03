@@ -58,6 +58,15 @@ export interface AstroportConfig {
   incentives: string
 }
 
+export interface FeeTierConfig {
+  tiers: FeeTier[]
+}
+export interface FeeTier {
+  discount_pct: Decimal
+  id: string
+  min_voting_power: string
+}
+
 export interface DeploymentConfig {
   mainnet: boolean
   deployerMnemonic: string
@@ -130,6 +139,8 @@ export interface DeploymentConfig {
   maxPerpParams: number
   perpsLiquidationBonusRatio: Decimal
   swapFee: Decimal
+  feeTierConfig: FeeTierConfig
+  governance: string
 }
 
 export interface AssetConfig {

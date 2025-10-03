@@ -10,15 +10,18 @@ import { ExecuteResult } from '@cosmjs/cosmwasm-stargate'
 import { StdFee } from '@cosmjs/amino'
 import {
   SwapperBaseForString,
+  Decimal,
+  Uint128,
+  GovernanceBaseForString,
   HealthContractBaseForString,
   IncentivesUnchecked,
-  Uint128,
-  Decimal,
   OracleBaseForString,
   ParamsBaseForString,
   RedBankUnchecked,
   ZapperBaseForString,
   InstantiateMsg,
+  FeeTierConfig,
+  FeeTier,
   KeeperFeeConfig,
   Coin,
   ExecuteMsg,
@@ -63,6 +66,7 @@ import {
   VaultAmount,
   VaultAmount1,
   UnlockingPositions,
+  MarketType,
   VaultPosition,
   LockingVaultAmount,
   VaultUnlockingPosition,
@@ -86,10 +90,15 @@ import {
   OwnerResponse,
   RewardsCollector,
   ArrayOfCoin,
+  FeeTierConfigResponse,
+  AccountTierAndDiscountResponse,
   Positions,
   DebtAmount,
   PerpPosition,
   PnlAmounts,
+  TradingFeeResponse,
+  SpotTradingFeeResponse,
+  PerpTradingFeeResponse,
   ArrayOfVaultBinding,
   VaultBinding,
   VaultPositionValue,
@@ -248,11 +257,38 @@ export const marsCreditManagerQueryKeys = {
         args,
       },
     ] as const,
+  getAccountTierAndDiscount: (
+    contractAddress: string | undefined,
+    args?: Record<string, unknown>,
+  ) =>
+    [
+      {
+        ...marsCreditManagerQueryKeys.address(contractAddress)[0],
+        method: 'get_account_tier_and_discount',
+        args,
+      },
+    ] as const,
+  tradingFee: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+    [
+      {
+        ...marsCreditManagerQueryKeys.address(contractAddress)[0],
+        method: 'trading_fee',
+        args,
+      },
+    ] as const,
   swapFeeRate: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
     [
       {
         ...marsCreditManagerQueryKeys.address(contractAddress)[0],
         method: 'swap_fee_rate',
+        args,
+      },
+    ] as const,
+  feeTierConfig: (contractAddress: string | undefined, args?: Record<string, unknown>) =>
+    [
+      {
+        ...marsCreditManagerQueryKeys.address(contractAddress)[0],
+        method: 'fee_tier_config',
         args,
       },
     ] as const,
@@ -266,6 +302,21 @@ export interface MarsCreditManagerReactQuery<TResponse, TData = TResponse> {
     initialData?: undefined
   }
 }
+export interface MarsCreditManagerFeeTierConfigQuery<TData>
+  extends MarsCreditManagerReactQuery<FeeTierConfigResponse, TData> {}
+export function useMarsCreditManagerFeeTierConfigQuery<TData = FeeTierConfigResponse>({
+  client,
+  options,
+}: MarsCreditManagerFeeTierConfigQuery<TData>) {
+  return useQuery<FeeTierConfigResponse, Error, TData>(
+    marsCreditManagerQueryKeys.feeTierConfig(client?.contractAddress),
+    () => (client ? client.feeTierConfig() : Promise.reject(new Error('Invalid client'))),
+    {
+      ...options,
+      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
+    },
+  )
+}
 export interface MarsCreditManagerSwapFeeRateQuery<TData>
   extends MarsCreditManagerReactQuery<Decimal, TData> {}
 export function useMarsCreditManagerSwapFeeRateQuery<TData = Decimal>({
@@ -275,6 +326,56 @@ export function useMarsCreditManagerSwapFeeRateQuery<TData = Decimal>({
   return useQuery<Decimal, Error, TData>(
     marsCreditManagerQueryKeys.swapFeeRate(client?.contractAddress),
     () => (client ? client.swapFeeRate() : Promise.reject(new Error('Invalid client'))),
+    {
+      ...options,
+      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
+    },
+  )
+}
+export interface MarsCreditManagerTradingFeeQuery<TData>
+  extends MarsCreditManagerReactQuery<TradingFeeResponse, TData> {
+  args: {
+    accountId: string
+    marketType: MarketType
+  }
+}
+export function useMarsCreditManagerTradingFeeQuery<TData = TradingFeeResponse>({
+  client,
+  args,
+  options,
+}: MarsCreditManagerTradingFeeQuery<TData>) {
+  return useQuery<TradingFeeResponse, Error, TData>(
+    marsCreditManagerQueryKeys.tradingFee(client?.contractAddress, args),
+    () =>
+      client
+        ? client.tradingFee({
+            accountId: args.accountId,
+            marketType: args.marketType,
+          })
+        : Promise.reject(new Error('Invalid client')),
+    {
+      ...options,
+      enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
+    },
+  )
+}
+export interface MarsCreditManagerGetAccountTierAndDiscountQuery<TData>
+  extends MarsCreditManagerReactQuery<AccountTierAndDiscountResponse, TData> {
+  args: {
+    accountId: string
+  }
+}
+export function useMarsCreditManagerGetAccountTierAndDiscountQuery<
+  TData = AccountTierAndDiscountResponse,
+>({ client, args, options }: MarsCreditManagerGetAccountTierAndDiscountQuery<TData>) {
+  return useQuery<AccountTierAndDiscountResponse, Error, TData>(
+    marsCreditManagerQueryKeys.getAccountTierAndDiscount(client?.contractAddress, args),
+    () =>
+      client
+        ? client.getAccountTierAndDiscount({
+            accountId: args.accountId,
+          })
+        : Promise.reject(new Error('Invalid client')),
     {
       ...options,
       enabled: !!client && (options?.enabled != undefined ? options.enabled : true),
