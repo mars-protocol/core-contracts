@@ -161,7 +161,6 @@ impl MockEnvBuilder {
                         perps: "n/a".to_string(),
                         keeper_fee_config: Default::default(),
                         perps_liquidation_bonus_ratio: Decimal::percent(60),
-                        governance: "n/a".to_string(),
                     },
                 },
                 &[],

@@ -865,7 +865,6 @@ export interface VaultUtilizationResponse {
 }
 export interface ConfigResponse {
   account_nft?: string | null
-  governance: string
   health_contract: string
   incentives: string
   keeper_fee_config: KeeperFeeConfig

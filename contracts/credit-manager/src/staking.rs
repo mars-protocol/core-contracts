@@ -83,6 +83,13 @@ impl StakingTierManager {
         // Check for descending order
         assert_tiers_sorted_descending(&voting_powers)?;
 
+        // Ensure the lowest tier requires min_voting_power == 0
+        if let Some(lowest) = self.config.tiers.last() {
+            if !lowest.min_voting_power.is_zero() {
+                return Err(ContractError::LowestTierMinVotingPowerMustBeZero);
+            }
+        }
+
         Ok(())
     }
 
