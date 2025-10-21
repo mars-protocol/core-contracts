@@ -449,7 +449,7 @@ fn test_validation_single_tier_valid() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "single".to_string(),
-            min_voting_power: Uint128::new(1000),
+            min_voting_power: Uint128::zero(),
             discount_pct: Decimal::percent(25),
         }],
     };
@@ -544,7 +544,7 @@ fn test_validation_valid_voting_power_format() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "tier_1".to_string(),
-            min_voting_power: Uint128::new(1000),
+            min_voting_power: Uint128::new(0),
             discount_pct: Decimal::percent(50),
         }],
     };
@@ -559,7 +559,7 @@ fn test_validation_discount_100_percent() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "tier_1".to_string(),
-            min_voting_power: Uint128::new(1000),
+            min_voting_power: Uint128::new(0),
             discount_pct: Decimal::one(), // 100% discount - now valid!
         }],
     };
@@ -574,7 +574,7 @@ fn test_validation_discount_over_100_percent() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "tier_1".to_string(),
-            min_voting_power: Uint128::new(1000),
+            min_voting_power: Uint128::new(0),
             discount_pct: Decimal::percent(150), // 150% discount!
         }],
     };
@@ -590,7 +590,7 @@ fn test_validation_discount_99_percent_valid() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "tier_1".to_string(),
-            min_voting_power: Uint128::new(1000),
+            min_voting_power: Uint128::zero(),
             discount_pct: Decimal::percent(99), // 99% discount - valid!
         }],
     };
@@ -605,7 +605,7 @@ fn test_validation_zero_discount_valid() {
     let config = FeeTierConfig {
         tiers: vec![FeeTier {
             id: "tier_1".to_string(),
-            min_voting_power: Uint128::new(1000),
+            min_voting_power: Uint128::new(0),
             discount_pct: Decimal::zero(), // 0% discount - valid!
         }],
     };
@@ -703,8 +703,9 @@ fn test_validation_max_tier_size(
     for i in 0..tier_count {
         tiers.push(FeeTier {
             id: format!("tier_{}", i),
-            min_voting_power: Uint128::new(((tier_count - i) * 1000) as u128), // Descending order
-            discount_pct: Decimal::percent((i * 5) as u64),                    // 0% to max
+            // Ensure strictly descending and the final tier has min_voting_power == 0
+            min_voting_power: Uint128::new(((tier_count - i - 1) * 1000) as u128),
+            discount_pct: Decimal::percent((i * 5) as u64),
         });
     }
 

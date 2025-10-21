@@ -135,6 +135,9 @@ pub enum ContractError {
     #[error("Duplicate voting power thresholds")]
     DuplicateVotingPowerThresholds,
 
+    #[error("Lowest tier must have min_voting_power equal to 0")]
+    LowestTierMinVotingPowerMustBeZero,
+
     #[error("Discount percentage must be less than or equal to 100%")]
     InvalidDiscountPercentage,
 

@@ -6977,7 +6977,6 @@
       "title": "ConfigResponse",
       "type": "object",
       "required": [
-        "governance",
         "health_contract",
         "incentives",
         "keeper_fee_config",
@@ -6998,9 +6997,6 @@
             "string",
             "null"
           ]
-        },
-        "governance": {
-          "type": "string"
         },
         "health_contract": {
           "type": "string"
