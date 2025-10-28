@@ -38,12 +38,14 @@ pub fn create_trigger_order(
         }
     );
 
-    // Ensure that the trigger order does not contain any illegal actions
-    // Initially, this is limited to just execute_perp_order, lend and close_perp_position
+    // Ensure that the trigger order only contains whitelisted actions.
     let contains_legal_actions = actions.iter().all(|action| {
         matches!(
             action,
-            Action::ExecutePerpOrder { .. } | Action::Lend(..) | Action::ClosePerpPosition { .. }
+            Action::ExecutePerpOrder { .. }
+                | Action::Lend(..)
+                | Action::ClosePerpPosition { .. }
+                | Action::SwapExactIn { .. }
         )
     });
     ensure!(contains_legal_actions, ContractError::IllegalTriggerAction);
