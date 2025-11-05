@@ -924,6 +924,12 @@ fn response_verification() {
     mars_testing::assert_eq_vec(
         res.attributes,
         vec![
+            attr("rewards_collector", MarsAddressType::RewardsCollector.to_string()),
+            attr(
+                "rewards_collector_fee",
+                coin(expected_debt_rates.protocol_rewards_to_distribute.u128(), "uusdc")
+                    .to_string(),
+            ),
             attr("action", "liquidate"),
             attr("user", liquidatee.as_str()),
             attr("liquidator", liquidator.as_str()),
