@@ -1,4 +1,6 @@
-use cosmwasm_std::{Coin, Decimal, Deps, DepsMut, Env, Int128, QuerierWrapper, Uint128};
+use cosmwasm_std::{
+    Attribute, Coin, Decimal, Deps, DepsMut, Env, Int128, QuerierWrapper, Response, Uint128,
+};
 use mars_liquidation::liquidation::{calculate_liquidation_amounts, HealthData};
 use mars_types::{
     adapters::oracle::Oracle, health::HealthValuesResponse, oracle::ActionKind, traits::Stringify,
@@ -200,9 +202,10 @@ pub fn assert_not_self_liquidation(
     Ok(())
 }
 
-/// Transfer protocol fee to rewards-collector account
+/// Transfer protocol fee to rewards-collector account and attach fee metadata to the response.
 pub fn increment_rewards_balance(
     deps: &mut DepsMut,
+    res: &mut Response,
     liq_req: &LiquidationResult,
 ) -> ContractResult<Coin> {
     let rewards_collector_account = REWARDS_COLLECTOR.load(deps.storage)?.account_id;
@@ -214,6 +217,8 @@ pub fn increment_rewards_balance(
     };
     if !amount.is_zero() {
         increment_coin_balance(deps.storage, &rewards_collector_account, &protocol_fee_coin)?;
+        res.attributes.push(Attribute::new("rewards_collector", rewards_collector_account));
+        res.attributes.push(Attribute::new("rewards_collector_fee", protocol_fee_coin.to_string()));
     }
     Ok(protocol_fee_coin)
 }

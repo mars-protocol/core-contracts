@@ -77,7 +77,7 @@ pub fn liquidate_astro_lp(
         )?;
 
         // Apply the protocol fee to the rewards-collector account.
-        increment_rewards_balance(&mut deps, &liquidation_res)?
+        increment_rewards_balance(&mut deps, &mut response, &liquidation_res)?
     } else {
         // If no collateral is available, set the protocol fee to zero for this transaction.
         coin(0, request_coin_denom)
