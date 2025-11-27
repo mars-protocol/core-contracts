@@ -16,4 +16,5 @@ pub enum MigrateMsg {
         fee_tier_config: FeeTierConfig,
         governance_address: Addr,
     },
+    V2_4_0ToV2_4_1 {},
 }
