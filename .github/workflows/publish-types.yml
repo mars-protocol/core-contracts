@@ -1,0 +1,58 @@
+name: Publish Types (canary)
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  publish-types:
+    name: Build and publish @mars-protocol/core-contracts-types
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install Yarn
+        run: npm i -g yarn
+
+      - name: Install script deps
+        working-directory: scripts
+        run: yarn install --frozen-lockfile || yarn install
+
+      - name: Generate types from schemas
+        working-directory: scripts
+        run: yarn generate-types
+
+      - name: Install types package dev deps
+        working-directory: scripts/types
+        run: yarn install --frozen-lockfile || yarn install
+
+      - name: Build types package
+        working-directory: scripts/types
+        run: yarn build
+
+      - name: Bump canary version
+        id: bump
+        working-directory: scripts/types
+        run: |
+          VERSION="0.0.0-main.${GITHUB_RUN_NUMBER}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          npm version --no-git-tag-version ${VERSION}
+
+      - name: Publish to npm (canary)
+        working-directory: scripts/types
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm publish --access public --tag canary
+
