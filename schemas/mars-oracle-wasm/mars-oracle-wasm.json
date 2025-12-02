@@ -497,6 +497,38 @@
             "additionalProperties": false
           },
           {
+            "description": "Liquid staking derivative price calculated directly from redemption rate and transitive denom price, without using any twap price. It is simply RR * transitive_denom_price",
+            "type": "object",
+            "required": [
+              "lsd_redemption_only"
+            ],
+            "properties": {
+              "lsd_redemption_only": {
+                "type": "object",
+                "required": [
+                  "redemption_rate",
+                  "transitive_denom"
+                ],
+                "properties": {
+                  "redemption_rate": {
+                    "description": "Params to query redemption rate",
+                    "allOf": [
+                      {
+                        "$ref": "#/definitions/RedemptionRate_for_String"
+                      }
+                    ]
+                  },
+                  "transitive_denom": {
+                    "description": "Transitive denom (base asset) we multiply the redemption rate by.",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "additionalProperties": false
+          },
+          {
             "description": "Slinky LSD price quoted in USD based on data from Pyth, Astroport and Redemption Rate provider.",
             "type": "object",
             "required": [

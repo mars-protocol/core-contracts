@@ -126,6 +126,15 @@ pub enum WasmPriceSource<A> {
         /// Params to query redemption rate
         redemption_rate: RedemptionRate<A>,
     },
+    /// Liquid staking derivative price calculated directly from redemption rate and transitive denom price,
+    /// without using any twap price. It is simply RR * transitive_denom_price
+    LsdRedemptionOnly {
+        /// Transitive denom (base asset) we multiply the redemption rate by.
+        transitive_denom: String,
+
+        /// Params to query redemption rate
+        redemption_rate: RedemptionRate<A>,
+    },
     /// Slinky LSD price quoted in USD based on data from Pyth, Astroport and Redemption Rate provider.
     SlinkyLsd {
         /// Transitive denom for which we query price in USD. It refers to 'Asset' in the equation:
@@ -223,7 +232,17 @@ impl fmt::Display for WasmPriceSourceChecked {
                     max_staleness,
                 } = redemption_rate;
                 format!("lsd:{transitive_denom}:{pair_address}:{window_size}:{tolerance}:{contract_addr}:{max_staleness}")
-            },
+            }
+            WasmPriceSource::LsdRedemptionOnly {
+                transitive_denom,
+                redemption_rate,
+            } => {
+                let RedemptionRate {
+                    contract_addr,
+                    max_staleness,
+                } = redemption_rate;
+                format!("lsd_redemption_only:{transitive_denom}:{contract_addr}:{max_staleness}")
+            }
             WasmPriceSource::SlinkyLsd { transitive_denom, contract_addr } => format!("slinky_lsd:{transitive_denom}:{contract_addr}"),
             WasmPriceSource::XykLiquidityToken { pair_address } => format!("xyk_liquidity_token:{pair_address}"),
             WasmPriceSource::PclLiquidityToken { pair_address } => format!("pcl_liquidity_token:{pair_address}"),
@@ -378,6 +397,24 @@ impl PriceSourceUnchecked<WasmPriceSourceChecked, Empty> for WasmPriceSourceUnch
                         window_size,
                         tolerance,
                     },
+                    redemption_rate: RedemptionRate {
+                        contract_addr: deps.api.addr_validate(&redemption_rate.contract_addr)?,
+                        max_staleness: redemption_rate.max_staleness,
+                    },
+                })
+            }
+            WasmPriceSource::LsdRedemptionOnly {
+                transitive_denom,
+                redemption_rate,
+            } => {
+                if !price_sources.has(deps.storage, &transitive_denom) {
+                    return Err(ContractError::InvalidPriceSource {
+                        reason: format!("missing price source for {}", transitive_denom),
+                    });
+                }
+
+                Ok(WasmPriceSourceChecked::LsdRedemptionOnly {
+                    transitive_denom,
                     redemption_rate: RedemptionRate {
                         contract_addr: deps.api.addr_validate(&redemption_rate.contract_addr)?,
                         max_staleness: redemption_rate.max_staleness,
@@ -558,6 +595,19 @@ impl PriceSourceChecked<Empty> for WasmPriceSourceChecked {
                 denom,
                 transitive_denom,
                 twap,
+                redemption_rate,
+                config,
+                price_sources,
+                kind,
+            ),
+            WasmPriceSource::LsdRedemptionOnly {
+                transitive_denom,
+                redemption_rate,
+            } => query_lsd_redemption_only_price(
+                deps,
+                env,
+                denom,
+                transitive_denom,
                 redemption_rate,
                 config,
                 price_sources,
@@ -877,6 +927,37 @@ fn query_lsd_price(
     )?;
 
     min_price.checked_mul(transitive_price).map_err(Into::into)
+}
+
+fn query_lsd_redemption_only_price(
+    deps: &Deps,
+    env: &Env,
+    denom: &str,
+    transitive_denom: &str,
+    redemption_rate: &RedemptionRate<Addr>,
+    config: &Config,
+    price_sources: &Map<&str, WasmPriceSourceChecked>,
+    kind: ActionKind,
+) -> ContractResult<Decimal> {
+    let current_time = env.block.time.seconds();
+    let rr = query_redemption_rate(
+        &deps.querier,
+        redemption_rate.contract_addr.clone(),
+        denom.to_string(),
+    )?;
+
+    assert_rr_not_too_old(current_time, &rr, redemption_rate)?;
+
+    let transitive_price = price_sources.load(deps.storage, transitive_denom)?.query_price(
+        deps,
+        env,
+        transitive_denom,
+        config,
+        price_sources,
+        kind,
+    )?;
+
+    rr.redemption_rate.checked_mul(transitive_price).map_err(Into::into)
 }
 
 fn query_slinky_lsd_price(
