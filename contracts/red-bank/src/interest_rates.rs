@@ -1,6 +1,6 @@
 use std::str;
 
-use cosmwasm_std::{Addr, Decimal, Env, Event, Response, Storage, Uint128};
+use cosmwasm_std::{Addr, Coin, Decimal, Env, Event, Response, Storage, Uint128};
 use mars_interest_rate::{
     calculate_applied_linear_interest_rate, compute_scaled_amount, compute_underlying_amount,
     get_underlying_debt_amount, get_underlying_liquidity_amount, ScalingOperation,
@@ -90,6 +90,11 @@ pub fn apply_accumulated_interests(
             None,
         )?;
         market.increase_collateral(reward_amount_scaled)?;
+
+        let rewards_fee_coin = Coin::new(accrued_protocol_rewards.u128(), market.denom.clone());
+        response = response
+            .add_attribute("rewards_collector", rewards_collector_addr.to_string())
+            .add_attribute("rewards_collector_fee", rewards_fee_coin.to_string());
     }
 
     Ok(response)

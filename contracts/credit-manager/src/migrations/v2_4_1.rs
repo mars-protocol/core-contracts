@@ -3,11 +3,10 @@ use cw2::{assert_contract_version, set_contract_version};
 
 use crate::{contract::CONTRACT_NAME, error::ContractError};
 
-const FROM_VERSION: &str = "2.2.0";
-const TO_VERSION: &str = "2.3.0";
+pub const FROM_VERSION: &str = "2.4.0";
+pub const TO_VERSION: &str = "2.4.1";
 
 pub fn migrate(deps: DepsMut) -> Result<Response, ContractError> {
-    // make sure we're migrating the correct contract and from the correct version
     assert_contract_version(deps.storage, &format!("crates.io:{CONTRACT_NAME}"), FROM_VERSION)?;
 
     set_contract_version(deps.storage, format!("crates.io:{CONTRACT_NAME}"), TO_VERSION)?;

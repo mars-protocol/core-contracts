@@ -200,5 +200,6 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
             fee_tier_config,
             governance_address,
         } => migrations::v2_4_0::migrate(deps, fee_tier_config, governance_address),
+        MigrateMsg::V2_4_0ToV2_4_1 {} => migrations::v2_4_1::migrate(deps),
     }
 }

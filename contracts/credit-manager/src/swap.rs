@@ -82,6 +82,8 @@ pub fn swap_exact_in(
         .add_attribute("account_id", account_id)
         .add_attribute("coin_in", coin_in_to_trade.to_string())
         .add_attribute("denom_out", denom_out)
+        .add_attribute("rewards_collector", rewards_collector_account)
+        .add_attribute("rewards_collector_fee", rc_coin.to_string())
         .add_attribute("voting_power", voting_power.to_string())
         .add_attribute("tier_id", tier.id)
         .add_attribute("discount_pct", discount_pct.to_string())
