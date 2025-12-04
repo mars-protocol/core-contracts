@@ -72,6 +72,12 @@ export type WasmPriceSourceForString =
       }
     }
   | {
+      lsd_redemption_only: {
+        redemption_rate: RedemptionRateForString
+        transitive_denom: string
+      }
+    }
+  | {
       slinky_lsd: {
         contract_addr: string
         transitive_denom: string

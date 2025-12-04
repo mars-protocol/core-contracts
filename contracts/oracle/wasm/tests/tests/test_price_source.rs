@@ -120,6 +120,18 @@ fn display_lsd_price_source() {
 }
 
 #[test]
+fn display_lsd_redemption_only_price_source() {
+    let ps = WasmPriceSourceChecked::LsdRedemptionOnly {
+        transitive_denom: "other_denom".to_string(),
+        redemption_rate: RedemptionRate {
+            contract_addr: Addr::unchecked("redemption_addr"),
+            max_staleness: 1234,
+        },
+    };
+    assert_eq!(ps.to_string(), "lsd_redemption_only:other_denom:redemption_addr:1234")
+}
+
+#[test]
 fn display_lp_token_price_source() {
     let ps = WasmPriceSourceChecked::XykLiquidityToken {
         pair_address: Addr::unchecked(
@@ -929,6 +941,54 @@ pub fn validate_and_query_lsd_price_source(
         .set_redemption_rate_metric(primary_denom, rr_value, block_time_sec, block_time_sec, admin) // block_height doesn't matter here
         .assert_redemption_rate(primary_ibc_denom, rr_value)
         .assert_price_almost_equal(primary_ibc_denom, expected_price, Decimal::percent(1));
+}
+
+#[test]
+fn validate_and_query_lsd_redemption_only_price_source() {
+    let primary_denom = "stuatom";
+    let primary_ibc_denom =
+        ica_oracle::helpers::denom_trace_to_hash(primary_denom, STRIDE_TRANSFER_CHANNEL_ID)
+            .unwrap();
+    let primary_ibc_denom = primary_ibc_denom.as_str();
+    let transitive_denom = "uatom";
+    let rr_max_staleness = 86400u64;
+
+    let owned_runner = get_test_runner();
+    let runner = owned_runner.as_ref();
+    let admin = &runner.init_default_account().unwrap();
+    let robot = WasmOracleTestRobot::new(&runner, get_contracts(&runner), admin, Some("uusd"));
+
+    let stride_contract_addr =
+        robot.stride_contract_addr.clone().expect("Stride ica oracle contract not found");
+
+    robot.set_price_source(
+        transitive_denom,
+        WasmPriceSourceUnchecked::Fixed {
+            price: Decimal::percent(150),
+        },
+        admin,
+    );
+
+    let price_source = WasmPriceSourceUnchecked::LsdRedemptionOnly {
+        transitive_denom: transitive_denom.to_string(),
+        redemption_rate: RedemptionRate {
+            contract_addr: stride_contract_addr,
+            max_staleness: rr_max_staleness,
+        },
+    };
+
+    robot
+        .set_price_source(primary_ibc_denom, price_source.clone(), admin)
+        .assert_price_source(primary_ibc_denom, price_source);
+
+    let block_time_sec = robot.runner().query_block_time_nanos() / 1_000_000_000;
+    let rr_value = Decimal::percent(120);
+    let expected_price = rr_value.checked_mul(Decimal::percent(150)).unwrap();
+
+    robot
+        .set_redemption_rate_metric(primary_denom, rr_value, block_time_sec, block_time_sec, admin)
+        .assert_redemption_rate(primary_ibc_denom, rr_value)
+        .assert_price(primary_ibc_denom, expected_price);
 }
 
 #[test_case(
