@@ -123,14 +123,14 @@ fn v2_3_0_to_v2_3_1_successful_migration() {
 }
 
 #[test]
-fn v2_3_1_to_v2_3_2_wrong_contract_name() {
+fn v2_3_1_to_v2_3_3_wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", FROM_VERSION_V2_3_1).unwrap();
 
     let err = migrate(
         deps.as_mut(),
         mock_env(),
-        MigrateMsg::V2_3_1ToV2_3_2 {
+        MigrateMsg::V2_3_1ToV2_3_3 {
             haircut: Decimal::percent(10),
             market: "umars".to_string(),
         },
@@ -147,14 +147,14 @@ fn v2_3_1_to_v2_3_2_wrong_contract_name() {
 }
 
 #[test]
-fn v2_3_1_to_v2_3_2_wrong_contract_version() {
+fn v2_3_1_to_v2_3_3_wrong_contract_version() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "2.3.0").unwrap();
 
     let err = migrate(
         deps.as_mut(),
         mock_env(),
-        MigrateMsg::V2_3_1ToV2_3_2 {
+        MigrateMsg::V2_3_1ToV2_3_3 {
             haircut: Decimal::percent(10),
             market: "umars".to_string(),
         },
@@ -171,7 +171,7 @@ fn v2_3_1_to_v2_3_2_wrong_contract_version() {
 }
 
 #[test]
-fn v2_3_1_to_v2_3_2_successful_migration() {
+fn v2_3_1_to_v2_3_3_successful_migration() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, FROM_VERSION_V2_3_1).unwrap();
 
@@ -183,24 +183,21 @@ fn v2_3_1_to_v2_3_2_successful_migration() {
     };
     MARKETS.save(deps.as_mut().storage, denom, &market).unwrap();
 
-    let user_addr = Addr::unchecked(
-        "neutron1qdzn3l4kn7gsjna2tfpg3g3mwd6kunx4p50lfya59k02846xas6qslgs3r",
-    );
+    let user_addr =
+        Addr::unchecked("neutron1qdzn3l4kn7gsjna2tfpg3g3mwd6kunx4p50lfya59k02846xas6qslgs3r");
     let user_id = UserId::credit_manager(user_addr, "4954".to_string());
     let user_id_key: UserIdKey = user_id.try_into().unwrap();
     let collateral = Collateral {
         amount_scaled: Uint128::new(1234),
         enabled: true,
     };
-    COLLATERALS
-        .save(deps.as_mut().storage, (&user_id_key, denom), &collateral)
-        .unwrap();
+    COLLATERALS.save(deps.as_mut().storage, (&user_id_key, denom), &collateral).unwrap();
 
     let haircut = Decimal::percent(10);
     let res = migrate(
         deps.as_mut(),
         mock_env(),
-        MigrateMsg::V2_3_1ToV2_3_2 {
+        MigrateMsg::V2_3_1ToV2_3_3 {
             haircut,
             market: denom.to_string(),
         },
@@ -225,10 +222,7 @@ fn v2_3_1_to_v2_3_2_successful_migration() {
     let new_market = MARKETS.load(deps.as_ref().storage, denom).unwrap();
     assert_eq!(new_market.liquidity_index, Decimal::percent(180));
 
-    assert!(COLLATERALS
-        .may_load(deps.as_ref().storage, (&user_id_key, denom))
-        .unwrap()
-        .is_none());
+    assert!(COLLATERALS.may_load(deps.as_ref().storage, (&user_id_key, denom)).unwrap().is_none());
 
     let new_contract_version = ContractVersion {
         contract: CONTRACT_NAME.to_string(),
