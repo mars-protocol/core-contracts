@@ -14,12 +14,12 @@ pub fn migrate(deps: DepsMut, haircut: Decimal, denom: &str) -> Result<Response,
     // Make sure we're migrating the correct contract and from the correct version
     assert_contract_version(deps.storage, &format!("crates.io:{CONTRACT_NAME}"), FROM_VERSION)?;
     // Load affected market
-    let mut market = MARKETS.load(deps.storage, &denom)?;
+    let mut market = MARKETS.load(deps.storage, denom)?;
     // Apply haircut
     let new_index = market.liquidity_index.checked_mul(Decimal::one().checked_sub(haircut)?)?;
     market.liquidity_index = new_index;
     // Save new state
-    MARKETS.save(deps.storage, &denom, &market)?;
+    MARKETS.save(deps.storage, denom, &market)?;
 
     // Remove MPF collateral
     let mpf_account_id = "4954";
