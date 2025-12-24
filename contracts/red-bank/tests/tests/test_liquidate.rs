@@ -223,23 +223,13 @@ fn can_liquidate_when_withdraw_disabled() {
     // make position liquidatable
     oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::from_ratio(68u128, 10u128));
 
-    let debt_before = red_bank
-        .query_user_debt(&mut mock_env, &liquidatee, "uusdc")
-        .amount;
+    let debt_before = red_bank.query_user_debt(&mut mock_env, &liquidatee, "uusdc").amount;
 
     red_bank
-        .liquidate(
-            &mut mock_env,
-            &liquidator,
-            &liquidatee,
-            "uosmo",
-            &[coin(120, "uusdc")],
-        )
+        .liquidate(&mut mock_env, &liquidator, &liquidatee, "uosmo", &[coin(120, "uusdc")])
         .unwrap();
 
-    let debt_after = red_bank
-        .query_user_debt(&mut mock_env, &liquidatee, "uusdc")
-        .amount;
+    let debt_after = red_bank.query_user_debt(&mut mock_env, &liquidatee, "uusdc").amount;
 
     assert!(debt_after < debt_before);
 }
