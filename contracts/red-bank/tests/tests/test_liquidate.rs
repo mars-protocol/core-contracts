@@ -196,6 +196,45 @@ fn cannot_liquidate_healthy_position() {
 }
 
 #[test]
+fn can_liquidate_when_withdraw_disabled() {
+    let mut mock_env = MockEnvBuilder::new(None, Addr::unchecked("owner"))
+        .target_health_factor(Decimal::from_ratio(12u128, 10u128))
+        .build();
+
+    let red_bank = mock_env.red_bank.clone();
+    let oracle = mock_env.oracle.clone();
+    let params = mock_env.params.clone();
+
+    let (_funded_amt, _provider, liquidatee, liquidator) = setup_env(&mut mock_env);
+
+    // disable withdraw for the collateral asset
+    let mut osmo_params = params.query_params(&mut mock_env, "uosmo");
+    osmo_params.red_bank.withdraw_enabled = false;
+    params.init_params(&mut mock_env, osmo_params);
+
+    // withdrawing should be blocked
+    assert_err(
+        red_bank.withdraw(&mut mock_env, &liquidatee, "uosmo", Some(Uint128::new(1))),
+        ContractError::WithdrawNotEnabled {
+            denom: "uosmo".to_string(),
+        },
+    );
+
+    // make position liquidatable
+    oracle.set_price_source_fixed(&mut mock_env, "uusdc", Decimal::from_ratio(68u128, 10u128));
+
+    let debt_before = red_bank.query_user_debt(&mut mock_env, &liquidatee, "uusdc").amount;
+
+    red_bank
+        .liquidate(&mut mock_env, &liquidator, &liquidatee, "uosmo", &[coin(120, "uusdc")])
+        .unwrap();
+
+    let debt_after = red_bank.query_user_debt(&mut mock_env, &liquidatee, "uusdc").amount;
+
+    assert!(debt_after < debt_before);
+}
+
+#[test]
 fn max_debt_repayed() {
     let mut mock_env = MockEnvBuilder::new(None, Addr::unchecked("owner"))
         .target_health_factor(Decimal::from_ratio(12u128, 10u128))
