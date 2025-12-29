@@ -3045,7 +3045,7 @@ dependencies = [
 
 [[package]]
 name = "mars-red-bank"
-version = "2.3.2"
+version = "2.3.3"
 dependencies = [
  "anyhow",
  "cosmwasm-schema 1.5.7",
