@@ -12,7 +12,8 @@ use mars_types::{
 };
 
 const CONTRACT_NAME: &str = "crates.io:mars-red-bank";
-const FROM_VERSION_V2_3_1: &str = "2.3.1";
+
+const FROM_VERSION_V2_3_2: &str = "2.3.2";
 
 #[test]
 fn v2_2_0_to_v2_3_0_wrong_contract_name() {
@@ -123,14 +124,14 @@ fn v2_3_0_to_v2_3_1_successful_migration() {
 }
 
 #[test]
-fn v2_3_1_to_v2_3_3_wrong_contract_name() {
+fn v2_3_2_to_v2_3_3_wrong_contract_name() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", FROM_VERSION_V2_3_1).unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", FROM_VERSION_V2_3_2).unwrap();
 
     let err = migrate(
         deps.as_mut(),
         mock_env(),
-        MigrateMsg::V2_3_1ToV2_3_3 {
+        MigrateMsg::V2_3_2ToV2_3_3 {
             haircut: Decimal::percent(10),
             market: "umars".to_string(),
         },
@@ -147,14 +148,14 @@ fn v2_3_1_to_v2_3_3_wrong_contract_name() {
 }
 
 #[test]
-fn v2_3_1_to_v2_3_3_wrong_contract_version() {
+fn v2_3_2_to_v2_3_3_wrong_contract_version() {
     let mut deps = mock_dependencies(&[]);
     cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "2.3.0").unwrap();
 
     let err = migrate(
         deps.as_mut(),
         mock_env(),
-        MigrateMsg::V2_3_1ToV2_3_3 {
+        MigrateMsg::V2_3_2ToV2_3_3 {
             haircut: Decimal::percent(10),
             market: "umars".to_string(),
         },
@@ -164,16 +165,16 @@ fn v2_3_1_to_v2_3_3_wrong_contract_version() {
     assert_eq!(
         err,
         ContractError::Version(VersionError::WrongVersion {
-            expected: FROM_VERSION_V2_3_1.to_string(),
+            expected: FROM_VERSION_V2_3_2.to_string(),
             found: "2.3.0".to_string()
         })
     );
 }
 
 #[test]
-fn v2_3_1_to_v2_3_3_successful_migration() {
+fn v2_3_2_to_v2_3_3_successful_migration() {
     let mut deps = mock_dependencies(&[]);
-    cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, FROM_VERSION_V2_3_1).unwrap();
+    cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, FROM_VERSION_V2_3_2).unwrap();
 
     let denom = "umars";
     let market = Market {
@@ -197,7 +198,7 @@ fn v2_3_1_to_v2_3_3_successful_migration() {
     let res = migrate(
         deps.as_mut(),
         mock_env(),
-        MigrateMsg::V2_3_1ToV2_3_3 {
+        MigrateMsg::V2_3_2ToV2_3_3 {
             haircut,
             market: denom.to_string(),
         },
@@ -211,7 +212,7 @@ fn v2_3_1_to_v2_3_3_successful_migration() {
         res.attributes,
         vec![
             attr("action", "migrate"),
-            attr("from_version", FROM_VERSION_V2_3_1),
+            attr("from_version", FROM_VERSION_V2_3_2),
             attr("to_version", CONTRACT_VERSION),
             attr("to_version", CONTRACT_VERSION),
             attr("haircut_percent", haircut.to_string()),

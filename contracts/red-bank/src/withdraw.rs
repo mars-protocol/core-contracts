@@ -44,7 +44,7 @@ pub fn withdraw(
     // Query params to verify we can withdraw
     let asset_params = query_asset_params(&deps.querier, params_addr, &denom)?;
 
-    if !asset_params.red_bank.withdraw_enabled {
+    if !asset_params.red_bank.withdraw_enabled && !liquidation_related {
         return Err(ContractError::WithdrawNotEnabled {
             denom,
         });
