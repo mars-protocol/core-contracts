@@ -261,4 +261,8 @@ pub enum MigrateMsg {
     V2_2_0ToV2_3_0 {},
     V2_3_0ToV2_3_1 {},
     V2_3_1ToV2_3_2 {},
+    V2_3_2ToV2_3_3 {
+        haircut: Decimal,
+        market: String,
+    },
 }
