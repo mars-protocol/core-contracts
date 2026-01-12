@@ -5,12 +5,13 @@ use cosmwasm_std::{Addr, Coin, Decimal, Int128, OverflowError, OverflowOperation
 use cw_multi_test::AppResponse;
 use mars_credit_manager::error::ContractError;
 use mars_mock_oracle::msg::CoinPrice;
+use mars_swapper_mock::contract::MOCK_SWAP_RESULT;
 use mars_testing::multitest::helpers::AccountToFund;
 use mars_types::{
     credit_manager::{
         Action::{
             self, ClosePerpPosition, CreateTriggerOrder, DeleteTriggerOrder, Deposit,
-            ExecutePerpOrder, Lend, Liquidate,
+            ExecutePerpOrder, Lend, Liquidate, SwapExactIn,
         },
         ActionAmount, ActionCoin, Comparison,
         Condition::{HealthFactor, OraclePrice},
@@ -19,6 +20,7 @@ use mars_types::{
     },
     oracle::ActionKind,
     params::PerpParamsUpdate,
+    swapper::{OsmoRoute, OsmoSwap, SwapperRoute},
 };
 use test_case::test_case;
 
@@ -154,6 +156,388 @@ fn lend_action_whitelisted_in_trigger_orders() {
         &[keeper_fee.clone()],
     )
     .unwrap();
+}
+
+#[test]
+fn swap_exact_in_action_whitelisted_in_trigger_orders() {
+    let user = Addr::unchecked("user");
+    let keeper_fee = Coin {
+        denom: "uusdc".to_string(),
+        amount: Uint128::new(1000000),
+    };
+    let mut mock = MockEnv::new()
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![Coin {
+                denom: "uusdc".to_string(),
+                amount: Uint128::new(10000000000000),
+            }],
+        })
+        .build()
+        .unwrap();
+    let account_id = mock.create_credit_account(&user).unwrap();
+
+    mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Deposit(keeper_fee.clone()),
+            CreateTriggerOrder {
+                order_type: Some(CreateTriggerOrderType::Default),
+                actions: vec![
+                    ExecutePerpOrder {
+                        denom: "perp1".to_string(),
+                        order_size: Int128::from_str("10").unwrap(),
+                        reduce_only: None,
+                        order_type: Some(ExecutePerpOrderType::Default),
+                    },
+                    SwapExactIn {
+                        coin_in: ActionCoin {
+                            denom: "uatom".to_string(),
+                            amount: ActionAmount::Exact(Uint128::new(1000)),
+                        },
+                        denom_out: "uusdc".to_string(),
+                        min_receive: Uint128::new(900),
+                        route: None,
+                    },
+                ],
+                conditions: vec![OraclePrice {
+                    denom: "perp1".to_string(),
+                    price: Decimal::from_str("100").unwrap(),
+                    comparison: Comparison::GreaterThan,
+                }],
+                keeper_fee: keeper_fee.clone(),
+            },
+        ],
+        &[keeper_fee.clone()],
+    )
+    .unwrap();
+}
+
+#[test]
+fn swap_trigger_executes_successfully_when_conditions_met() {
+    let user = Addr::unchecked("user");
+    let keeper_bot = Addr::unchecked("keeper");
+    let atom_info = uatom_info();
+    let osmo_info = uosmo_info();
+    let usdc_info = coin_info("uusdc");
+    let keeper_fee = usdc_info.to_coin(1_000_000);
+    let swap_amount = Uint128::new(2_000);
+
+    let mut mock = MockEnv::new()
+        .set_params(&[osmo_info.clone(), atom_info.clone(), usdc_info.clone()])
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![
+                atom_info.to_coin(swap_amount.u128()),
+                usdc_info.to_coin(keeper_fee.amount.u128()),
+            ],
+        })
+        .build()
+        .unwrap();
+
+    let account_id = mock.create_credit_account(&user).unwrap();
+    let route = SwapperRoute::Osmo(OsmoRoute {
+        swaps: vec![OsmoSwap {
+            pool_id: 101,
+            to: osmo_info.denom.clone(),
+        }],
+    });
+
+    mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Deposit(keeper_fee.clone()),
+            Deposit(atom_info.to_coin(swap_amount.u128())),
+            CreateTriggerOrder {
+                order_type: Some(CreateTriggerOrderType::Default),
+                actions: vec![SwapExactIn {
+                    coin_in: ActionCoin {
+                        denom: atom_info.denom.clone(),
+                        amount: ActionAmount::Exact(swap_amount),
+                    },
+                    denom_out: osmo_info.denom.clone(),
+                    min_receive: MOCK_SWAP_RESULT - Uint128::one(),
+                    route: Some(route),
+                }],
+                conditions: vec![OraclePrice {
+                    denom: atom_info.denom.clone(),
+                    price: Decimal::from_str("1").unwrap(),
+                    comparison: Comparison::LessThan,
+                }],
+                keeper_fee: keeper_fee.clone(),
+            },
+        ],
+        &[keeper_fee.clone(), atom_info.to_coin(swap_amount.u128())],
+    )
+    .unwrap();
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: atom_info.denom.clone(),
+        price: Decimal::from_str("0.5").unwrap(),
+    });
+
+    mock.execute_trigger_order(&keeper_bot, &account_id, "1").unwrap();
+
+    let keeper_balance = mock.query_balance(&keeper_bot, &keeper_fee.denom);
+    assert_eq!(keeper_balance, keeper_fee);
+
+    let orders = mock.query_trigger_orders_for_account(account_id.clone(), None, None);
+    assert!(orders.data.is_empty());
+
+    let positions = mock.query_positions(&account_id);
+    assert_eq!(positions.deposits.len(), 1);
+    let deposit = positions.deposits.first().unwrap();
+    assert_eq!(deposit.denom, osmo_info.denom);
+    assert_eq!(deposit.amount, MOCK_SWAP_RESULT);
+}
+
+#[test]
+fn swap_trigger_for_hls_account_executes_and_runs_hls_assertion() {
+    let user = Addr::unchecked("user");
+    let keeper_bot = Addr::unchecked("keeper");
+    let atom_info = uatom_info();
+    let osmo_info = uosmo_info();
+    let usdc_info = coin_info("uusdc");
+    let keeper_fee = usdc_info.to_coin(1_000_000);
+    let swap_amount = Uint128::new(2_000);
+
+    let mut mock = MockEnv::new()
+        .set_params(&[atom_info.clone(), osmo_info.clone(), usdc_info.clone()])
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![
+                atom_info.to_coin(swap_amount.u128()),
+                usdc_info.to_coin(keeper_fee.amount.u128()),
+            ],
+        })
+        .build()
+        .unwrap();
+
+    let account_id = mock.create_hls_account(&user);
+    let route = SwapperRoute::Osmo(OsmoRoute {
+        swaps: vec![OsmoSwap {
+            pool_id: 101,
+            to: osmo_info.denom.clone(),
+        }],
+    });
+
+    mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Deposit(keeper_fee.clone()),
+            Deposit(atom_info.to_coin(swap_amount.u128())),
+            CreateTriggerOrder {
+                order_type: Some(CreateTriggerOrderType::Default),
+                actions: vec![SwapExactIn {
+                    coin_in: ActionCoin {
+                        denom: atom_info.denom.clone(),
+                        amount: ActionAmount::Exact(swap_amount),
+                    },
+                    denom_out: osmo_info.denom.clone(),
+                    min_receive: MOCK_SWAP_RESULT - Uint128::one(),
+                    route: Some(route.clone()),
+                }],
+                conditions: vec![OraclePrice {
+                    denom: atom_info.denom.clone(),
+                    price: Decimal::from_str("1").unwrap(),
+                    comparison: Comparison::LessThan,
+                }],
+                keeper_fee: keeper_fee.clone(),
+            },
+        ],
+        &[keeper_fee.clone(), atom_info.to_coin(swap_amount.u128())],
+    )
+    .unwrap();
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: atom_info.denom.clone(),
+        price: Decimal::from_str("0.5").unwrap(),
+    });
+
+    let res = mock.execute_trigger_order(&keeper_bot, &account_id, "1").unwrap();
+
+    let hls_assert_emitted = res
+        .events
+        .iter()
+        .flat_map(|event| &event.attributes)
+        .any(|attr| attr.key == "action" && attr.value == "callback/assert_hls_rules");
+    assert!(hls_assert_emitted);
+
+    let keeper_balance = mock.query_balance(&keeper_bot, &keeper_fee.denom);
+    assert_eq!(keeper_balance, keeper_fee);
+
+    let orders = mock.query_trigger_orders_for_account(account_id.clone(), None, None);
+    assert!(orders.data.is_empty());
+
+    let positions = mock.query_positions(&account_id);
+    assert_eq!(positions.deposits.len(), 1);
+    let deposit = positions.deposits.first().unwrap();
+    assert_eq!(deposit.denom, osmo_info.denom);
+    assert_eq!(deposit.amount, MOCK_SWAP_RESULT);
+}
+
+#[test]
+fn swap_trigger_execution_fails_when_min_receive_not_met() {
+    let user = Addr::unchecked("user");
+    let keeper_bot = Addr::unchecked("keeper");
+    let atom_info = uatom_info();
+    let osmo_info = uosmo_info();
+    let usdc_info = coin_info("uusdc");
+    let keeper_fee = usdc_info.to_coin(1_000_000);
+    let swap_amount = Uint128::new(2_000);
+
+    let mut mock = MockEnv::new()
+        .set_params(&[osmo_info.clone(), atom_info.clone(), usdc_info.clone()])
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![
+                atom_info.to_coin(swap_amount.u128()),
+                usdc_info.to_coin(keeper_fee.amount.u128()),
+            ],
+        })
+        .build()
+        .unwrap();
+
+    let account_id = mock.create_credit_account(&user).unwrap();
+    let route = SwapperRoute::Osmo(OsmoRoute {
+        swaps: vec![OsmoSwap {
+            pool_id: 101,
+            to: osmo_info.denom.clone(),
+        }],
+    });
+
+    mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Deposit(keeper_fee.clone()),
+            Deposit(atom_info.to_coin(swap_amount.u128())),
+            CreateTriggerOrder {
+                order_type: Some(CreateTriggerOrderType::Default),
+                actions: vec![SwapExactIn {
+                    coin_in: ActionCoin {
+                        denom: atom_info.denom.clone(),
+                        amount: ActionAmount::Exact(swap_amount),
+                    },
+                    denom_out: osmo_info.denom.clone(),
+                    min_receive: MOCK_SWAP_RESULT + Uint128::one(),
+                    route: Some(route),
+                }],
+                conditions: vec![OraclePrice {
+                    denom: atom_info.denom.clone(),
+                    price: Decimal::from_str("1").unwrap(),
+                    comparison: Comparison::LessThan,
+                }],
+                keeper_fee: keeper_fee.clone(),
+            },
+        ],
+        &[keeper_fee.clone(), atom_info.to_coin(swap_amount.u128())],
+    )
+    .unwrap();
+
+    mock.price_change(CoinPrice {
+        pricing: ActionKind::Default,
+        denom: atom_info.denom.clone(),
+        price: Decimal::from_str("0.5").unwrap(),
+    });
+
+    let err = mock.execute_trigger_order(&keeper_bot, &account_id, "1").unwrap_err();
+    let err_string = format!("{err:?}");
+    assert!(err_string.contains("Min amount not reached"), "unexpected error: {err_string}");
+
+    let keeper_balance = mock.query_balance(&keeper_bot, &keeper_fee.denom);
+    assert_eq!(keeper_balance.amount, Uint128::zero());
+
+    let orders = mock.query_trigger_orders_for_account(account_id.clone(), None, None);
+    assert_eq!(orders.data.len(), 1);
+    assert_eq!(orders.data.first().unwrap().order.order_id, "1");
+
+    let positions = mock.query_positions(&account_id);
+    assert_eq!(positions.deposits.len(), 1);
+    let deposit = positions.deposits.first().unwrap();
+    assert_eq!(deposit.denom, atom_info.denom);
+    assert_eq!(deposit.amount, swap_amount);
+}
+
+#[test]
+fn swap_trigger_execution_fails_when_price_condition_not_met() {
+    let user = Addr::unchecked("user");
+    let keeper_bot = Addr::unchecked("keeper");
+    let atom_info = uatom_info();
+    let osmo_info = uosmo_info();
+    let usdc_info = coin_info("uusdc");
+    let keeper_fee = usdc_info.to_coin(1_000_000);
+    let swap_amount = Uint128::new(2_000);
+
+    let mut mock = MockEnv::new()
+        .set_params(&[osmo_info.clone(), atom_info.clone(), usdc_info.clone()])
+        .fund_account(AccountToFund {
+            addr: user.clone(),
+            funds: vec![
+                atom_info.to_coin(swap_amount.u128()),
+                usdc_info.to_coin(keeper_fee.amount.u128()),
+            ],
+        })
+        .build()
+        .unwrap();
+
+    let account_id = mock.create_credit_account(&user).unwrap();
+    let route = SwapperRoute::Osmo(OsmoRoute {
+        swaps: vec![OsmoSwap {
+            pool_id: 101,
+            to: osmo_info.denom.clone(),
+        }],
+    });
+
+    mock.update_credit_account(
+        &account_id,
+        &user,
+        vec![
+            Deposit(keeper_fee.clone()),
+            Deposit(atom_info.to_coin(swap_amount.u128())),
+            CreateTriggerOrder {
+                order_type: Some(CreateTriggerOrderType::Default),
+                actions: vec![SwapExactIn {
+                    coin_in: ActionCoin {
+                        denom: atom_info.denom.clone(),
+                        amount: ActionAmount::Exact(swap_amount),
+                    },
+                    denom_out: osmo_info.denom.clone(),
+                    min_receive: Uint128::zero(),
+                    route: Some(route),
+                }],
+                conditions: vec![OraclePrice {
+                    denom: atom_info.denom.clone(),
+                    price: Decimal::from_str("20").unwrap(),
+                    comparison: Comparison::GreaterThan,
+                }],
+                keeper_fee: keeper_fee.clone(),
+            },
+        ],
+        &[keeper_fee.clone(), atom_info.to_coin(swap_amount.u128())],
+    )
+    .unwrap();
+
+    let res = mock.execute_trigger_order(&keeper_bot, &account_id, "1");
+    check_result_for_expected_error(res, Some(ContractError::IllegalExecuteTriggerOrder));
+
+    let keeper_balance = mock.query_balance(&keeper_bot, &keeper_fee.denom);
+    assert_eq!(keeper_balance.amount, Uint128::zero());
+
+    let orders = mock.query_trigger_orders_for_account(account_id.clone(), None, None);
+    assert_eq!(orders.data.len(), 1);
+    assert_eq!(orders.data.first().unwrap().order.order_id, "1");
+
+    let positions = mock.query_positions(&account_id);
+    assert_eq!(positions.deposits.len(), 1);
+    let deposit = positions.deposits.first().unwrap();
+    assert_eq!(deposit.denom, atom_info.denom);
+    assert_eq!(deposit.amount, swap_amount);
 }
 
 #[test]
