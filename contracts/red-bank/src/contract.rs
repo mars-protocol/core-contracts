@@ -4,8 +4,8 @@ use cosmwasm_std::{
 use mars_types::red_bank::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 use crate::{
-    asset, borrow, collateral, config, deposit, error::ContractError, instantiate, liquidate,
-    migrations, query, repay, withdraw,
+    asset, bad_debt, borrow, collateral, config, deposit, error::ContractError, instantiate,
+    liquidate, migrations, query, repay, withdraw,
 };
 
 pub const CONTRACT_NAME: &str = env!("CARGO_PKG_NAME");
@@ -36,6 +36,10 @@ pub fn execute(
         ExecuteMsg::UpdateMarketParams(update) => {
             asset::update_market_params(deps, env, info, update)
         }
+        ExecuteMsg::WriteOffBadDebt {
+            denom,
+            amount,
+        } => bad_debt::write_off_bad_debt(deps, env, info, denom, amount),
         ExecuteMsg::Deposit {
             account_id,
             on_behalf_of,
@@ -242,5 +246,6 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
             market,
         } => migrations::v2_3_3::migrate(deps, haircut, &market),
         MigrateMsg::V2_3_1ToV2_3_2 {} => migrations::v2_3_2::migrate(deps),
+        MigrateMsg::V2_3_3ToV2_3_4 {} => migrations::v2_3_4::migrate(deps),
     }
 }

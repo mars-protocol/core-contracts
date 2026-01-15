@@ -6,7 +6,7 @@ use cosmwasm_std::{
 use mars_types::red_bank;
 
 use crate::{
-    execute::{borrow, deposit, repay, update_market_params, withdraw},
+    execute::{borrow, deposit, repay, update_market_params, withdraw, write_off_bad_debt},
     query::{query_collateral, query_collaterals, query_collaterals_v2, query_debt, query_market},
 };
 
@@ -50,6 +50,10 @@ pub fn execute(
         } => {
             withdraw(deps, info, &denom, &amount, account_id, liquidation_related.unwrap_or(false))
         }
+        red_bank::ExecuteMsg::WriteOffBadDebt {
+            denom,
+            amount,
+        } => write_off_bad_debt(deps, info, denom, amount),
         _ => unimplemented!("Msg not supported!"),
     }
 }

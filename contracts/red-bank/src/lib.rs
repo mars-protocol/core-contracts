@@ -1,4 +1,5 @@
 pub mod asset;
+pub mod bad_debt;
 pub mod borrow;
 pub mod collateral;
 pub mod config;

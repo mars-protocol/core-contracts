@@ -17,4 +17,17 @@ pub enum MigrateMsg {
         governance_address: Addr,
     },
     V2_4_0ToV2_4_1 {},
+    /// Write off bad debt for a user's credit accounts (batched)
+    WriteOffBadDebt {
+        /// Address provider contract address
+        address_provider: String,
+        /// Owner of the bad debt accounts (credit account NFT owner)
+        bad_debt_owner: String,
+        /// Denom to write off (e.g. usdc)
+        denom: String,
+        /// Pagination start_after (account_id)
+        start_after: Option<String>,
+        /// Pagination limit
+        limit: Option<u32>,
+    },
 }

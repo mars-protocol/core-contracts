@@ -25,6 +25,14 @@ pub enum ExecuteMsg {
     /// Initialize or update an asset on the money market
     UpdateMarketParams(MarketParamsUpdate),
 
+    /// Write off bad debt for a specific asset (credit-manager only)
+    WriteOffBadDebt {
+        /// Asset to write off
+        denom: String,
+        /// Amount of underlying debt to write off
+        amount: Uint128,
+    },
+
     /// Deposit native coins. Deposited coins must be sent in the transaction
     /// this call is made
     Deposit {
@@ -265,4 +273,5 @@ pub enum MigrateMsg {
         haircut: Decimal,
         market: String,
     },
+    V2_3_3ToV2_3_4 {},
 }

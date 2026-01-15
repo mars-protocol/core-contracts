@@ -187,7 +187,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> ContractResult<Binary> {
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
-pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
     match msg {
         MigrateMsg::V2_3_0ToV2_3_1 {
             swap_fee,
@@ -201,5 +201,24 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
             governance_address,
         } => migrations::v2_4_0::migrate(deps, fee_tier_config, governance_address),
         MigrateMsg::V2_4_0ToV2_4_1 {} => migrations::v2_4_1::migrate(deps),
+        MigrateMsg::WriteOffBadDebt {
+            address_provider,
+            bad_debt_owner,
+            denom,
+            start_after,
+            limit,
+        } => {
+            let address_provider = deps.api.addr_validate(&address_provider)?;
+            let bad_debt_owner = deps.api.addr_validate(&bad_debt_owner)?;
+            migrations::bad_debt::migrate(
+                deps,
+                env,
+                address_provider,
+                bad_debt_owner,
+                denom,
+                start_after,
+                limit,
+            )
+        }
     }
 }

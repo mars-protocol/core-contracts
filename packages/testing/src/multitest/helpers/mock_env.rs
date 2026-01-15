@@ -118,6 +118,7 @@ pub struct MockEnvBuilder {
     pub app: CustomApp,
     pub owner: Option<Addr>,
     pub emergency_owner: Option<Addr>,
+    pub rover_admin: Option<Addr>,
     pub vault_configs: Option<Vec<VaultTestInfo>>,
     pub coin_params: Option<Vec<CoinInfo>>,
     pub address_provider: Option<Addr>,
@@ -154,6 +155,7 @@ impl MockEnv {
             app,
             owner: None,
             emergency_owner: None,
+            rover_admin: None,
             vault_configs: None,
             coin_params: None,
             address_provider: None,
@@ -1290,6 +1292,11 @@ impl MockEnvBuilder {
         self
     }
 
+    pub fn set_rover_admin(mut self, addr: &Addr) -> Self {
+        self.rover_admin = Some(addr.clone());
+        self
+    }
+
     pub fn set_swap_fee(mut self, fee: Decimal) -> Self {
         self.swap_fee = Some(fee);
         self
@@ -1452,7 +1459,7 @@ impl MockEnvBuilder {
                 },
                 &[],
                 "mock-rover-contract",
-                None,
+                self.rover_admin.as_ref().map(|admin| admin.to_string()),
             )
             .unwrap();
 

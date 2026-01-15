@@ -156,3 +156,23 @@ pub fn withdraw(
         .add_attribute("liquidation_related", liquidation_related.to_string());
     Ok(Response::new().add_event(event).add_message(transfer_msg))
 }
+
+pub fn write_off_bad_debt(
+    deps: DepsMut,
+    info: MessageInfo,
+    denom: String,
+    amount: Uint128,
+) -> StdResult<Response> {
+    let debt_amount = load_debt_amount(deps.storage, &info.sender, &denom)?;
+    let to_write_off = debt_amount.min(amount);
+    DEBT_AMOUNT.save(
+        deps.storage,
+        (info.sender.clone(), denom.clone()),
+        &debt_amount.checked_sub(to_write_off)?,
+    )?;
+
+    Ok(Response::new()
+        .add_attribute("action", "write_off_bad_debt")
+        .add_attribute("denom", denom)
+        .add_attribute("amount", to_write_off))
+}

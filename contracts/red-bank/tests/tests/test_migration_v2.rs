@@ -14,6 +14,7 @@ use mars_types::{
 const CONTRACT_NAME: &str = "crates.io:mars-red-bank";
 
 const FROM_VERSION_V2_3_2: &str = "2.3.2";
+const FROM_VERSION_V2_3_3: &str = "2.3.3";
 
 #[test]
 fn v2_2_0_to_v2_3_0_wrong_contract_name() {
@@ -224,6 +225,61 @@ fn v2_3_2_to_v2_3_3_successful_migration() {
     assert_eq!(new_market.liquidity_index, Decimal::percent(180));
 
     assert!(COLLATERALS.may_load(deps.as_ref().storage, (&user_id_key, denom)).unwrap().is_none());
+
+    let new_contract_version = ContractVersion {
+        contract: CONTRACT_NAME.to_string(),
+        version: CONTRACT_VERSION.to_string(),
+    };
+    assert_eq!(cw2::get_contract_version(deps.as_ref().storage).unwrap(), new_contract_version);
+}
+
+#[test]
+fn v2_3_3_to_v2_3_4_wrong_contract_name() {
+    let mut deps = mock_dependencies(&[]);
+    cw2::set_contract_version(deps.as_mut().storage, "contract_xyz", FROM_VERSION_V2_3_3).unwrap();
+
+    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_3_3ToV2_3_4 {}).unwrap_err();
+
+    assert_eq!(
+        err,
+        ContractError::Version(VersionError::WrongContract {
+            expected: CONTRACT_NAME.to_string(),
+            found: "contract_xyz".to_string()
+        })
+    );
+}
+
+#[test]
+fn v2_3_3_to_v2_3_4_wrong_contract_version() {
+    let mut deps = mock_dependencies(&[]);
+    cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, "2.3.2").unwrap();
+
+    let err = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_3_3ToV2_3_4 {}).unwrap_err();
+
+    assert_eq!(
+        err,
+        ContractError::Version(VersionError::WrongVersion {
+            expected: FROM_VERSION_V2_3_3.to_string(),
+            found: "2.3.2".to_string()
+        })
+    );
+}
+
+#[test]
+fn v2_3_3_to_v2_3_4_successful_migration() {
+    let mut deps = mock_dependencies(&[]);
+    cw2::set_contract_version(deps.as_mut().storage, CONTRACT_NAME, FROM_VERSION_V2_3_3).unwrap();
+
+    let res = migrate(deps.as_mut(), mock_env(), MigrateMsg::V2_3_3ToV2_3_4 {}).unwrap();
+
+    assert_eq!(
+        res.attributes,
+        vec![
+            attr("action", "migrate"),
+            attr("from_version", FROM_VERSION_V2_3_3),
+            attr("to_version", CONTRACT_VERSION),
+        ]
+    );
 
     let new_contract_version = ContractVersion {
         contract: CONTRACT_NAME.to_string(),

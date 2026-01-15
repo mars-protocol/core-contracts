@@ -2672,7 +2672,7 @@ dependencies = [
 
 [[package]]
 name = "mars-credit-manager"
-version = "2.4.1"
+version = "2.4.2"
 dependencies = [
  "anyhow",
  "cosmwasm-schema 1.5.7",
@@ -3045,7 +3045,7 @@ dependencies = [
 
 [[package]]
 name = "mars-red-bank"
-version = "2.3.3"
+version = "2.3.4"
 dependencies = [
  "anyhow",
  "cosmwasm-schema 1.5.7",

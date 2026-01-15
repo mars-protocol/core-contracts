@@ -7,6 +7,7 @@ pub fn mock_rover_contract() -> Box<dyn Contract<Empty>> {
         mars_credit_manager::contract::instantiate,
         mars_credit_manager::contract::query,
     )
+    .with_migrate(mars_credit_manager::contract::migrate)
     .with_reply(mars_credit_manager::contract::reply);
     Box::new(contract)
 }
